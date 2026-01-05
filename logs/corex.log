@@ -1,0 +1,931 @@
+info: CoreX Engine started {"timestamp":"2026-01-05T10:16:24.442Z"}
+info: Twelve Data API key missing in .env {"timestamp":"2026-01-05T10:16:24.490Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T10:16:49.322Z"}
+info: Twelve Data API key missing in .env {"timestamp":"2026-01-05T10:16:49.362Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T10:19:37.552Z"}
+info: Twelve Data API key missing in .env – waiting 30s before retry {"timestamp":"2026-01-05T10:19:37.570Z"}
+info: Twelve Data API key missing in .env – waiting 30s before retry {"timestamp":"2026-01-05T10:20:07.572Z"}
+info: Twelve Data API key missing in .env – waiting 30s before retry {"timestamp":"2026-01-05T10:20:37.577Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T10:20:59.170Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T10:21:05.303Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:21:06.603Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:23:12.721Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:23:14.502Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:25:20.597Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:25:22.605Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:27:27.615Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:27:31.584Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:29:37.993Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:29:40.077Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:31:45.090Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:31:47.605Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:33:52.625Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:33:56.428Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T10:36:12.029Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T10:41:51.029Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:42:02.277Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:42:02.280Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:42:14.353Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:42:14.355Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:42:27.507Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:42:27.579Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:42:33.118Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:42:33.120Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:42:52.231Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:42:52.233Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:43:08.244Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:43:08.245Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:43:49.304Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:43:49.307Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:44:30.331Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:44:30.332Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T10:44:41.382Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:44:52.542Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:44:52.544Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:45:04.615Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:45:04.615Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:45:04.618Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:45:04.617Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:45:17.653Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:45:17.655Z"}
+info: Twelve Data WebSocket error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-05T10:45:32.706Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T10:45:32.707Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T10:58:48.016Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T10:59:01.376Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T11:01:01.262Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:01:03.073Z"}
+info: Twelve Data disconnected, reconnecting... {"timestamp":"2026-01-05T11:03:08.167Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:03:10.753Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:04:15.368Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:04:40.548Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:04:42.868Z"}
+info: Price: event NaN @ undefined {"timestamp":"2026-01-05T11:04:43.144Z"}
+info: Price: status NaN @ undefined {"timestamp":"2026-01-05T11:04:43.146Z"}
+info: Price: success NaN @ undefined {"timestamp":"2026-01-05T11:04:43.148Z"}
+info: Price: fails NaN @ undefined {"timestamp":"2026-01-05T11:04:43.149Z"}
+info: Price: event NaN @ undefined {"timestamp":"2026-01-05T11:05:28.392Z"}
+info: Price: symbol NaN @ undefined {"timestamp":"2026-01-05T11:05:28.394Z"}
+info: Price: currency_base NaN @ undefined {"timestamp":"2026-01-05T11:05:28.395Z"}
+info: Price: currency_quote NaN @ undefined {"timestamp":"2026-01-05T11:05:28.397Z"}
+info: Price: type NaN @ undefined {"timestamp":"2026-01-05T11:05:28.399Z"}
+info: Price: timestamp NaN @ undefined {"timestamp":"2026-01-05T11:05:28.400Z"}
+info: Price: price NaN @ undefined {"timestamp":"2026-01-05T11:05:28.413Z"}
+info: Price: event NaN @ undefined {"timestamp":"2026-01-05T11:06:21.043Z"}
+info: Price: symbol NaN @ undefined {"timestamp":"2026-01-05T11:06:21.079Z"}
+info: Price: currency_base NaN @ undefined {"timestamp":"2026-01-05T11:06:21.206Z"}
+info: Price: currency_quote NaN @ undefined {"timestamp":"2026-01-05T11:06:21.239Z"}
+info: Price: type NaN @ undefined {"timestamp":"2026-01-05T11:06:21.248Z"}
+info: Price: timestamp NaN @ undefined {"timestamp":"2026-01-05T11:06:21.279Z"}
+info: Price: price NaN @ undefined {"timestamp":"2026-01-05T11:06:21.296Z"}
+info: Price: event NaN @ undefined {"timestamp":"2026-01-05T11:07:36.123Z"}
+info: Price: symbol NaN @ undefined {"timestamp":"2026-01-05T11:07:36.125Z"}
+info: Price: currency_base NaN @ undefined {"timestamp":"2026-01-05T11:07:36.126Z"}
+info: Price: currency_quote NaN @ undefined {"timestamp":"2026-01-05T11:07:36.127Z"}
+info: Price: type NaN @ undefined {"timestamp":"2026-01-05T11:07:36.128Z"}
+info: Price: timestamp NaN @ undefined {"timestamp":"2026-01-05T11:07:36.129Z"}
+info: Price: price NaN @ undefined {"timestamp":"2026-01-05T11:07:36.130Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:08:19.422Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:08:23.743Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:08:24.677Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:14:24.623Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:14:28.192Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:14:29.550Z"}
+info: Price: event undefined @ undefined {"timestamp":"2026-01-05T11:14:29.815Z"}
+info: Price: status undefined @ undefined {"timestamp":"2026-01-05T11:14:29.818Z"}
+info: Price: success undefined @ undefined {"timestamp":"2026-01-05T11:14:29.820Z"}
+info: Price: fails undefined @ undefined {"timestamp":"2026-01-05T11:14:29.821Z"}
+info: Price: event undefined @ undefined {"timestamp":"2026-01-05T11:15:21.008Z"}
+info: Price: symbol undefined @ undefined {"timestamp":"2026-01-05T11:15:21.009Z"}
+info: Price: currency_base undefined @ undefined {"timestamp":"2026-01-05T11:15:21.011Z"}
+info: Price: currency_quote undefined @ undefined {"timestamp":"2026-01-05T11:15:21.013Z"}
+info: Price: type undefined @ undefined {"timestamp":"2026-01-05T11:15:21.014Z"}
+info: Price: timestamp undefined @ undefined {"timestamp":"2026-01-05T11:15:21.016Z"}
+info: Price: price undefined @ undefined {"timestamp":"2026-01-05T11:15:21.017Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:15:27.435Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:15:31.004Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:15:32.046Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:15:32.308Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:15:32.311Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:15:32.312Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:15:32.314Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:20.994Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:20.997Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:21.001Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:21.013Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:21.016Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:21.037Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:16:21.063Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.018Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.019Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.021Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.022Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.023Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.025Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:17:21.029Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:17:21.272Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:17:25.868Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:17:26.840Z"}
+warn: Twelve Data disconnected {"timestamp":"2026-01-05T11:18:16.310Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:18:18.067Z"}
+info: Price: undefined 1.16842 @ undefined {"timestamp":"2026-01-05T11:18:20.997Z"}
+warn: Twelve Data disconnected {"timestamp":"2026-01-05T11:18:29.489Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:18:31.305Z"}
+warn: Twelve Data disconnected {"timestamp":"2026-01-05T11:18:38.357Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:18:40.113Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:18:51.655Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:22:19.381Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:22:20.435Z"}
+info: Price: undefined 1.16859 @ undefined {"timestamp":"2026-01-05T11:22:20.967Z"}
+info: Price: undefined 92992.54 @ undefined {"timestamp":"2026-01-05T11:22:21.075Z"}
+info: Price: undefined 92998.03 @ undefined {"timestamp":"2026-01-05T11:22:23.064Z"}
+info: Price: undefined 92998.03 @ undefined {"timestamp":"2026-01-05T11:22:25.067Z"}
+info: Price: undefined 92998.03 @ undefined {"timestamp":"2026-01-05T11:22:26.058Z"}
+info: Price: undefined 92998.03 @ undefined {"timestamp":"2026-01-05T11:22:27.068Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:22:27.275Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:24:15.871Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:24:16.792Z"}
+info: Price: undefined 93069.55 @ undefined {"timestamp":"2026-01-05T11:24:18.070Z"}
+info: Price: undefined 93069.56 @ undefined {"timestamp":"2026-01-05T11:24:19.080Z"}
+info: Price: undefined 93090.51 @ undefined {"timestamp":"2026-01-05T11:24:20.113Z"}
+info: Price: undefined 1.16875 @ undefined {"timestamp":"2026-01-05T11:24:20.986Z"}
+info: Price: undefined 93091.33 @ undefined {"timestamp":"2026-01-05T11:24:21.076Z"}
+info: Price: undefined 93100.01 @ undefined {"timestamp":"2026-01-05T11:24:22.066Z"}
+info: Price: undefined 93118.57 @ undefined {"timestamp":"2026-01-05T11:24:23.063Z"}
+info: Price: undefined 93113.35 @ undefined {"timestamp":"2026-01-05T11:24:24.076Z"}
+info: Price: undefined 93113.32 @ undefined {"timestamp":"2026-01-05T11:24:25.075Z"}
+info: Price: undefined 93106.02 @ undefined {"timestamp":"2026-01-05T11:24:26.072Z"}
+info: Price: undefined 93106.01 @ undefined {"timestamp":"2026-01-05T11:24:27.087Z"}
+info: Price: undefined 93100.21 @ undefined {"timestamp":"2026-01-05T11:24:28.065Z"}
+info: Price: undefined 93100.21 @ undefined {"timestamp":"2026-01-05T11:24:29.072Z"}
+info: Price: undefined 93100.21 @ undefined {"timestamp":"2026-01-05T11:24:30.071Z"}
+info: Price: undefined 93116.01 @ undefined {"timestamp":"2026-01-05T11:24:31.074Z"}
+info: Price: undefined 93123.95 @ undefined {"timestamp":"2026-01-05T11:24:32.144Z"}
+info: Price: undefined 93120.28 @ undefined {"timestamp":"2026-01-05T11:24:33.069Z"}
+info: Price: undefined 93110.1 @ undefined {"timestamp":"2026-01-05T11:24:34.061Z"}
+info: Price: undefined 93108.12 @ undefined {"timestamp":"2026-01-05T11:24:35.071Z"}
+info: Price: undefined 93104.24 @ undefined {"timestamp":"2026-01-05T11:24:36.072Z"}
+info: Price: undefined 93094.02 @ undefined {"timestamp":"2026-01-05T11:24:37.077Z"}
+info: Price: undefined 93093.1 @ undefined {"timestamp":"2026-01-05T11:24:38.061Z"}
+info: Price: undefined 93092.59 @ undefined {"timestamp":"2026-01-05T11:24:39.085Z"}
+info: Price: undefined 93082.75 @ undefined {"timestamp":"2026-01-05T11:24:40.080Z"}
+info: Price: undefined 93085.99 @ undefined {"timestamp":"2026-01-05T11:24:41.082Z"}
+info: Price: undefined 93085.98 @ undefined {"timestamp":"2026-01-05T11:24:42.069Z"}
+info: Price: undefined 93073.01 @ undefined {"timestamp":"2026-01-05T11:24:43.071Z"}
+info: Price: undefined 93063.78 @ undefined {"timestamp":"2026-01-05T11:24:44.066Z"}
+info: Price: undefined 93058.02 @ undefined {"timestamp":"2026-01-05T11:24:45.070Z"}
+info: Price: undefined 93058.01 @ undefined {"timestamp":"2026-01-05T11:24:46.100Z"}
+info: Price: undefined 93058.02 @ undefined {"timestamp":"2026-01-05T11:24:47.061Z"}
+info: Price: undefined 93063.79 @ undefined {"timestamp":"2026-01-05T11:24:48.108Z"}
+info: Price: undefined 93063.78 @ undefined {"timestamp":"2026-01-05T11:24:51.070Z"}
+info: Price: undefined 93061.99 @ undefined {"timestamp":"2026-01-05T11:24:52.082Z"}
+info: Price: undefined 93059.88 @ undefined {"timestamp":"2026-01-05T11:24:58.069Z"}
+info: Price: undefined 93059.89 @ undefined {"timestamp":"2026-01-05T11:25:00.066Z"}
+info: Price: undefined 93059.89 @ undefined {"timestamp":"2026-01-05T11:25:01.079Z"}
+info: Price: undefined 93079.34 @ undefined {"timestamp":"2026-01-05T11:25:02.094Z"}
+info: Price: undefined 93079.34 @ undefined {"timestamp":"2026-01-05T11:25:03.075Z"}
+info: Price: undefined 93079.35 @ undefined {"timestamp":"2026-01-05T11:25:04.062Z"}
+info: Price: undefined 93079.34 @ undefined {"timestamp":"2026-01-05T11:25:05.063Z"}
+info: Price: undefined 93077.95 @ undefined {"timestamp":"2026-01-05T11:25:06.144Z"}
+info: Price: undefined 93077.96 @ undefined {"timestamp":"2026-01-05T11:25:08.061Z"}
+info: Price: undefined 93087.99 @ undefined {"timestamp":"2026-01-05T11:25:11.068Z"}
+info: Price: undefined 93092.68 @ undefined {"timestamp":"2026-01-05T11:25:12.062Z"}
+info: Price: undefined 93098.26 @ undefined {"timestamp":"2026-01-05T11:25:13.072Z"}
+info: Price: undefined 93098.17 @ undefined {"timestamp":"2026-01-05T11:25:14.062Z"}
+info: Price: undefined 93099.99 @ undefined {"timestamp":"2026-01-05T11:25:15.074Z"}
+info: Price: undefined 93099.98 @ undefined {"timestamp":"2026-01-05T11:25:17.064Z"}
+info: Price: undefined 93094.01 @ undefined {"timestamp":"2026-01-05T11:25:18.070Z"}
+info: Price: undefined 93103.64 @ undefined {"timestamp":"2026-01-05T11:25:19.069Z"}
+info: Price: undefined 93103.9 @ undefined {"timestamp":"2026-01-05T11:25:23.069Z"}
+info: Price: undefined 93103.9 @ undefined {"timestamp":"2026-01-05T11:25:24.081Z"}
+info: Price: undefined 93103.89 @ undefined {"timestamp":"2026-01-05T11:25:25.074Z"}
+info: Price: undefined 93094 @ undefined {"timestamp":"2026-01-05T11:25:26.074Z"}
+info: Price: undefined 93099.27 @ undefined {"timestamp":"2026-01-05T11:25:27.098Z"}
+info: Price: undefined 93093.99 @ undefined {"timestamp":"2026-01-05T11:25:28.122Z"}
+info: Price: undefined 93096.02 @ undefined {"timestamp":"2026-01-05T11:25:29.086Z"}
+info: Price: undefined 93091.41 @ undefined {"timestamp":"2026-01-05T11:25:30.073Z"}
+info: Price: undefined 1.16868 @ undefined {"timestamp":"2026-01-05T11:25:35.970Z"}
+info: Price: undefined 93091.41 @ undefined {"timestamp":"2026-01-05T11:25:36.070Z"}
+info: Price: undefined 93091.41 @ undefined {"timestamp":"2026-01-05T11:25:37.076Z"}
+info: Price: undefined 93091.41 @ undefined {"timestamp":"2026-01-05T11:25:38.061Z"}
+info: Price: undefined 93075.34 @ undefined {"timestamp":"2026-01-05T11:25:39.098Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:25:39.884Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:25:43.338Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:25:44.366Z"}
+info: Price: undefined 93063.78 @ undefined {"timestamp":"2026-01-05T11:25:45.064Z"}
+info: Price: undefined 93059.88 @ undefined {"timestamp":"2026-01-05T11:25:46.111Z"}
+info: Price: undefined 93059.89 @ undefined {"timestamp":"2026-01-05T11:25:47.081Z"}
+info: Price: undefined 93069.98 @ undefined {"timestamp":"2026-01-05T11:25:49.073Z"}
+info: Price: undefined 93069.98 @ undefined {"timestamp":"2026-01-05T11:25:50.066Z"}
+info: Price: undefined 93069.96 @ undefined {"timestamp":"2026-01-05T11:25:53.062Z"}
+info: Price: undefined 93060.04 @ undefined {"timestamp":"2026-01-05T11:25:54.066Z"}
+info: Price: undefined 93053.01 @ undefined {"timestamp":"2026-01-05T11:25:55.081Z"}
+info: Price: undefined 93052.22 @ undefined {"timestamp":"2026-01-05T11:25:56.100Z"}
+info: Price: undefined 93052.23 @ undefined {"timestamp":"2026-01-05T11:25:57.071Z"}
+info: Price: undefined 93052.24 @ undefined {"timestamp":"2026-01-05T11:25:58.074Z"}
+info: Price: undefined 93053.21 @ undefined {"timestamp":"2026-01-05T11:25:59.073Z"}
+info: Price: undefined 93062 @ undefined {"timestamp":"2026-01-05T11:26:00.064Z"}
+info: Price: undefined 93061.99 @ undefined {"timestamp":"2026-01-05T11:26:02.103Z"}
+info: Price: undefined 93056.1 @ undefined {"timestamp":"2026-01-05T11:26:05.058Z"}
+info: Price: undefined 93056.09 @ undefined {"timestamp":"2026-01-05T11:26:06.072Z"}
+info: Price: undefined 93056.1 @ undefined {"timestamp":"2026-01-05T11:26:09.077Z"}
+info: Price: undefined 93060.04 @ undefined {"timestamp":"2026-01-05T11:26:12.088Z"}
+info: Price: undefined 93070 @ undefined {"timestamp":"2026-01-05T11:26:14.066Z"}
+info: Price: undefined 93070 @ undefined {"timestamp":"2026-01-05T11:26:15.069Z"}
+info: Price: undefined 93069.99 @ undefined {"timestamp":"2026-01-05T11:26:16.061Z"}
+info: Price: undefined 93070 @ undefined {"timestamp":"2026-01-05T11:26:17.066Z"}
+info: Price: undefined 93070 @ undefined {"timestamp":"2026-01-05T11:26:18.069Z"}
+info: Price: undefined 93066.67 @ undefined {"timestamp":"2026-01-05T11:26:20.171Z"}
+info: Price: undefined 93066.67 @ undefined {"timestamp":"2026-01-05T11:26:21.066Z"}
+info: Price: undefined 93060.08 @ undefined {"timestamp":"2026-01-05T11:26:23.065Z"}
+info: Price: undefined 93070 @ undefined {"timestamp":"2026-01-05T11:26:24.066Z"}
+info: Price: undefined 93074.08 @ undefined {"timestamp":"2026-01-05T11:26:25.059Z"}
+info: Price: undefined 93074.07 @ undefined {"timestamp":"2026-01-05T11:26:26.091Z"}
+info: Price: undefined 93074.08 @ undefined {"timestamp":"2026-01-05T11:26:27.071Z"}
+info: Price: undefined 93074.08 @ undefined {"timestamp":"2026-01-05T11:26:28.065Z"}
+info: Price: undefined 93074.07 @ undefined {"timestamp":"2026-01-05T11:26:29.067Z"}
+info: Price: undefined 93074.36 @ undefined {"timestamp":"2026-01-05T11:26:30.060Z"}
+info: Price: undefined 93074.38 @ undefined {"timestamp":"2026-01-05T11:26:31.076Z"}
+info: Price: undefined 93082.04 @ undefined {"timestamp":"2026-01-05T11:26:32.066Z"}
+info: Price: undefined 93082.03 @ undefined {"timestamp":"2026-01-05T11:26:33.058Z"}
+info: Price: undefined 93082.05 @ undefined {"timestamp":"2026-01-05T11:26:34.062Z"}
+info: Price: undefined 93082.66 @ undefined {"timestamp":"2026-01-05T11:26:35.070Z"}
+info: Price: undefined 93082.67 @ undefined {"timestamp":"2026-01-05T11:26:36.073Z"}
+info: Price: undefined 93082.67 @ undefined {"timestamp":"2026-01-05T11:26:37.084Z"}
+info: Price: undefined 93086.21 @ undefined {"timestamp":"2026-01-05T11:26:38.058Z"}
+info: Price: undefined 93086.89 @ undefined {"timestamp":"2026-01-05T11:26:39.056Z"}
+info: Price: undefined 93086.91 @ undefined {"timestamp":"2026-01-05T11:26:40.062Z"}
+info: Price: undefined 93086.9 @ undefined {"timestamp":"2026-01-05T11:26:41.086Z"}
+info: Price: undefined 93086.9 @ undefined {"timestamp":"2026-01-05T11:26:43.067Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:26:43.456Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:27:06.754Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:27:07.649Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:08.062Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:09.061Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:10.059Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:11.065Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:12.062Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:13.059Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:14.058Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:15.058Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:17.092Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:18.059Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:22.058Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:24.055Z"}
+info: Price: undefined undefined @ undefined {"timestamp":"2026-01-05T11:27:25.056Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:27:26.723Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:27:29.513Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:27:30.542Z"}
+info: Price: undefined 93066.88 @ undefined {"timestamp":"2026-01-05T11:27:31.077Z"}
+info: Price: undefined 93066.88 @ undefined {"timestamp":"2026-01-05T11:27:32.061Z"}
+info: Price: undefined 93066.87 @ undefined {"timestamp":"2026-01-05T11:27:33.060Z"}
+info: Price: undefined 93066.88 @ undefined {"timestamp":"2026-01-05T11:27:34.064Z"}
+info: Price: undefined 93066.88 @ undefined {"timestamp":"2026-01-05T11:27:35.079Z"}
+info: Price: undefined 93066.87 @ undefined {"timestamp":"2026-01-05T11:27:36.058Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:27:38.037Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:31:34.092Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:31:35.037Z"}
+info: Price: BTC/USD 92964 @ 1767612660 {"timestamp":"2026-01-05T11:31:36.064Z"}
+info: Price: BTC/USD 92959.74 @ 1767612660 {"timestamp":"2026-01-05T11:31:37.057Z"}
+info: Price: BTC/USD 92952.28 @ 1767612660 {"timestamp":"2026-01-05T11:31:38.075Z"}
+info: Price: BTC/USD 92948.19 @ 1767612660 {"timestamp":"2026-01-05T11:31:39.065Z"}
+info: Price: BTC/USD 92948.19 @ 1767612660 {"timestamp":"2026-01-05T11:31:40.091Z"}
+info: Price: BTC/USD 92940.78 @ 1767612660 {"timestamp":"2026-01-05T11:31:41.068Z"}
+info: Price: BTC/USD 92940 @ 1767612660 {"timestamp":"2026-01-05T11:31:44.067Z"}
+info: Price: BTC/USD 92940 @ 1767612660 {"timestamp":"2026-01-05T11:31:45.063Z"}
+info: Price: BTC/USD 92940.02 @ 1767612660 {"timestamp":"2026-01-05T11:31:46.054Z"}
+info: Price: BTC/USD 92936.63 @ 1767612660 {"timestamp":"2026-01-05T11:31:48.076Z"}
+info: Price: BTC/USD 92936.62 @ 1767612660 {"timestamp":"2026-01-05T11:31:50.061Z"}
+info: Price: BTC/USD 92936.61 @ 1767612660 {"timestamp":"2026-01-05T11:31:51.082Z"}
+info: Price: BTC/USD 92936.62 @ 1767612660 {"timestamp":"2026-01-05T11:31:52.067Z"}
+info: Price: BTC/USD 92925.06 @ 1767612660 {"timestamp":"2026-01-05T11:31:53.072Z"}
+info: Price: BTC/USD 92919.28 @ 1767612660 {"timestamp":"2026-01-05T11:31:54.073Z"}
+info: Price: BTC/USD 92919.98 @ 1767612660 {"timestamp":"2026-01-05T11:31:55.088Z"}
+info: Price: BTC/USD 92914.01 @ 1767612660 {"timestamp":"2026-01-05T11:31:57.066Z"}
+info: Price: BTC/USD 92914 @ 1767612660 {"timestamp":"2026-01-05T11:31:58.059Z"}
+info: Price: BTC/USD 92914.01 @ 1767612660 {"timestamp":"2026-01-05T11:31:59.074Z"}
+info: Price: BTC/USD 92914.01 @ 1767612660 {"timestamp":"2026-01-05T11:32:00.055Z"}
+info: Price: BTC/USD 92915.4 @ 1767612660 {"timestamp":"2026-01-05T11:32:01.074Z"}
+info: Price: BTC/USD 92917.79 @ 1767612720 {"timestamp":"2026-01-05T11:32:02.064Z"}
+info: Price: BTC/USD 92932.36 @ 1767612720 {"timestamp":"2026-01-05T11:32:03.081Z"}
+info: Price: BTC/USD 92936.61 @ 1767612720 {"timestamp":"2026-01-05T11:32:04.056Z"}
+info: Price: BTC/USD 92936.07 @ 1767612720 {"timestamp":"2026-01-05T11:32:05.061Z"}
+info: Price: BTC/USD 92938.74 @ 1767612720 {"timestamp":"2026-01-05T11:32:06.066Z"}
+info: Price: BTC/USD 92941.42 @ 1767612720 {"timestamp":"2026-01-05T11:32:07.074Z"}
+info: Price: BTC/USD 92941.42 @ 1767612720 {"timestamp":"2026-01-05T11:32:08.057Z"}
+info: Price: BTC/USD 92941.42 @ 1767612720 {"timestamp":"2026-01-05T11:32:09.072Z"}
+info: Price: BTC/USD 92932.02 @ 1767612720 {"timestamp":"2026-01-05T11:32:10.069Z"}
+info: Price: BTC/USD 92938.8 @ 1767612720 {"timestamp":"2026-01-05T11:32:11.068Z"}
+info: Price: BTC/USD 92948.12 @ 1767612720 {"timestamp":"2026-01-05T11:32:12.068Z"}
+info: Price: BTC/USD 92948.12 @ 1767612720 {"timestamp":"2026-01-05T11:32:13.068Z"}
+info: Price: BTC/USD 92948.1 @ 1767612720 {"timestamp":"2026-01-05T11:32:14.067Z"}
+info: Price: BTC/USD 92936.05 @ 1767612720 {"timestamp":"2026-01-05T11:32:16.111Z"}
+info: Price: BTC/USD 92933.99 @ 1767612720 {"timestamp":"2026-01-05T11:32:17.069Z"}
+info: Price: BTC/USD 92930.88 @ 1767612720 {"timestamp":"2026-01-05T11:32:18.180Z"}
+info: Price: BTC/USD 92931.97 @ 1767612720 {"timestamp":"2026-01-05T11:32:19.052Z"}
+info: Price: BTC/USD 92931.98 @ 1767612720 {"timestamp":"2026-01-05T11:32:20.067Z"}
+info: Price: BTC/USD 92931.98 @ 1767612720 {"timestamp":"2026-01-05T11:32:22.058Z"}
+info: Price: BTC/USD 92931.98 @ 1767612720 {"timestamp":"2026-01-05T11:32:23.062Z"}
+info: Price: BTC/USD 92936.01 @ 1767612720 {"timestamp":"2026-01-05T11:32:24.061Z"}
+info: Price: BTC/USD 92946.85 @ 1767612720 {"timestamp":"2026-01-05T11:32:25.080Z"}
+info: Price: BTC/USD 92946.31 @ 1767612720 {"timestamp":"2026-01-05T11:32:26.075Z"}
+info: Price: BTC/USD 92946.3 @ 1767612720 {"timestamp":"2026-01-05T11:32:27.081Z"}
+info: Price: BTC/USD 92947.7 @ 1767612720 {"timestamp":"2026-01-05T11:32:30.067Z"}
+info: Price: BTC/USD 92938 @ 1767612720 {"timestamp":"2026-01-05T11:32:31.069Z"}
+info: Price: BTC/USD 92925.07 @ 1767612720 {"timestamp":"2026-01-05T11:32:32.053Z"}
+info: Price: BTC/USD 92925.07 @ 1767612720 {"timestamp":"2026-01-05T11:32:33.060Z"}
+info: Price: BTC/USD 92930.01 @ 1767612720 {"timestamp":"2026-01-05T11:32:34.065Z"}
+info: Price: BTC/USD 92930.02 @ 1767612720 {"timestamp":"2026-01-05T11:32:35.057Z"}
+info: Price: BTC/USD 92930.02 @ 1767612720 {"timestamp":"2026-01-05T11:32:36.067Z"}
+info: Price: BTC/USD 92930.02 @ 1767612720 {"timestamp":"2026-01-05T11:32:37.057Z"}
+info: Price: BTC/USD 92931.42 @ 1767612720 {"timestamp":"2026-01-05T11:32:38.061Z"}
+info: Price: BTC/USD 92931.42 @ 1767612720 {"timestamp":"2026-01-05T11:32:39.079Z"}
+info: Price: BTC/USD 92931.42 @ 1767612720 {"timestamp":"2026-01-05T11:32:40.142Z"}
+info: Price: BTC/USD 92934.01 @ 1767612720 {"timestamp":"2026-01-05T11:32:41.064Z"}
+info: Price: BTC/USD 92934.01 @ 1767612720 {"timestamp":"2026-01-05T11:32:42.061Z"}
+info: Price: BTC/USD 92934.01 @ 1767612720 {"timestamp":"2026-01-05T11:32:45.063Z"}
+info: Price: BTC/USD 92934.01 @ 1767612720 {"timestamp":"2026-01-05T11:32:47.081Z"}
+info: Price: BTC/USD 92945.31 @ 1767612720 {"timestamp":"2026-01-05T11:32:48.067Z"}
+info: Price: BTC/USD 92947.63 @ 1767612720 {"timestamp":"2026-01-05T11:32:49.066Z"}
+info: Price: BTC/USD 92947.84 @ 1767612720 {"timestamp":"2026-01-05T11:32:51.067Z"}
+info: Price: BTC/USD 92947.84 @ 1767612720 {"timestamp":"2026-01-05T11:32:52.056Z"}
+info: Price: BTC/USD 92947.84 @ 1767612720 {"timestamp":"2026-01-05T11:32:54.074Z"}
+info: Price: BTC/USD 92947.83 @ 1767612720 {"timestamp":"2026-01-05T11:32:55.055Z"}
+info: Price: BTC/USD 92947.84 @ 1767612720 {"timestamp":"2026-01-05T11:32:56.051Z"}
+info: Price: BTC/USD 92950.46 @ 1767612720 {"timestamp":"2026-01-05T11:32:59.058Z"}
+info: Price: BTC/USD 92950.45 @ 1767612720 {"timestamp":"2026-01-05T11:33:01.092Z"}
+info: Price: BTC/USD 92956.12 @ 1767612780 {"timestamp":"2026-01-05T11:33:02.071Z"}
+info: Price: BTC/USD 92956.12 @ 1767612780 {"timestamp":"2026-01-05T11:33:03.056Z"}
+info: Price: BTC/USD 92956.11 @ 1767612780 {"timestamp":"2026-01-05T11:33:04.068Z"}
+info: Price: BTC/USD 92942.02 @ 1767612780 {"timestamp":"2026-01-05T11:33:05.066Z"}
+info: Price: BTC/USD 92947.98 @ 1767612780 {"timestamp":"2026-01-05T11:33:06.061Z"}
+info: Price: BTC/USD 92947.98 @ 1767612780 {"timestamp":"2026-01-05T11:33:07.065Z"}
+info: Price: BTC/USD 92941.99 @ 1767612780 {"timestamp":"2026-01-05T11:33:09.060Z"}
+info: Price: BTC/USD 92941.25 @ 1767612780 {"timestamp":"2026-01-05T11:33:10.063Z"}
+info: Price: BTC/USD 92941.24 @ 1767612780 {"timestamp":"2026-01-05T11:33:11.072Z"}
+info: Price: BTC/USD 92934 @ 1767612780 {"timestamp":"2026-01-05T11:33:13.061Z"}
+info: Price: BTC/USD 92934 @ 1767612780 {"timestamp":"2026-01-05T11:33:14.090Z"}
+info: Price: BTC/USD 92919.28 @ 1767612780 {"timestamp":"2026-01-05T11:33:15.069Z"}
+info: Price: BTC/USD 92919.29 @ 1767612780 {"timestamp":"2026-01-05T11:33:16.078Z"}
+info: Price: BTC/USD 92919.29 @ 1767612780 {"timestamp":"2026-01-05T11:33:19.066Z"}
+info: Price: BTC/USD 92914 @ 1767612780 {"timestamp":"2026-01-05T11:33:20.076Z"}
+info: Price: BTC/USD 92910.48 @ 1767612780 {"timestamp":"2026-01-05T11:33:21.066Z"}
+info: Price: BTC/USD 92910.49 @ 1767612780 {"timestamp":"2026-01-05T11:33:25.050Z"}
+info: Price: BTC/USD 92910.49 @ 1767612780 {"timestamp":"2026-01-05T11:33:26.056Z"}
+info: Price: BTC/USD 92910.49 @ 1767612780 {"timestamp":"2026-01-05T11:33:27.053Z"}
+info: Price: BTC/USD 92910.49 @ 1767612780 {"timestamp":"2026-01-05T11:33:28.070Z"}
+info: Price: BTC/USD 92910.49 @ 1767612780 {"timestamp":"2026-01-05T11:33:29.067Z"}
+info: Price: BTC/USD 92910.49 @ 1767612780 {"timestamp":"2026-01-05T11:33:30.051Z"}
+info: Price: BTC/USD 92910.5 @ 1767612780 {"timestamp":"2026-01-05T11:33:31.075Z"}
+info: Price: BTC/USD 92909.08 @ 1767612780 {"timestamp":"2026-01-05T11:33:33.093Z"}
+info: Price: BTC/USD 92902.1 @ 1767612780 {"timestamp":"2026-01-05T11:33:34.079Z"}
+info: Price: BTC/USD 92900.42 @ 1767612780 {"timestamp":"2026-01-05T11:33:35.061Z"}
+info: Price: BTC/USD 92900.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:36.059Z"}
+info: Price: BTC/USD 92900.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:37.057Z"}
+info: Price: BTC/USD 92900.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:38.064Z"}
+info: Price: BTC/USD 92900.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:39.068Z"}
+info: Price: BTC/USD 92900.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:40.075Z"}
+info: Price: BTC/USD 92900.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:41.056Z"}
+info: Price: BTC/USD 92915.97 @ 1767612780 {"timestamp":"2026-01-05T11:33:42.074Z"}
+info: Price: BTC/USD 92922.07 @ 1767612780 {"timestamp":"2026-01-05T11:33:43.048Z"}
+info: Price: BTC/USD 92922.86 @ 1767612780 {"timestamp":"2026-01-05T11:33:44.077Z"}
+info: Price: BTC/USD 92922.86 @ 1767612780 {"timestamp":"2026-01-05T11:33:45.061Z"}
+info: Price: BTC/USD 92925.06 @ 1767612780 {"timestamp":"2026-01-05T11:33:46.074Z"}
+info: Price: BTC/USD 92925.06 @ 1767612780 {"timestamp":"2026-01-05T11:33:49.069Z"}
+info: Price: BTC/USD 92925.08 @ 1767612780 {"timestamp":"2026-01-05T11:33:50.075Z"}
+info: Price: BTC/USD 92918.1 @ 1767612780 {"timestamp":"2026-01-05T11:33:51.088Z"}
+info: Price: BTC/USD 92912 @ 1767612780 {"timestamp":"2026-01-05T11:33:53.073Z"}
+info: Price: BTC/USD 92908.01 @ 1767612780 {"timestamp":"2026-01-05T11:33:54.060Z"}
+info: Price: BTC/USD 92901.94 @ 1767612780 {"timestamp":"2026-01-05T11:33:55.075Z"}
+info: Price: BTC/USD 92897.37 @ 1767612780 {"timestamp":"2026-01-05T11:33:56.082Z"}
+info: Price: BTC/USD 92897.37 @ 1767612780 {"timestamp":"2026-01-05T11:33:57.066Z"}
+info: Price: BTC/USD 92903.86 @ 1767612780 {"timestamp":"2026-01-05T11:33:58.064Z"}
+info: Price: BTC/USD 92909.99 @ 1767612840 {"timestamp":"2026-01-05T11:34:02.063Z"}
+info: Price: BTC/USD 92904.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:04.070Z"}
+info: Price: BTC/USD 92904 @ 1767612840 {"timestamp":"2026-01-05T11:34:05.075Z"}
+info: Price: BTC/USD 92898.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:10.093Z"}
+info: Price: BTC/USD 92898.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:11.056Z"}
+info: Price: BTC/USD 92904.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:12.059Z"}
+info: Price: BTC/USD 92908.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:13.061Z"}
+info: Price: BTC/USD 92908.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:14.062Z"}
+info: Price: BTC/USD 92908.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:15.059Z"}
+info: Price: BTC/USD 92908.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:16.059Z"}
+info: Price: BTC/USD 92908.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:17.057Z"}
+info: Price: BTC/USD 92908.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:18.054Z"}
+info: Price: BTC/USD 92899.15 @ 1767612840 {"timestamp":"2026-01-05T11:34:20.067Z"}
+info: Price: BTC/USD 92899.16 @ 1767612840 {"timestamp":"2026-01-05T11:34:21.085Z"}
+info: Price: BTC/USD 92910 @ 1767612840 {"timestamp":"2026-01-05T11:34:23.064Z"}
+info: Price: BTC/USD 92910 @ 1767612840 {"timestamp":"2026-01-05T11:34:24.054Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:25.055Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:26.068Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:28.061Z"}
+info: Price: BTC/USD 92910 @ 1767612840 {"timestamp":"2026-01-05T11:34:29.054Z"}
+info: Price: BTC/USD 92910 @ 1767612840 {"timestamp":"2026-01-05T11:34:30.053Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:31.071Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:32.054Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:34.067Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:36.055Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:37.050Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:38.059Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:39.062Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:40.145Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:41.071Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:43.063Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:44.052Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:45.052Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:47.061Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:48.055Z"}
+info: Price: BTC/USD 92904.03 @ 1767612840 {"timestamp":"2026-01-05T11:34:51.080Z"}
+info: Price: BTC/USD 92904.02 @ 1767612840 {"timestamp":"2026-01-05T11:34:52.068Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:53.059Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:55.068Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:34:57.071Z"}
+info: Price: BTC/USD 92910 @ 1767612840 {"timestamp":"2026-01-05T11:34:58.054Z"}
+info: Price: BTC/USD 92910.01 @ 1767612840 {"timestamp":"2026-01-05T11:35:01.058Z"}
+info: Price: BTC/USD 92910 @ 1767612900 {"timestamp":"2026-01-05T11:35:04.054Z"}
+info: Price: BTC/USD 92910.01 @ 1767612900 {"timestamp":"2026-01-05T11:35:05.055Z"}
+info: Price: BTC/USD 92919.24 @ 1767612900 {"timestamp":"2026-01-05T11:35:06.116Z"}
+info: Price: BTC/USD 92928.01 @ 1767612900 {"timestamp":"2026-01-05T11:35:07.183Z"}
+info: Price: BTC/USD 92924.01 @ 1767612900 {"timestamp":"2026-01-05T11:35:08.055Z"}
+info: Price: BTC/USD 92918.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:09.067Z"}
+info: Price: BTC/USD 92918.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:10.062Z"}
+info: Price: BTC/USD 92920.55 @ 1767612900 {"timestamp":"2026-01-05T11:35:13.074Z"}
+info: Price: BTC/USD 92924.01 @ 1767612900 {"timestamp":"2026-01-05T11:35:15.063Z"}
+info: Price: BTC/USD 92924.01 @ 1767612900 {"timestamp":"2026-01-05T11:35:17.050Z"}
+info: Price: BTC/USD 92924.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:18.066Z"}
+info: Price: BTC/USD 92918.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:19.178Z"}
+info: Price: BTC/USD 92907.99 @ 1767612900 {"timestamp":"2026-01-05T11:35:20.053Z"}
+info: Price: BTC/USD 92908 @ 1767612900 {"timestamp":"2026-01-05T11:35:21.170Z"}
+info: Price: BTC/USD 92907.99 @ 1767612900 {"timestamp":"2026-01-05T11:35:22.081Z"}
+info: Price: BTC/USD 92907.99 @ 1767612900 {"timestamp":"2026-01-05T11:35:23.154Z"}
+info: Price: BTC/USD 92907.99 @ 1767612900 {"timestamp":"2026-01-05T11:35:24.070Z"}
+info: Price: BTC/USD 92924.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:25.057Z"}
+info: Price: BTC/USD 92908 @ 1767612900 {"timestamp":"2026-01-05T11:35:26.068Z"}
+info: Price: BTC/USD 92914.12 @ 1767612900 {"timestamp":"2026-01-05T11:35:27.067Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:35:28.054Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T11:35:35.397Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T11:35:36.417Z"}
+info: Price: BTC/USD 92898 @ 1767612900 {"timestamp":"2026-01-05T11:35:37.059Z"}
+info: Price: BTC/USD 92898.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:38.066Z"}
+info: Price: BTC/USD 92898.02 @ 1767612900 {"timestamp":"2026-01-05T11:35:39.058Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T11:35:39.243Z"}
+info: CoreX Engine started {"timestamp":"2026-01-05T12:01:22.915Z"}
+info: Strategy loaded: demo.js {"timestamp":"2026-01-05T12:01:23.046Z"}
+info: Twelve Data WebSocket connected {"timestamp":"2026-01-05T12:01:23.912Z"}
+info: Price: BTC/USD 93114.64 @ 1767614460 {"timestamp":"2026-01-05T12:01:25.052Z"}
+info: Price: BTC/USD 93103.31 @ 1767614460 {"timestamp":"2026-01-05T12:01:26.864Z"}
+info: Price: BTC/USD 93098.46 @ 1767614460 {"timestamp":"2026-01-05T12:01:28.059Z"}
+info: CoreX Engine stopped {"timestamp":"2026-01-05T12:01:29.269Z"}
+info: ⚡ Booting Dynamic Engine... {"timestamp":"2026-01-05T12:26:01.938Z"}
+info: ✅ BitcoinScalper warmed up for BTC/USD {"timestamp":"2026-01-05T12:26:03.527Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T12:31:39.318Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T12:31:39.334Z"}
+info: ✅ BitcoinScalper warmed up with 30 ticks for BTC/USD {"timestamp":"2026-01-05T12:31:43.349Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T12:31:43.366Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T12:31:59.343Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T12:33:15.807Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T12:33:15.822Z"}
+info: ✅ BitcoinScalper warmed up with 30 ticks for BTC/USD {"timestamp":"2026-01-05T12:33:17.016Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T12:33:17.034Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T12:33:27.843Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T12:35:33.345Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T12:35:33.362Z"}
+info: ✅ BitcoinScalper warmed up with 30 ticks for BTC/USD {"timestamp":"2026-01-05T12:35:35.155Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T12:35:35.167Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T12:35:47.259Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T13:19:01.304Z"}
+error: ❌ Critical Startup Failure: this.Ind.RSI is not a function {"timestamp":"2026-01-05T13:19:01.327Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T13:19:01.329Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-05T13:19:01.330Z"}
+info: 🏁 Engine state: IDLE {"timestamp":"2026-01-05T13:19:01.332Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T13:22:18.599Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T13:22:18.625Z"}
+info: ✅ FastEMA warmed up with 20 ticks for BTC/USD {"timestamp":"2026-01-05T13:22:19.830Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T13:22:19.843Z"}
+info: [FastEMA] 🔔 BUY at 92716.41 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:22:55.725Z"}
+info: [FastEMA] 🔔 BUY at 92719.22 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:22:57.736Z"}
+info: [FastEMA] 🔔 BUY at 92711.14 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:06.726Z"}
+info: [FastEMA] 🔔 BUY at 92713.44 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:07.730Z"}
+info: [FastEMA] 🔔 BUY at 92721.3 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:08.708Z"}
+info: [FastEMA] 🔔 BUY at 92721.3 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:09.731Z"}
+info: [FastEMA] 🔔 BUY at 92728 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:11.738Z"}
+info: [FastEMA] 🔔 BUY at 92725.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:12.835Z"}
+info: [FastEMA] 🔔 BUY at 92725.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:13.725Z"}
+info: [FastEMA] 🔔 BUY at 92725.48 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:14.737Z"}
+info: [FastEMA] 🔔 BUY at 92724.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:15.740Z"}
+info: [FastEMA] 🔔 BUY at 92725.88 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:16.761Z"}
+info: [FastEMA] 🔔 BUY at 92725.58 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:17.738Z"}
+info: [FastEMA] 🔔 BUY at 92727.7 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:18.859Z"}
+info: [FastEMA] 🔔 BUY at 92756.56 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:40.824Z"}
+info: [FastEMA] 🔔 BUY at 92756.56 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:41.750Z"}
+info: [FastEMA] 🔔 BUY at 92756.95 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:42.774Z"}
+info: [FastEMA] 🔔 BUY at 92756.94 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:43.746Z"}
+info: [FastEMA] 🔔 BUY at 92753.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:53.748Z"}
+info: [FastEMA] 🔔 BUY at 92752.37 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:23:54.743Z"}
+info: [FastEMA] 🔔 BUY at 92743.94 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:09.745Z"}
+info: [FastEMA] 🔔 BUY at 92748 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:10.730Z"}
+info: [FastEMA] 🔔 BUY at 92746.82 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:11.748Z"}
+info: [FastEMA] 🔔 BUY at 92746.82 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:12.747Z"}
+info: [FastEMA] 🔔 BUY at 92746.82 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:13.742Z"}
+info: [FastEMA] 🔔 BUY at 92750.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:17.708Z"}
+info: [FastEMA] 🔔 BUY at 92750.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:18.716Z"}
+info: [FastEMA] 🔔 BUY at 92751.14 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:27.732Z"}
+info: [FastEMA] 🔔 BUY at 92756.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:44.723Z"}
+info: [FastEMA] 🔔 BUY at 92756.07 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:45.731Z"}
+info: [FastEMA] 🔔 BUY at 92757.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:24:58.942Z"}
+info: [FastEMA] 🔔 BUY at 92758.29 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:08.714Z"}
+info: [FastEMA] 🔔 BUY at 92760.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:09.735Z"}
+info: [FastEMA] 🔔 BUY at 92750.25 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:26.725Z"}
+info: [FastEMA] 🔔 BUY at 92750.28 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:27.737Z"}
+info: [FastEMA] 🔔 BUY at 92750.29 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:28.717Z"}
+info: [FastEMA] 🔔 BUY at 92750.29 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:29.742Z"}
+info: [FastEMA] 🔔 BUY at 92750.29 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:30.728Z"}
+info: [FastEMA] 🔔 BUY at 92750.3 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:25:32.717Z"}
+info: [FastEMA] 🔔 BUY at 92706.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:26:36.182Z"}
+info: [FastEMA] 🔔 BUY at 92718.22 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:26:36.184Z"}
+info: [FastEMA] 🔔 BUY at 92753.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:38.730Z"}
+info: [FastEMA] 🔔 BUY at 92753.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:39.707Z"}
+info: [FastEMA] 🔔 BUY at 92753.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:42.725Z"}
+info: [FastEMA] 🔔 BUY at 92753.18 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:43.734Z"}
+info: [FastEMA] 🔔 BUY at 92753.19 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:45.710Z"}
+info: [FastEMA] 🔔 BUY at 92753.19 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:46.722Z"}
+info: [FastEMA] 🔔 BUY at 92753.19 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:49.715Z"}
+info: [FastEMA] 🔔 BUY at 92753.19 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:52.760Z"}
+info: [FastEMA] 🔔 BUY at 92753.18 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:27:54.700Z"}
+info: [FastEMA] 🔔 BUY at 92739.39 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:28:25.563Z"}
+info: [FastEMA] 🔔 BUY at 92740.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:28:26.212Z"}
+info: [FastEMA] 🔔 BUY at 92751.94 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:01.351Z"}
+info: [FastEMA] 🔔 BUY at 92751.66 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.761Z"}
+info: [FastEMA] 🔔 BUY at 92749.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.765Z"}
+info: [FastEMA] 🔔 BUY at 92750.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.767Z"}
+info: [FastEMA] 🔔 BUY at 92750.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.774Z"}
+info: [FastEMA] 🔔 BUY at 92750.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.780Z"}
+info: [FastEMA] 🔔 BUY at 92750.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.798Z"}
+info: [FastEMA] 🔔 BUY at 92750.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.804Z"}
+info: [FastEMA] 🔔 BUY at 92750 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.807Z"}
+info: [FastEMA] 🔔 BUY at 92750.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:02.808Z"}
+info: [FastEMA] 🔔 BUY at 92741.51 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:09.818Z"}
+info: [FastEMA] 🔔 BUY at 92742.46 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:10.928Z"}
+info: [FastEMA] 🔔 BUY at 92741.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:15.869Z"}
+info: [FastEMA] 🔔 BUY at 92742.5 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:16.890Z"}
+info: [FastEMA] 🔔 BUY at 92743.39 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:18.015Z"}
+info: [FastEMA] 🔔 BUY at 92743.39 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:18.998Z"}
+info: [FastEMA] 🔔 BUY at 92744.48 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:20.995Z"}
+info: [FastEMA] 🔔 BUY at 92740.8 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:28.194Z"}
+info: [FastEMA] 🔔 BUY at 92745.92 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:28.976Z"}
+info: [FastEMA] 🔔 BUY at 92744.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:31.058Z"}
+info: [FastEMA] 🔔 BUY at 92744.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:32.032Z"}
+info: [FastEMA] 🔔 BUY at 92744.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:32.946Z"}
+info: [FastEMA] 🔔 BUY at 92744.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:38.562Z"}
+info: [FastEMA] 🔔 BUY at 92744.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:39.881Z"}
+info: [FastEMA] 🔔 BUY at 92744.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:40.730Z"}
+info: [FastEMA] 🔔 BUY at 92742.64 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:42.726Z"}
+info: [FastEMA] 🔔 BUY at 92744.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:50.798Z"}
+info: [FastEMA] 🔔 BUY at 92744.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:55.708Z"}
+info: [FastEMA] 🔔 BUY at 92744.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:56.704Z"}
+info: [FastEMA] 🔔 BUY at 92744.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:29:57.730Z"}
+info: [FastEMA] 🔔 BUY at 92744.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:30:04.705Z"}
+info: [FastEMA] 🔔 BUY at 92741.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:30:10.710Z"}
+info: [FastEMA] 🔔 BUY at 92741.22 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:30:11.710Z"}
+info: [FastEMA] 🔔 BUY at 92700.45 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:07.702Z"}
+info: [FastEMA] 🔔 BUY at 92700.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:08.780Z"}
+info: [FastEMA] 🔔 BUY at 92692.28 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:09.708Z"}
+info: [FastEMA] 🔔 BUY at 92696.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:10.735Z"}
+info: [FastEMA] 🔔 BUY at 92696.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:11.720Z"}
+info: [FastEMA] 🔔 BUY at 92698.17 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:12.703Z"}
+info: [FastEMA] 🔔 BUY at 92704.9 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:13.726Z"}
+info: [FastEMA] 🔔 BUY at 92707.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:14.705Z"}
+info: [FastEMA] 🔔 BUY at 92707.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:15.705Z"}
+info: [FastEMA] 🔔 BUY at 92702.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:53.711Z"}
+info: [FastEMA] 🔔 BUY at 92705.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:54.705Z"}
+info: [FastEMA] 🔔 BUY at 92710.27 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:55.705Z"}
+info: [FastEMA] 🔔 BUY at 92710.06 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:56.720Z"}
+info: [FastEMA] 🔔 BUY at 92710.06 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:31:57.702Z"}
+info: [FastEMA] 🔔 BUY at 92683.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:32:23.714Z"}
+info: [FastEMA] 🔔 BUY at 92713.87 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:32:42.708Z"}
+info: [FastEMA] 🔔 BUY at 92702.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:02.700Z"}
+info: [FastEMA] 🔔 BUY at 92704.07 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:03.718Z"}
+info: [FastEMA] 🔔 BUY at 92705.39 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:05.708Z"}
+info: [FastEMA] 🔔 BUY at 92694.36 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:18.732Z"}
+info: [FastEMA] 🔔 BUY at 92698.88 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:19.740Z"}
+info: [FastEMA] 🔔 BUY at 92670.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:31.710Z"}
+info: [FastEMA] 🔔 BUY at 92680.72 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:32.715Z"}
+info: [FastEMA] 🔔 BUY at 92674.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:34.716Z"}
+info: [FastEMA] 🔔 BUY at 92674.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:35.722Z"}
+info: [FastEMA] 🔔 BUY at 92674.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:36.733Z"}
+info: [FastEMA] 🔔 BUY at 92674.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:37.698Z"}
+info: [FastEMA] 🔔 BUY at 92677 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:38.702Z"}
+info: [FastEMA] 🔔 BUY at 92680 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:40.706Z"}
+info: [FastEMA] 🔔 BUY at 92679.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:41.733Z"}
+info: [FastEMA] 🔔 BUY at 92679.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:42.703Z"}
+info: [FastEMA] 🔔 BUY at 92679.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:43.705Z"}
+info: [FastEMA] 🔔 BUY at 92679.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:44.727Z"}
+info: [FastEMA] 🔔 BUY at 92679.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:45.701Z"}
+info: [FastEMA] 🔔 BUY at 92678.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:33:49.724Z"}
+info: [FastEMA] 🔔 BUY at 92686.54 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:07.697Z"}
+info: [FastEMA] 🔔 BUY at 92686.54 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:08.696Z"}
+info: [FastEMA] 🔔 BUY at 92679.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:09.717Z"}
+info: [FastEMA] 🔔 BUY at 92679.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:10.731Z"}
+info: [FastEMA] 🔔 BUY at 92679.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:11.693Z"}
+info: [FastEMA] 🔔 BUY at 92680 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:12.703Z"}
+info: [FastEMA] 🔔 BUY at 92680 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:13.709Z"}
+info: [FastEMA] 🔔 BUY at 92685.73 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:14.709Z"}
+info: [FastEMA] 🔔 BUY at 92696.57 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:34:41.707Z"}
+info: [FastEMA] 🔔 BUY at 92679.9 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:10.727Z"}
+info: [FastEMA] 🔔 BUY at 92679.9 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:11.704Z"}
+info: [FastEMA] 🔔 BUY at 92679.17 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:14.697Z"}
+info: [FastEMA] 🔔 BUY at 92679.18 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:15.705Z"}
+info: [FastEMA] 🔔 BUY at 92681.97 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:16.708Z"}
+info: [FastEMA] 🔔 BUY at 92685.56 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:17.715Z"}
+info: [FastEMA] 🔔 BUY at 92686.94 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:18.696Z"}
+info: [FastEMA] 🔔 BUY at 92690.78 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:26.825Z"}
+info: [FastEMA] 🔔 BUY at 92690.78 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:27.703Z"}
+info: [FastEMA] 🔔 BUY at 92690.79 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:28.699Z"}
+info: [FastEMA] 🔔 BUY at 92690.78 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:29.695Z"}
+info: [FastEMA] 🔔 BUY at 92692.66 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:32.705Z"}
+info: [FastEMA] 🔔 BUY at 92691.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:41.709Z"}
+info: [FastEMA] 🔔 BUY at 92691.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:35:42.735Z"}
+info: [FastEMA] 🔔 BUY at 92684 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:08.007Z"}
+info: [FastEMA] 🔔 BUY at 92684 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:08.182Z"}
+info: [FastEMA] 🔔 BUY at 92688 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:11.814Z"}
+info: [FastEMA] 🔔 BUY at 92688 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:12.783Z"}
+info: [FastEMA] 🔔 BUY at 92688 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:13.739Z"}
+info: [FastEMA] 🔔 BUY at 92687.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:14.754Z"}
+info: [FastEMA] 🔔 BUY at 92686.17 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:18.069Z"}
+info: [FastEMA] 🔔 BUY at 92686.17 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:19.756Z"}
+info: [FastEMA] 🔔 BUY at 92637.22 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:46.700Z"}
+info: [FastEMA] 🔔 BUY at 92631.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:49.705Z"}
+info: [FastEMA] 🔔 BUY at 92635.36 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:50.786Z"}
+info: [FastEMA] 🔔 BUY at 92635.4 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:36:51.901Z"}
+info: [FastEMA] 🔔 BUY at 92596 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:15.712Z"}
+info: [FastEMA] 🔔 BUY at 92599.49 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:16.833Z"}
+info: [FastEMA] 🔔 BUY at 92599.49 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:18.770Z"}
+info: [FastEMA] 🔔 BUY at 92600.88 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:19.705Z"}
+info: [FastEMA] 🔔 BUY at 92635.9 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:42.436Z"}
+info: [FastEMA] 🔔 BUY at 92627.93 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:53.698Z"}
+info: [FastEMA] 🔔 BUY at 92628.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:54.716Z"}
+info: [FastEMA] 🔔 BUY at 92632.61 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:37:56.692Z"}
+info: [FastEMA] 🔔 BUY at 92647.36 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:08.711Z"}
+info: [FastEMA] 🔔 BUY at 92642.68 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:09.698Z"}
+info: [FastEMA] 🔔 BUY at 92647.58 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:11.708Z"}
+info: [FastEMA] 🔔 BUY at 92647.58 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:12.700Z"}
+info: [FastEMA] 🔔 BUY at 92641.46 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:20.695Z"}
+info: [FastEMA] 🔔 BUY at 92642.09 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:25.698Z"}
+info: [FastEMA] 🔔 BUY at 92642.1 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:26.710Z"}
+info: [FastEMA] 🔔 BUY at 92642.1 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:27.732Z"}
+info: [FastEMA] 🔔 BUY at 92642.09 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:28.704Z"}
+info: [FastEMA] 🔔 BUY at 92642.09 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:29.687Z"}
+info: [FastEMA] 🔔 BUY at 92647.59 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:30.948Z"}
+info: [FastEMA] 🔔 BUY at 92643.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:38:32.694Z"}
+info: [FastEMA] 🔔 BUY at 92639.89 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:04.785Z"}
+info: [FastEMA] 🔔 BUY at 92642.18 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:06.291Z"}
+info: [FastEMA] 🔔 BUY at 92644.09 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:06.717Z"}
+info: [FastEMA] 🔔 BUY at 92644.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:07.715Z"}
+info: [FastEMA] 🔔 BUY at 92644.6 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:08.705Z"}
+info: [FastEMA] 🔔 BUY at 92661.33 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:24.694Z"}
+info: [FastEMA] 🔔 BUY at 92655.87 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:35.696Z"}
+info: [FastEMA] 🔔 BUY at 92656.51 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:36.708Z"}
+info: [FastEMA] 🔔 BUY at 92656.5 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:37.796Z"}
+info: [FastEMA] 🔔 BUY at 92656.5 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:38.744Z"}
+info: [FastEMA] 🔔 BUY at 92656.5 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:39.698Z"}
+info: [FastEMA] 🔔 BUY at 92656.5 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:39:41.572Z"}
+info: [FastEMA] 🔔 BUY at 92639.52 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:40:47.700Z"}
+info: [FastEMA] 🔔 BUY at 92566.59 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:36.697Z"}
+info: [FastEMA] 🔔 BUY at 92568 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:37.711Z"}
+info: [FastEMA] 🔔 BUY at 92556.96 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:48.693Z"}
+info: [FastEMA] 🔔 BUY at 92558.59 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:49.730Z"}
+info: [FastEMA] 🔔 BUY at 92558.57 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:50.723Z"}
+info: [FastEMA] 🔔 BUY at 92558 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:51.693Z"}
+info: [FastEMA] 🔔 BUY at 92563.33 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:53.763Z"}
+info: [FastEMA] 🔔 BUY at 92567.49 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:54.818Z"}
+info: [FastEMA] 🔔 BUY at 92563.9 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:41:55.717Z"}
+info: [FastEMA] 🔔 BUY at 92531.4 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:10.704Z"}
+info: [FastEMA] 🔔 BUY at 92534.38 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:18.484Z"}
+info: [FastEMA] 🔔 BUY at 92520 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:37.706Z"}
+info: [FastEMA] 🔔 BUY at 92520.45 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:38.713Z"}
+info: [FastEMA] 🔔 BUY at 92521.85 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:39.702Z"}
+info: [FastEMA] 🔔 BUY at 92526.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:40.733Z"}
+info: [FastEMA] 🔔 BUY at 92519.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:41.704Z"}
+info: [FastEMA] 🔔 BUY at 92523.92 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:46.703Z"}
+info: [FastEMA] 🔔 BUY at 92526.51 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:47.701Z"}
+info: [FastEMA] 🔔 BUY at 92521.35 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:49.706Z"}
+info: [FastEMA] 🔔 BUY at 92528.33 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:50.715Z"}
+info: [FastEMA] 🔔 BUY at 92524.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:51.696Z"}
+info: [FastEMA] 🔔 BUY at 92524.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:52.702Z"}
+info: [FastEMA] 🔔 BUY at 92524.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:53.696Z"}
+info: [FastEMA] 🔔 BUY at 92527.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:54.706Z"}
+info: [FastEMA] 🔔 BUY at 92524.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:55.715Z"}
+info: [FastEMA] 🔔 BUY at 92530.82 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:42:58.699Z"}
+info: [FastEMA] 🔔 BUY at 92526.93 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:00.270Z"}
+info: [FastEMA] 🔔 BUY at 92524.4 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:00.778Z"}
+info: [FastEMA] 🔔 BUY at 92528.35 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:01.719Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:24.797Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:25.695Z"}
+info: [FastEMA] 🔔 BUY at 92600 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:26.687Z"}
+info: [FastEMA] 🔔 BUY at 92600 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:27.702Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:29.708Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:31.700Z"}
+info: [FastEMA] 🔔 BUY at 92600 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:43:32.688Z"}
+info: [FastEMA] 🔔 BUY at 92584 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:13.696Z"}
+info: [FastEMA] 🔔 BUY at 92584.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:14.696Z"}
+info: [FastEMA] 🔔 BUY at 92555.15 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:43.691Z"}
+info: [FastEMA] 🔔 BUY at 92555.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:44.691Z"}
+info: [FastEMA] 🔔 BUY at 92566.69 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:45.697Z"}
+info: [FastEMA] 🔔 BUY at 92566.7 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:46.689Z"}
+info: [FastEMA] 🔔 BUY at 92566.69 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:47.703Z"}
+info: [FastEMA] 🔔 BUY at 92566.7 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:48.695Z"}
+info: [FastEMA] 🔔 BUY at 92566.7 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:44:49.702Z"}
+info: [FastEMA] 🔔 BUY at 92549.28 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:17.711Z"}
+info: [FastEMA] 🔔 BUY at 92549.27 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:18.686Z"}
+info: [FastEMA] 🔔 BUY at 92575.03 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:39.684Z"}
+info: [FastEMA] 🔔 BUY at 92581.63 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:43.690Z"}
+info: [FastEMA] 🔔 BUY at 92572.5 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:44.690Z"}
+info: [FastEMA] 🔔 BUY at 92572.49 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:45.692Z"}
+info: [FastEMA] 🔔 BUY at 92572.49 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:46.680Z"}
+info: [FastEMA] 🔔 BUY at 92572.51 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:47.689Z"}
+info: [FastEMA] 🔔 BUY at 92573.44 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:48.689Z"}
+info: [FastEMA] 🔔 BUY at 92573.43 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:49.691Z"}
+info: [FastEMA] 🔔 BUY at 92573.44 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:50.716Z"}
+info: [FastEMA] 🔔 BUY at 92577.97 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:51.685Z"}
+info: [FastEMA] 🔔 BUY at 92580.67 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:54.683Z"}
+info: [FastEMA] 🔔 BUY at 92580.67 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:55.688Z"}
+info: [FastEMA] 🔔 BUY at 92580.66 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:45:57.693Z"}
+info: [FastEMA] 🔔 BUY at 92583.92 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:00.696Z"}
+info: [FastEMA] 🔔 BUY at 92583.91 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:01.705Z"}
+info: [FastEMA] 🔔 BUY at 92583.92 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:14.692Z"}
+info: [FastEMA] 🔔 BUY at 92598.97 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:25.705Z"}
+info: [FastEMA] 🔔 BUY at 92601.68 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:27.688Z"}
+info: [FastEMA] 🔔 BUY at 92598.52 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:28.700Z"}
+info: [FastEMA] 🔔 BUY at 92598.52 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:29.696Z"}
+info: [FastEMA] 🔔 BUY at 92598.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:30.739Z"}
+info: [FastEMA] 🔔 BUY at 92598.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:31.715Z"}
+info: [FastEMA] 🔔 BUY at 92598.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:32.704Z"}
+info: [FastEMA] 🔔 BUY at 92598.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:33.713Z"}
+info: [FastEMA] 🔔 BUY at 92598.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:35.693Z"}
+info: [FastEMA] 🔔 BUY at 92598.53 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:36.710Z"}
+info: [FastEMA] 🔔 BUY at 92601.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:37.694Z"}
+info: [FastEMA] 🔔 BUY at 92593.59 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:49.695Z"}
+info: [FastEMA] 🔔 BUY at 92593.59 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:50.697Z"}
+info: [FastEMA] 🔔 BUY at 92593.6 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:46:51.692Z"}
+info: [FastEMA] 🔔 BUY at 92610.25 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:47:18.734Z"}
+info: [FastEMA] 🔔 BUY at 92620.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:47:30.710Z"}
+info: [FastEMA] 🔔 BUY at 92620.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:47:31.924Z"}
+info: [FastEMA] 🔔 BUY at 92620.13 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:47:37.748Z"}
+info: [FastEMA] 🔔 BUY at 92620.11 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:47:38.700Z"}
+info: [FastEMA] 🔔 BUY at 92596.07 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:02.677Z"}
+info: [FastEMA] 🔔 BUY at 92599.43 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:03.949Z"}
+info: [FastEMA] 🔔 BUY at 92598.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:03.953Z"}
+info: [FastEMA] 🔔 BUY at 92597.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:09.782Z"}
+info: [FastEMA] 🔔 BUY at 92600 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:11.904Z"}
+info: [FastEMA] 🔔 BUY at 92599.58 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:11.906Z"}
+info: [FastEMA] 🔔 BUY at 92596 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:14.906Z"}
+info: [FastEMA] 🔔 BUY at 92598.4 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:14.907Z"}
+info: [FastEMA] 🔔 BUY at 92599.66 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:14.909Z"}
+info: [FastEMA] 🔔 BUY at 92598.44 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:15.693Z"}
+info: [FastEMA] 🔔 BUY at 92599.65 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:16.704Z"}
+info: [FastEMA] 🔔 BUY at 92599.77 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:18.704Z"}
+info: [FastEMA] 🔔 BUY at 92599.76 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:19.684Z"}
+info: [FastEMA] 🔔 BUY at 92599.76 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:20.696Z"}
+info: [FastEMA] 🔔 BUY at 92601.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:28.029Z"}
+info: [FastEMA] 🔔 BUY at 92600.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:28.031Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:28.401Z"}
+info: [FastEMA] 🔔 BUY at 92600.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:28.403Z"}
+info: [FastEMA] 🔔 BUY at 92600.02 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:28.404Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:29.722Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:32.696Z"}
+info: [FastEMA] 🔔 BUY at 92600.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:33.708Z"}
+info: [FastEMA] 🔔 BUY at 92600 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:35.038Z"}
+info: [FastEMA] 🔔 BUY at 92592.45 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:51.720Z"}
+info: [FastEMA] 🔔 BUY at 92595.51 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:52.696Z"}
+info: [FastEMA] 🔔 BUY at 92595.4 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:53.687Z"}
+info: [FastEMA] 🔔 BUY at 92595.29 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:54.695Z"}
+info: [FastEMA] 🔔 BUY at 92594.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:55.692Z"}
+info: [FastEMA] 🔔 BUY at 92594.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:56.696Z"}
+info: [FastEMA] 🔔 BUY at 92594.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:57.692Z"}
+info: [FastEMA] 🔔 BUY at 92594.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:48:59.049Z"}
+info: [FastEMA] 🔔 BUY at 92594.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:00.039Z"}
+info: [FastEMA] 🔔 BUY at 92594.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:01.244Z"}
+info: [FastEMA] 🔔 BUY at 92594.83 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:01.699Z"}
+info: [FastEMA] 🔔 BUY at 92594.83 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:02.707Z"}
+info: [FastEMA] 🔔 BUY at 92594.83 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:03.697Z"}
+info: [FastEMA] 🔔 BUY at 92580.01 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:48.807Z"}
+info: [FastEMA] 🔔 BUY at 92578.64 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:48.816Z"}
+info: [FastEMA] 🔔 BUY at 92578.61 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:49:49.254Z"}
+info: [FastEMA] 🔔 BUY at 92558.37 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:13.713Z"}
+info: [FastEMA] 🔔 BUY at 92560 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:14.742Z"}
+info: [FastEMA] 🔔 BUY at 92558.57 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:15.695Z"}
+info: [FastEMA] 🔔 BUY at 92584.04 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:27.696Z"}
+info: [FastEMA] 🔔 BUY at 92569.27 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:55.692Z"}
+info: [FastEMA] 🔔 BUY at 92569.25 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:56.688Z"}
+info: [FastEMA] 🔔 BUY at 92569.27 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:57.700Z"}
+info: [FastEMA] 🔔 BUY at 92571.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:58.697Z"}
+info: [FastEMA] 🔔 BUY at 92571.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:50:59.768Z"}
+info: [FastEMA] 🔔 BUY at 92571.16 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:00.762Z"}
+info: [FastEMA] 🔔 BUY at 92571.15 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:01.719Z"}
+info: [FastEMA] 🔔 BUY at 92602 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:25.696Z"}
+info: [FastEMA] 🔔 BUY at 92605.6 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:26.693Z"}
+info: [FastEMA] 🔔 BUY at 92605.59 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:28.695Z"}
+info: [FastEMA] 🔔 BUY at 92603.05 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:39.687Z"}
+info: [FastEMA] 🔔 BUY at 92603.06 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:40.683Z"}
+info: [FastEMA] 🔔 BUY at 92604 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:41.687Z"}
+info: [FastEMA] 🔔 BUY at 92602.61 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:42.694Z"}
+info: [FastEMA] 🔔 BUY at 92602.62 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:43.685Z"}
+info: [FastEMA] 🔔 BUY at 92600.17 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:46.728Z"}
+info: [FastEMA] 🔔 BUY at 92601.97 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:47.692Z"}
+info: [FastEMA] 🔔 BUY at 92601.98 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:48.690Z"}
+info: [FastEMA] 🔔 BUY at 92601.99 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:50.717Z"}
+info: [FastEMA] 🔔 BUY at 92605.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:51.690Z"}
+info: [FastEMA] 🔔 BUY at 92605.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:52.694Z"}
+info: [FastEMA] 🔔 BUY at 92605.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:53.717Z"}
+info: [FastEMA] 🔔 BUY at 92603.84 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:54.698Z"}
+info: [FastEMA] 🔔 BUY at 92605.23 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:56.684Z"}
+info: [FastEMA] 🔔 BUY at 92605.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:58.682Z"}
+info: [FastEMA] 🔔 BUY at 92605.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:51:59.682Z"}
+info: [FastEMA] 🔔 BUY at 92605.24 | Reason: Price > EMA + RSI < 60 {"timestamp":"2026-01-05T13:52:00.727Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T13:52:26.873Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T13:52:33.587Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T13:52:33.610Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T13:52:34.848Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:01:47.017Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:01:51.456Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:01:51.487Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:01:52.617Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:03:10.672Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:03:16.383Z"}
+error: ❌ Critical Startup Failure: Cannot read properties of undefined (reading 'forEach') {"timestamp":"2026-01-05T14:03:16.413Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:03:16.416Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-05T14:03:16.418Z"}
+info: 🏁 Engine state: IDLE {"timestamp":"2026-01-05T14:03:16.422Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:04:34.930Z"}
+error: ❌ Critical Startup Failure: Cannot read properties of undefined (reading 'forEach') {"timestamp":"2026-01-05T14:04:34.955Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:04:34.957Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-05T14:04:34.959Z"}
+info: 🏁 Engine state: IDLE {"timestamp":"2026-01-05T14:04:34.960Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:06:09.061Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:06:09.090Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:06:10.567Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:11:12.103Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:11:18.463Z"}
+error: ❌ Startup Failure: loader.init is not a function {"timestamp":"2026-01-05T14:11:18.474Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:11:18.477Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-05T14:11:18.479Z"}
+info: 🏁 Engine state: IDLE {"timestamp":"2026-01-05T14:11:18.480Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:12:27.938Z"}
+error: ❌ Critical Startup Failure: loader.init is not a function {"timestamp":"2026-01-05T14:12:27.949Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:12:27.951Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-05T14:12:27.953Z"}
+info: 🏁 Engine state: IDLE {"timestamp":"2026-01-05T14:12:27.954Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:16:34.618Z"}
+info: 🔄 Strategy [Alpha_v1] (demo.js) synced. {"timestamp":"2026-01-05T14:16:34.649Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:16:34.657Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:16:49.923Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:32:07.537Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:32:11.202Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:32:11.230Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:32:12.348Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:13.696Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:14.729Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:15.726Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:16.713Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:17.690Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:18.784Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:19.786Z"}
+error: [Alpha_v1] Rejected tick: Missing timestamp for BTC/USD {"timestamp":"2026-01-05T14:32:20.666Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:32:21.273Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:38:14.367Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:38:14.391Z"}
+error: History Error: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-05T14:38:25.992Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:38:26.004Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:38:35.185Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:39:51.726Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:39:51.760Z"}
+error: History Error: Client network socket disconnected before secure TLS connection was established {"timestamp":"2026-01-05T14:40:10.690Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:40:10.703Z"}
+error: [FinalCheck] Data Integrity Error: Missing/Invalid timestamp on BTC/USD. Check Broker mapping. {"timestamp":"2026-01-05T14:40:12.656Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:42:48.664Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T14:42:51.756Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T14:42:51.787Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T14:42:53.561Z"}
+error: [FinalCheck] Data Integrity Error: Missing/Invalid timestamp on BTC/USD. Check Broker mapping. {"timestamp":"2026-01-05T14:42:54.654Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T14:43:00.379Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T15:24:08.799Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T15:24:08.834Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T15:24:10.053Z"}
+error: [FinalCheck] Data Integrity Error: Missing/Invalid timestamp on BTC/USD. Check Broker mapping. {"timestamp":"2026-01-05T15:24:11.715Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T15:25:36.260Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T15:25:39.913Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T15:25:39.939Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T15:25:41.725Z"}
+info: TwelveData WS connected. Subscribing to: BTC/USD {"timestamp":"2026-01-05T15:25:42.596Z"}
+error: [FinalCheck] Runtime Error: this.getCurrentCandle is not a function {"timestamp":"2026-01-05T15:26:01.768Z"}
+error: [FinalCheck] Runtime Error: this.getCurrentCandle is not a function {"timestamp":"2026-01-05T15:27:01.620Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T15:27:48.687Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T15:27:51.920Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T15:27:51.947Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T15:27:53.040Z"}
+info: TwelveData WS connected. Subscribing to: BTC/USD {"timestamp":"2026-01-05T15:27:54.057Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T15:28:04.167Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T15:30:42.756Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T15:30:42.785Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T15:30:44.691Z"}
+info: TwelveData WS connected. Subscribing to: BTC/USD {"timestamp":"2026-01-05T15:30:45.545Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T15:31:47.645Z"}
