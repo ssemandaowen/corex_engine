@@ -929,3 +929,8 @@ info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T15:30:42.785
 info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T15:30:44.691Z"}
 info: TwelveData WS connected. Subscribing to: BTC/USD {"timestamp":"2026-01-05T15:30:45.545Z"}
 info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T15:31:47.645Z"}
+info: 🚀 CoreX Production Engine initializing... {"timestamp":"2026-01-05T15:37:42.948Z"}
+info: 📉 Beginning historical seeding... {"timestamp":"2026-01-05T15:37:42.978Z"}
+info: 🟢 Engine state: RUNNING {"timestamp":"2026-01-05T15:37:44.027Z"}
+info: TwelveData WS connected. Subscribing to: BTC/USD {"timestamp":"2026-01-05T15:37:44.957Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-05T15:37:48.205Z"}
