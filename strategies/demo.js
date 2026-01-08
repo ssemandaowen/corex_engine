@@ -5,24 +5,25 @@ class FinalCheck extends BaseStrategy {
     super({
       name: "FinalCheck",
       symbols: ["BTC/USD"],
-      timeframe: "1m",
-      candleBased: false // Set to false to see every tick in the log
+      timeframe: "1m"
     });
+    this.tickCount = 0;
   }
 
-  next(tick, isWarmup) {
-    if (isWarmup) return;
+  next(tick, isBacktest) {
+    if (!tick || !tick.price) return;
 
-    const candle = this.getCurrentCandle(tick.symbol);
-    
-    // Safety check: The first few ticks might not have a full candle object yet
-    if (!candle) {
-      console.log(`[WAITING] ${tick.symbol} @ ${tick.price} (Aggregating first candle...)`);
-      return;
+    // 1. If we DON'T have a position, look for an entry
+    if (!this.position) {
+        // Example: Simple "Rapid Fire" entry
+        this.buy();
+    } 
+    // 2. If we DO have a position, look for an exit
+    else {
+        // Example: Simple "Rapid Fire" exit
+        this.sell();
     }
-
-    console.log(`[LIVE] ${tick.symbol}: ${tick.price} | Candle Start: ${new Date(candle.timeStart).toLocaleTimeString()}`);
-  }
+}
 }
 
-module.exports = new FinalCheck();
+module.exports = FinalCheck;

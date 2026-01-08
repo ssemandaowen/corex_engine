@@ -1,175 +1,138 @@
-const Indicators = require("./indicators");
-const logger = require("./logger");
+const { bus, EVENTS } = require('../events/bus');
+const logger = require('./logger');
 
 class BaseStrategy {
   constructor(config = {}) {
-    this.name = config.name || this.constructor.name;
+    this.id = config.id || 'strategy_' + Date.now();
+    this.name = config.name || "BaseStrategy";
     this.symbols = config.symbols || [];
-    this.lookback = config.lookback || 100;
-    this.timeframeStr = config.timeframe || "1m";
-    this.timeframeMs = this._parseTimeframe(this.timeframeStr);
+    this.timeframe = config.timeframe || "1m";
+    this.lookback = config.lookback || 100; // Limit candles in RAM
+    this.candleBased = config.candleBased !== undefined ? config.candleBased : true;
     
-    // Hard Freeze: Forcing explicit behavior
-    this.candleBased = config.candleBased ?? false;
-    this.Ind = Indicators;
+    this.enabled = false;
+    this.startTime = null;
+    this.lastTickTime = 0; // Sequence Guard
+    this.data = new Map(); // Store for each symbol
 
-    // --- Risk Layer (Frozen) ---
-    this.balance = config.initialBalance || 10000;
-    this.startBalance = this.balance;
-    this.riskPerTrade = config.riskPerTrade || 0.02;
-    this.maxDrawdown = config.maxDrawdown || 0.20;
-
-    // --- State ---
-    this.isWarmedUp = false;
-    this.position = null; 
-    this.data = new Map();
-    this.stats = { wins: 0, losses: 0, totalPnl: 0, trades: [] };
-
-    this._initializeStores();
+    this._initDataStores();
   }
 
-  // Inside BaseStrategy class
-onPrice(tick, isWarmup = false) {
-  const { symbol, price, time } = tick;
+  _initDataStores() {
+    this.symbols.forEach(symbol => {
+      this.data.set(symbol, {
+        currentTick: null,
+        candleHistory: [],
+        activeCandle: null
+      });
+    });
+  }
 
-  // STRICT CHECK: Finalized for today
-  if (!time || isNaN(time)) {
-    if (!this._badTickLogged) { // Prevent spam
-        logger.error(`[${this.name}] Data Integrity Error: Missing/Invalid timestamp on ${symbol}. Check Broker mapping.`);
-        this._badTickLogged = true;
+  /**
+   * Primary entry point for market data.
+   */
+  onPrice(tick, isWarmup = false) {
+    if (!this.enabled && !isWarmup) return;
+
+    // 1. SEQUENCE GUARD: Drop delayed or duplicate ticks
+    if (tick.time <= this.lastTickTime) return;
+    this.lastTickTime = tick.time;
+
+    const store = this.data.get(tick.symbol);
+    if (!store) return;
+
+    store.currentTick = tick;
+
+    // 2. CANDLE AGGREGATION
+    const candleClosed = this._updateCandle(store, tick.time, tick.price);
+
+    // 3. MEMORY MANAGEMENT: Cap history to prevent RAM exhaustion
+    if (candleClosed && store.candleHistory.length > this.lookback) {
+      store.candleHistory = store.candleHistory.slice(-this.lookback);
     }
-    return;
-  }
 
-  const store = this.data.get(symbol);
-  if (!store) return;
-
-  // 1. Logic State Update
-  store.prevTick = store.currentTick;
-  store.currentTick = tick;
-
-  // 2. Candle Aggregation
-  const candleClosed = this._updateCandle(store, time, price);
-
-  // 3. Execution Protection
-  if (this._checkDrawdownLimit()) return;
-  
-  if (!isWarmup && this.position && this.position.symbol === symbol) {
-    this._checkAutoExits(price);
-  }
-
-  // 4. Strategy Pulse
-  if (!this.candleBased || candleClosed) {
+    // 4. EXECUTION FLOW
     try {
-      this.next(tick, isWarmup);
+      if (!this.candleBased || candleClosed) {
+        this.next(tick, isWarmup);
+      }
     } catch (err) {
-      logger.error(`[${this.name}] Runtime Error: ${err.message}`);
+      logger.error(`[${this.name}] Execution Error: ${err.message}`);
     }
   }
 
-  if (!isWarmup) this.isWarmedUp = true;
-}
-
-  // --- INTERNAL: NO MAGIC ---
-
-  _updateCandle(store, time, price) {
+  _updateCandle(store, timestamp, price) {
     let closed = false;
+    const tfMs = this._getTFMs();
+    const candleStart = Math.floor(timestamp / tfMs) * tfMs;
 
-    if (!store.currentCandle) {
-      store.currentCandle = this._createNewCandle(time, price);
-    } else {
-      const nextStart = store.currentCandle.timeStart + this.timeframeMs;
-      if (time >= nextStart) {
-        store.candleHistory.push({ ...store.currentCandle });
-        if (store.candleHistory.length > this.lookback) store.candleHistory.shift();
-        store.currentCandle = this._createNewCandle(time, price);
+    if (!store.activeCandle || store.activeCandle.timestamp !== candleStart) {
+      if (store.activeCandle) {
+        store.candleHistory.push({ ...store.activeCandle });
         closed = true;
-      } else {
-        store.currentCandle.high = Math.max(store.currentCandle.high, price);
-        store.currentCandle.low = Math.min(store.currentCandle.low, price);
-        store.currentCandle.close = price;
       }
+      store.activeCandle = { timestamp: candleStart, open: price, high: price, low: price, close: price, volume: 0 };
+    } else {
+      store.activeCandle.high = Math.max(store.activeCandle.high, price);
+      store.activeCandle.low = Math.min(store.activeCandle.low, price);
+      store.activeCandle.close = price;
     }
     return closed;
   }
 
-  _createNewCandle(time, price) {
-    return {
-      timeStart: Math.floor(time / this.timeframeMs) * this.timeframeMs,
-      open: price, high: price, low: price, close: price
+  _getTFMs() {
+    const unit = this.timeframe.slice(-1);
+    const val = parseInt(this.timeframe);
+    if (unit === 'm') return val * 60 * 1000;
+    if (unit === 'h') return val * 60 * 60 * 1000;
+    return 60 * 1000;
+  }
+
+  // To be overridden by your strategy scripts
+  next(tick, isWarmup) {}
+
+  // --- VIRTUAL ORDERS (Backtester Bridge) ---
+  
+  /**
+   * BUY: Signals an entry. 
+   * In Backtest: Trigger grademark 'enter'
+   * In Live: Trigger 'ORDER.CREATE' event
+   */
+  buy(params = {}) {
+    if (this.position) return; // Prevent double entries
+
+    const order = {
+      strategyId: this.id,
+      side: 'BUY',
+      symbol: params.symbol || this.symbols[0],
+      price: params.price || this.data.get(this.symbols[0]).currentTick.price,
+      timestamp: Date.now()
     };
+
+    this.position = { type: 'LONG', entry: order.price };
+    
+    // The BacktestManager will override this.buy for testing. 
+    // This line only runs during LIVE mode.
+    bus.emit(EVENTS.ORDER.CREATE, order);
   }
 
-  _initializeStores() {
-    this.symbols.forEach(s => {
-      this.data.set(s, { currentTick: null, prevTick: null, currentCandle: null, candleHistory: [] });
-    });
-  }
+  /**
+   * SELL: Signals an exit.
+   */
+  sell(params = {}) {
+    if (!this.position) return; // Nothing to close
 
-  _parseTimeframe(tf) {
-    const val = parseInt(tf);
-    const unit = tf.slice(-1);
-    const map = { s: 1000, m: 60000, h: 3600000, d: 86400000 };
-    if (!map[unit]) throw new Error(`Unsupported timeframe: ${tf}`);
-    return val * map[unit];
-  }
+    const order = {
+      strategyId: this.id,
+      side: 'SELL',
+      symbol: params.symbol || this.symbols[0],
+      price: params.price || this.data.get(this.symbols[0]).currentTick.price,
+      timestamp: Date.now()
+    };
 
-  // Broker Helpers
-  enter(side, { price, sl = null, tp = null, symbol = this.symbols[0] }) {
-    if (this.position) return false;
-    const qty = this._calculatePositionSize(price, sl);
-    if (qty <= 0) return false;
-
-    this.position = { symbol, side: side.toUpperCase(), entryPrice: price, qty, sl, tp, entryTime: Date.now() };
-    logger.info(`[${this.name}] 🟢 ENTER ${side} @ ${price}`);
-    return true;
-  }
-
-  close(price, reason = "SIGNAL") {
-    if (!this.position) return false;
-    const { side, entryPrice, qty } = this.position;
-    const pnl = side === "LONG" ? (price - entryPrice) * qty : (entryPrice - price) * qty;
-    this.balance += pnl;
-    this.stats.totalPnl += pnl;
-    pnl >= 0 ? this.stats.wins++ : this.stats.losses++;
-    logger.info(`[${this.name}] 🔴 CLOSE @ ${price} | PnL: ${pnl.toFixed(2)} | Reason: ${reason}`);
     this.position = null;
-    return true;
+    bus.emit(EVENTS.ORDER.CREATE, order);
   }
-
-  _calculatePositionSize(price, sl) {
-    if (!sl) return (this.balance * 0.1) / price;
-    const riskAmount = this.balance * this.riskPerTrade;
-    const riskPerUnit = Math.abs(price - sl);
-    return Math.min(riskAmount / riskPerUnit, (this.balance * 0.95) / price);
-  }
-
-  _checkAutoExits(price) {
-    const { side, sl, tp } = this.position;
-    if (side === "LONG") {
-      if (sl && price <= sl) this.close(price, "STOP_LOSS");
-      else if (tp && price >= tp) this.close(price, "TAKE_PROFIT");
-    } else {
-      if (sl && price >= sl) this.close(price, "STOP_LOSS");
-      else if (tp && price <= tp) this.close(price, "TAKE_PROFIT");
-    }
-  }
-
-  _checkDrawdownLimit() {
-    const dd = (this.startBalance - this.balance) / this.startBalance;
-    return dd >= this.maxDrawdown;
-  }
-
-  // Add/Ensure these methods exist inside your BaseStrategy class
-getCurrentCandle(symbol = this.symbols[0]) {
-  const store = this.data.get(symbol);
-  return store ? store.currentCandle : null;
-}
-
-getCandles(symbol = this.symbols[0]) {
-  const store = this.data.get(symbol);
-  return store ? store.candleHistory : [];
-}
 }
 
 module.exports = BaseStrategy;
