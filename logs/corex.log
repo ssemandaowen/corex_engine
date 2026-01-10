@@ -258,3 +258,214 @@ error: History Error: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"202
 info: ☁️ Backtest: Fetching from Twelve Data API [BTC/USD] {"timestamp":"2026-01-07T17:33:03.306Z"}
 error: History Error: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-07T17:33:15.362Z"}
 info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-07T17:53:22.728Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-08T18:07:10.121Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-08T18:07:10.143Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-08T18:07:10.145Z"}
+info: 🌐 CoreX Control Server: ACTIVE on Port 3000 {"timestamp":"2026-01-08T18:07:10.162Z"}
+info: 🔐 Admin Security: ENABLED (Whitelist/Token Required) {"timestamp":"2026-01-08T18:07:10.164Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T14:34:08.071Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T14:34:08.092Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T14:34:08.094Z"}
+info: 🌐 CoreX Control Server: ACTIVE on Port 3000 {"timestamp":"2026-01-09T14:34:08.099Z"}
+info: 🔐 Admin Security: ENABLED (Whitelist/Token Required) {"timestamp":"2026-01-09T14:34:08.100Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T14:45:32.160Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T14:45:38.385Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T14:45:38.409Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T14:45:38.411Z"}
+info: 🌐 CoreX Control Server: ACTIVE on Port 3000 {"timestamp":"2026-01-09T14:45:38.416Z"}
+error: ⚠️ Bad JSON Payload from ::1 {"timestamp":"2026-01-09T14:57:45.431Z"}
+error: ⚠️ Bad JSON Payload from ::1 {"timestamp":"2026-01-09T14:58:03.564Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T14:59:09.091Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T14:59:14.133Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T14:59:14.154Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T14:59:14.156Z"}
+info: 🌐 CoreX Control Server: ACTIVE on Port 3000 {"timestamp":"2026-01-09T14:59:14.162Z"}
+info: 🔐 Admin Security: ENABLED (Whitelist/Token Required) {"timestamp":"2026-01-09T14:59:14.163Z"}
+info: 🔄 Re-syncing broker for FinalCheck... {"timestamp":"2026-01-09T15:01:52.542Z"}
+info: 📝 Strategy registered and live: FinalCheck {"timestamp":"2026-01-09T15:01:52.713Z"}
+info: ⚡ API Command: Strategy demo started. {"timestamp":"2026-01-09T15:01:52.718Z"}
+info: 🌐 TwelveData WS Connected. Subscribing to: BTC/USD {"timestamp":"2026-01-09T15:01:54.996Z"}
+info: 🗑️ Unregistering strategy: FinalCheck {"timestamp":"2026-01-09T15:02:47.997Z"}
+warn: 🛑 API Command: Strategy demo stopped. {"timestamp":"2026-01-09T15:02:47.999Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T15:04:14.112Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T15:04:37.430Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T15:04:37.450Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T15:04:37.452Z"}
+info: 🌐 CoreX Control Server: ACTIVE on Port 3000 {"timestamp":"2026-01-09T15:04:37.455Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T15:40:53.947Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T15:54:50.927Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T15:54:50.948Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T15:54:50.950Z"}
+info: 🌐 CoreX Control Server: ACTIVE on Port 3000 {"timestamp":"2026-01-09T15:54:50.956Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T16:18:28.275Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T16:18:34.733Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T16:18:34.755Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T16:18:34.757Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T16:18:34.763Z"}
+info: 🗑️ Unregistering strategy: FinalCheck {"timestamp":"2026-01-09T16:19:07.009Z"}
+warn: 🛑 API Command: Strategy demo stopped. {"timestamp":"2026-01-09T16:19:07.011Z"}
+info: 🔄 Re-syncing broker for FinalCheck... {"timestamp":"2026-01-09T16:22:23.601Z"}
+info: 📝 Strategy registered and live: FinalCheck {"timestamp":"2026-01-09T16:22:23.780Z"}
+info: ⚡ API Command: Strategy demo started. {"timestamp":"2026-01-09T16:22:23.781Z"}
+info: 🌐 TwelveData WS Connected. Subscribing to: BTC/USD {"timestamp":"2026-01-09T16:22:24.666Z"}
+info: 🗑️ Unregistering strategy: FinalCheck {"timestamp":"2026-01-09T16:38:17.748Z"}
+warn: 🛑 API Command: Strategy demo stopped. {"timestamp":"2026-01-09T16:38:17.749Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T16:38:22.499Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T16:38:29.066Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T16:38:29.086Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T16:38:29.089Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T16:38:29.093Z"}
+info: 🗑️ Unregistering strategy: test_run_strategy {"timestamp":"2026-01-09T16:38:32.820Z"}
+warn: 🛑 API Command: Strategy demo stopped. {"timestamp":"2026-01-09T16:38:32.829Z"}
+info: 🔄 Re-syncing broker for test_run_strategy... {"timestamp":"2026-01-09T16:38:53.036Z"}
+info: 📝 Strategy registered and live: test_run_strategy {"timestamp":"2026-01-09T16:38:53.178Z"}
+info: ⚡ API Command: Strategy demo started. {"timestamp":"2026-01-09T16:38:53.179Z"}
+info: 🌐 TwelveData WS Connected. Subscribing to: BTC/USD {"timestamp":"2026-01-09T16:38:54.798Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T16:45:04.847Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T16:45:11.887Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T16:45:11.924Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T16:45:11.930Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T16:45:11.961Z"}
+info: 🔄 Re-syncing broker for test_run_strategy... {"timestamp":"2026-01-09T16:45:18.725Z"}
+info: 📝 Strategy registered and live: test_run_strategy {"timestamp":"2026-01-09T16:45:18.963Z"}
+info: ⚡ API Command: Strategy demo started. {"timestamp":"2026-01-09T16:45:19.010Z"}
+info: 🌐 TwelveData WS Connected. Subscribing to: BTC/USD {"timestamp":"2026-01-09T16:45:20.565Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:21.361Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:22.378Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:23.330Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:24.283Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:25.306Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:26.427Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:27.347Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:28.250Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:29.283Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:30.289Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:31.387Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:32.292Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:34.294Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:35.313Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:36.231Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:37.342Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:38.316Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:39.357Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:40.248Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:41.229Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:42.237Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:43.206Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:44.298Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:45.334Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:46.259Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:47.249Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:48.251Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:49.241Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:50.287Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:51.312Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:52.786Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:53.767Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:54.310Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:55.249Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:56.222Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:57.271Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:45:59.374Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:00.272Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:01.334Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:02.211Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:03.475Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:04.239Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:05.675Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:06.464Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:07.637Z"}
+error: [test_run_strategy] Runtime Logic Error: logger is not defined {"timestamp":"2026-01-09T16:46:08.615Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T16:46:14.007Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T16:46:20.049Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T16:46:20.098Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T16:46:20.101Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T16:46:20.131Z"}
+info: 🔄 Re-syncing broker for test_run_strategy... {"timestamp":"2026-01-09T16:55:01.814Z"}
+info: 📝 Strategy registered and live: test_run_strategy {"timestamp":"2026-01-09T16:55:01.932Z"}
+info: ⚡ API Command: Strategy demo started. {"timestamp":"2026-01-09T16:55:01.935Z"}
+error: ❌ WS Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-09T16:55:02.586Z"}
+warn: 🔌 TwelveData WS Disconnected. {"timestamp":"2026-01-09T16:55:02.589Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T16:55:18.324Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T16:56:59.906Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T16:56:59.927Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T16:56:59.928Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T16:56:59.932Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T17:18:40.899Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T17:18:47.042Z"}
+info: 📁 Strategy found and staged: TEST_STRAT (Status: IDLE) {"timestamp":"2026-01-09T17:18:47.065Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T17:18:47.068Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T17:18:47.072Z"}
+info: 🔄 Re-syncing broker for test_run_strategy... {"timestamp":"2026-01-09T17:20:43.308Z"}
+info: 📝 Strategy registered and live: test_run_strategy {"timestamp":"2026-01-09T17:20:43.446Z"}
+info: ⚡ API Command: Strategy TEST_STRAT started. {"timestamp":"2026-01-09T17:20:43.448Z"}
+error: ❌ WS Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-09T17:20:54.466Z"}
+warn: 🔌 TwelveData WS Disconnected. {"timestamp":"2026-01-09T17:20:54.468Z"}
+info: 🛑 Graceful shutdown initiated... {"timestamp":"2026-01-09T17:24:10.022Z"}
+info: 🚀 CoreX Production Engine: CONTROL PLANE ACTIVE {"timestamp":"2026-01-09T17:24:15.889Z"}
+info: 📁 Strategy found and staged: demo (Status: IDLE) {"timestamp":"2026-01-09T17:24:15.912Z"}
+info: 🟢 Engine state: RUNNING (Waiting for strategy activation) {"timestamp":"2026-01-09T17:24:15.914Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T17:24:15.921Z"}
+info: 🔄 Re-syncing broker for test_strategy... {"timestamp":"2026-01-09T17:24:20.054Z"}
+info: 📝 Strategy registered and live: test_strategy {"timestamp":"2026-01-09T17:24:20.182Z"}
+info: ⚡ API Command: Strategy demo started. {"timestamp":"2026-01-09T17:24:20.184Z"}
+error: ❌ WS Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-09T17:24:31.227Z"}
+warn: 🔌 TwelveData WS Disconnected. {"timestamp":"2026-01-09T17:24:31.229Z"}
+info: 🗑️ Unregistering strategy: test_strategy {"timestamp":"2026-01-09T17:24:55.178Z"}
+warn: 🛑 API Command: Strategy demo stopped. {"timestamp":"2026-01-09T17:24:55.180Z"}
+info: ✅ Strategy [demo] Staged | State: IDLE {"timestamp":"2026-01-09T20:49:54.140Z"}
+info: 🔭 Strategy Watcher active: C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-09T20:49:54.171Z"}
+info: 🟢 CoreX Engine: Optimized Distribution Active {"timestamp":"2026-01-09T20:49:54.177Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-09T20:49:54.184Z"}
+warn: 🚫 Unauthorized access attempt from IP: ::1 {"timestamp":"2026-01-09T21:16:24.740Z"}
+warn: 🚫 Unauthorized access attempt from IP: ::1 {"timestamp":"2026-01-09T21:28:43.194Z"}
+warn: 🚫 Unauthorized access attempt from IP: ::1 {"timestamp":"2026-01-10T08:42:52.964Z"}
+warn: 🚫 Unauthorized access attempt from IP: ::1 {"timestamp":"2026-01-10T08:51:15.080Z"}
+warn: 🚫 Unauthorized access attempt from IP: ::1 {"timestamp":"2026-01-10T08:54:33.517Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-10T09:41:00.738Z"}
+info: ✅ Strategy [demo] Staged | State: IDLE {"timestamp":"2026-01-10T09:41:36.976Z"}
+info: 🔭 Strategy Watcher active: C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-10T09:41:36.987Z"}
+info: 🟢 CoreX Engine: Optimized Distribution Active {"timestamp":"2026-01-10T09:41:36.992Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-10T09:41:36.996Z"}
+info: 🔄 Change detected: [rename] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:06.412Z"}
+info: ✅ Strategy [pair] Staged | State: IDLE {"timestamp":"2026-01-10T10:10:06.420Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:26.250Z"}
+error: ❌ Load Error [pair]: FinalCheck is not defined {"timestamp":"2026-01-10T10:10:26.255Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:26.259Z"}
+error: ❌ Load Error [pair]: FinalCheck is not defined {"timestamp":"2026-01-10T10:10:26.265Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:26.270Z"}
+error: ❌ Load Error [pair]: FinalCheck is not defined {"timestamp":"2026-01-10T10:10:26.272Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:46.768Z"}
+error: ❌ Load Error [pair]: FinalCheck is not defined {"timestamp":"2026-01-10T10:10:46.771Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:46.776Z"}
+error: ❌ Load Error [pair]: FinalCheck is not defined {"timestamp":"2026-01-10T10:10:46.779Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:10:46.782Z"}
+error: ❌ Load Error [pair]: FinalCheck is not defined {"timestamp":"2026-01-10T10:10:46.784Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:11:34.299Z"}
+info: ✅ Strategy [pair] Updated | State: IDLE {"timestamp":"2026-01-10T10:11:34.302Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:11:34.307Z"}
+info: ✅ Strategy [pair] Updated | State: IDLE {"timestamp":"2026-01-10T10:11:34.309Z"}
+info: 🔄 Change detected: [change] on pair.js. Re-syncing... {"timestamp":"2026-01-10T10:11:34.314Z"}
+info: ✅ Strategy [pair] Updated | State: IDLE {"timestamp":"2026-01-10T10:11:34.316Z"}
+info: Twelve Data Broker cleaned up. {"timestamp":"2026-01-10T11:25:47.650Z"}
+info: ✅ Strategy [demo] Staged | State: IDLE {"timestamp":"2026-01-10T11:26:13.836Z"}
+info: ✅ Strategy [pair] Staged | State: IDLE {"timestamp":"2026-01-10T11:26:13.851Z"}
+info: 🔭 Strategy Watcher active: C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-10T11:26:13.853Z"}
+info: 🟢 CoreX Engine: Optimized Distribution Active {"timestamp":"2026-01-10T11:26:13.859Z"}
+info: 🌐 CoreX Control Server: Port 3000 (API Prefix: /api) {"timestamp":"2026-01-10T11:26:13.862Z"}
+info: 🧹 TwelveData Broker: Cleaned and Purged. {"timestamp":"2026-01-10T12:54:34.664Z"}
+info: ✅ Strategy [demo] Staged {"timestamp":"2026-01-10T12:54:46.071Z"}
+info: ✅ Strategy [pair] Staged {"timestamp":"2026-01-10T12:54:46.080Z"}
+info: 🟢 CoreX Engine: Production Distribution Active {"timestamp":"2026-01-10T12:54:46.085Z"}
+info: 🌐 CoreX Hub: Production Ready on Port 3000 {"timestamp":"2026-01-10T12:54:46.089Z"}
+info: 🧹 TwelveData Broker: Cleaned and Purged. {"timestamp":"2026-01-10T13:04:11.595Z"}
+info: ✅ Strategy [demo] Staged {"timestamp":"2026-01-10T13:04:22.586Z"}
+info: ✅ Strategy [pair] Staged {"timestamp":"2026-01-10T13:04:22.594Z"}
+info: 🟢 CoreX Engine: Production Distribution Active {"timestamp":"2026-01-10T13:04:22.600Z"}
+info: 🌐 CoreX Hub: Production Ready on Port 3000 {"timestamp":"2026-01-10T13:04:22.604Z"}
+info: 🔗 Linking [test_strategy] to Stream... {"timestamp":"2026-01-10T13:11:51.085Z"}
+info: 🔥 Warming up [test_strategy] (100 candles)... {"timestamp":"2026-01-10T13:11:51.087Z"}
+warn: ⚠️ Data Gap: No history found for BTC/USD {"timestamp":"2026-01-10T13:11:53.937Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-10T13:11:54.732Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-10T13:11:54.738Z"}
+info: 🧹 TwelveData Broker: Cleaned and Purged. {"timestamp":"2026-01-10T13:22:58.496Z"}

@@ -1,9 +1,9 @@
 const BaseStrategy = require("../utils/BaseStrategy");
 
-class FinalCheck extends BaseStrategy {
+class Pair extends BaseStrategy {
   constructor() {
     super({
-      name: "test_strategy",
+      name: "Pair",
       symbols: ["BTC/USD"],
       timeframe: "1m"
     });
@@ -16,4 +16,4 @@ class FinalCheck extends BaseStrategy {
 }
 }
 
-module.exports = FinalCheck;
+module.exports = Pair;

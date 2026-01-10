@@ -1,120 +1,196 @@
+"use strict";
+
 const WebSocket = require("ws");
 const axios = require("axios");
-const { bus, EVENTS } = require("../events/bus"); // Use destructured bus and EVENTS
+const { bus, EVENTS } = require("../events/bus");
 const logger = require("../utils/logger");
 
+// 1. ADD THIS MAP: Translates CoreX timeframes to TwelveData format
+const INTERVAL_MAP = {
+    '1m': '1min',
+    '5m': '5min',
+    '15m': '15min',
+    '1h': '1h',
+    '4h': '4h',
+    '1d': '1day'
+};
+
 class TwelveDataBroker {
-  constructor() {
-    this.stream = null;
-    this.symbols = new Set(); // Use Set to prevent duplicates
-    this.apiKey = process.env.TWELVE_DATA_KEY;
-    this.heartbeatTimer = null;
-  }
+    constructor() {
+        // --- 1. CONFIGURATION ---
+        this.config = {
+            restBase: "https://api.twelvedata.com",
+            wsBase: "wss://ws.twelvedata.com/v1/quotes/price",
+            apiKey: process.env.TWELVE_DATA_KEY,
+            heartbeatMs: 10000,
+            reconnectLimit: 5
+        };
 
-  format(symbol, price, rawTimestamp) {
-    if (!rawTimestamp) return null;
-    return { 
-      symbol, 
-      price: parseFloat(price), 
-      time: parseInt(rawTimestamp) * 1000 
-    };
-  }
-
-  // Server Preparation: Method to dynamically update symbols from API/StrategyLoader
-  updateSymbols(symbolArray) {
-    const previousSize = this.symbols.size;
-    symbolArray.forEach(s => this.symbols.add(s));
-    
-    // If we are already connected and new symbols were added, re-subscribe
-    if (this.stream?.readyState === WebSocket.OPEN && this.symbols.size > previousSize) {
-      this.subscribe(symbolArray);
+        // --- 2. STATE MANAGEMENT ---
+        this.stream = null;
+        this.symbols = new Set();
+        this.reconnectAttempts = 0;
+        this.heartbeatTimer = null;
     }
-  }
-subscribe(symbolArray) {
-    if (this.stream?.readyState === WebSocket.OPEN) {
-        this.stream.send(JSON.stringify({
+
+    /**
+     * @private
+     * UNIFIED NORMALIZER: Ensures data consistency between REST and WebSocket
+     */
+    _normalize(data, symbolOverride = null) {
+        const timestamp = data.timestamp 
+            ? parseInt(data.timestamp) * 1000 
+            : new Date(data.datetime).getTime();
+
+        return {
+            symbol: data.symbol || symbolOverride,
+            time: timestamp,
+            open: parseFloat(data.open || data.price),
+            high: parseFloat(data.high || data.price),
+            low: parseFloat(data.low || data.price),
+            close: parseFloat(data.close || data.price),
+            price: parseFloat(data.price || data.close),
+            volume: parseFloat(data.volume || 0),
+            is_live: !!data.event // Meta-tag to distinguish live ticks
+        };
+    }
+
+    /**
+     * DYNAMIC SYMBOL MANAGEMENT
+     */
+    updateSymbols(symbolArray) {
+        const currentSize = this.symbols.size;
+        symbolArray.forEach(s => this.symbols.add(s));
+        
+        if (this.stream?.readyState === WebSocket.OPEN && this.symbols.size > currentSize) {
+            this.subscribe(symbolArray);
+        }
+    }
+
+    subscribe(symbolArray) {
+        if (!this.stream || this.stream.readyState !== WebSocket.OPEN) return;
+        
+        const payload = JSON.stringify({
             action: "subscribe",
             params: { symbols: symbolArray.join(",") }
-        }));
-    }
-}
-
- async fetchHistory(symbol, interval, outputsize) {
-  try {
-    const res = await axios.get(`https://api.twelvedata.com/time_series`, {
-      params: { symbol, interval, outputsize, apikey: this.apiKey }
-    });
-
-    if (!res.data.values) {
-        logger.warn(`⚠️ No historical values for ${symbol}`);
-        return [];
+        });
+        
+        this.stream.send(payload);
+        logger.info(`📡 WS Subscription sent for: ${symbolArray.length} symbols.`);
     }
 
-    // FIRMING: Return the RAW array. 
-    // Do NOT call this.format() here, as it strips OHLC data.
-    return res.data.values; 
-  } catch (e) { 
-    logger.error(`History Error: ${e.message}`); 
-    return []; 
-  }
-}
+    /**
+     * HISTORICAL DATA PORTAL
+     */
+    async fetchHistory({ symbol, interval = "1m", outputsize = 500 }) {
+        try {
+            // Normalize internal '1m' to TwelveData '1min'
+            const apiInterval = INTERVAL_MAP[interval] || interval;
 
-  connect() {
-    // Prevent connection if no symbols exist
-    if (this.symbols.size === 0) {
-        return logger.warn("⚠️ Connection aborted: No active symbols in registry.");
+            const response = await axios.get(`${this.config.restBase}/time_series`, {
+                params: { 
+                    symbol, 
+                    interval: apiInterval, 
+                    outputsize, 
+                    apikey: this.config.apiKey 
+                }
+            });
+
+            // LOG FOR DEBUGGING: Verify the exact request
+            logger.debug(`📡 REST Request: ${symbol} @ ${apiInterval}`);
+
+            const rawValues = response.data.values;
+            
+            // Check if status is error even if rawValues is missing
+            if (response.data.status === "error" || !rawValues) {
+                logger.warn(`⚠️ Data Gap: ${response.data.message || 'No history found'} for ${symbol}`);
+                return [];
+            }
+
+            return rawValues
+                .map(item => this._normalize(item, symbol))
+                .sort((a, b) => a.time - b.time);
+
+        } catch (error) {
+            logger.error(`❌ REST Portal Error [${symbol}]: ${error.message}`);
+            return [];
+        }
     }
 
-    // FIRMING: If socket is already open, just send the new subscription and exit
-    if (this.stream && this.stream.readyState === WebSocket.OPEN) {
-        return this.subscribe(Array.from(this.symbols));
+    /**
+     * RESILIENT CONNECTION LOGIC
+     */
+    connect() {
+        if (this.symbols.size === 0) return logger.warn("🚫 Connection Aborted: Registry is empty.");
+        if (this.stream?.readyState === WebSocket.OPEN) return this.subscribe(Array.from(this.symbols));
+
+        const url = `${this.config.wsBase}?apikey=${this.config.apiKey}`;
+        this.stream = new WebSocket(url);
+
+        this.stream.on("open", () => {
+            this.reconnectAttempts = 0;
+            logger.info("🌐 TwelveData Real-time Portal: ONLINE");
+            this.subscribe(Array.from(this.symbols));
+            this._startHeartbeat();
+        });
+
+        this.stream.on("message", (raw) => {
+            try {
+                const data = JSON.parse(raw);
+                if (data.event === "price") {
+                    const tick = this._normalize(data);
+                    bus.emit(EVENTS.MARKET.TICK, tick);
+                }
+            } catch (e) {
+                logger.error("🧹 WS Parse Error: Malformed JSON packet received.");
+            }
+        });
+
+        this.stream.on("close", () => {
+            this._handleReconnection();
+        });
+
+        this.stream.on("error", (err) => {
+            logger.error(`🔌 WS Socket Error: ${err.message}`);
+        });
     }
 
-    const url = `wss://ws.twelvedata.com/v1/quotes/price?apikey=${this.apiKey}`;
-    this.stream = new WebSocket(url);
+    _handleReconnection() {
+        this._stopHeartbeat();
+        if (this.reconnectAttempts < this.config.reconnectLimit) {
+            this.reconnectAttempts++;
+            const delay = Math.pow(2, this.reconnectAttempts) * 1000;
+            logger.warn(`🔄 Connection lost. Attempting recovery in ${delay}ms...`);
+            setTimeout(() => this.connect(), delay);
+        } else {
+            logger.error("🛑 Max reconnection attempts reached. Broker enters CRITICAL state.");
+            bus.emit(EVENTS.MARKET.CONNECTION_LOST);
+        }
+    }
 
-    this.stream.on("open", () => {
-        logger.info(`🌐 TwelveData WS Connected. Subscribing to: ${Array.from(this.symbols).join(", ")}`);
-        this.subscribe(Array.from(this.symbols));
-
-        // Heartbeat to keep connection alive
-        if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    _startHeartbeat() {
+        this._stopHeartbeat();
         this.heartbeatTimer = setInterval(() => {
             if (this.stream?.readyState === WebSocket.OPEN) {
                 this.stream.send(JSON.stringify({ action: "heartbeat" }));
             }
-        }, 10000);
-    });
+        }, this.config.heartbeatMs);
+    }
 
-    this.stream.on("message", (data) => {
-        try {
-            const parsed = JSON.parse(data);
-            if (parsed.event === "price") {
-                const tick = this.format(parsed.symbol, parsed.price, parsed.timestamp);
-                if (tick) bus.emit(EVENTS.MARKET.TICK, tick);
-            }
-        } catch (err) {
-            logger.error(`WS Parse Error: ${err.message}`);
+    _stopHeartbeat() {
+        if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
+    }
+
+    cleanup() {
+        this._stopHeartbeat();
+        if (this.stream) {
+            this.stream.removeAllListeners();
+            this.stream.terminate();
+            this.stream = null;
         }
-    });
-
-    this.stream.on("close", () => logger.warn("🔌 TwelveData WS Disconnected."));
-    this.stream.on("error", (err) => logger.error(`❌ WS Error: ${err.message}`));
-}
-
-  cleanup() {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
+        this.symbols.clear();
+        logger.info("🧹 TwelveData Broker: Cleaned and Purged.");
     }
-    if (this.stream) {
-      this.stream.removeAllListeners();
-      this.stream.terminate();
-      this.stream = null;
-    }
-    this.symbols.clear();
-    logger.info("Twelve Data Broker cleaned up.");
-  }
 }
 
 module.exports = new TwelveDataBroker();
