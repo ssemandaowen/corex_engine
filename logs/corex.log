@@ -11015,3 +11015,35 @@ info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:32:40.423Z"
 info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:32:40.424Z"}
 info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:32:40.428Z"}
 info: [====Shuting down====] {"timestamp":"2026-01-21T16:33:49.517Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T16:33:52.460Z"}
+info: 📡 Broadcaster Service: [===Stream Logic Finalized===] {"timestamp":"2026-01-21T16:33:55.580Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T16:33:55.592Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T16:34:00.283Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T16:34:00.304Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T16:34:00.323Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:34:00.331Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:34:00.331Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:34:00.335Z"}
+info: 🔌 UI Terminal Connected [IP: ::ffff:127.0.0.1] {"timestamp":"2026-01-21T16:34:00.442Z"}
+info: 🔗 Linking [Full Demo Strategy] to Stream... {"timestamp":"2026-01-21T16:34:59.824Z"}
+warn: ⚠️ Cache Corrupt for BTC/USD. Falling back to API. {"timestamp":"2026-01-21T16:34:59.832Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:34:59.835Z"}
+warn: ⚠️ Cache Corrupt for ETH/USD. Falling back to API. {"timestamp":"2026-01-21T16:35:02.838Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:35:02.839Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-21T16:35:06.630Z"}
+info: 📡 WS Subscription sent for: 2 symbols. {"timestamp":"2026-01-21T16:35:06.635Z"}
+info: 🧪 Starting backtest → ID: b2e5141a | Strategy: Full Demo Strategy {"timestamp":"2026-01-21T16:37:05.255Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T16:37:09.372Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T16:37:09.376Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T16:37:09.381Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T16:37:09.382Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T16:37:09.425Z"}
+info: 💾 Report saved → b2e5141a.json {"timestamp":"2026-01-21T16:37:09.536Z"}
+info: 🏁 Backtest completed → ID: b2e5141a | Trades: 1 | Net: -0.01 | Duration: 4.28s {"timestamp":"2026-01-21T16:37:09.537Z"}
+warn: 🔄 Connection lost. Attempting recovery in 2000ms... {"timestamp":"2026-01-21T16:43:09.194Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-21T16:43:23.485Z"}
+warn: 🔄 Connection lost. Attempting recovery in 4000ms... {"timestamp":"2026-01-21T16:43:23.488Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-21T16:43:39.543Z"}
+warn: 🔄 Connection lost. Attempting recovery in 8000ms... {"timestamp":"2026-01-21T16:43:39.545Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-21T16:43:47.553Z"}
+warn: 🔄 Connection lost. Attempting recovery in 16000ms... {"timestamp":"2026-01-21T16:43:47.554Z"}
