@@ -128,7 +128,7 @@ class CoreXEngine {
         for (const strat of targetStrategies) {
             try {
                 if (strat.enabled) {
-                    strat.onPrice(data, false);
+                    strat.onTick(data, false);
                 }
             } catch (err) {
                 logger.error(`💥 [${strat.name}] Runtime Error: ${err.message}`);
@@ -207,7 +207,7 @@ class CoreXEngine {
                 // Trim to max lookback to prevent file bloat
                 const trimmedData = finalData.slice(-strategy.lookback);
 
-                trimmedData.forEach(tick => strategy.onPrice(tick, true));
+                trimmedData.forEach(tick => strategy.onTick(tick, true));
                 strategy.isWarmedUp = true;
 
                 // Save back to cache for the next restart

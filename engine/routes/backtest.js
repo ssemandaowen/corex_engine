@@ -29,7 +29,8 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
             symbol: req.body.symbol || 'BTC/USD',
             interval: req.body.interval || '1min',
             initialCapital: parseFloat(req.body.initialCapital) || 10000,
-            includeTrades: req.body.includeTrades === 'true'
+            includeTrades: req.body.includeTrades === 'true',
+            outputsize: parseInt(req.body.outputsize) || 1000
         };
 
         const result = await backtestManager.run(entry.instance, options);

@@ -1,0 +1,43 @@
+{
+  "meta": {
+    "id": "f9f1ee70-04be-4566-9b4f-9b0a9464cfcf",
+    "strategyId": "demo",
+    "strategyName": "Demo Strategy",
+    "timestamp": "2026-01-21T14:46:00.507Z",
+    "executionTime": "4.05s"
+  },
+  "config": {
+    "symbol": "BTC/USD",
+    "interval": "1min",
+    "period": "2026-01-20T10:39:00.000Z → 2026-01-21T11:38:00.000Z",
+    "initialCapital": 10
+  },
+  "performance": {
+    "netProfit": "0.00",
+    "roiPercent": "0.00",
+    "maxDrawdown": "0.00",
+    "totalTrades": 0,
+    "winRatePercent": "0.00"
+  },
+  "trades": [],
+  "rawStats": {
+    "startingCapital": 10,
+    "finalCapital": 10,
+    "profit": 0,
+    "profitPct": 0,
+    "growth": 1,
+    "totalTrades": 0,
+    "barCount": 0,
+    "maxDrawdown": 0,
+    "maxDrawdownPct": 0,
+    "proportionProfitable": 0,
+    "percentProfitable": 0,
+    "returnOnAccount": null,
+    "averageProfitPerTrade": null,
+    "numWinningTrades": 0,
+    "numLosingTrades": 0,
+    "averageWinningTrade": 0,
+    "averageLosingTrade": 0,
+    "expectedValue": 0
+  }
+}

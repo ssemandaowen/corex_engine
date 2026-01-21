@@ -9274,3 +9274,1744 @@ error: ❌ Load/Security Error [trendFollower]: this._applyDefaults is not a fun
 info: [====Done Staging environment====] {"timestamp":"2026-01-21T12:25:28.414Z"}
 info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T12:25:28.416Z"}
 info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T12:25:28.422Z"}
+error: [API] Action start failed for demo: Cannot read properties of null (reading 'status') {"timestamp":"2026-01-21T12:42:03.923Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:11:37.298Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:11:42.481Z"}
+error: ❌ Load/Security Error [demo]: Cannot find module './baseStrategy'
+Require stack:
+- C:\Users\SBUM\Desktop\corex\strategies\demo.js
+- C:\Users\SBUM\Desktop\corex\engine\strategyLoader.js
+- C:\Users\SBUM\Desktop\corex\engine\index.js
+- C:\Users\SBUM\Desktop\corex\index.js {"timestamp":"2026-01-21T14:11:42.643Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:11:50.202Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:11:50.220Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:11:50.227Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:11:50.228Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:11:50.233Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:12:22.359Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:12:26.610Z"}
+error: ❌ Load/Security Error [demo]: Cannot find module './baseStrategy'
+Require stack:
+- C:\Users\SBUM\Desktop\corex\strategies\demo.js
+- C:\Users\SBUM\Desktop\corex\engine\strategyLoader.js
+- C:\Users\SBUM\Desktop\corex\engine\index.js
+- C:\Users\SBUM\Desktop\corex\index.js {"timestamp":"2026-01-21T14:12:26.782Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:12:33.154Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:12:33.170Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:12:33.177Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:12:33.179Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:12:33.182Z"}
+error: ❌ Load/Security Error [demo]: this.initParams is not a function {"timestamp":"2026-01-21T14:12:58.578Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T14:13:13.568Z"}
+error: ❌ Load/Security Error [demo]: Cannot find module '../engine/baseStrategy'
+Require stack:
+- C:\Users\SBUM\Desktop\corex\strategies\demo.js
+- C:\Users\SBUM\Desktop\corex\engine\strategyLoader.js
+- C:\Users\SBUM\Desktop\corex\engine\index.js
+- C:\Users\SBUM\Desktop\corex\index.js {"timestamp":"2026-01-21T14:17:09.148Z"}
+error: ❌ Load/Security Error [demo]: [CRITICAL] Strategy failed to inherit initParams from BaseStrategy. {"timestamp":"2026-01-21T14:17:44.026Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T14:44:30.367Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T14:44:58.524Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:45:05.517Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:45:08.564Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T14:45:13.553Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:45:13.569Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:45:13.587Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:45:13.592Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:45:13.593Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:45:13.599Z"}
+info: ✔ Fetched 1500 bars (BTC/USD 1min) {"timestamp":"2026-01-21T14:45:59.726Z"}
+info: 🚀 [BACKTEST_START] f9f1ee70-04be-4566-9b4f-9b0a9464cfcf | Demo Strategy | Bars: 1500 {"timestamp":"2026-01-21T14:45:59.744Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T14:45:59.746Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.753Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.755Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.756Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.757Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.758Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.759Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.760Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.761Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.762Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.763Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.764Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.765Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.765Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.769Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.770Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.772Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.772Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.773Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.774Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.774Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.775Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.776Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.776Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.777Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.778Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.778Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.779Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.779Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.780Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.780Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.781Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.781Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.782Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.782Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.786Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.787Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.788Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.789Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.790Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.791Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.792Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.792Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.793Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.794Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.794Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.795Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.796Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.796Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.797Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.797Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.798Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.798Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.799Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.800Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.804Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.805Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.809Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.810Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.810Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.811Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.811Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.812Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.812Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.813Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.813Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.814Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.814Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.815Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.815Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.817Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.818Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.819Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.821Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.823Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.824Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.825Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.826Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.827Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.827Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.827Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.828Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.828Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.829Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.829Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.830Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.830Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.831Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.831Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.831Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.832Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.837Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.839Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.840Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.841Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.842Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.842Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.843Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.843Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.844Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.845Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.845Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.846Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.846Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.847Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.847Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.848Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.848Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.849Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.853Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.856Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.857Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.858Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.859Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.860Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.861Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.861Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.862Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.862Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.863Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.863Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.864Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.865Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.865Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.866Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.870Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.872Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.874Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.875Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.876Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.877Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.878Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.878Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.879Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.879Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.879Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.880Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.880Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.881Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.881Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.882Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.882Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.888Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.890Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.891Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.892Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.894Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.895Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.895Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.896Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.897Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.898Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.899Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.904Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.906Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.907Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.908Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.909Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.910Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.910Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.911Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.912Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.913Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.913Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.914Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.914Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.915Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.915Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.916Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.924Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.925Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.926Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.927Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.928Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.929Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.929Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.930Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.930Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.931Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.931Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.931Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.932Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.932Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.939Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.940Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.942Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.943Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.943Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.944Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.944Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.945Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.945Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.946Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.947Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.947Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.948Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.948Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.956Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.957Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.958Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.959Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.960Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.961Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.961Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.962Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.962Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.962Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.963Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.963Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.964Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.964Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.965Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.965Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.965Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.972Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.973Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.974Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.975Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.976Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.977Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.977Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.978Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.979Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.979Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.980Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.980Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.981Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.982Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.982Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.990Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.991Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.992Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.994Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.995Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.996Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.997Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.998Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:45:59.999Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.005Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.013Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.045Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.048Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.056Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.063Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.063Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.064Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.065Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.066Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.071Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.072Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.073Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.074Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.075Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.076Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.077Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.078Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.078Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.079Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.079Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.080Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.080Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.080Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.081Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.081Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.082Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.082Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.084Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.086Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.087Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.090Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.091Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.092Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.093Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.094Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.094Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.095Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.095Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.095Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.096Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.096Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.097Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.097Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.097Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.098Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.098Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.099Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.103Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.106Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.108Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.111Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.111Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.112Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.113Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.114Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.114Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.115Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.116Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.126Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.127Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.128Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.128Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.129Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.130Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.131Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.131Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.132Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.140Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.141Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.143Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.143Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.144Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.144Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.145Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.146Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.146Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.147Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.147Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.148Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.148Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.149Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.149Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.159Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.160Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.160Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.161Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.162Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.162Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.163Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.163Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.164Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.164Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.165Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.165Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.166Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.171Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.174Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.175Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.177Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.178Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.179Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.179Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.180Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.181Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.181Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.182Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.190Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.192Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.194Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.195Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.196Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.197Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.198Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.199Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.206Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.208Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.209Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.211Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.212Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.212Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.213Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.213Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.213Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.214Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.214Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.215Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.215Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.216Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.220Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.222Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.224Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.226Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.227Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.228Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.228Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.229Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.229Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.230Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.230Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.230Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.231Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.231Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.232Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.232Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.235Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.236Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.239Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.241Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.242Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.243Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.243Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.244Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.244Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.244Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.245Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.245Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.246Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.246Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.246Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.247Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.247Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.248Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.248Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.248Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.249Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.252Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.253Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.254Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.256Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.257Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.257Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.258Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.259Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.260Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.260Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.260Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.261Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.261Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.262Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.262Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.262Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.263Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.263Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.264Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.264Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.264Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.265Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.265Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.266Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.270Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.272Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.273Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.274Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.275Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.275Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.276Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.277Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.277Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.278Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.278Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.279Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.279Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.279Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.280Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.280Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.281Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.281Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.281Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.282Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.282Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.286Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.287Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.288Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.289Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.290Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.293Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.294Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.294Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.295Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.295Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.295Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.296Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.296Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.297Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.297Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.297Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.298Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.298Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.299Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.299Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.305Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.307Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.308Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.309Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.310Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.311Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.311Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.312Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.312Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.313Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.313Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.314Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.314Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.315Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.315Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.320Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.323Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.324Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.325Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.326Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.327Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.327Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.328Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.328Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.329Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.329Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.330Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.330Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.330Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.331Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.331Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.332Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.332Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.336Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.337Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.339Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.341Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.342Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.343Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.344Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.344Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.345Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.345Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.346Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.346Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.347Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.347Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.348Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.348Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.349Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.349Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.355Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.356Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.357Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.357Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.358Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.359Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.360Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.360Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.361Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.361Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.362Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.362Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.363Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.363Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.363Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.364Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.364Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.365Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.365Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.365Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.366Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.372Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.373Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.374Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.376Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.377Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.378Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.379Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.379Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.380Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.380Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.381Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.381Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.382Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.382Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.390Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.391Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.393Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.393Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.394Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.394Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.395Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.395Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.396Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.396Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.397Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.397Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.397Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.398Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.398Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.399Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.399Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.403Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.404Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.406Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.408Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.409Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.410Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.411Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.411Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.412Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.412Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.412Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.413Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.413Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.413Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.413Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.414Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.414Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.414Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.415Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.415Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.416Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.420Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.420Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.420Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.420Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.425Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.425Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.426Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.553Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.555Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.556Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.557Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.558Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.559Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.559Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.560Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.561Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.561Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.562Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.563Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.563Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.564Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.565Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.565Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.578Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.580Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.581Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.582Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.583Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.586Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.587Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.588Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.590Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.590Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.591Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.592Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.605Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.606Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.607Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.608Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.609Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.610Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.611Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.611Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.612Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.612Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.613Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.614Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.615Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.616Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.618Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.619Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.620Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.621Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.621Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.622Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.623Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.624Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.624Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.624Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.625Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.625Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.625Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.626Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.626Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.626Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.627Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.627Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.627Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.628Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.628Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.628Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.629Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.629Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.629Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.630Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.630Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.631Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.631Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.631Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.632Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.632Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.632Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.633Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.636Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.637Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.637Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.639Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.643Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.658Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.659Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.660Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.661Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.662Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.662Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.663Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.673Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.674Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.675Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.681Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.681Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.682Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.683Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.687Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.689Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.690Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.691Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.692Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.692Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.693Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.694Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.694Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.695Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.696Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.696Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.697Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.698Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.698Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.699Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.699Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.703Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.703Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.704Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.704Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.704Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.705Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.705Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.706Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.706Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.707Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.708Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.708Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.709Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.709Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.710Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.711Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.711Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.711Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.712Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.712Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.712Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.713Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.713Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.713Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.714Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.715Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.716Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.720Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.721Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.722Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.723Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.723Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.724Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.725Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.725Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.726Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.727Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.728Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.728Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.729Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.729Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.729Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.730Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.730Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.730Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.731Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.731Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.731Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.732Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.732Z"}
+error: [EXEC_ERROR][demo] s is not defined {"timestamp":"2026-01-21T14:46:00.732Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:46:03.156Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:46:05.635Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T14:46:10.735Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:46:10.752Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:46:10.774Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:46:10.780Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:46:10.781Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:46:10.785Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T14:46:29.454Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:46:31.927Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:46:35.050Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T14:46:39.299Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:46:39.317Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:46:39.339Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:46:39.344Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:46:39.345Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:46:39.350Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:47:52.758Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:47:56.036Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T14:48:01.353Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:48:01.374Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:48:01.397Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:48:01.403Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:48:01.404Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:48:01.409Z"}
+info: ✔ Fetched 1500 bars (BTC/USD 1min) {"timestamp":"2026-01-21T14:51:41.595Z"}
+info: 🚀 [BACKTEST_START] 16c028cf-390c-4b63-b797-c27fc6ce9515 | Demo Strategy | Bars: 1500 {"timestamp":"2026-01-21T14:51:41.617Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T14:51:41.619Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.628Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.629Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.630Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.632Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.633Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.634Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.635Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.636Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.641Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.644Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.645Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.647Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.648Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.649Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.650Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.650Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.651Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.652Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.653Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.654Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.658Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.659Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.661Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.662Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.663Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.664Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.665Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.666Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.666Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.667Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.668Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.669Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.670Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.670Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.676Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.678Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.680Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.681Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.682Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.683Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.684Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.685Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.686Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.687Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.693Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.695Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.696Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.698Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.699Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.700Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.701Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.701Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.710Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.711Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.712Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.714Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.715Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.716Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.717Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.718Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.719Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.720Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.725Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.726Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.728Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.728Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.729Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.731Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.732Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.732Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.733Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.735Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.736Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.737Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.742Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.744Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.745Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.746Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.747Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.748Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.749Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.750Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.751Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.752Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.753Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.754Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.759Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.762Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.763Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.765Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.766Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.767Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.768Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.769Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.770Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.775Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.777Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.778Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.780Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.781Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.782Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.783Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.784Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.785Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.786Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.787Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.791Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.793Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.795Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.796Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.797Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.798Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.799Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.800Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.801Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.802Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.803Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.807Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.809Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.811Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.812Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.813Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.815Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.816Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.817Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.818Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.819Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.820Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.824Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.826Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.827Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.829Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.830Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.831Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.832Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.833Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.834Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.835Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.836Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.837Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.842Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.844Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.845Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.846Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.848Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.849Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.850Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.851Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.852Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.853Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.857Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.859Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.860Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.862Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.863Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.864Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.865Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.866Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.867Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.868Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.869Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.870Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.874Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.877Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.878Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.880Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.881Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.882Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.883Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.884Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.886Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.887Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.892Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.894Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.896Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.897Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.898Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.899Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.900Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.901Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.902Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.904Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.909Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.911Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.913Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.917Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.918Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.919Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.920Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.922Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.926Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.928Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.929Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.930Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.931Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.932Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.934Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.935Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.936Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.937Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.943Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.945Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.949Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.950Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.951Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.952Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.953Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.960Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.961Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.963Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.964Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.965Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.966Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.968Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.969Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.970Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.975Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.977Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.978Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.980Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.981Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.982Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.983Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.984Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.985Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.986Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.987Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.992Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.994Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.995Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.996Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.997Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.998Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:41.999Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.001Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.001Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.002Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.003Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.007Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.010Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.011Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.012Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.014Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.015Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.016Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.017Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.018Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.019Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.020Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.026Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.028Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.029Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.030Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.031Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.032Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.033Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.034Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.035Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.036Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.037Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.044Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.046Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.047Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.049Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.050Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.051Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.052Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.053Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.054Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.058Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.059Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.061Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.062Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.063Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.064Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.065Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.067Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.068Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.069Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.070Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.078Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.080Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.082Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.083Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.085Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.086Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.098Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.137Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.173Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.219Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.236Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.270Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.300Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.302Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.302Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.304Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.312Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.318Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.319Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.321Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.336Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.337Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.348Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.352Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.420Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.487Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.560Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.634Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.783Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.838Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:42.934Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.086Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.261Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.398Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.508Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.578Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.588Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.600Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.610Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.616Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.619Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.621Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.625Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.627Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.628Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.630Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.631Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.633Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.635Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.636Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.637Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.641Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.643Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.644Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.645Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.647Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.648Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.649Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.651Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.652Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.653Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.703Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.729Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.731Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.732Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.733Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.734Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.735Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.736Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.737Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.741Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.743Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.744Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.745Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.747Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.748Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.749Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.750Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.751Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.752Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.753Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.754Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.755Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.760Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.762Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.763Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.764Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.765Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.766Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.767Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.768Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.769Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.770Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.771Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.776Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.778Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.779Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.781Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.782Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.783Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.784Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.785Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.786Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.787Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.791Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.794Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.796Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.798Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.799Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.800Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.801Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.802Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.803Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.805Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.809Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.811Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.812Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.814Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.815Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.816Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.817Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.818Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.819Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.820Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.821Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.826Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.828Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.829Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.830Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.831Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.832Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.833Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.834Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.835Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.836Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.837Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.838Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.842Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.844Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.845Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.846Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.848Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.849Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.850Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.851Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.852Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.853Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.854Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.855Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.862Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.863Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.865Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.866Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.867Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.868Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.869Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.870Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.871Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.875Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.877Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.881Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.882Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.883Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.884Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.885Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.886Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.887Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.888Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.892Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.894Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.895Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.897Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.898Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.899Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.900Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.901Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.902Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.903Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.904Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.907Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.909Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.911Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.912Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.913Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.914Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.915Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.916Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.917Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.918Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.919Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.920Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.921Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.925Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.927Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.929Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.930Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.931Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.932Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.933Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.934Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.935Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.936Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.937Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.938Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.942Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.944Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.945Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.947Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.948Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.949Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.950Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.951Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.952Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.953Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.954Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.955Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.958Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.960Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.962Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.963Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.964Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.965Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.966Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.967Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.968Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.969Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.970Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.971Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.975Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.977Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.979Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.980Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.981Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.982Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.982Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.983Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.984Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.985Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.986Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.987Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.988Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.991Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.994Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.996Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.997Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.998Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.999Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.999Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:43.999Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.000Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.000Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.000Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.001Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.001Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.001Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.001Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.002Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.002Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.002Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.002Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.003Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.201Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.202Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.202Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.216Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.222Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.226Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.234Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.235Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.236Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.238Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.242Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.243Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.245Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.245Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.246Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.247Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.248Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.249Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.249Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.250Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.251Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.252Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.252Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.253Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.254Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.255Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.259Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.259Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.260Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.261Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.262Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.263Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.264Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.264Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.265Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.266Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.266Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.267Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.268Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.269Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.270Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.271Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.272Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.279Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.282Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.283Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.287Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.291Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.292Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.295Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.296Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.297Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.298Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.298Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.300Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.300Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.302Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.303Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.304Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.316Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.317Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.321Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.327Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.334Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.336Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.338Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.343Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.346Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.347Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.348Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.348Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.349Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.350Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.351Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.360Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.370Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.371Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.376Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.378Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.378Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.379Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.380Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.381Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.382Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.383Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.383Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.384Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.385Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.386Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.387Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.388Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.392Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.393Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.394Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.395Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.396Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.397Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.398Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.398Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.399Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.400Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.401Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.401Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.402Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.403Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.404Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.405Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.408Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.409Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.410Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.413Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.414Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.415Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.415Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.416Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.417Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.418Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.419Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.419Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.420Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.421Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.425Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.426Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.427Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.428Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.429Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.430Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.431Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.433Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.434Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.435Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.435Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.436Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.437Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.438Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.438Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.445Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.445Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.446Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.447Z"}
+error: [EXEC_ERROR][demo] this.sell is not a function {"timestamp":"2026-01-21T14:51:44.448Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T14:51:47.399Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T14:51:53.015Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T14:52:05.874Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T14:52:05.895Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T14:52:05.920Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T14:52:05.926Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T14:52:05.928Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T14:52:05.936Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T15:14:32.327Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T15:14:35.532Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T15:14:41.026Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T15:14:41.041Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T15:14:41.059Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T15:14:41.063Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T15:14:41.064Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T15:14:41.068Z"}
+info: ✔ Fetched 1500 bars (BTC/USD 1min) {"timestamp":"2026-01-21T15:14:48.115Z"}
+info: 🚀 [BACKTEST_START] 9206249a-d54e-4fd9-9015-8660f0aa5141 | Demo Strategy | Bars: 1500 {"timestamp":"2026-01-21T15:14:48.124Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:14:48.126Z"}
+info: 💾 Report saved: 9206249a-d54e-4fd9-9015-8660f0aa5141.json {"timestamp":"2026-01-21T15:14:48.158Z"}
+info: 🏁 [BACKTEST_DONE] 9206249a-d54e-4fd9-9015-8660f0aa5141 | Trades: 0 | Net: 0.00 {"timestamp":"2026-01-21T15:14:48.160Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T15:23:19.939Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T15:23:23.130Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T15:23:26.205Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T15:23:31.155Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T15:23:31.169Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T15:23:31.187Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T15:23:31.192Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T15:23:31.194Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T15:23:31.199Z"}
+info: 🧪 Starting backtest → ID: a6c9aaa4 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:23:35.203Z"}
+info: 🌐 Fetched from broker → 1500 bars (BTC/USD 1min) {"timestamp":"2026-01-21T15:23:40.587Z"}
+info: 📊 Data ready → 1500 bars loaded {"timestamp":"2026-01-21T15:23:40.593Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:23:40.598Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:23:40.600Z"}
+info: 📈 Simulation finished → 0 trades generated {"timestamp":"2026-01-21T15:23:40.629Z"}
+info: 💾 Report saved → a6c9aaa4.json {"timestamp":"2026-01-21T15:23:40.640Z"}
+info: 🏁 Backtest completed → ID: a6c9aaa4 | Trades: 0 | Net: 0.00 | Duration: 5.44s {"timestamp":"2026-01-21T15:23:40.642Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T15:26:45.072Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T15:26:48.148Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T15:26:51.017Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T15:26:56.547Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T15:26:56.569Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T15:26:56.594Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T15:26:56.600Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T15:26:56.601Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T15:26:56.608Z"}
+info: 🧪 Starting backtest → ID: be60e7b6 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:26:56.686Z"}
+info: 🌐 Fetched from broker → 1000 bars (BTC/USD 1min) {"timestamp":"2026-01-21T15:27:00.604Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:27:00.612Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:27:00.616Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:27:00.617Z"}
+info: 📈 Simulation finished → 0 trades generated {"timestamp":"2026-01-21T15:27:00.637Z"}
+info: 💾 Report saved → be60e7b6.json {"timestamp":"2026-01-21T15:27:00.650Z"}
+info: 🏁 Backtest completed → ID: be60e7b6 | Trades: 0 | Net: 0.00 | Duration: 3.96s {"timestamp":"2026-01-21T15:27:00.651Z"}
+info: 🧪 Starting backtest → ID: 7fe52e89 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:27:20.992Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:27:23.146Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:27:23.148Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:27:23.149Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:27:23.152Z"}
+info: 📈 Simulation finished → 0 trades generated {"timestamp":"2026-01-21T15:27:23.161Z"}
+info: 💾 Report saved → 7fe52e89.json {"timestamp":"2026-01-21T15:27:23.165Z"}
+info: 🏁 Backtest completed → ID: 7fe52e89 | Trades: 0 | Net: 0.00 | Duration: 2.17s {"timestamp":"2026-01-21T15:27:23.166Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T15:31:02.729Z"}
+info: 🧪 Starting backtest → ID: e990d829 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:31:27.000Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:31:29.785Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:31:29.787Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:31:29.792Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:31:29.793Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T15:31:29.835Z"}
+info: 💾 Report saved → e990d829.json {"timestamp":"2026-01-21T15:31:29.957Z"}
+info: 🏁 Backtest completed → ID: e990d829 | Trades: 1 | Net: -0.01 | Duration: 2.96s {"timestamp":"2026-01-21T15:31:29.958Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T15:38:16.571Z"}
+info: 🧪 Starting backtest → ID: bf106250 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:38:30.084Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:38:36.442Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:38:36.448Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:38:36.455Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:38:36.455Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T15:38:36.480Z"}
+info: 💾 Report saved → bf106250.json {"timestamp":"2026-01-21T15:38:36.494Z"}
+info: 🏁 Backtest completed → ID: bf106250 | Trades: 1 | Net: -0.01 | Duration: 6.41s {"timestamp":"2026-01-21T15:38:36.496Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T15:40:15.640Z"}
+info: 🧪 Starting backtest → ID: 7327d46c | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:40:23.371Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:40:26.968Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:40:26.970Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:40:26.973Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:40:26.974Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T15:40:26.991Z"}
+info: 💾 Report saved → 7327d46c.json {"timestamp":"2026-01-21T15:40:27.000Z"}
+info: 🏁 Backtest completed → ID: 7327d46c | Trades: 1 | Net: -0.01 | Duration: 3.63s {"timestamp":"2026-01-21T15:40:27.001Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T15:40:58.537Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T15:43:45.141Z"}
+info: 🧪 Starting backtest → ID: 598e1ed3 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:43:58.612Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:44:01.984Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:44:01.986Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:44:01.987Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:44:01.988Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T15:44:02.018Z"}
+info: 💾 Report saved → 598e1ed3.json {"timestamp":"2026-01-21T15:44:02.031Z"}
+info: 🏁 Backtest completed → ID: 598e1ed3 | Trades: 1 | Net: -0.01 | Duration: 3.42s {"timestamp":"2026-01-21T15:44:02.033Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T15:46:51.416Z"}
+info: 🧪 Starting backtest → ID: c7788742 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:46:56.714Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:47:00.028Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:47:00.030Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:47:00.031Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:47:00.032Z"}
+info: [STRATEGY][CHECK] No position. Price: 1.17243 {"timestamp":"2026-01-21T15:47:00.034Z"}
+info: [STRATEGY][ACTION] Entry Signal Generated at 1.17243 {"timestamp":"2026-01-21T15:47:00.034Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T15:47:00.050Z"}
+info: 💾 Report saved → c7788742.json {"timestamp":"2026-01-21T15:47:00.056Z"}
+info: 🏁 Backtest completed → ID: c7788742 | Trades: 1 | Net: -0.01 | Duration: 3.35s {"timestamp":"2026-01-21T15:47:00.059Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T15:57:33.537Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T15:57:38.464Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T15:57:41.426Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T15:57:46.318Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T15:57:46.330Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T15:57:46.348Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T15:57:46.353Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T15:57:46.354Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T15:57:46.358Z"}
+info: 🧪 Starting backtest → ID: f7ad5c20 | Strategy: Demo Strategy {"timestamp":"2026-01-21T15:57:51.332Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T15:57:54.387Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T15:57:54.392Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T15:57:54.396Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T15:57:54.397Z"}
+info: [STRATEGY][CHECK] No position. Price: 1.17246 {"timestamp":"2026-01-21T15:57:54.405Z"}
+info: [STRATEGY][ACTION] Entry Signal Generated at 1.17246 {"timestamp":"2026-01-21T15:57:54.406Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T15:57:54.441Z"}
+info: 💾 Report saved → f7ad5c20.json {"timestamp":"2026-01-21T15:57:54.554Z"}
+info: 🏁 Backtest completed → ID: f7ad5c20 | Trades: 1 | Net: -0.02 | Duration: 3.22s {"timestamp":"2026-01-21T15:57:54.556Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T16:04:45.819Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T16:04:49.146Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T16:04:51.932Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T16:04:54.777Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T16:04:59.503Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T16:04:59.517Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T16:04:59.532Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:04:59.538Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:04:59.539Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:04:59.543Z"}
+info: 🧪 Starting backtest → ID: 68defa42 | Strategy: Full Demo Strategy {"timestamp":"2026-01-21T16:05:04.481Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T16:05:10.882Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T16:05:10.887Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T16:05:10.892Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T16:05:10.894Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T16:05:10.934Z"}
+info: 💾 Report saved → 68defa42.json {"timestamp":"2026-01-21T16:05:11.044Z"}
+info: 🏁 Backtest completed → ID: 68defa42 | Trades: 1 | Net: -0.02 | Duration: 6.57s {"timestamp":"2026-01-21T16:05:11.047Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T16:07:03.958Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T16:07:06.775Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T16:07:09.765Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T16:07:15.458Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T16:07:15.475Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T16:07:15.496Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:07:15.505Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:07:15.507Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:07:15.511Z"}
+info: 🧪 Starting backtest → ID: e4844d6b | Strategy: Full Demo Strategy {"timestamp":"2026-01-21T16:07:15.587Z"}
+info: 🌐 Fetched from broker → 1000 bars (EUR/USD 1min) {"timestamp":"2026-01-21T16:07:18.412Z"}
+info: 📊 Data ready → 1000 bars loaded {"timestamp":"2026-01-21T16:07:18.419Z"}
+info: [MODE_SET][demo] Mode set to BACKTEST {"timestamp":"2026-01-21T16:07:18.425Z"}
+info: ▶️ Running simulation... {"timestamp":"2026-01-21T16:07:18.428Z"}
+info: 📈 Simulation finished → 1 trades generated {"timestamp":"2026-01-21T16:07:18.489Z"}
+info: 💾 Report saved → e4844d6b.json {"timestamp":"2026-01-21T16:07:18.665Z"}
+info: 🏁 Backtest completed → ID: e4844d6b | Trades: 1 | Net: -0.02 | Duration: 3.08s {"timestamp":"2026-01-21T16:07:18.667Z"}
+info: 🔗 Linking [Full Demo Strategy] to Stream... {"timestamp":"2026-01-21T16:09:12.608Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:09:12.613Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T16:10:01.303Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T16:10:03.903Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T16:10:08.719Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T16:10:08.736Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T16:10:08.754Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:10:08.763Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:10:08.764Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:10:08.768Z"}
+info: 🔗 Linking [Full Demo Strategy] to Stream... {"timestamp":"2026-01-21T16:10:12.934Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:10:12.940Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-21T16:10:17.691Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-21T16:10:17.696Z"}
+info: 🔌 UI Terminal Connected: ::ffff:127.0.0.1 {"timestamp":"2026-01-21T16:12:14.608Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T16:12:37.536Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T16:13:00.280Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T16:13:03.026Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T16:13:08.562Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T16:13:08.580Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T16:13:08.602Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:13:08.607Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:13:08.609Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:13:08.616Z"}
+info: 🔌 UI Terminal Connected: ::ffff:127.0.0.1 {"timestamp":"2026-01-21T16:13:08.663Z"}
+info: 🔗 Linking [Full Demo Strategy] to Stream... {"timestamp":"2026-01-21T16:14:01.041Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:14:01.046Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-21T16:14:05.659Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-21T16:14:05.662Z"}
+info: ✅ Strategy [demo] Hot-Reloaded (Security Passed) {"timestamp":"2026-01-21T16:15:07.623Z"}
+info: 🔗 Linking [Full Demo Strategy] to Stream... {"timestamp":"2026-01-21T16:15:07.637Z"}
+warn: ⚠️ Cache Corrupt for BTC/USD. Falling back to API. {"timestamp":"2026-01-21T16:15:07.642Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:15:07.644Z"}
+info: 📡 [Full Demo Strategy] Warmup: Performing fresh API fetch. {"timestamp":"2026-01-21T16:15:09.739Z"}
+info: 📡 WS Subscription sent for: 2 symbols. {"timestamp":"2026-01-21T16:15:12.715Z"}
+info: 📡 WS Subscription sent for: 2 symbols. {"timestamp":"2026-01-21T16:15:12.717Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T16:30:13.854Z"}
+info: [====⚙️ Booting Corex Engine====] {"timestamp":"2026-01-21T16:32:33.074Z"}
+info: 🚀 Broadcaster Engine: Channels Finalized [Market, Execution, System, Backtest] {"timestamp":"2026-01-21T16:32:35.552Z"}
+info: [====⚙️ Booting Strategy Loader====] {"timestamp":"2026-01-21T16:32:35.564Z"}
+info: ✅ Strategy [demo] Staged (Security Passed) {"timestamp":"2026-01-21T16:32:40.385Z"}
+info: ✅ Strategy [pair] Staged (Security Passed) {"timestamp":"2026-01-21T16:32:40.399Z"}
+info: ✅ Strategy [trendFollower] Staged (Security Passed) {"timestamp":"2026-01-21T16:32:40.417Z"}
+info: [====Done Staging environment====] {"timestamp":"2026-01-21T16:32:40.423Z"}
+info: 🟢 CoreX Engine: [===Active===] {"timestamp":"2026-01-21T16:32:40.424Z"}
+info: 🌐 CoreX Hub: [===Ready on Port 3000===] {"timestamp":"2026-01-21T16:32:40.428Z"}
+info: [====Shuting down====] {"timestamp":"2026-01-21T16:33:49.517Z"}

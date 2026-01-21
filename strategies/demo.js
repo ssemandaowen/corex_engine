@@ -1,50 +1,45 @@
 "use strict";
+const Strategy = require("@utils/BaseStrategy");
 
-const Strategy = require("./baseStrategy");
-
-/**
- * @class FinalCheck
- * @description CoreX-compliant flip-flop strategy for engine validation.
- */
-class FinalCheck extends Strategy {
+class DemoStrategy extends Strategy {
     constructor() {
         super({
-            name: "Final Trend Check",
-            symbols: ["BTC/USD"],
+            name: "Full Demo Strategy",
+            symbols: ["BTC/USD", "ETH/USD"],
             timeframe: "1m",
-            lookback: 20 
+            lookback: 20
         });
-
-        // 1. Parameter Schema (Decided by Server/Strategy)
-        this.schema = {
-            stopLoss: { default: 2.0, type: 'number' },
-            riskReward: { default: 1.5, type: 'number' }
-        };
-
-        // 2. Lifecycle: Initialize from Schema
-        this.initParams();
-
-        // 3. Persistent Logic State
-        this.readyToBuy = true; 
+        this.enabled = true;
     }
 
-    /**
-     * @override
-     * Core logic loop. Execution is anchored to candle start times.
-     */
-    next(tick, isWarmup) {
-        if (isWarmup) return;
+    next(bar, isWarmup) {
+        if (isWarmup) return null;
 
-        if (this.readyToBuy) {
-            if (this.buy()) {
-                this.readyToBuy = false;
+        const pips = 0.0001;
+
+        // 1. EXIT LOGIC (If we have a position, check if we should close it)
+        if (this.position) {
+            const entryPrice = this.position.entry;
+            const currentPrice = bar.close;
+            const diff = currentPrice - entryPrice;
+
+            if (this.position.type === 'LONG') {
+                if (diff >= 10 * pips || diff <= -5 * pips) return this.exit();
+            } else if (this.position.type === 'SHORT') {
+                if (diff <= -10 * pips || diff >= 5 * pips) return this.exit();
             }
-        } else {
-            if (this.exit()) {
-                this.readyToBuy = true;
-            }
+            return null; // Hold position if no exit hit
         }
+
+        // 2. ENTRY LOGIC (If no position, check for new signals)
+        if (bar.close > bar.open) {
+            return this.buy(); // Go Long
+        } else if (bar.close < bar.open) {
+            return this.sell(); // Go Short
+        }
+
+        return null;
     }
 }
 
-module.exports = FinalCheck;
+module.exports = DemoStrategy;

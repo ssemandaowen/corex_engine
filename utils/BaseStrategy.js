@@ -2,224 +2,241 @@
 
 const { bus, EVENTS } = require('../events/bus');
 const logger = require('./logger');
+const math = require('mathjs');
+const indicators = require('technicalindicators');
 
 /**
  * @class BaseStrategy
- * @description 
- * Hardened base class for automated trading strategies. 
- * Handles OHLCV synthesis, gap-filling, and cross-mode (Live/Backtest) state parity.
+ * @description Core resource provider with Dynamic Settings Schema Support.
+ * Refactored to align with Grademark/BacktestManager signal requirements.
  */
 class BaseStrategy {
-    /**
-     * @param {Object} config
-     * @param {String} config.symbol - Primary trading pair.
-     * @param {String} config.timeframe - Interval string (e.g. '1m', '1h').
-     * @param {Number} config.lookback - Minimum bars required for indicators.
-     */
     constructor(config = {}) {
-        // --- IDENTITY ---
+        // --- 1. CORE IDENTITY ---
         this.id = config.id || `strat_${Date.now()}`;
         this.name = config.name || "BaseStrategy";
-        this.symbol = Array.isArray(config.symbols) ? config.symbols[0] : (config.symbol || null);
-        this.timeframe = config.timeframe || "1m";
-        
-        // --- ENGINE CONFIG ---
+        this.symbols = config.symbols || [];
         this.lookback = config.lookback || 100;
-        this.max_data_history = config.max_data_history || 5000;
         this.candleBased = config.candleBased !== undefined ? config.candleBased : true;
-        
-        // --- OPERATIONAL STATE ---
-        this.mode = 'LIVE'; // Default context
-        this.enabled = false;
-        this.isWarmedUp = false;
+        this.timeframe = config.timeframe || "1m";
 
-        // --- DYNAMIC SCHEMA ---
+        // --- EXECUTION CONTEXT ---
+        this.mode = 'LIVE'; // Default; set to 'BACKTEST' by BacktestManager
+
+        // --- DATA WINDOW MANAGEMENT ---
+        this.max_data_history = config.max_data_history || 5000;
+
+        // --- 2. RESOURCE INJECTION ---
+        this.log = logger;
+        this.math = math;
+        this.indicators = indicators;
+        this.bus = bus;
+        this.EVENTS = EVENTS;
+
+        // --- 3. DYNAMIC PARAMETER SYSTEM ---
         this.schema = {};
         this.params = {};
+        this._applyDefaults(); 
 
-        // --- DATA STORES ---
-        this.position = null; // Current open trade state
-        this.store = { 
-            candleHistory: [], // Queue of completed OHLCV objects
-            activeCandle: null // Building OHLCV object
-        };
+        // --- 4. STATE & DATA ---
+        this.enabled = false;
+        this.startTime = null;
+        this.lastTickTime = 0;
+        this.position = null;
+        this.data = new Map();
+        this.lastTick = null; 
+        this.currentBar = null; 
         
-        // --- EXECUTION CONTEXT ---
-        this.currentBar = null; // Latest raw tick or bar data
-        this.lastExecutedCandleTime = null; // Per-candle execution lock
-        this.pendingSignal = null; // Latch for the current processing cycle result
+        this._initializeStores();
     }
 
     /**
-     * Initializes strategy parameters from schema defaults.
-     * Must be invoked after schema definition in child constructors.
+     * @public
+     * Engine Alias: Maps schema defaults to this.params.
      */
     initParams() {
-        if (!this.schema) return;
+        this._applyDefaults();
+    }
+
+    /**
+     * @public
+     * Sets the execution mode. Called by BacktestManager.run()
+     */
+    setMode(mode) {
+        if (['LIVE', 'BACKTEST'].includes(mode)) {
+            this.mode = mode;
+            this.log.info(`[MODE_SET][${this.id}] Mode set to ${mode}`);
+        }
+    }
+
+    /**
+     * @private
+     */
+    _applyDefaults() {
+        if (!this.schema || typeof this.schema !== 'object') return;
         for (const [key, spec] of Object.entries(this.schema)) {
             this.params[key] = spec.default !== undefined ? spec.default : null;
         }
     }
 
     /**
-     * Sets the execution environment.
-     * @param {('LIVE'|'BACKTEST')} mode 
+     * @public
+     * UI Bridge for parameter updates.
      */
-    setMode(mode) {
-        if (['LIVE', 'BACKTEST'].includes(mode)) this.mode = mode;
+    updateParams(newParams) {
+        if (!newParams || typeof newParams !== 'object') return;
+        let hasChanged = false;
+
+        for (const [key, rawValue] of Object.entries(newParams)) {
+            const spec = this.schema[key];
+            if (!spec) continue;
+
+            let val = rawValue;
+            if (spec.type === 'number') val = parseInt(rawValue);
+            if (spec.type === 'float') val = parseFloat(rawValue);
+            if (spec.type === 'boolean') val = (rawValue === true || rawValue === 'true');
+
+            if (this.params[key] !== val) {
+                this.params[key] = val;
+                hasChanged = true;
+            }
+        }
+
+        if (hasChanged) {
+            this.bus.emit(this.EVENTS.SYSTEM.SETTINGS_UPDATED, {
+                id: this.id,
+                params: { ...this.params },
+                timestamp: Date.now()
+            });
+        }
+    }
+
+    _initializeStores() {
+        for (const symbol of this.symbols) {
+            this.data.set(symbol, { candleHistory: [], activeCandle: null });
+        }
+    }
+
+    _enforceWindow(store) {
+        if (store.candleHistory.length > this.max_data_history) {
+            store.candleHistory.shift();
+        }
     }
 
     /**
-     * Primary data entry point. Resolves price, updates OHLCV, and triggers logic.
-     * @param {Object} tick - Object containing {time, price/close, volume}
-     * @param {Boolean} isWarmup - If true, logic is processed but orders are suppressed.
-     * @returns {Object|null} The generated trade signal for the current cycle.
+     * @public
+     * Primary entry for Tick Data.
      */
-    onPrice(tick, isWarmup = false) {
+    onTick(tick, isWarmup = false) {
         if (!this.enabled && !isWarmup) return null;
+        this.lastTick = tick;
+        const store = this.data.get(tick.symbol);
+        if (!store) return null;
 
         const price = tick.price || tick.close;
-        if (price === undefined || price <= 0) return null;
+        const closed = this._updateCandle(store, tick.time, price);
+        this._enforceWindow(store);
 
-        // 1. Update context immediately for internal resolvers
-        this.currentBar = tick; 
-        this.pendingSignal = null; 
-
-        // 2. Synthesize candle state & fill gaps
-        const closed = this._updateCandle(tick.time, price, tick.volume || 0);
-        
-        // 3. Sliding window maintenance
-        this._enforceWindow();
-
-        // 4. Warmup Lifecycle Tracking
-        this.isWarmedUp = !isWarmup;
-        if (isWarmup) return null;
-
-        // 5. Trigger Strategy Logic
         try {
             if (!this.candleBased || closed) {
-                this.next(tick, isWarmup);
-                return this.pendingSignal;
+                return this.next(tick, isWarmup);
             }
         } catch (err) {
-            logger.error(`[EXEC_FAIL][${this.id}] ${err.message}`);
-            this.bus.emit(this.EVENTS.SYSTEM.STRATEGY_ERROR, { id: this.id, error: err.message });
+            this.log.error(`[EXEC_ERROR][${this.id}] ${err.message}`);
         }
         return null;
     }
 
     /**
-     * Candle synthesis algorithm. 
-     * Uses a While loop to handle time gaps (Ghost Candles).
-     * @private
+     * @public
+     * Primary entry for Bar Data. Utilized by BacktestManager.
      */
-    _updateCandle(ts, price, volume) {
+    onBar(bar, isWarmup = false) {
+        if (!this.enabled && !isWarmup) return null;
+        this.currentBar = bar;
+        try {
+            return this.next(bar, isWarmup);
+        } catch (err) {
+            this.log.error(`[EXEC_ERROR][${this.id}] ${err.message}`);
+        }
+        return null;
+    }
+
+    _updateCandle(store, ts, price) {
         let closed = false;
         const tfMs = this._getTFMs();
         const candleStart = Math.floor(ts / tfMs) * tfMs;
 
-        if (!this.store.activeCandle) {
-            this.store.activeCandle = { time: candleStart, open: price, high: price, low: price, close: price, volume: 0 };
-            return false;
+        if (!store.activeCandle || store.activeCandle.time !== candleStart) {
+            if (store.activeCandle) {
+                store.candleHistory.push({ ...store.activeCandle });
+                closed = true;
+            }
+            store.activeCandle = { time: candleStart, open: price, high: price, low: price, close: price, volume: 0 };
+        } else {
+            store.activeCandle.high = Math.max(store.activeCandle.high, price);
+            store.activeCandle.low = Math.min(store.activeCandle.low, price);
+            store.activeCandle.close = price;
         }
-
-        // Logic: Close candles and fill gaps if the tick has jumped intervals
-        while (ts >= this.store.activeCandle.time + tfMs) {
-            this.store.candleHistory.push({ ...this.store.activeCandle });
-            closed = true;
-            
-            const nextStartTime = this.store.activeCandle.time + tfMs;
-            this.store.activeCandle = { 
-                time: nextStartTime, 
-                open: this.store.activeCandle.close, 
-                high: this.store.activeCandle.close, 
-                low: this.store.activeCandle.close, 
-                close: this.store.activeCandle.close, 
-                volume: 0 
-            };
-        }
-
-        // Update current active candle metrics
-        const active = this.store.activeCandle;
-        active.high = Math.max(active.high, price);
-        active.low = Math.min(active.low, price);
-        active.close = price;
-        active.volume = closed ? volume : (active.volume + volume);
-        
         return closed;
     }
 
-    /**
-     * Strategy logic implementation. Overridden by child classes.
-     */
-    next(data, isWarmup) { /* Abstract */ }
-
-    // --- EXECUTION HELPERS ---
-
-    buy(params = {}) {
-        if (this.position) return null;
-        const price = this._resolvePrice();
-        const time = this._resolveExecTime();
-
-        if (this.lastExecutedCandleTime === time) return null;
-        this.lastExecutedCandleTime = time;
-
-        this.position = { type: 'LONG', entry: price, time, symbol: this.symbol };
-        this.pendingSignal = { action: 'ENTER_LONG', price, ...params };
-        return this.pendingSignal;
+    _getTFMs() {
+        const tf = this.timeframe.toString().toLowerCase();
+        const units = { 's': 1000, 'm': 60000, 'h': 3600000, 'd': 86400000 };
+        const val = parseInt(tf) || 1;
+        const unit = tf.includes('min') ? 'm' : tf.slice(-1);
+        return val * (units[unit] || 60000);
     }
 
-    short(params = {}) {
+    next(data, isWarmup) { return null; }
+
+    executeLiveOrder(type, price, params) {
+        this.log.info(`[LIVE_EXEC][${this.id}] ${type} at ${price}`);
+        return { action: `ENTER_${type}`, price, ...params };
+    }
+
+    // --- TRADING LOGIC (Context-Aware) ---
+
+   buy(params = {}) {
         if (this.position) return null;
-        const price = this._resolvePrice();
-        const time = this._resolveExecTime();
+        const price = this._resolveCurrentPrice(params);
+        const symbol = params.symbol || this.symbols[0];
+        
+        this.position = { type: 'LONG', entry: price, time: Date.now(), symbol };
+        return { action: 'ENTER_LONG', price, symbol, ...params };
+    }
 
-        if (this.lastExecutedCandleTime === time) return null;
-        this.lastExecutedCandleTime = time;
+    sell(params = {}) {
+        if (this.position) return null;
+        const price = this._resolveCurrentPrice(params);
+        const symbol = params.symbol || this.symbols[0];
 
-        this.position = { type: 'SHORT', entry: price, time, symbol: this.symbol };
-        this.pendingSignal = { action: 'ENTER_SHORT', price, ...params };
-        return this.pendingSignal;
+        this.position = { type: 'SHORT', entry: price, time: Date.now(), symbol };
+        return { action: 'ENTER_SHORT', price, symbol, ...params };
     }
 
     exit(params = {}) {
-        if (!this.position) return null;
-        const price = this._resolvePrice();
-        const time = this._resolveExecTime();
+    if (!this.position) return null;
+    const price = this._resolveCurrentPrice(params);
+    const action = this.position.type === 'LONG' ? 'EXIT_LONG' : 'EXIT_SHORT';
 
-        if (this.lastExecutedCandleTime === time) return null;
-        this.lastExecutedCandleTime = time;
+    this.position = null; // Important: Clear local state
 
-        const action = this.position.type === 'LONG' ? 'EXIT_LONG' : 'EXIT_SHORT';
-        this.pendingSignal = { action, price, ...params };
-        this.position = null;
-        return this.pendingSignal;
-    }
+    return { action, price, ...params };
+}
 
-    // --- PRIVATE UTILITIES ---
-
-    _resolvePrice() {
-        const p = this.mode === 'BACKTEST' ? this.currentBar?.close : this.store.activeCandle?.close;
-        if (!p || p <= 0) throw new Error(`[CRITICAL] Invalid price resolution: ${p}`);
-        return p;
-    }
-
-    _resolveExecTime() {
-        if (this.mode === 'BACKTEST') return this.currentBar?.time;
-        const tfMs = this._getTFMs();
-        return Math.floor(Date.now() / tfMs) * tfMs;
-    }
-
-    _enforceWindow() {
-        if (this.store.candleHistory.length > this.max_data_history) {
-            this.store.candleHistory.shift();
-        }
-    }
-
-    _getTFMs() {
-        const units = { 's': 1000, 'm': 60000, 'h': 3600000, 'd': 86400000 };
-        const match = this.timeframe.match(/^(\d+)([smhd])$/);
-        return parseInt(match[1]) * units[match[2]];
+    /**
+     * @private
+     * Safe price resolution for both Grademark bars and Live ticks.
+     */
+    _resolveCurrentPrice(params) {
+        if (params.price) return params.price;
+        if (this.mode === 'BACKTEST') return this.currentBar ? this.currentBar.close : 0;
+        
+        const symbol = params.symbol || this.symbols[0];
+        const store = this.data.get(symbol);
+        return this.lastTick?.price || store?.activeCandle?.close || 0;
     }
 }
 

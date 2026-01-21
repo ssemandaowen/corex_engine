@@ -34,8 +34,10 @@ app.use("/api/backtest", authGuard, backtestRoutes);
 app.use("/api/system", authGuard, systemRoutes);
 
 // 4. WebSocket Broadcast Service
-const { initBroadcaster } = require("./services/broadcaster");
-initBroadcaster(wss);
+const broadcaster = require("./services/broadcaster");
+
+// Initialize once
+broadcaster.init(wss);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, (e) => logger.info(`🌐 CoreX Hub: [===Ready on Port ${PORT}===]`));

@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "id": "f7ad5c20",
+    "strategyId": "demo",
+    "strategyName": "Demo Strategy",
+    "timestamp": "2026-01-21T15:57:54.549Z",
+    "executionTime": "3.22s"
+  },
+  "config": {
+    "symbol": "EUR/USD",
+    "interval": "1min",
+    "period": "2026-01-21T07:14:00.000Z → 2026-01-21T23:56:00.000Z",
+    "initialCapital": 10
+  },
+  "performance": {
+    "netProfit": "-0.02",
+    "roiPercent": "-0.16",
+    "maxDrawdown": "-0.02",
+    "totalTrades": 1,
+    "winRatePercent": "0.00"
+  },
+  "trades": [
+    {
+      "direction": "long",
+      "entryTime": 1768980900000,
+      "entryPrice": 1.17244,
+      "exitTime": 1769039760000,
+      "exitPrice": 1.17052,
+      "profit": -0.0019199999999999218,
+      "profitPct": -0.16376104534133276,
+      "growth": 0.9983623895465866,
+      "riskPct": null,
+      "rmultiple": null,
+      "holdingPeriod": 978,
+      "exitReason": "finalize",
+      "stopPrice": null
+    }
+  ],
+  "rawStats": {
+    "startingCapital": 10,
+    "finalCapital": 9.983623895465866,
+    "profit": -0.016376104534133518,
+    "profitPct": -0.16376104534133518,
+    "growth": 0.9983623895465866,
+    "totalTrades": 1,
+    "barCount": 978,
+    "maxDrawdown": -0.016376104534133518,
+    "maxDrawdownPct": -0.16376104534133518,
+    "maxRiskPct": null,
+    "expectency": null,
+    "rmultipleStdDev": null,
+    "systemQuality": null,
+    "profitFactor": 0,
+    "proportionProfitable": 0,
+    "percentProfitable": 0,
+    "returnOnAccount": -1,
+    "averageProfitPerTrade": -0.016376104534133518,
+    "numWinningTrades": 0,
+    "numLosingTrades": 1,
+    "averageWinningTrade": 0,
+    "averageLosingTrade": -0.0019199999999999218,
+    "expectedValue": -0.0019199999999999218
+  }
+}
