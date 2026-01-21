@@ -2,8 +2,9 @@
 
 const fs = require('fs');
 const path = require('path');
-const logger = require('../utils/logger');
-const { bus, EVENTS } = require('../events/bus');
+const logger = require('@utils/logger');
+const { bus, EVENTS } = require('@events/bus');
+const { validateStrategyCode } = require('@utils/security');
 
 class StrategyLoader {
     constructor() {
@@ -25,6 +26,7 @@ class StrategyLoader {
     }
 
     init(engine) {
+        logger.info('[====⚙️ Booting Strategy Loader====]');
         this.engine = engine;
         this.reloadAll();
         this._watchStrategies();
@@ -62,81 +64,126 @@ class StrategyLoader {
     }
 
     /**
+     * @private
+     * CLEANUP: The "Ghost Hunter". Removes listeners and stops old logic.
+     */
+    _teardownInstance(strategyId) {
+        const entry = this.registry.get(strategyId);
+        if (entry && entry.instance) {
+            entry.instance.enabled = false;
+            // Clear internal data to free memory
+            if (entry.instance.data) entry.instance.data.clear();
+            logger.debug(`🧹 Teardown complete for: ${strategyId}`);
+        }
+    }
+
+    /**
      * LIFECYCLE: Load/Reload with State & Parameter Preservation
      */
     loadStrategy(filePath) {
-        const strategyId = path.basename(filePath, '.js');
-        const existingEntry = this.registry.get(strategyId);
+    const strategyId = path.basename(filePath, '.js');
+    const existingEntry = this.registry.get(strategyId);
 
-        // Preserve current operational state
-        const previousStatus = existingEntry ? existingEntry.status : 'IDLE';
-        const wasEnabled = existingEntry ? existingEntry.instance.enabled : false;
+    // 1. Capture previous state
+    const wasRunning = existingEntry?.status === 'RUNNING';
+    const previousParams = existingEntry?.instance?.params || this._getSavedParams(strategyId);
 
-        try {
-            delete require.cache[require.resolve(filePath)];
-            const StrategyClass = require(filePath);
-            
-            const instance = (typeof StrategyClass === 'function') 
-                ? new StrategyClass() 
-                : StrategyClass;
+    // 2. Perform Teardown
+    if (existingEntry) this._teardownInstance(strategyId);
 
-            instance.id = strategyId;
-            instance.enabled = wasEnabled;
-
-            // --- PARAMETER INJECTION ---
-            // 1. First, apply code defaults
-            if (typeof instance._applyDefaults === 'function') instance._applyDefaults();
-            
-            // 2. Second, override with saved UI settings from its own JSON file
-            const savedParams = this._getSavedParams(strategyId);
-            if (savedParams && typeof instance.updateParams === 'function') {
-                instance.updateParams(savedParams);
-            }
-
-            this.registry.set(strategyId, {
-                id: strategyId,
-                instance: instance,
-                status: previousStatus,
-                filePath: filePath
-            });
-
-            logger.info(`✅ Strategy [${strategyId}] ${existingEntry ? 'Hot-Reloaded' : 'Staged'}`);
-            bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { id: strategyId });
-
-        } catch (err) {
-            logger.error(`❌ Load Error [${strategyId}]: ${err.message}`);
+    try {
+        // --- SECURITY VALIDATION STEP ---
+        // Read the file content as a string to perform static analysis
+        const codeString = fs.readFileSync(filePath, 'utf8');
+        const { validateStrategyCode } = require('../utils/security');
+        
+        if (!validateStrategyCode(codeString)) {
+            // Error is logged inside validateStrategyCode
+            return; 
         }
+
+        // 3. Clear Node Cache
+        delete require.cache[require.resolve(filePath)];
+        
+        // 4. Load the Class
+        const StrategyClass = require(filePath);
+
+        const instance = (typeof StrategyClass === 'function')
+            ? new StrategyClass()
+            : StrategyClass;
+
+        instance.id = strategyId;
+
+        // 5. Parameter Injection & Warmup Integrity
+        if (typeof instance._applyDefaults === 'function') instance._applyDefaults();
+
+        if (previousParams && typeof instance.updateParams === 'function') {
+            instance.updateParams(previousParams);
+        }
+
+        this.registry.set(strategyId, {
+            id: strategyId,
+            instance: instance,
+            status: wasRunning ? 'RUNNING' : 'IDLE',
+            filePath: filePath
+        });
+
+        logger.info(`✅ Strategy [${strategyId}] ${existingEntry ? 'Hot-Reloaded' : 'Staged'} (Security Passed)`);
+
+        // 6. Automatic Re-Sync
+        if (wasRunning && this.engine) {
+            this.engine.registerStrategy(instance, previousParams);
+        }
+
+        bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { id: strategyId });
+
+    } catch (err) {
+        logger.error(`❌ Load/Security Error [${strategyId}]: ${err.message}`);
     }
+}
 
     // --- FS WATCHER & BULK LOADING ---
     _watchStrategies() {
         if (this.watcher) return;
+        // Using a debounced watch to prevent multiple fires on single save
+        let watchTimeout;
         this.watcher = fs.watch(this.strategiesPath, (event, filename) => {
             if (!filename || !filename.endsWith('.js')) return;
-            const fullPath = path.join(this.strategiesPath, filename);
-            fs.existsSync(fullPath) ? this.loadStrategy(fullPath) : this.registry.delete(path.basename(filename, '.js'));
+
+            clearTimeout(watchTimeout);
+            watchTimeout = setTimeout(() => {
+                const fullPath = path.join(this.strategiesPath, filename);
+                if (fs.existsSync(fullPath)) {
+                    this.loadStrategy(fullPath);
+                } else {
+                    this._teardownInstance(path.basename(filename, '.js'));
+                    this.registry.delete(path.basename(filename, '.js'));
+                }
+            }, 100);
         });
     }
 
     reloadAll() {
         if (!fs.existsSync(this.strategiesPath)) fs.mkdirSync(this.strategiesPath, { recursive: true });
         fs.readdirSync(this.strategiesPath)
-          .filter(f => f.endsWith('.js'))
-          .forEach(file => this.loadStrategy(path.join(this.strategiesPath, file)));
+            .filter(f => f.endsWith('.js'))
+            .forEach(file => this.loadStrategy(path.join(this.strategiesPath, file)));
     }
 
     // --- CONTROL PLANE ---
-
-    startStrategy(id) {
+    startStrategy(id, params = {}) {
         const entry = this.registry.get(id);
-        if (!entry || entry.status === 'RUNNING') return entry;
+        if (!entry) return null;
+
+        // Force timeframe/interval into the instance before starting
+        entry.instance.timeframe = params.interval || params.timeframe || entry.instance.timeframe || "1m";
 
         entry.status = 'RUNNING';
         entry.instance.enabled = true;
         entry.instance.startTime = Date.now();
 
-        if (this.engine) this.engine.registerStrategy(entry.instance);
-        
+        if (this.engine) this.engine.registerStrategy(entry.instance, params);
+
         bus.emit(EVENTS.SYSTEM.STRATEGY_START, { id, name: entry.instance.name });
         return entry;
     }
@@ -147,7 +194,7 @@ class StrategyLoader {
 
         entry.status = 'STOPPED';
         entry.instance.enabled = false;
-        
+
         if (this.engine) this.engine.unregisterStrategy(id);
         bus.emit(EVENTS.SYSTEM.STRATEGY_STOP, { id });
         return entry;
@@ -172,6 +219,7 @@ class StrategyLoader {
         this.registry.forEach(e => {
             if (e.status === 'RUNNING') e.instance.symbols.forEach(s => symbols.add(s));
         });
+        logger.info('[====Done Staging environment====]')
         return Array.from(symbols);
     }
 }

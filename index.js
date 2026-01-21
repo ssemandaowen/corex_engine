@@ -1,18 +1,27 @@
+"use strict";
+// 1. Register aliases first
+require('module-alias/register');
+
+// 2. Load environment variables
 require("dotenv").config();
-const engine = require("./engine");
-const server = require("./engine/server"); // Import the Express/HTTP server
+
+// 3. Load the engine
+const engine = require("./engine/index");
+const server = require("./engine/server");
 
 async function bootstrap() {
-    // Start the trading engine logic
-    await engine.start();
-
-    // The server is already set to listen in engine/server.js
-    // This provides the active handle that prevents the process from exiting.
+    try {
+        await engine.start();
+        console.log("🟢 CoreX Engine Bootstrap Complete");
+    } catch (err) {
+        console.error("🔴 Bootstrap Failed:", err);
+        process.exit(1);
+    }
 }
 
 bootstrap();
 
-process.on("SIGINT", () => {
-  engine.stop();
-  process.exit();
+process.on("SIGINT", async () => {
+    await engine.stop();
+    process.exit();
 });

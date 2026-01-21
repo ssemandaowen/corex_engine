@@ -2,207 +2,224 @@
 
 const { bus, EVENTS } = require('../events/bus');
 const logger = require('./logger');
-const math = require('mathjs');
-const indicators = require('data-forge-indicators');
 
 /**
  * @class BaseStrategy
- * @description Core resource provider with Dynamic Settings Schema Support.
+ * @description 
+ * Hardened base class for automated trading strategies. 
+ * Handles OHLCV synthesis, gap-filling, and cross-mode (Live/Backtest) state parity.
  */
 class BaseStrategy {
+    /**
+     * @param {Object} config
+     * @param {String} config.symbol - Primary trading pair.
+     * @param {String} config.timeframe - Interval string (e.g. '1m', '1h').
+     * @param {Number} config.lookback - Minimum bars required for indicators.
+     */
     constructor(config = {}) {
-        // --- 1. CORE IDENTITY ---
+        // --- IDENTITY ---
         this.id = config.id || `strat_${Date.now()}`;
         this.name = config.name || "BaseStrategy";
-        this.symbols = config.symbols || [];
+        this.symbol = Array.isArray(config.symbols) ? config.symbols[0] : (config.symbol || null);
         this.timeframe = config.timeframe || "1m";
+        
+        // --- ENGINE CONFIG ---
         this.lookback = config.lookback || 100;
+        this.max_data_history = config.max_data_history || 5000;
         this.candleBased = config.candleBased !== undefined ? config.candleBased : true;
-
-        // --- 2. RESOURCE INJECTION ---
-        this.log = logger;
-        this.math = math;
-        this.indicators = indicators;
-        this.bus = bus;
-        this.EVENTS = EVENTS;
-
-        // --- 3. DYNAMIC PARAMETER SYSTEM (New) ---
-        // Child classes define 'this.schema' in their constructor.
-        this.schema = {}; 
-        this.params = {}; 
-
-        // --- 4. STATE & DATA ---
+        
+        // --- OPERATIONAL STATE ---
+        this.mode = 'LIVE'; // Default context
         this.enabled = false;
-        this.startTime = null;
-        this.lastTickTime = 0;
-        this.position = null; 
-        this.data = new Map();
-        this.max_data_history = 1000;
+        this.isWarmedUp = false;
 
-        this._initializeStores();
+        // --- DYNAMIC SCHEMA ---
+        this.schema = {};
+        this.params = {};
+
+        // --- DATA STORES ---
+        this.position = null; // Current open trade state
+        this.store = { 
+            candleHistory: [], // Queue of completed OHLCV objects
+            activeCandle: null // Building OHLCV object
+        };
+        
+        // --- EXECUTION CONTEXT ---
+        this.currentBar = null; // Latest raw tick or bar data
+        this.lastExecutedCandleTime = null; // Per-candle execution lock
+        this.pendingSignal = null; // Latch for the current processing cycle result
     }
 
     /**
-     * @private
-     * Initializes params using schema defaults.
-     * Logic: Bootstraps the strategy state. Ensures that even without UI input, 
-     * the strategy has a valid operational baseline.
+     * Initializes strategy parameters from schema defaults.
+     * Must be invoked after schema definition in child constructors.
      */
-    _applyDefaults() {
-        if (!this.schema || typeof this.schema !== 'object') {
-            this.log.warn(`[INIT][${this.id}] No schema defined. Operating with empty params.`);
-            return;
-        }
-
+    initParams() {
+        if (!this.schema) return;
         for (const [key, spec] of Object.entries(this.schema)) {
-            // Priority: Default value from schema, otherwise null
             this.params[key] = spec.default !== undefined ? spec.default : null;
         }
-        this.log.debug(`[INIT][${this.id}] Strategy parameters initialized from schema.`);
     }
 
     /**
-     * @public
-     * UI/API Bridge: Updates strategy parameters with strict validation and type safety.
-     * Logic: Acts as a "Firewall" between untrusted UI/API inputs and the trading logic.
+     * Sets the execution environment.
+     * @param {('LIVE'|'BACKTEST')} mode 
      */
-    updateParams(newParams) {
-        if (!newParams || typeof newParams !== 'object') return;
-
-        let hasChanged = false;
-
-        for (const [key, rawValue] of Object.entries(newParams)) {
-            const spec = this.schema[key];
-            
-            // 1. Availability Check: Ignore params not defined in the schema
-            if (!spec) continue;
-
-            // 2. Type Casting & Normalization
-            let sanitizedValue = rawValue;
-            if (spec.type === 'number' || spec.type === 'float') {
-                sanitizedValue = spec.type === 'number' ? parseInt(rawValue) : parseFloat(rawValue);
-                
-                // 3. Range Validation
-                if (isNaN(sanitizedValue) || sanitizedValue < spec.min || sanitizedValue > spec.max) {
-                    this.log.warn(`[VALIDATION][${this.id}] Rejecting ${key}: Value ${rawValue} out of bounds [${spec.min}-${spec.max}]`);
-                    continue;
-                }
-            } else if (spec.type === 'boolean') {
-                sanitizedValue = (rawValue === true || rawValue === 'true');
-            }
-
-            // 4. Change Detection: Prevent unnecessary event noise
-            if (this.params[key] !== sanitizedValue) {
-                this.params[key] = sanitizedValue;
-                hasChanged = true;
-                this.log.info(`[PARAM_SYNC][${this.id}] ${key} => ${sanitizedValue}`);
-            }
-        }
-
-        // 5. System Notification: Only emit if data actually changed
-        if (hasChanged) {
-            this.bus.emit(this.EVENTS.SYSTEM.SETTINGS_UPDATED, { 
-                id: this.id, 
-                params: { ...this.params }, // Send a copy to prevent mutation
-                timestamp: Date.now()
-            });
-        }
+    setMode(mode) {
+        if (['LIVE', 'BACKTEST'].includes(mode)) this.mode = mode;
     }
 
     /**
-     * @private
-     * Optimized memory allocation for symbol data
-     */
-    _initializeStores() {
-        for (const symbol of this.symbols) {
-            this.data.set(symbol, {
-                currentTick: null,
-                candleHistory: [],
-                activeCandle: null
-            });
-        }
-    }
-
-    /**
-     * @public
-     * Primary entry point for market data.
+     * Primary data entry point. Resolves price, updates OHLCV, and triggers logic.
+     * @param {Object} tick - Object containing {time, price/close, volume}
+     * @param {Boolean} isWarmup - If true, logic is processed but orders are suppressed.
+     * @returns {Object|null} The generated trade signal for the current cycle.
      */
     onPrice(tick, isWarmup = false) {
-        if (!this.enabled && !isWarmup) return;
+        if (!this.enabled && !isWarmup) return null;
 
-        if (tick.time <= this.lastTickTime) return;
-        this.lastTickTime = tick.time;
+        const price = tick.price || tick.close;
+        if (price === undefined || price <= 0) return null;
 
-        const store = this.data.get(tick.symbol);
-        if (!store) return;
+        // 1. Update context immediately for internal resolvers
+        this.currentBar = tick; 
+        this.pendingSignal = null; 
 
-        store.currentTick = tick;
-        const closed = this._updateCandle(store, tick.time, tick.price);
+        // 2. Synthesize candle state & fill gaps
+        const closed = this._updateCandle(tick.time, price, tick.volume || 0);
+        
+        // 3. Sliding window maintenance
+        this._enforceWindow();
 
-        // Memory Management: Keep history lean
-        if (closed && store.candleHistory.length > this.max_data_history) {
-            store.candleHistory.shift(); 
-        }
+        // 4. Warmup Lifecycle Tracking
+        this.isWarmedUp = !isWarmup;
+        if (isWarmup) return null;
 
+        // 5. Trigger Strategy Logic
         try {
             if (!this.candleBased || closed) {
                 this.next(tick, isWarmup);
+                return this.pendingSignal;
             }
         } catch (err) {
-            this.log.error(`[EXEC_ERROR][${this.id}] ${err.message}`);
+            logger.error(`[EXEC_FAIL][${this.id}] ${err.message}`);
+            this.bus.emit(this.EVENTS.SYSTEM.STRATEGY_ERROR, { id: this.id, error: err.message });
         }
+        return null;
     }
 
-    _updateCandle(store, ts, price) {
+    /**
+     * Candle synthesis algorithm. 
+     * Uses a While loop to handle time gaps (Ghost Candles).
+     * @private
+     */
+    _updateCandle(ts, price, volume) {
         let closed = false;
         const tfMs = this._getTFMs();
         const candleStart = Math.floor(ts / tfMs) * tfMs;
 
-        if (!store.activeCandle || store.activeCandle.timestamp !== candleStart) {
-            if (store.activeCandle) {
-                store.candleHistory.push({ ...store.activeCandle });
-                closed = true;
-            }
-            store.activeCandle = { timestamp: candleStart, open: price, high: price, low: price, close: price, volume: 0 };
-        } else {
-            store.activeCandle.high = Math.max(store.activeCandle.high, price);
-            store.activeCandle.low = Math.min(store.activeCandle.low, price);
-            store.activeCandle.close = price;
+        if (!this.store.activeCandle) {
+            this.store.activeCandle = { time: candleStart, open: price, high: price, low: price, close: price, volume: 0 };
+            return false;
         }
+
+        // Logic: Close candles and fill gaps if the tick has jumped intervals
+        while (ts >= this.store.activeCandle.time + tfMs) {
+            this.store.candleHistory.push({ ...this.store.activeCandle });
+            closed = true;
+            
+            const nextStartTime = this.store.activeCandle.time + tfMs;
+            this.store.activeCandle = { 
+                time: nextStartTime, 
+                open: this.store.activeCandle.close, 
+                high: this.store.activeCandle.close, 
+                low: this.store.activeCandle.close, 
+                close: this.store.activeCandle.close, 
+                volume: 0 
+            };
+        }
+
+        // Update current active candle metrics
+        const active = this.store.activeCandle;
+        active.high = Math.max(active.high, price);
+        active.low = Math.min(active.low, price);
+        active.close = price;
+        active.volume = closed ? volume : (active.volume + volume);
+        
         return closed;
     }
 
-    _getTFMs() {
-        const units = { m: 60000, h: 3600000, d: 86400000 };
-        return (parseInt(this.timeframe) || 1) * (units[this.timeframe.slice(-1)] || 60000);
-    }
+    /**
+     * Strategy logic implementation. Overridden by child classes.
+     */
+    next(data, isWarmup) { /* Abstract */ }
 
-    next(tick, isWarmup) {}
-
-    // --- EXECUTION TOOLS ---
+    // --- EXECUTION HELPERS ---
 
     buy(params = {}) {
-        if (this.position) return;
-        const symbol = params.symbol || this.symbols[0];
-        const store = this.data.get(symbol);
-        const price = params.price || store.currentTick.price;
+        if (this.position) return null;
+        const price = this._resolvePrice();
+        const time = this._resolveExecTime();
 
-        this.position = { type: 'LONG', entry: price, time: Date.now() };
-        this.bus.emit(this.EVENTS.ORDER.CREATE, { 
-            strategyId: this.id, side: 'BUY', symbol, price, timestamp: this.position.time 
-        });
+        if (this.lastExecutedCandleTime === time) return null;
+        this.lastExecutedCandleTime = time;
+
+        this.position = { type: 'LONG', entry: price, time, symbol: this.symbol };
+        this.pendingSignal = { action: 'ENTER_LONG', price, ...params };
+        return this.pendingSignal;
     }
 
-    sell(params = {}) {
-        if (!this.position) return;
-        const symbol = params.symbol || this.symbols[0];
-        const store = this.data.get(symbol);
-        const price = params.price || store.currentTick.price;
+    short(params = {}) {
+        if (this.position) return null;
+        const price = this._resolvePrice();
+        const time = this._resolveExecTime();
 
-        this.bus.emit(this.EVENTS.ORDER.CREATE, { 
-            strategyId: this.id, side: 'SELL', symbol, price, timestamp: Date.now() 
-        });
+        if (this.lastExecutedCandleTime === time) return null;
+        this.lastExecutedCandleTime = time;
+
+        this.position = { type: 'SHORT', entry: price, time, symbol: this.symbol };
+        this.pendingSignal = { action: 'ENTER_SHORT', price, ...params };
+        return this.pendingSignal;
+    }
+
+    exit(params = {}) {
+        if (!this.position) return null;
+        const price = this._resolvePrice();
+        const time = this._resolveExecTime();
+
+        if (this.lastExecutedCandleTime === time) return null;
+        this.lastExecutedCandleTime = time;
+
+        const action = this.position.type === 'LONG' ? 'EXIT_LONG' : 'EXIT_SHORT';
+        this.pendingSignal = { action, price, ...params };
         this.position = null;
+        return this.pendingSignal;
+    }
+
+    // --- PRIVATE UTILITIES ---
+
+    _resolvePrice() {
+        const p = this.mode === 'BACKTEST' ? this.currentBar?.close : this.store.activeCandle?.close;
+        if (!p || p <= 0) throw new Error(`[CRITICAL] Invalid price resolution: ${p}`);
+        return p;
+    }
+
+    _resolveExecTime() {
+        if (this.mode === 'BACKTEST') return this.currentBar?.time;
+        const tfMs = this._getTFMs();
+        return Math.floor(Date.now() / tfMs) * tfMs;
+    }
+
+    _enforceWindow() {
+        if (this.store.candleHistory.length > this.max_data_history) {
+            this.store.candleHistory.shift();
+        }
+    }
+
+    _getTFMs() {
+        const units = { 's': 1000, 'm': 60000, 'h': 3600000, 'd': 86400000 };
+        const match = this.timeframe.match(/^(\d+)([smhd])$/);
+        return parseInt(match[1]) * units[match[2]];
     }
 }
 

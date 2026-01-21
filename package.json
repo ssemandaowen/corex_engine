@@ -1,31 +1,50 @@
 {
-  "name": "corex",
-  "version": "1.0.0",
-  "description": "",
+  "name": "corex-engine",
+  "version": "2026.1.20",
+  "description": "Proprietary High-Fidelity Trading Engine | Apex Trait Ltd",
   "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "engines": {
+    "node": ">=18.0.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest --passWithNoTests",
+    "core:clean": "rm -rf ./data/backtests/*",
+    "status": "node ./utils/system-check.js"
+  },
+  "_moduleAliases": {
+    "@root": ".",
+    "@core": "./engine",
+    "@strategies": "./strategies",
+    "@utils": "./utils",
+    "@broker": "./broker",
+    "@events": "./events",
+    "@config": "./config"
+  },
+  "author": "Ssemanda Owen (Apex Trait Ltd)",
+  "license": "UNLICENSED",
   "dependencies": {
     "@oanda/v20": "^3.0.25-0",
-    "acorn": "^8.15.0",
     "axios": "^1.13.2",
     "data-forge": "^1.10.4",
     "data-forge-fs": "^0.0.9",
-    "data-forge-indicators": "^0.2.7",
     "dotenv": "^17.2.3",
     "eventemitter3": "^5.0.1",
     "express": "^5.2.1",
     "grademark": "^0.3.0",
     "mathjs": "^15.1.0",
+    "module-alias": "^2.2.3",
     "multer": "^2.0.2",
     "node-cron": "^4.2.1",
     "pg": "^8.16.3",
+    "technicalindicators": "^3.1.0",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0",
+    "jest": "^29.7.0"
   }
 }

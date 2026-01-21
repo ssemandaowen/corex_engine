@@ -1,13 +1,15 @@
 "use strict";
 
-const { bus, EVENTS } = require("../../events/bus");
-const logger = require("../../utils/logger");
+const { stringify } = require("uuid");
+const { bus, EVENTS } = require("@events/bus");
+const logger = require("@utils/logger");
 
 /**
  * @service Broadcaster
  * @description Bridges internal engine events to the outside world (Web UI)
  */
 function initBroadcaster(wss) {
+    
     wss.on("connection", (ws, req) => {
         const ip = req.socket.remoteAddress;
         logger.info(`🔌 UI Terminal Connected: ${ip}`);

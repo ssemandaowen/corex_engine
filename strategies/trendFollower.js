@@ -16,7 +16,7 @@ class TrendFollower extends BaseStrategy {
         this._applyDefaults();
     }
 
-    next(tick, isWarmup) {
+    onPrice(tick, isWarmup) {
         const store = this.data.get(tick.symbol);
         const candles = store.candleHistory;
 

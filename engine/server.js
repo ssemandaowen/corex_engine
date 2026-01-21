@@ -38,4 +38,4 @@ const { initBroadcaster } = require("./services/broadcaster");
 initBroadcaster(wss);
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => logger.info(`🌐 CoreX Hub: Production Ready on Port ${PORT}`));
+server.listen(PORT, (e) => logger.info(`🌐 CoreX Hub: [===Ready on Port ${PORT}===]`));

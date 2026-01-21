@@ -4,10 +4,16 @@ const router = require("express").Router();
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const backtestManager = require("../backtestManager");
-const loader = require("../strategyLoader");
+const backtestManager = require("@core/backtestManager");
+const loader = require("@core/strategyLoader");
 
-const upload = multer({ dest: 'uploads/' });
+// Make sure that the uploads folder exits before introducing multer..
+let uploadsPath = path.resolve(__dirname, '../../data/uploads/');
+if (!fs.existsSync(uploadsPath)) {
+    fs.mkdirSync(uploadsPath, { recursive: true });
+}
+
+const upload = multer({ dest: uploadsPath });
 
 /**
  * @route POST /api/backtest/:id
@@ -38,9 +44,9 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
  * @desc Download the CSV trade log for a specific run
  */
 router.get("/download/:reportId", (req, res) => {
-    const filePath = path.resolve(__dirname, `../../data/backtests/${req.params.reportId}_trades.csv`);
+    const filePath = path.resolve(__dirname, `../../data/backtests/${req.params.reportId}.json`);
     if (!fs.existsSync(filePath)) return res.status(404).json({ error: "REPORT_NOT_FOUND" });
-    
+
     res.download(filePath);
 });
 

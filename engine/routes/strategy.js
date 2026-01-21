@@ -3,6 +3,9 @@
 const router = require("express").Router();
 const loader = require("../strategyLoader");
 const logger = require("../../utils/logger");
+const { validateStrategyCode } = require("../../utils/security");
+const fs = require("fs");
+const path = require("path");
 
 /**
  * @route   GET /api/strategies
@@ -52,9 +55,7 @@ router.get("/:id/manifest", (req, res) => {
     });
 });
 
-const { validateStrategyCode } = require("../../utils/security");
-const fs = require("fs");
-const path = require("path");
+
 
 /**
  * @route   POST /api/strategies/create
@@ -63,7 +64,7 @@ const path = require("path");
 router.post("/create", (req, res) => {
     const { name, code } = req.body;
 
-    if (!name || !code) return res.status(400).json({ error: "Missing name or code" });
+    if (!name || !code) return res.status(400).json({ error: "Missing name or strategy code logic" });
 
     // 1. Security Guard: Prevent RCE (Remote Code Execution)
     if (!validateStrategyCode(code)) {
@@ -75,10 +76,12 @@ router.post("/create", (req, res) => {
 
     try {
         fs.writeFileSync(fullPath, code);
+        logger.info({ success: true, message: `Strategy ${name} created and staged.` })
         // The FS Watcher in loader.js will automatically pick this up and stage it
         res.json({ success: true, message: `Strategy ${name} created and staged.` });
+
     } catch (err) {
-        res.status(500).json({ error: "Disk Write Failed" });
+        res.status(500).json({ error: "Strategy creation Failed" });
     }
 });
 

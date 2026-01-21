@@ -38,8 +38,8 @@ class TwelveDataBroker {
      * UNIFIED NORMALIZER: Ensures data consistency between REST and WebSocket
      */
     _normalize(data, symbolOverride = null) {
-        const timestamp = data.timestamp 
-            ? parseInt(data.timestamp) * 1000 
+        const timestamp = data.timestamp
+            ? parseInt(data.timestamp) * 1000
             : new Date(data.datetime).getTime();
 
         return {
@@ -61,7 +61,7 @@ class TwelveDataBroker {
     updateSymbols(symbolArray) {
         const currentSize = this.symbols.size;
         symbolArray.forEach(s => this.symbols.add(s));
-        
+
         if (this.stream?.readyState === WebSocket.OPEN && this.symbols.size > currentSize) {
             this.subscribe(symbolArray);
         }
@@ -69,42 +69,55 @@ class TwelveDataBroker {
 
     subscribe(symbolArray) {
         if (!this.stream || this.stream.readyState !== WebSocket.OPEN) return;
-        
+
         const payload = JSON.stringify({
             action: "subscribe",
             params: { symbols: symbolArray.join(",") }
         });
-        
+
         this.stream.send(payload);
         logger.info(`📡 WS Subscription sent for: ${symbolArray.length} symbols.`);
     }
 
-    /**
-     * HISTORICAL DATA PORTAL
-     */
+    _normalize(data, symbolOverride = null) {
+        // Standardize TwelveData 'price' (WS) vs 'close' (REST)
+        const currentPrice = parseFloat(data.price || data.close || 0);
+
+        // Safety check for timestamps
+        let ts = data.timestamp ? parseInt(data.timestamp) : new Date(data.datetime).getTime();
+        if (ts < 10000000000) ts *= 1000;
+
+        return {
+            symbol: data.symbol || symbolOverride,
+            time: ts,
+            open: parseFloat(data.open || currentPrice),
+            high: parseFloat(data.high || currentPrice),
+            low: parseFloat(data.low || currentPrice),
+            close: currentPrice,
+            price: currentPrice, // This prevents the 'undefined' error
+            volume: parseFloat(data.volume || 0),
+            is_live: !!data.event
+        };
+    }
+
     async fetchHistory({ symbol, interval = "1m", outputsize = 500 }) {
         try {
-            // Normalize internal '1m' to TwelveData '1min'
             const apiInterval = INTERVAL_MAP[interval] || interval;
-
             const response = await axios.get(`${this.config.restBase}/time_series`, {
-                params: { 
-                    symbol, 
-                    interval: apiInterval, 
-                    outputsize, 
-                    apikey: this.config.apiKey 
+                params: {
+                    symbol,
+                    interval: apiInterval,
+                    outputsize,
+                    apikey: this.config.apiKey
                 }
             });
 
-            // LOG FOR DEBUGGING: Verify the exact request
-            logger.debug(`📡 REST Request: ${symbol} @ ${apiInterval}`);
-
             const rawValues = response.data.values;
-            
-            // Check if status is error even if rawValues is missing
-            if (response.data.status === "error" || !rawValues) {
-                logger.warn(`⚠️ Data Gap: ${response.data.message || 'No history found'} for ${symbol}`);
-                return [];
+
+            // Safety: TwelveData returns 'status: error' inside a 200 OK response often
+            if (response.data.status === "error" || !Array.isArray(rawValues)) {
+                logger.error(`❌ TwelveData API Error: ${response.data.message || 'Invalid Symbol or Interval'}`);
+                return null; // Return null to trigger the 'SIMULATION_CRASH' safety in Manager
             }
 
             return rawValues
@@ -113,10 +126,9 @@ class TwelveDataBroker {
 
         } catch (error) {
             logger.error(`❌ REST Portal Error [${symbol}]: ${error.message}`);
-            return [];
+            return null;
         }
     }
-
     /**
      * RESILIENT CONNECTION LOGIC
      */
@@ -137,12 +149,16 @@ class TwelveDataBroker {
         this.stream.on("message", (raw) => {
             try {
                 const data = JSON.parse(raw);
-                if (data.event === "price") {
+
+                // CRITICAL: Filter out status messages and heartbeats
+                if (data.event === "price" && data.price) {
                     const tick = this._normalize(data);
                     bus.emit(EVENTS.MARKET.TICK, tick);
+                } else {
+                    logger.debug(`TwelveData Control Message: ${data.message || 'Heartbeat'}`);
                 }
             } catch (e) {
-                logger.error("🧹 WS Parse Error: Malformed JSON packet received.");
+                logger.error("WS Parse Error");
             }
         });
 
