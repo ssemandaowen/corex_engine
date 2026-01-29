@@ -1,9 +1,9 @@
 "use strict";
 
 const router = require("express").Router();
-const engine = require("../index");
-const broker = require("../../broker/twelvedata");
-const logger = require("../../utils/logger");
+const engine = require("@core/engine");
+const broker = require("@broker/twelvedata");
+const logger = require("@utils/logger");
 
 /**
  * @route GET /api/system/status

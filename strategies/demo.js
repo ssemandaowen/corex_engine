@@ -1,45 +1,50 @@
 "use strict";
-const Strategy = require("@utils/BaseStrategy");
+const BaseStrategy = require('@utils/BaseStrategy');
 
-class DemoStrategy extends Strategy {
+class ValidationStrategy extends BaseStrategy {
     constructor() {
         super({
-            name: "Full Demo Strategy",
-            symbols: ["BTC/USD", "ETH/USD"],
-            timeframe: "1m",
+            name: "CoreX_Validation_v1",
+            symbols: ["BTC/USD"],
             lookback: 20
         });
-        this.enabled = true;
+        
+        this.params = { emaPeriod: 10 };
+        // Internal state tracker for debugging purposes
+        this._isLong = false; 
     }
 
-    next(bar, isWarmup) {
-        if (isWarmup) return null;
+   next(data) {
+    const symbol = data.symbol || this.symbols[0];
+    const history = this.getLookbackWindow(symbol);
+    
+    if (!this.isWarmedUp(symbol)) return null;
 
-        const pips = 0.0001;
+    const prices = history.map(c => c.close);
+    const ema = this.indicators.EMA.calculate({ 
+        period: this.params.emaPeriod, 
+        values: prices 
+    });
+    
+    const lastEma = ema[ema.length - 1];
+    const currentPrice = data.close;
 
-        // 1. EXIT LOGIC (If we have a position, check if we should close it)
-        if (this.position) {
-            const entryPrice = this.position.entry;
-            const currentPrice = bar.close;
-            const diff = currentPrice - entryPrice;
+    // ADDED: 0.01% Buffer to prevent flickering
+    const longThreshold = lastEma * 1.0001; 
+    const exitThreshold = lastEma * 0.9999;
 
-            if (this.position.type === 'LONG') {
-                if (diff >= 10 * pips || diff <= -5 * pips) return this.exit();
-            } else if (this.position.type === 'SHORT') {
-                if (diff <= -10 * pips || diff >= 5 * pips) return this.exit();
-            }
-            return null; // Hold position if no exit hit
-        }
-
-        // 2. ENTRY LOGIC (If no position, check for new signals)
-        if (bar.close > bar.open) {
-            return this.buy(); // Go Long
-        } else if (bar.close < bar.open) {
-            return this.sell(); // Go Short
-        }
-
-        return null;
+    if (currentPrice > longThreshold && !this._isLong) {
+        this._isLong = true;
+        return this.buy({ symbol });
+    } 
+    
+    else if (currentPrice < exitThreshold && this._isLong) {
+        this._isLong = false;
+        return this.exit({ symbol });
     }
+
+    return null;
+}
 }
 
-module.exports = DemoStrategy;
+module.exports = ValidationStrategy;

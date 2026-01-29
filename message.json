@@ -1,0 +1,3562 @@
+{
+  "analysis": {
+    "startingCapital": 100,
+    "finalCapital": null,
+    "profit": null,
+    "profitPct": null,
+    "growth": null,
+    "totalTrades": 353,
+    "barCount": 352,
+    "maxDrawdown": 0,
+    "maxDrawdownPct": null,
+    "proportionProfitable": 0,
+    "percentProfitable": 0,
+    "returnOnAccount": null,
+    "averageProfitPerTrade": null,
+    "numWinningTrades": 0,
+    "numLosingTrades": 353,
+    "averageWinningTrade": 0,
+    "averageLosingTrade": null,
+    "expectedValue": null
+  },
+  "stats": {
+    "equityCurve": [
+      100,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ],
+    "drawdown": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  },
+  "trades": [
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 1,
+      "exitReason": "exit-rule"
+    },
+    {
+      "direction": "long",
+      "profit": null,
+      "profitPct": null,
+      "growth": null,
+      "holdingPeriod": 0,
+      "exitReason": "finalize"
+    }
+  ]
+}

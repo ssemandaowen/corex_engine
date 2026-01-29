@@ -1,5 +1,6 @@
 "use strict";
 
+const WebSocket = require("ws");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 
@@ -7,35 +8,37 @@ class Broadcaster {
     constructor() {
         this.wss = null;
         this.isInitialized = false;
+        this.heartbeatInterval = null;
     }
 
     /**
-     * @param {WebSocket.Server} wss - Express/HTTP shared WS server
+     * Initialize WS server & bind engine events
+     * @param {http.Server} server - HTTP server instance
      */
-    init(wss) {
+    initServer(server) {
         if (this.isInitialized) return;
-        this.wss = wss;
 
-        // 1. Monitor Connections
+        // Create WS server on /ws path
+        this.wss = new WebSocket.Server({ server, path: "/ws" });
+
+        // Handle connections
         this.wss.on("connection", (ws, req) => this._handleConnection(ws, req));
 
-        // 2. Global Event Bindings (The Engine-to-UI Bridge)
+        // Map bus events → WS
         this._bindInternalEvents();
 
+        // Heartbeat ping/pong
+        this.heartbeatInterval = setInterval(() => this._heartbeat(), 30000);
+
         this.isInitialized = true;
-        logger.info("📡 Broadcaster Service: [===Stream Logic Finalized===]");
+        logger.info("[📡 Broadcaster Service: \x1b[36mLIVE\x1b[0m]");
     }
 
-    /**
-     * Internal Routing Table
-     * Maps internal Bus Events to specific UI Action Types
-     */
     _bindInternalEvents() {
         const mappings = [
-            { event: EVENTS.MARKET.TICK,      type: "DATA_TICK" },
-            { event: EVENTS.ORDER.CREATE,     type: "ORDER_FILLED" },
-            { event: EVENTS.SYSTEM.SETTINGS,  type: "PARAM_UPDATE" },
-            { event: "BACKTEST_FRAME",        type: "BT_PROGRESS" }
+            { event: EVENTS.MARKET.TICK, type: "DATA_TICK" },
+            { event: EVENTS.ORDER.CREATE, type: "ORDER_FILLED" },
+            { event: EVENTS.SYSTEM.SETTINGS, type: "PARAM_UPDATE" }
         ];
 
         mappings.forEach(({ event, type }) => {
@@ -43,10 +46,6 @@ class Broadcaster {
         });
     }
 
-    /**
-     * Primary Transmission Method
-     * Distinct pathing: ensures payload is wrapped with metadata
-     */
     transmit(type, payload) {
         if (!this.wss) return;
 
@@ -57,22 +56,30 @@ class Broadcaster {
         });
 
         this.wss.clients.forEach(client => {
-            if (client.readyState === 1) { // WebSocket.OPEN
-                client.send(message);
-            }
+            if (client.readyState === WebSocket.OPEN) client.send(message);
         });
     }
 
     _handleConnection(ws, req) {
         const ip = req.socket.remoteAddress;
-        
-        // Advanced: Simple Auth check on upgrade (optional)
-        const protocol = req.headers['sec-websocket-protocol'];
-        
-        logger.info(`🔌 UI Terminal Connected [IP: ${ip}]`);
+        logger.info(`🔌 WS Client Connected [IP: ${ip}]`);
 
-        ws.on("error", (err) => logger.error(`📡 WS Stream Error: ${err.message}`));
-        ws.on("close", () => logger.debug(`🔌 UI Terminal Disconnected [IP: ${ip}]`));
+        ws.isAlive = true;
+
+        ws.on("pong", () => { ws.isAlive = true; });
+        ws.on("error", (err) => logger.error(`📡 WS Error [${ip}]: ${err.message}`));
+        ws.on("close", (code, reason) => {
+            logger.info(`🔌 WS Client Disconnected [IP: ${ip}, Code: ${code}, Reason: ${reason || "none"}]`);
+        });
+    }
+
+    _heartbeat() {
+        if (!this.wss) return;
+        this.wss.clients.forEach(ws => {
+            if (!ws.isAlive) return ws.terminate();
+            ws.isAlive = false;
+            ws.ping();
+        });
     }
 }
 

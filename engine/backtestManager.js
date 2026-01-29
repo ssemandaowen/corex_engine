@@ -11,12 +11,10 @@ const broker = require('@broker/twelvedata');
 
 /**
  * @class BacktestManager
- * @description Manages the full lifecycle of a backtest:
- * - data ingestion & cleaning
- * - strategy preparation
- * - simulation using grademark
- * - performance analysis
- * - report generation & persistence
+ * @description Standardized orchestrator for strategy backtesting.
+ * - Single-pass execution (Strategy + Simulation run together).
+ * - Proper state management for stateful strategies.
+ * - Grademark-driven performance analysis.
  */
 class BacktestManager {
     constructor() {
@@ -24,307 +22,207 @@ class BacktestManager {
         this._ensureStorageDirectory();
     }
 
-    /**
-     * Creates the backtest results storage folder if missing
-     * @private
-     */
     _ensureStorageDirectory() {
         if (!fs.existsSync(this.storagePath)) {
             fs.mkdirSync(this.storagePath, { recursive: true });
-            logger.info(`📁 Created backtest results directory → ${this.storagePath}`);
+            logger.info(`Created backtest results directory → ${this.storagePath}`);
         }
     }
 
     /**
-     * Main entry point — executes a complete backtest run
-     * @param {BaseStrategy} strategyInstance - Configured strategy object
-     * @param {Object} options - Backtest configuration
-     * @param {string} [options.symbol] - Trading pair/symbol
-     * @param {string} [options.interval] - Timeframe (1min, 5min, 1h, ...)
-     * @param {Object} [options.file] - File upload object (optional)
-     * @param {number} [options.initialCapital=10000] - Starting capital
-     * @param {number} [options.outputsize] - Number of bars to fetch
-     * @param {boolean} [options.includeTrades=false] - Include full trade list in report
-     * @returns {Promise<Object>} Complete backtest report
+     * Execute a complete backtest run
      */
-    async run(strategyInstance, options = {}) {
-        const runtimeId = uuidv4().slice(0, 8); // shorter for logs
+    async run(strategy, options = {}) {
+        const runtimeId = uuidv4().slice(0, 8);
         const startMs = Date.now();
 
-        logger.info(`🧪 Starting backtest → ID: ${runtimeId} | Strategy: ${strategyInstance.name || 'Unnamed'}`);
+        logger.info(`🔁 Backtest start [${runtimeId}] - strategy=${strategy?.name || 'unknown'} id=${strategy?.id || 'n/a'}`);
 
         try {
-            // ── 1. Data acquisition ────────────────────────────────
-            logger.debug(`📥 Loading historical data...`);
+            // 1. Load and Clean Data
+            logger.info(`📥 Loading data (file:${!!options.file?.path} symbol:${!!options.symbol})...`);
             const bars = await this._loadAndNormalizeData(options);
+            logger.info(`📥 Loaded and normalized ${bars.length} bars.`);
 
-            if (bars.length < strategyInstance.lookback + 20) {
-                throw new Error(
-                    `Not enough bars → got ${bars.length}, need ≥ ${strategyInstance.lookback + 20}`
-                );
+            // 2. Create the DataFrame and BAKE it
+            // .bake() forces the data into memory so the iterator doesn't return 'undefined'
+            let df = new dataForge.DataFrame(bars)
+                .cast()
+                .orderBy(row => row.time)
+                .bake();
+
+            logger.info(`🧾 DataFrame baked → ${df.count()} bars. Starting simulation... ⏱️`);
+
+            // 3. Simulation Pass
+            // We pass the baked DataFrame directly
+            const trades = this._runGrademarkSimulation(df, strategy, options);
+            logger.info(`🧪 Simulation finished → ${trades ? trades.length : 0} trades generated.`);
+
+            // 4. Analysis Guard
+            const initialCapital = Number(options.initialCapital) || 10000;
+            logger.info(`📊 Analyzing results with initial capital = ${initialCapital}`);
+            let stats = { profit: 0, maxDrawdownPct: 0 };
+
+            if (trades && trades.length > 0) {
+                // Wrap trades in a DataFrame to provide the .count() method Grademark needs
+                const tradesDf = new dataForge.DataFrame(trades);
+                stats = analyze(initialCapital, tradesDf.toArray());
+                logger.info(`📈 Analysis complete → profit=${(stats.profit || 0).toFixed(2)} maxDD%=${(stats.maxDrawdownPct || 0).toFixed(2)} sharpe=${(stats.sharpeRatio || 'N/A')}`);
+            } else {
+                logger.info('⚠️ No trades to analyze.');
             }
 
-            logger.info(`📊 Data ready → ${bars.length} bars loaded`);
-
-            // ── 2. Prepare DataFrame ───────────────────────────────
-            const df = this._createIndexedDataFrame(bars);
-            logger.debug(`🗃️ DataFrame created with ${df.count()} rows`);
-
-            // ── 3. Prepare strategy ────────────────────────────────
-            strategyInstance.setMode('BACKTEST');
-            strategyInstance.enabled = true;
-            logger.debug(`⚙️ Strategy prepared for BACKTEST mode`);
-
-            // ── 4. Execute simulation ──────────────────────────────
-            logger.info(`▶️ Running simulation...`);
-            const trades = this._runGrademarkSimulation(strategyInstance, df);
-
-            logger.info(`📈 Simulation finished → ${trades.length} trades generated`);
-
-            // ── 5. Analyze performance ─────────────────────────────
-            const initialCapital = Number(options.initialCapital) || 10000;
-            const stats = analyze(initialCapital, trades);
-
-            // ── 6. Generate & save report ──────────────────────────
+            // 5. Final Report
             const report = this._buildReport({
-                runtimeId,
-                strategyInstance,
-                startMs,
-                initialCapital,
-                trades,
-                stats,
-                df,
-                options
+                runtimeId, strategy, startMs, initialCapital, trades, stats, df, options
             });
 
             await this._saveReport(report);
 
-            const duration = ((Date.now() - startMs) / 1000).toFixed(2);
-            logger.info(
-                `🏁 Backtest completed → ID: ${runtimeId} | ` +
-                `Trades: ${trades.length} | Net: ${stats.profit?.toFixed(2) ?? 0} | ` +
-                `Duration: ${duration}s`
-            );
+            const savedPath = path.join(this.storagePath, `${report.meta.id}.json`);
+            logger.info(`💾 Report saved → ${savedPath}`);
+            logger.info(`✅ Backtest complete [${runtimeId}] (duration: ${((Date.now() - startMs) / 1000).toFixed(2)}s)`);
 
             return report;
 
         } catch (err) {
-            logger.error(
-                `🔴 BACKTEST FAILED → ID: ${runtimeId} | ${err.message}`,
-                { stack: err.stack }
-            );
+            logger.error(`❌ BACKTEST FAILED → ${err.message}`);
             throw err;
         }
     }
 
-    // ────────────────────────────────────────────────
-    //  Data Pipeline
-    // ────────────────────────────────────────────────
-
-    /**
-     * Loads data either from file or broker and normalizes it
-     * @private
-     * @param {Object} options
-     * @returns {Promise<Array<Object>>} Normalized bar array
-     */
     async _loadAndNormalizeData(options) {
         let rawRows;
-
         if (options.file?.path) {
             rawRows = this._readCsv(options.file.path);
         } else if (options.symbol && options.interval) {
             rawRows = await this._fetchFromBroker(options);
         } else {
-            throw new Error("Must provide either 'file' or 'symbol + interval'");
+            throw new Error("Missing data source: provide 'file' or 'symbol/interval'");
         }
-
         return this._normalizeBars(rawRows);
     }
 
-    /**
-     * Reads and parses CSV file into array of objects
-     * @private
-     */
     _readCsv(filePath) {
         const content = fs.readFileSync(filePath, 'utf-8');
-        const rows = dataForge.fromCSV(content).toArray();
-        logger.info(`📄 Loaded CSV → ${rows.length} rows from ${path.basename(filePath)}`);
-        return rows;
+        return dataForge.fromCSV(content).toArray();
     }
 
-    /**
-     * Fetches OHLCV data from TwelveData broker
-     * @private
-     */
     async _fetchFromBroker(options) {
-        const params = {
+        return await broker.fetchHistory({
             symbol: options.symbol,
             interval: options.interval || '1min',
             outputsize: options.outputsize || 1500
-        };
-
-        const data = await broker.fetchHistory(params);
-        logger.info(`🌐 Fetched from broker → ${data.length} bars (${params.symbol} ${params.interval})`);
-        return data;
+        });
     }
 
-    /**
-     * Normalizes raw rows into consistent bar format + chronological sort
-     * @private
-     */
     _normalizeBars(rawRows) {
-        const normalized = rawRows
-            .map((row, i) => this._parseBar(row, i))
-            .filter(Boolean);
+        return rawRows
+            .map((row) => {
+                const rawTime = row.time || row.Time || row.timestamp || row.datetime || row.Date || row.at;
+                let timeMs = NaN;
 
-        normalized.sort((a, b) => a.time - b.time);
+                if (rawTime) {
+                    const num = Number(rawTime);
+                    // Convert seconds to milliseconds if necessary
+                    timeMs = !isNaN(num) ? (num < 1e11 ? num * 1000 : num) : Date.parse(rawTime);
+                }
 
-        logger.debug(`🧹 Normalized → ${normalized.length} valid bars after cleaning`);
-        return normalized;
+                if (isNaN(timeMs)) return null;
+
+                // Strict casting to prevent [object Object] or undefined
+                const bar = {
+                    time: timeMs,
+                    open: parseFloat(row.open || row.Open || 0),
+                    high: parseFloat(row.high || row.High || 0),
+                    low: parseFloat(row.low || row.Low || 0),
+                    close: parseFloat(row.close || row.Close || 0),
+                    volume: parseFloat(row.volume || row.Volume || 0)
+                };
+
+                // Validation: Don't pass bars with 0 price to the strategy
+                return (bar.close > 0) ? bar : null;
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.time - b.time);
     }
 
     /**
-     * Parses a single raw row into standard bar structure
-     * @private
-     * @returns {Object|null} Normalized bar or null if invalid
-     */
-    _parseBar(row, index) {
-        const rawTime = row.time || row.Time || row.timestamp || row.datetime ||
-            row.Date || row.Timestamp || row.at;
+ * Unified Simulation Pass
+ * Standardizes how data flows into the strategy and how signals flow to the adapter.
+ */
+    _runGrademarkSimulation(df, strategy, options) {
+        const SignalAdapter = require('@core/signalAdapter');
+        const adapter = new SignalAdapter({ mode: 'BACKTEST' });
+        strategy.executionContext = { adapter };
+        const symbol = options.symbol || "SYMBOL";
 
-        let timeMs = NaN;
-        if (rawTime) {
-            if (!isNaN(rawTime)) {
-                const num = Number(rawTime);
-                timeMs = num < 1e10 ? num * 1000 : num;
-            } else {
-                timeMs = Date.parse(rawTime);
-            }
-        }
-
-        if (isNaN(timeMs)) {
-            if (index < 5) {
-                logger.warn(`⚠️ Skipping invalid timestamp at row ${index}: ${JSON.stringify(row)}`);
-            }
-            return null;
-        }
-
-        return {
-            time: timeMs,
-            open: Number(row.open || row.Open || 0),
-            high: Number(row.high || row.High || 0),
-            low: Number(row.low || row.Low || 0),
-            close: Number(row.close || row.Close || 0),
-            volume: Number(row.volume || row.Volume || 0)
-        };
-    }
-
-    _createIndexedDataFrame(bars) {
-        const indexed = bars.map((bar, i) => ({ ...bar, index: i }));
-        return new dataForge.DataFrame(indexed);
-    }
-
-    // ────────────────────────────────────────────────
-    //  Simulation
-    // ────────────────────────────────────────────────
-
-    /**
-     * Executes the grademark backtest with memoized signals
-     * @private
-     */
-    _runGrademarkSimulation(strategy, df) {
-        let currentBarSignal = null;
-
+        // Grademark iterates over the DF. We must ensure the entry/exit rules match your strategy.
         return backtest({
-            // The Entry Rule runs first for every bar
-            entryRule: (enter, { bar }) => {
-                const isWarmup = bar.index < strategy.lookback;
+            entryRule: (enter, args) => {
+                const bar = args.bar;
+                bar.symbol = symbol; // Ensure the key matches the strategy Map
 
-                // Execute Strategy Logic
-                currentBarSignal = strategy.onBar(bar, isWarmup);
+                adapter.bindBacktestContext({ enter });
 
-                if (isWarmup || !currentBarSignal) return;
+                // 1. THIS IS THE KEY: Use onBar to fill the CircularBuffer
+                // This internally calls this.next(bar) and returns the signal
+                const signal = strategy.onBar(bar);
 
-                if (currentBarSignal.action === 'ENTER_LONG') {
-                    enter({ direction: 'long' });
-                } else if (currentBarSignal.action === 'ENTER_SHORT') {
-                    enter({ direction: 'short' });
-                }
+                // 2. Handle the signal returned by onBar
+                if (signal && signal.intent === 'ENTER') adapter.handle(signal);
             },
+            exitRule: (exit, args) => {
+                const bar = args.bar;
+                bar.symbol = symbol;
 
-            // The Exit Rule runs immediately after entryRule for the same bar
-            exitRule: (exit) => {
-                if (currentBarSignal?.action?.startsWith('EXIT')) {
-                    exit();
-                }
+                adapter.bindBacktestContext({ exit });
+
+                // 3. Re-run onBar (it will detect the bar is already active or update it)
+                const signal = strategy.onBar(bar);
+
+                if (signal && signal.intent === 'EXIT') adapter.handle(signal);
             },
-
-            // Optional: Hardcoded Stop Loss as a safety net
             stopLoss: ({ direction, entryPrice }) => {
-                const slPercent = (strategy.params?.stopLoss || 0) / 100;
-                if (slPercent <= 0) return undefined;
-
-                return direction === 'long'
-                    ? entryPrice * (1 - slPercent)
-                    : entryPrice * (1 + slPercent);
+                const sl = Number(options.stopLossPercent) || 0;
+                if (sl <= 0) return undefined;
+                return direction === 'long' ? entryPrice * (1 - sl / 100) : entryPrice * (1 + sl / 100);
+            },
+            takeProfit: ({ direction, entryPrice }) => {
+                const tp = Number(options.takeProfitPercent) || 0;
+                if (tp <= 0) return undefined;
+                return direction === 'long' ? entryPrice * (1 + tp / 100) : entryPrice * (1 - tp / 100);
             }
-        }, df);
+        }, df); // DF is passed as the source of truth
     }
 
-    // ────────────────────────────────────────────────
-    //  Reporting & Storage
-    // ────────────────────────────────────────────────
-
-    /**
-     * Builds the final structured report object
-     * @private
-     */
-    _buildReport({ runtimeId, strategyInstance, startMs, initialCapital, trades, stats, df, options }) {
-        const first = df.first();
-        const last = df.last();
-
+    _buildReport({ runtimeId, strategy, startMs, initialCapital, trades, stats, df, options }) {
         const duration = ((Date.now() - startMs) / 1000).toFixed(2);
-        const wins = trades.filter(t => t.profit > 0).length;
-        const winRate = trades.length > 0 ? (wins / trades.length * 100).toFixed(2) : "0.00";
+        const wins = trades.filter(t => (t.profit || 0) > 0).length;
 
         return {
             meta: {
                 id: runtimeId,
-                strategyId: strategyInstance.id,
-                strategyName: strategyInstance.name || 'Unnamed',
+                strategyId: strategy.id,
+                strategyName: strategy.name,
                 timestamp: new Date().toISOString(),
                 executionTime: `${duration}s`
             },
-            config: {
-                symbol: options.symbol || path.basename(options.file?.path || 'unknown'),
-                interval: options.interval || '—',
-                period: first && last
-                    ? `${new Date(first.time).toISOString()} → ${new Date(last.time).toISOString()}`
-                    : '—',
-                initialCapital
-            },
             performance: {
                 netProfit: stats.profit?.toFixed(2) ?? "0.00",
-                roiPercent: ((stats.profit || 0) / initialCapital * 100).toFixed(2),
-                maxDrawdown: stats.maxDrawdown?.toFixed(2) ?? "0.00",
+                roiPercent: (((stats.profit || 0) / initialCapital) * 100).toFixed(2),
+                maxDrawdownPercent: (stats.maxDrawdownPct || 0).toFixed(2),
                 totalTrades: trades.length,
-                winRatePercent: winRate
+                winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(2) : "0.00",
+                sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A"
             },
-            trades: options.includeTrades ? trades : undefined,
-            rawStats: stats
+            trades: options.includeTrades ? trades : []
         };
     }
 
-    /**
-     * Saves the report to disk
-     * @private
-     */
     async _saveReport(report) {
-        const filename = `${report.meta.id}.json`;
-        const filepath = path.join(this.storagePath, filename);
-
+        const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
         fs.writeFileSync(filepath, JSON.stringify(report, null, 2));
-        logger.info(`💾 Report saved → ${filename}`);
     }
 }
 

@@ -1,0 +1,55 @@
+"use strict";
+
+const StateLedger = require("@utils/LinkedList");
+const logger = require("@utils/logger");
+
+class StateController {
+    constructor() {
+        this.registry = new Map(); // strategyId -> StateLedger
+        
+        // SERVER CONTROL RULES: Define legal logic flow
+        this.rules = {
+            "OFFLINE": ["STAGED"],
+            "STAGED": ["WARMING_UP", "OFFLINE"],
+            "WARMING_UP": ["ACTIVE", "ERROR"],
+            "ACTIVE": ["PAUSED", "STOPPING", "ERROR"],
+            "PAUSED": ["ACTIVE", "STOPPING"],
+            "STOPPING": ["OFFLINE"],
+            "ERROR": ["STAGED", "OFFLINE"]
+        };
+    }
+
+    /**
+     * @param {string} id - Strategy ID
+     * @param {string} target - The state we want to move to
+     * @param {Object} meta - Why we are doing this
+     */
+    commit(id, target, meta = {}) {
+        if (!this.registry.has(id)) {
+            this.registry.set(id, new StateLedger());
+        }
+
+        const ledger = this.registry.get(id);
+        const current = ledger.last();
+
+        if (current === target) return true;
+
+        // Validation Logic
+        const allowed = this.rules[current] || [];
+        if (!allowed.includes(target)) {
+            logger.error(`🚫 [STATE COLLISION] Cannot move ${id} from ${current} to ${target}`);
+            return false;
+        }
+
+        ledger.push(target, meta);
+        logger.info(`🔄 [${id}] ${current} -> ${target}`);
+        return true;
+    }
+
+    getStatus(id) {
+        return this.registry.get(id)?.last() || "OFFLINE";
+    }
+}
+
+// Export as Singleton to ensure Engine and Loader share the same registry
+module.exports = new StateController();

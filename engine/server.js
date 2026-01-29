@@ -2,42 +2,47 @@
 
 const express = require("express");
 const http = require("http");
-const WebSocket = require("ws");
-const path = require("path");
-const logger = require("../utils/logger");
+const logger = require("@utils/logger");
 
-// Modular Route Imports
-const strategyRoutes = require("./routes/strategy");
-const backtestRoutes = require("./routes/backtest");
-const systemRoutes = require("./routes/system");
+// Routes
+const strategyRoutes = require("@core/routes/strategy");
+const backtestRoutes = require("@core/routes/backtest");
+const systemRoutes = require("@core/routes/system");
+
+// Broadcaster
+const broadcaster = require("@core/services/broadcaster");
 
 const app = express();
 const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
 
-// 1. Global Middleware
+// ──────────────
+// Middleware
+// ──────────────
 app.use(express.json());
 
-// 2. Security / Admin Guard
 const authGuard = (req, res, next) => {
-    const adminKey = req.headers["x-admin-key"];
-    if (!process.env.ADMIN_SECRET || adminKey !== process.env.ADMIN_SECRET) {
-        logger.warn(`🚫 Unauthorized access attempt from: ${req.ip}`);
+    const key = req.headers["x-admin-key"];
+    if (!process.env.ADMIN_SECRET || key !== process.env.ADMIN_SECRET) {
+        logger.warn(`🚫 Unauthorized REST access from ${req.ip}`);
         return res.status(401).json({ error: "UNAUTHORIZED" });
     }
     next();
 };
 
-// 3. Mount Modular Routes
+// ──────────────
+// Routes
+// ──────────────
 app.use("/api/strategies", authGuard, strategyRoutes);
 app.use("/api/backtest", authGuard, backtestRoutes);
 app.use("/api/system", authGuard, systemRoutes);
 
-// 4. WebSocket Broadcast Service
-const broadcaster = require("./services/broadcaster");
-
-// Initialize once
-broadcaster.init(wss);
-
+// ──────────────
+// Server Boot
+// ──────────────
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, (e) => logger.info(`🌐 CoreX Hub: [===Ready on Port ${PORT}===]`));
+server.listen(PORT, () => {
+    logger.info(`🌐 CoreX Hub READY on port ${PORT}`);
+
+    // Initialize WS + event bridge inside Broadcaster
+    broadcaster.initServer(server);
+});

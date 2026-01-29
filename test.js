@@ -1,52 +1,66 @@
-const dataForge = require('data-forge')
-const { writeFile, writeFileSync } = require('fs')
-require('data-forge-fs')
-const ta = require('data-forge')
-require('data-forge')
-const fs = require('fs')
-const path = require('path')
+const dataForge = require('data-forge');
+require('data-forge-fs');
+const fs = require('fs');
+const { backtest, analyze, computeEquityCurve, computeDrawdown } = require('grademark');
 
-const { backtest, analyze, computeEquityCurve, computeDrawdown } = require('grademark')
-let time_length = 30;
-let stopLossPercentage = 20;
-let startingCapital = 100
+const time_length = 30;
+const stopLossPercentage = 20;
+const startingCapital = 100;
 
-let inputSeries = dataForge.readFileSync('data/uploads/5910df942067e817db796372aecd9013')
+// Load CSV
+let inputSeries = dataForge.readFileSync('data/uploads/eeda66db1beb0fc443c45d7283faa6f7')
     .parseCSV()
     .parseFloats(["open", "high", "low", "close"])
+    .skip(time_length);
 
-inputSeries = inputSeries
-    .skip(time_length)
-let s = true
+const inputArray = inputSeries; // convert to array for detailed access
+let s = true;
+
 const trades = backtest({
     entryRule: (enter, args) => {
-        if (s) {
-            enter({ direction: 'long' })
-            s = false
-        }
+        const bar = args.bar;
+        const timestamp = new Date(bar.Time / 1000).toISOString();
+        const direction = 'long';
+
+        console.log(`--- ENTRY ---`);
+        console.log(`Timestamp: ${timestamp}`);
+        console.log(`OHLC: O:${bar.Open} H:${bar.High} L:${bar.Low} C:${bar.Close}`);
+        console.log(`Direction: ${direction}`);
+        console.log(`StopLoss: ${bar.Close * (stopLossPercentage / 100)}\n`);
+
+        enter({ direction });
+        s = false;
     },
     exitRule: (exit, args) => {
+        const bar = args.bar;
+        const timestamp = new Date(bar.Time / 1000).toISOString();
+
+        console.log(`--- EXIT ---`);
+        console.log(`Timestamp: ${timestamp}`);
+        console.log(`OHLC: O:${bar.Open} H:${bar.High} L:${bar.Low} C:${bar.Close}\n`);
+
         if (!s) {
-            exit()
-            s = true
+            exit();
+            s = true;
         }
-    },
-    stopLoss: args => {
-        return args.entryPrice * (stopLossPercentage / 100);
     }
-}, inputSeries);
+}, inputArray);
 
+const analysis = analyze(startingCapital, trades);
 
-const analysis = analyze(startingCapital, trades)
-
-
-// console.log(analysis);
 async function report() {
-    let eq = computeEquityCurve(startingCapital, trades)
-    let dd = computeDrawdown(startingCapital, trades)
+    const eq = computeEquityCurve(startingCapital, trades);
+    const dd = computeDrawdown(startingCapital, trades);
 
-    let df = {analyse: analysis, stat:[ eq, dd ]}
+    const df = {
+        analysis,
+        stats: { equityCurve: eq, drawdown: dd },
+        trades
+    };
+
     await fs.writeFileSync('message.json', JSON.stringify(df, null, 2));
+    console.log("Backtest complete, results saved to message.json");
+    console.log("Detailed logs already printed above.");
 }
 
-report()
+report();

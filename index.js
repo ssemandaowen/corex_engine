@@ -6,13 +6,14 @@ require('module-alias/register');
 require("dotenv").config();
 
 // 3. Load the engine
-const engine = require("./engine/index");
-const server = require("./engine/server");
+const engine = require("@core/engine");
+const server = require("@core/server");
+const logger = require("@utils/logger");
 
 async function bootstrap() {
     try {
         await engine.start();
-        console.log("🟢 CoreX Engine Bootstrap Complete");
+        logger.info(`🟢 CoreX \x1b[36m Ready to use...\x1b[0m`);
     } catch (err) {
         console.error("🔴 Bootstrap Failed:", err);
         process.exit(1);
