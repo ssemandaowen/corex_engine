@@ -1,0 +1,222 @@
+[
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877240000,
+    "open": 77406.32,
+    "high": 77475.05,
+    "low": 77383.96,
+    "close": 77442.75,
+    "price": 77442.75,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877300000,
+    "open": 77442.75,
+    "high": 77503.89,
+    "low": 77366.66,
+    "close": 77375.99,
+    "price": 77375.99,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877360000,
+    "open": 77377.18,
+    "high": 77443.61,
+    "low": 77254.43,
+    "close": 77255.43,
+    "price": 77255.43,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877420000,
+    "open": 77254.42,
+    "high": 77392.44,
+    "low": 77191.46,
+    "close": 77241.64,
+    "price": 77241.64,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877480000,
+    "open": 77241.63,
+    "high": 77247.81,
+    "low": 77177,
+    "close": 77197.09,
+    "price": 77197.09,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877540000,
+    "open": 77203.01,
+    "high": 77258.61,
+    "low": 77083.14,
+    "close": 77220.19,
+    "price": 77220.19,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877600000,
+    "open": 77217.2,
+    "high": 77336.98,
+    "low": 77156.68,
+    "close": 77165.54,
+    "price": 77165.54,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877660000,
+    "open": 77165.53,
+    "high": 77214.69,
+    "low": 77125,
+    "close": 77165.13,
+    "price": 77165.13,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877720000,
+    "open": 77163.47,
+    "high": 77243.56,
+    "low": 77133.67,
+    "close": 77193.87,
+    "price": 77193.87,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877780000,
+    "open": 77195.66,
+    "high": 77460.65,
+    "low": 77195.66,
+    "close": 77351.25,
+    "price": 77351.25,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877840000,
+    "open": 77351.25,
+    "high": 77489.18,
+    "low": 77318.51,
+    "close": 77411.74,
+    "price": 77411.74,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877900000,
+    "open": 77410.73,
+    "high": 77588.73,
+    "low": 77339.6,
+    "close": 77568.05,
+    "price": 77568.05,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769877960000,
+    "open": 77575.04,
+    "high": 77578.1,
+    "low": 77431.81,
+    "close": 77555.86,
+    "price": 77555.86,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878020000,
+    "open": 77555.43,
+    "high": 77774.43,
+    "low": 77532.79,
+    "close": 77702.53,
+    "price": 77702.53,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878080000,
+    "open": 77698.45,
+    "high": 77700.64,
+    "low": 77554.86,
+    "close": 77569.95,
+    "price": 77569.95,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878140000,
+    "open": 77569.96,
+    "high": 77678.07,
+    "low": 77509.93,
+    "close": 77676.74,
+    "price": 77676.74,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878200000,
+    "open": 77676.74,
+    "high": 77718.2,
+    "low": 77651.16,
+    "close": 77699.93,
+    "price": 77699.93,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878260000,
+    "open": 77699.93,
+    "high": 77830,
+    "low": 77656.25,
+    "close": 77829.15,
+    "price": 77829.15,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878320000,
+    "open": 77829.15,
+    "high": 77851.34,
+    "low": 77650.21,
+    "close": 77762.95,
+    "price": 77762.95,
+    "volume": 0,
+    "is_live": false
+  },
+  {
+    "symbol": "BTC/USD",
+    "time": 1769878380000,
+    "open": 77765.85,
+    "high": 77799.03,
+    "low": 77652.85,
+    "close": 77681.57,
+    "price": 77681.57,
+    "volume": 0,
+    "is_live": false
+  }
+]

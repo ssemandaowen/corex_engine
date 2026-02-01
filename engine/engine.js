@@ -11,15 +11,20 @@ const logger = require("@utils/logger");
 const stateManager = require("@utils/stateController");
 
 const BANNER = `
-\x1b[36m   ______             _  __
-  / ____/___  ________ | |/ /
- / /   / __ \\/ ___/ _ \\|  / 
-/ /___/ /_/ / /  /  __/   |  
-\\____/\\____/_/   \\___/_/|_|  \x1b[0m
-\x1b[90m =========================== \x1b[0m
- \x1b[32m[SERVER CONTROL MODE ACTIVE]\x1b[0m
- \x1b[90m Build: 2026.1.20 | Tier: FREE\x1b[0m
+\x1b[36m
+   ██████╗ ██████╗ ██████╗ ███████╗██╗  ██╗
+  ██╔════╝██╔═══██╗██╔══██╗██╔════╝╚██╗██╔╝
+  ██║     ██║   ██║██████╔╝█████╗   ╚███╔╝ 
+  ██║     ██║   ██║██╔══██╗██╔══╝   ██╔██╗ 
+  ╚██████╗╚██████╔╝██║  ██║███████╗██╔╝ ██╗
+   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
+\x1b[0m
+\x1b[90m──────────────────────────────────────────\x1b[0m
+\x1b[32m   ▶ SERVER CONTROL MODE : ACTIVE\x1b[0m
+\x1b[90m   Build: 2026.1.20  |  Tier: FREE\x1b[0m
+\x1b[90m──────────────────────────────────────────\x1b[0m
 `;
+
 
 function showBanner() {
     console.clear();
@@ -53,44 +58,62 @@ class CoreXEngine {
 
     async registerStrategy(strategy, options = {}) {
         const id = strategy.id || strategy.name;
-        if (!strategy.symbols || !Array.isArray(strategy.symbols)) {
+
+        // 1. Validation Guard
+        if (!strategy.symbols || !Array.isArray(strategy.symbols) || strategy.symbols.length === 0) {
             logger.warn(`[${id}] No symbols defined → registration skipped`);
+            stateManager.commit(id, "ERROR", { reason: "Missing symbols" });
             return false;
         }
 
-        // Try to move → WARMING_UP
-        const canProceed = stateManager.commit(id, "WARMING_UP", { reason: "Registration requested" });
+        // 2. State Transition
+        const canProceed = stateManager.commit(id, "WARMING_UP", { reason: "Registration sequence initiated" });
         if (!canProceed) {
-            logger.warn(`[${id}] Cannot enter WARMING_UP — blocked by state rules`);
+            logger.warn(`[${id}] Registration blocked by state controller (Current: ${stateManager.getStatus(id)})`);
             return false;
         }
 
-        logger.info(`🔗 [${strategy.name}] Linking to market stream`);
+        try {
+            logger.info(`🔗 [${id}] Linking to market stream via ${strategy.mode || 'PAPER'}`);
 
-        this._setupExecutionContext(strategy);
+            // 3. Environment Setup
+            this._setupExecutionContext(strategy);
 
-        // Subscribe to symbols
-        for (const symbol of strategy.symbols) {
-            this.activeSymbols.add(symbol);
-            if (!this.subscriptions.has(symbol)) {
-                this.subscriptions.set(symbol, new Set());
+            // 4. Subscription Mapping
+            for (const symbol of strategy.symbols) {
+                this.activeSymbols.add(symbol);
+                if (!this.subscriptions.has(symbol)) {
+                    this.subscriptions.set(symbol, new Set());
+                }
+                this.subscriptions.get(symbol).add(strategy);
             }
-            this.subscriptions.get(symbol).add(strategy);
+
+            // 5. Historical Warmup (The Critical Gate)
+            logger.info(`⏳ [${id}] Commencing historical data synchronization...`);
+            const warmupSuccess = await this.warmupStrategy(strategy);
+
+            if (!warmupSuccess) {
+                throw new Error("Warmup phase failed: No data returned from broker");
+            }
+
+            // 6. Finalize Activation
+            stateManager.commit(id, "ACTIVE", { 
+                reason: "Handshake complete, strategy is now live" 
+            });
+
+            // Update broker with the new aggregate symbol list
+            broker.updateSymbols(Array.from(this.activeSymbols));
+            if (this.status === "RUNNING") broker.connect();
+
+            return true;
+
+        } catch (err) {
+            logger.error(`❌ [${id}] Engine Registration Failed: ${err.message}`);
+            stateManager.commit(id, "ERROR", { 
+                reason: `Registration Error: ${err.message.slice(0, 50)}` 
+            });
+            return false;
         }
-
-        // Warm up historical data
-        const warmupSuccess = await this.warmupStrategy(strategy);
-
-        // Only go ACTIVE if warmup succeeded
-        const nextState = warmupSuccess ? "ACTIVE" : "ERROR";
-        stateManager.commit(id, nextState, {
-            reason: warmupSuccess ? "Warmup completed successfully" : "Warmup failed"
-        });
-
-        broker.updateSymbols(Array.from(this.activeSymbols));
-        if (this.status === "RUNNING") broker.connect();
-
-        return warmupSuccess;
     }
 
     _setupExecutionContext(strategy) {
@@ -139,7 +162,7 @@ class CoreXEngine {
     }
 
     async warmupStrategy(strategy) {
-        const cacheDir = path.join(__dirname, "data", "cache");
+        const cacheDir =path.resolve(__dirname, '../data/cache')
         fs.mkdirSync(cacheDir, { recursive: true });
 
         const id = strategy.id || strategy.name;

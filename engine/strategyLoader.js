@@ -100,89 +100,163 @@ class StrategyLoader {
             const stat = fs.statSync(filePath);
             const existing = this.registry.get(id);
 
-            // Skip if file didn't change (fast path for hot-reload spam)
-            if (existing && existing.mtime >= stat.mtimeMs) {
-                logger.debug && logger.debug(`Skipping ${id} (not modified). mtime=${stat.mtimeMs}`);
-                return;
-            }
+            // 1. SKIP IF UNCHANGED
+            if (existing && existing.mtime >= stat.mtimeMs) return;
 
-            // Security check
+            // 2. SECURITY VALIDATION
             const code = fs.readFileSync(filePath, 'utf8');
             const tSecurityStart = process.hrtime.bigint();
             if (!validateStrategyCode(code)) {
-                const tSecurityEnd = process.hrtime.bigint();
-                const msSec = Number(tSecurityEnd - tSecurityStart) / 1e6;
-                logger.error(`Security validation failed → ${id} (took ${msSec.toFixed(2)}ms)`);
+                logger.error(`Security validation failed → ${id}`);
                 stateManager.commit(id, 'ERROR', { reason: 'security check' });
                 return;
             }
             const tSecurityEnd = process.hrtime.bigint();
 
-            // Clear cache → reload module
+            // 3. ENGINE CLEANUP (Crucial for avoiding duplicates/memory leaks)
+            if (existing && this.engine) {
+                logger.info(`♻️ Purging existing engine instance for ${id} before reload`);
+                this.engine.unregisterStrategy(id);
+            }
+
+            // 4. CLEAR REQUIRE CACHE
             try {
                 const resolved = require.resolve(filePath);
-                if (require.cache[resolved]) {
-                    delete require.cache[resolved];
-                    logger.debug && logger.debug(`Cleared require cache for ${id}`);
-                }
-            } catch (e) {
-                // require.resolve may throw for non-resolvable; ignore
-            }
+                if (require.cache[resolved]) delete require.cache[resolved];
+            } catch (e) {}
 
+            // 5. INITIALIZE INSTANCE
             const tRequireStart = process.hrtime.bigint();
             const StrategyClass = require(filePath);
+            
+            // Pass the ID into constructor so internal name = filename
             const instance = typeof StrategyClass === 'function'
-                ? new StrategyClass()
+                ? new StrategyClass({ name: id, id: id })
                 : StrategyClass;
+                
             const tRequireEnd = process.hrtime.bigint();
 
+            // Force override IDs to prevent "Split Identity"
             instance.id = id;
+            instance.name = id;
 
-            // Restore params if exist
+            // 6. RESTORE PARAMS & DEFAULTS
             const saved = this._loadParams(id);
-            if (saved) {
-                instance.updateParams?.(saved);
-                logger.info(`Restored params for ${id}`);
-            }
-
-            // Apply defaults
+            if (saved) instance.updateParams?.(saved);
             instance._applyDefaults?.();
 
-            // Store minimal metadata
+            // 7. REGISTRY UPDATE
             this.registry.set(id, {
                 instance,
                 filePath,
                 mtime: stat.mtimeMs
             });
 
-            // Initial state
-            if (!stateManager.getStatus(id)) {
+            // 8. STATE MANAGEMENT
+            const currentStatus = stateManager.getStatus(id);
+            if (!currentStatus || currentStatus === 'OFFLINE') {
                 stateManager.commit(id, 'STAGED', { reason: 'loaded' });
             }
 
-            // Update stats
+            // 9. LOGGING & METRICS
             this.stats.loads += 1;
             if (existing) this.stats.reloads += 1;
-            const end = process.hrtime.bigint();
-            const msTotal = Number(end - start) / 1e6;
-            this.stats.loadTimesMs.push(msTotal);
+            const msTotal = Number(process.hrtime.bigint() - start) / 1e6;
+            
+            logger.info(`Strategy ${existing ? 're' : ''}loaded: ${id} (${msTotal.toFixed(2)}ms)`);
 
-            logger.info(`Strategy ${existing ? 're' : ''}loaded: ${id} (size=${stat.size} bytes, mtime=${new Date(stat.mtimeMs).toISOString()}, totalLoad=${msTotal.toFixed(2)}ms, security=${Number(tSecurityEnd - tSecurityStart)/1e6 .toFixed?.(2) || 'n/a'}ms, require=${Number(tRequireEnd - tRequireStart)/1e6 .toFixed?.(2) || 'n/a'}ms)`);
-
-            // Auto-restart previously active strategies
-            if (stateManager.getStatus(id) === 'ACTIVE' && this.engine) {
-                logger.info(`Auto-restarting previously ACTIVE strategy ${id}`);
+            // 10. AUTO-RESTART (If it was ACTIVE before reload)
+            if (currentStatus === 'ACTIVE' && this.engine) {
                 this.startStrategy(id);
             }
 
             bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { id });
 
-            // Periodic diagnostics
-            if (this.stats.loads % 10 === 0) {
-                const avg = this.stats.loadTimesMs.reduce((a, b) => a + b, 0) / this.stats.loadTimesMs.length;
-                logger.info(`Load stats: totalLoads=${this.stats.loads}, reloads=${this.stats.reloads}, avgLoadMs=${avg.toFixed(2)}`);
-                this._logDiagnostics('periodic');
+        } catch (err) {
+            logger.error(`Load failed [${id}]: ${err.message}`);
+            stateManager.commit(id, 'ERROR', { reason: err.message.slice(0, 120) });
+        }
+    }_loadOne(filePath) {
+        const start = process.hrtime.bigint();
+        const id = path.basename(filePath, '.js');
+
+        logger.debug && logger.debug(`_loadOne(${id}) called for ${filePath}`);
+
+        try {
+            const stat = fs.statSync(filePath);
+            const existing = this.registry.get(id);
+
+            // 1. SKIP IF UNCHANGED
+            if (existing && existing.mtime >= stat.mtimeMs) return;
+
+            // 2. SECURITY VALIDATION
+            const code = fs.readFileSync(filePath, 'utf8');
+            const tSecurityStart = process.hrtime.bigint();
+            if (!validateStrategyCode(code)) {
+                logger.error(`Security validation failed → ${id}`);
+                stateManager.commit(id, 'ERROR', { reason: 'security check' });
+                return;
             }
+            const tSecurityEnd = process.hrtime.bigint();
+
+            // 3. ENGINE CLEANUP (Crucial for avoiding duplicates/memory leaks)
+            if (existing && this.engine) {
+                logger.info(`♻️ Purging existing engine instance for ${id} before reload`);
+                this.engine.unregisterStrategy(id);
+            }
+
+            // 4. CLEAR REQUIRE CACHE
+            try {
+                const resolved = require.resolve(filePath);
+                if (require.cache[resolved]) delete require.cache[resolved];
+            } catch (e) {}
+
+            // 5. INITIALIZE INSTANCE
+            const tRequireStart = process.hrtime.bigint();
+            const StrategyClass = require(filePath);
+            
+            // Pass the ID into constructor so internal name = filename
+            const instance = typeof StrategyClass === 'function'
+                ? new StrategyClass({ name: id, id: id })
+                : StrategyClass;
+                
+            const tRequireEnd = process.hrtime.bigint();
+
+            // Force override IDs to prevent "Split Identity"
+            instance.id = id;
+            instance.name = id;
+
+            // 6. RESTORE PARAMS & DEFAULTS
+            const saved = this._loadParams(id);
+            if (saved) instance.updateParams?.(saved);
+            instance._applyDefaults?.();
+
+            // 7. REGISTRY UPDATE
+            this.registry.set(id, {
+                instance,
+                filePath,
+                mtime: stat.mtimeMs
+            });
+
+            // 8. STATE MANAGEMENT
+            const currentStatus = stateManager.getStatus(id);
+            if (!currentStatus || currentStatus === 'OFFLINE') {
+                stateManager.commit(id, 'STAGED', { reason: 'loaded' });
+            }
+
+            // 9. LOGGING & METRICS
+            this.stats.loads += 1;
+            if (existing) this.stats.reloads += 1;
+            const msTotal = Number(process.hrtime.bigint() - start) / 1e6;
+            
+            logger.info(`Strategy ${existing ? 're' : ''}loaded: ${id} (${msTotal.toFixed(2)}ms)`);
+
+            // 10. AUTO-RESTART (If it was ACTIVE before reload)
+            if (currentStatus === 'ACTIVE' && this.engine) {
+                this.startStrategy(id);
+            }
+
+            bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { id });
 
         } catch (err) {
             logger.error(`Load failed [${id}]: ${err.message}`);
@@ -267,41 +341,52 @@ class StrategyLoader {
     startStrategy(id, options = {}) {
         logger.info(`startStrategy requested for ${id} with options=${JSON.stringify(options)}`);
         const entry = this.registry.get(id);
+        
         if (!entry) {
-            logger.warn(`startStrategy: no entry for ${id}`);
+            logger.warn(`startStrategy: [${id}] not found in registry`);
             return null;
         }
 
         const current = stateManager.getStatus(id);
-        if (!['STAGED', 'PAUSED', 'ERROR'].includes(current)) {
-            logger.debug && logger.debug(`startStrategy: invalid state ${current} for ${id}, skipping start`);
+        
+        // Expanded valid states to allow recovery from OFFLINE or ERROR
+        const transitionableStates = ['STAGED', 'PAUSED', 'ERROR', 'OFFLINE'];
+        
+        if (!transitionableStates.includes(current)) {
+            logger.warn(`startStrategy: [${id}] is already ${current}. Ignoring request.`);
             return entry;
         }
 
-        entry.instance.mode = (options.mode || 'PAPER').toUpperCase();
+        // Apply Runtime Configuration
+        entry.instance.mode = (options.mode || entry.instance.mode || 'PAPER').toUpperCase();
         entry.instance.timeframe = options.timeframe || entry.instance.timeframe || '1m';
-
-        if (!stateManager.commit(id, 'WARMING_UP', { reason: 'start requested' })) {
-            logger.warn(`startStrategy: stateManager refused to move to WARMING_UP for ${id}`);
-            return entry;
-        }
-
         entry.instance.enabled = true;
         entry.instance.startTime = Date.now();
 
-        const t0 = process.hrtime.bigint();
-        this.engine?.registerStrategy(entry.instance, options);
-        const t1 = process.hrtime.bigint();
+        // 1. Initial State update to inform UI we are working on it
+        stateManager.commit(id, 'WARMING_UP', { reason: 'Loader passing control to Engine' });
 
-        logger.info(`Registered strategy ${id} with engine (register took ${Number(t1 - t0) / 1e6 .toFixed?.(2) || 'n/a'}ms)`);
+        // 2. Hand over to Engine for Market Connection
+        if (this.engine) {
+            // We don't await this here to keep the UI responsive; 
+            // the Engine will update the state to ACTIVE/ERROR when done.
+            this.engine.registerStrategy(entry.instance, options)
+                .then(success => {
+                    if (success) {
+                        logger.info(`🚀 [${id}] Strategy successfully deployed to engine`);
+                        bus.emit(EVENTS.SYSTEM.STRATEGY_START, { id, mode: entry.instance.mode });
+                    }
+                })
+                .catch(err => {
+                    logger.error(`[${id}] Engine handover failed: ${err.message}`);
+                    stateManager.commit(id, 'ERROR', { reason: 'Engine handover failed' });
+                });
+        } else {
+            logger.error(`[${id}] Failed to start: Engine instance not found in Loader`);
+            stateManager.commit(id, 'ERROR', { reason: 'Core Engine Missing' });
+        }
 
-        bus.emit(EVENTS.SYSTEM.STRATEGY_START, {
-            id,
-            name: entry.instance.name || id,
-            mode: entry.instance.mode
-        });
-
-        this._logDiagnostics(`start:${id}`);
+        this._logDiagnostics(`start_attempt:${id}`);
         return entry;
     }
 
@@ -360,7 +445,21 @@ class StrategyLoader {
         logger.debug && logger.debug(`getActiveSymbols returned ${symbols.size} symbols`);
         return Array.from(symbols);
     }
-
+// Public method for manual/API reloads
+    reloadStrategy(id) {
+        const entry = this.registry.get(id);
+        if (!entry) {
+            logger.warn(`reloadStrategy: ${id} not found in registry`);
+            return false;
+        }
+        
+        // Stop it if it's currently running to prevent logic leaks
+        this.stopStrategy(id);
+        
+        // Use your existing internal loader
+        this._loadOne(entry.filePath);
+        return true;
+    }
     // Optional: cleanup on shutdown
     shutdown() {
         logger.info('StrategyLoader shutdown initiated');

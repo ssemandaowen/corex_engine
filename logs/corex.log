@@ -6657,3 +6657,736 @@ info: 📈 Analysis complete → profit=-0.08 maxDD%=-1.40 sharpe=N/A {"timestam
 info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\5fc405de.json {"timestamp":"2026-01-29T23:49:32.322Z"}
 info: ✅ Backtest complete [5fc405de] (duration: 2.26s) {"timestamp":"2026-01-29T23:49:32.324Z"}
 info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-29T23:49:44.480Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-30T21:09:12.202Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-30T21:09:12.215Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-30T21:09:15.536Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-30T21:09:15.540Z"}
+info: Strategy loaded: demo (size=1349 bytes, mtime=2026-01-29T22:50:50.194Z, totalLoad=5764.26ms, security=35.2169ms, require=5723.5006ms) {"timestamp":"2026-01-30T21:09:21.306Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-10T10:11:34.299Z, totalLoad=13.39ms, security=6.7287ms, require=2.2568ms) {"timestamp":"2026-01-30T21:09:21.321Z"}
+info: Loaded 2 strategies in 5783ms (total registry=2) {"timestamp":"2026-01-30T21:09:21.322Z"}
+info: Diagnostics - _loadAll: registry=2, rss=116MB, heapUsed=62MB {"timestamp":"2026-01-30T21:09:21.324Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-30T21:09:21.325Z"}
+info: File watcher started {"timestamp":"2026-01-30T21:09:21.330Z"}
+info: StrategyLoader init completed in 5792.57ms, loaded=2 {"timestamp":"2026-01-30T21:09:21.331Z"}
+info: Diagnostics - init: registry=2, rss=116MB, heapUsed=62MB {"timestamp":"2026-01-30T21:09:21.332Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-30T21:09:21.333Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-30T21:09:21.337Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-30T21:09:21.340Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-30T21:09:21.342Z"}
+info: 🔁 Backtest start [61e12d7e] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-30T21:18:34.004Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-30T21:18:34.005Z"}
+error: ❌ REST Portal Error [BTC/USD]: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-30T21:18:34.153Z"}
+error: ❌ BACKTEST FAILED → Cannot read properties of null (reading 'map') {"timestamp":"2026-01-30T21:18:34.155Z"}
+info: 🔁 Backtest start [8f53997a] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-30T21:24:25.323Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-30T21:24:25.324Z"}
+error: ❌ REST Portal Error [BTC/USD]: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-30T21:24:25.338Z"}
+error: ❌ BACKTEST FAILED → Cannot read properties of null (reading 'map') {"timestamp":"2026-01-30T21:24:25.339Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T10:13:49.850Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T10:13:49.865Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T10:13:53.217Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T10:13:53.221Z"}
+info: Strategy loaded: demo (size=1349 bytes, mtime=2026-01-29T22:50:50.194Z, totalLoad=5507.30ms, security=36.31ms, require=5464.5748ms) {"timestamp":"2026-01-31T10:13:58.732Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-10T10:11:34.299Z, totalLoad=14.36ms, security=6.8432ms, require=2.7487ms) {"timestamp":"2026-01-31T10:13:58.748Z"}
+info: Loaded 2 strategies in 5530ms (total registry=2) {"timestamp":"2026-01-31T10:13:58.750Z"}
+info: Diagnostics - _loadAll: registry=2, rss=113MB, heapUsed=62MB {"timestamp":"2026-01-31T10:13:58.752Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T10:13:58.754Z"}
+info: File watcher started {"timestamp":"2026-01-31T10:13:58.758Z"}
+info: StrategyLoader init completed in 5540.70ms, loaded=2 {"timestamp":"2026-01-31T10:13:58.760Z"}
+info: Diagnostics - init: registry=2, rss=113MB, heapUsed=62MB {"timestamp":"2026-01-31T10:13:58.761Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T10:13:58.763Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T10:13:58.767Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T10:13:58.769Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T10:13:58.774Z"}
+info: 🔁 Backtest start [d13fb37b] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-31T10:15:21.437Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-31T10:15:21.438Z"}
+info: 📥 Loaded and normalized 1000 bars. {"timestamp":"2026-01-31T10:15:23.090Z"}
+info: 🧾 DataFrame baked → 1000 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T10:15:23.118Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T10:15:23.125Z"}
+info: 🧪 Simulation finished → 61 trades generated. {"timestamp":"2026-01-31T10:15:23.421Z"}
+info: 📊 Analyzing results with initial capital = 10 {"timestamp":"2026-01-31T10:15:23.422Z"}
+info: 📈 Analysis complete → profit=0.06 maxDD%=-1.63 sharpe=N/A {"timestamp":"2026-01-31T10:15:23.528Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\d13fb37b.json {"timestamp":"2026-01-31T10:15:23.541Z"}
+info: ✅ Backtest complete [d13fb37b] (duration: 2.10s) {"timestamp":"2026-01-31T10:15:23.542Z"}
+info: 🔁 Backtest start [9a0aa9ba] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-31T10:43:22.218Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-31T10:43:22.219Z"}
+info: 📥 Loaded and normalized 1000 bars. {"timestamp":"2026-01-31T10:43:23.655Z"}
+info: 🧾 DataFrame baked → 1000 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T10:43:23.665Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T10:43:23.671Z"}
+info: 🧪 Simulation finished → 63 trades generated. {"timestamp":"2026-01-31T10:43:23.985Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T10:43:23.986Z"}
+info: 📈 Analysis complete → profit=0.87 maxDD%=-1.63 sharpe=N/A {"timestamp":"2026-01-31T10:43:23.989Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\9a0aa9ba.json {"timestamp":"2026-01-31T10:43:23.995Z"}
+info: ✅ Backtest complete [9a0aa9ba] (duration: 1.78s) {"timestamp":"2026-01-31T10:43:23.996Z"}
+info: 🔁 Backtest start [a58d599d] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-31T10:43:41.553Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T10:43:41.554Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T10:43:41.615Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T10:43:41.625Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T10:43:41.626Z"}
+info: 🧪 Simulation finished → 65 trades generated. {"timestamp":"2026-01-31T10:43:42.053Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T10:43:42.058Z"}
+info: 📈 Analysis complete → profit=-0.14 maxDD%=-0.86 sharpe=N/A {"timestamp":"2026-01-31T10:43:42.061Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\a58d599d.json {"timestamp":"2026-01-31T10:43:42.068Z"}
+info: ✅ Backtest complete [a58d599d] (duration: 0.52s) {"timestamp":"2026-01-31T10:43:42.070Z"}
+info: 🔁 Backtest start [ee82804c] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-31T10:44:13.209Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-31T10:44:13.210Z"}
+info: 📥 Loaded and normalized 1000 bars. {"timestamp":"2026-01-31T10:44:14.395Z"}
+info: 🧾 DataFrame baked → 1000 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T10:44:14.404Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T10:44:14.406Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T10:44:14.409Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T10:44:14.410Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T10:44:14.411Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\ee82804c.json {"timestamp":"2026-01-31T10:44:14.418Z"}
+info: ✅ Backtest complete [ee82804c] (duration: 1.21s) {"timestamp":"2026-01-31T10:44:14.420Z"}
+info: 🔁 Backtest start [ef9ab4cf] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-31T10:44:50.157Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-31T10:44:50.158Z"}
+info: 📥 Loaded and normalized 1000 bars. {"timestamp":"2026-01-31T10:44:51.309Z"}
+info: 🧾 DataFrame baked → 1000 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T10:44:51.317Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T10:44:51.318Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T10:44:51.321Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T10:44:51.322Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T10:44:51.323Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\ef9ab4cf.json {"timestamp":"2026-01-31T10:44:51.327Z"}
+info: ✅ Backtest complete [ef9ab4cf] (duration: 1.17s) {"timestamp":"2026-01-31T10:44:51.328Z"}
+info: 🔁 Backtest start [4896d780] - strategy=CoreX_Validation_v1 id=demo {"timestamp":"2026-01-31T10:45:15.647Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-31T10:45:15.648Z"}
+info: 📥 Loaded and normalized 1000 bars. {"timestamp":"2026-01-31T10:45:16.783Z"}
+info: 🧾 DataFrame baked → 1000 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T10:45:16.792Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T10:45:16.795Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T10:45:16.799Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T10:45:16.800Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T10:45:16.801Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\4896d780.json {"timestamp":"2026-01-31T10:45:16.804Z"}
+info: ✅ Backtest complete [4896d780] (duration: 1.16s) {"timestamp":"2026-01-31T10:45:16.805Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T11:40:10.395Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T12:00:07.136Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T12:00:07.155Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T12:00:11.400Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T12:00:11.404Z"}
+info: Strategy loaded: demo (size=1349 bytes, mtime=2026-01-29T22:50:50.194Z, totalLoad=6066.60ms, security=59.0763ms, require=6002.1238ms) {"timestamp":"2026-01-31T12:00:17.473Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-10T10:11:34.299Z, totalLoad=17.98ms, security=9.812ms, require=3.6365ms) {"timestamp":"2026-01-31T12:00:17.494Z"}
+info: Loaded 2 strategies in 6108ms (total registry=2) {"timestamp":"2026-01-31T12:00:17.511Z"}
+info: Diagnostics - _loadAll: registry=2, rss=119MB, heapUsed=62MB {"timestamp":"2026-01-31T12:00:17.555Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T12:00:17.579Z"}
+info: File watcher started {"timestamp":"2026-01-31T12:00:17.604Z"}
+info: StrategyLoader init completed in 6218.09ms, loaded=2 {"timestamp":"2026-01-31T12:00:17.621Z"}
+info: Diagnostics - init: registry=2, rss=119MB, heapUsed=62MB {"timestamp":"2026-01-31T12:00:17.650Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T12:00:17.658Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T12:00:17.683Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T12:00:17.691Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T12:00:17.703Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:11:46.954Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:11:47.016Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:11:51.450Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:11:56.447Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:01.443Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:06.445Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:11.446Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:16.448Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:21.441Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:26.439Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:31.445Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:36.444Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:41.445Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:46.437Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:51.445Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:12:56.441Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:01.436Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:06.444Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:11.453Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:16.448Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:21.443Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:26.450Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:32.911Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:36.758Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:41.754Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:46.757Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:51.747Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:13:56.754Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:01.441Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:06.439Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:11.440Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:16.747Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:21.759Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:26.773Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:31.752Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:36.751Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:41.768Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:46.762Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:51.761Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:14:56.774Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:15:01.758Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:15:06.753Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:15:11.757Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:15:18.754Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:16:18.769Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:22.345Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:22.378Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:31.747Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:32.757Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:37.750Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:42.751Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:47.751Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:17:52.771Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:18:18.775Z"}
+warn: 🚫 Unauthorized REST access from ::1 {"timestamp":"2026-01-31T12:19:18.766Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T12:20:14.298Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T12:21:20.727Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T12:21:20.744Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T12:21:24.340Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T12:21:24.344Z"}
+info: Strategy loaded: demo (size=1349 bytes, mtime=2026-01-29T22:50:50.194Z, totalLoad=9515.74ms, security=66.5457ms, require=9443.3142ms) {"timestamp":"2026-01-31T12:21:33.862Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-10T10:11:34.299Z, totalLoad=78.70ms, security=48.2789ms, require=9.7594ms) {"timestamp":"2026-01-31T12:21:33.962Z"}
+info: Loaded 2 strategies in 9629ms (total registry=2) {"timestamp":"2026-01-31T12:21:33.972Z"}
+info: Diagnostics - _loadAll: registry=2, rss=119MB, heapUsed=61MB {"timestamp":"2026-01-31T12:21:34.045Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T12:21:34.054Z"}
+info: File watcher started {"timestamp":"2026-01-31T12:21:34.118Z"}
+info: StrategyLoader init completed in 9839.55ms, loaded=2 {"timestamp":"2026-01-31T12:21:34.182Z"}
+info: Diagnostics - init: registry=2, rss=119MB, heapUsed=62MB {"timestamp":"2026-01-31T12:21:34.245Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T12:21:34.881Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T12:21:35.046Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T12:21:35.138Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T12:21:35.152Z"}
+info: startStrategy requested for pair with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T12:28:33.984Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T12:29:52.838Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T12:35:05.249Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T12:35:05.263Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T12:35:08.303Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T12:35:08.307Z"}
+info: Strategy loaded: demo (size=1349 bytes, mtime=2026-01-29T22:50:50.194Z, totalLoad=6846.24ms, security=45.1025ms, require=6794.5206ms) {"timestamp":"2026-01-31T12:35:15.156Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-10T10:11:34.299Z, totalLoad=13.90ms, security=8.0901ms, require=2.2329ms) {"timestamp":"2026-01-31T12:35:15.172Z"}
+info: Loaded 2 strategies in 6869ms (total registry=2) {"timestamp":"2026-01-31T12:35:15.174Z"}
+info: Diagnostics - _loadAll: registry=2, rss=124MB, heapUsed=62MB {"timestamp":"2026-01-31T12:35:15.176Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T12:35:15.177Z"}
+info: File watcher started {"timestamp":"2026-01-31T12:35:15.182Z"}
+info: StrategyLoader init completed in 6877.98ms, loaded=2 {"timestamp":"2026-01-31T12:35:15.183Z"}
+info: Diagnostics - init: registry=2, rss=124MB, heapUsed=62MB {"timestamp":"2026-01-31T12:35:15.184Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T12:35:15.185Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T12:35:15.190Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T12:35:15.193Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T12:35:15.197Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T12:56:55.380Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T12:57:00.177Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T12:57:00.192Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T12:57:02.695Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T12:57:02.701Z"}
+info: Strategy loaded: demo (size=1349 bytes, mtime=2026-01-29T22:50:50.194Z, totalLoad=4450.33ms, security=40.8542ms, require=4401.8478ms) {"timestamp":"2026-01-31T12:57:07.154Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-10T10:11:34.299Z, totalLoad=12.82ms, security=7.4538ms, require=2.2337ms) {"timestamp":"2026-01-31T12:57:07.169Z"}
+info: Loaded 2 strategies in 4471ms (total registry=2) {"timestamp":"2026-01-31T12:57:07.170Z"}
+info: Diagnostics - _loadAll: registry=2, rss=124MB, heapUsed=61MB {"timestamp":"2026-01-31T12:57:07.172Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T12:57:07.173Z"}
+info: File watcher started {"timestamp":"2026-01-31T12:57:07.177Z"}
+info: StrategyLoader init completed in 4480.35ms, loaded=2 {"timestamp":"2026-01-31T12:57:07.178Z"}
+info: Diagnostics - init: registry=2, rss=124MB, heapUsed=61MB {"timestamp":"2026-01-31T12:57:07.179Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T12:57:07.181Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T12:57:07.184Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T12:57:07.187Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T12:57:07.189Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T13:03:07.481Z"}
+info: Strategy CoreX_Validation_v1 created and staged. {"timestamp":"2026-01-31T13:06:09.012Z"}
+error: [API] Reload failed for demo: loader.loadStrategy is not a function {"timestamp":"2026-01-31T13:06:09.066Z"}
+info: Detected change/add for corex_validation_v1, reloading {"timestamp":"2026-01-31T13:06:09.193Z"}
+info: Strategy loaded: corex_validation_v1 (size=1334 bytes, mtime=2026-01-31T13:06:09.005Z, totalLoad=9.21ms, security=4.1984ms, require=1.7282ms) {"timestamp":"2026-01-31T13:06:09.203Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T13:06:19.221Z"}
+info: startStrategy requested for corex_validation_v1 with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:06:48.066Z"}
+info: Strategy Pair created and staged. {"timestamp":"2026-01-31T13:07:54.599Z"}
+error: [API] Reload failed for pair: loader.loadStrategy is not a function {"timestamp":"2026-01-31T13:07:54.671Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T13:07:54.770Z"}
+info: Strategy reloaded: pair (size=462 bytes, mtime=2026-01-31T13:07:54.607Z, totalLoad=5.71ms, security=1.9153ms, require=1.2246ms) {"timestamp":"2026-01-31T13:07:54.776Z"}
+info: Strategy Pair created and staged. {"timestamp":"2026-01-31T13:08:07.312Z"}
+error: [API] Reload failed for pair: loader.loadStrategy is not a function {"timestamp":"2026-01-31T13:08:07.382Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T13:08:07.489Z"}
+info: Strategy reloaded: pair (size=462 bytes, mtime=2026-01-31T13:08:07.327Z, totalLoad=11.21ms, security=5.6652ms, require=1.5105ms) {"timestamp":"2026-01-31T13:08:07.508Z"}
+info: startStrategy requested for pair with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:08:16.341Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T13:10:11.518Z"}
+warn: [API] Strategy demo purged from disk and memory by admin. {"timestamp":"2026-01-31T13:10:11.525Z"}
+info: Detected removal of demo, stopping and removing from registry {"timestamp":"2026-01-31T13:10:11.686Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T13:10:11.687Z"}
+warn: stopStrategy: no entry for demo {"timestamp":"2026-01-31T13:10:11.688Z"}
+info: Diagnostics - file removed: registry=2, rss=88MB, heapUsed=52MB {"timestamp":"2026-01-31T13:10:11.690Z"}
+info: Strategy demo created and staged. {"timestamp":"2026-01-31T13:10:44.170Z"}
+error: [API] Reload failed for corex_validation_v1: loader.loadStrategy is not a function {"timestamp":"2026-01-31T13:10:44.240Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T13:10:44.349Z"}
+info: Strategy loaded: demo (size=1334 bytes, mtime=2026-01-31T13:10:44.166Z, totalLoad=8.80ms, security=4.3039ms, require=1.7738ms) {"timestamp":"2026-01-31T13:10:44.358Z"}
+info: Detected removal of corex_validation_v1, stopping and removing from registry {"timestamp":"2026-01-31T13:11:09.292Z"}
+info: stopStrategy requested for corex_validation_v1 {"timestamp":"2026-01-31T13:11:09.310Z"}
+info: Diagnostics - file removed: registry=2, rss=89MB, heapUsed=53MB {"timestamp":"2026-01-31T13:11:09.318Z"}
+info: Strategy Pair created and staged. {"timestamp":"2026-01-31T13:14:17.420Z"}
+error: [API] Reload failed for pair: loader.loadStrategy is not a function {"timestamp":"2026-01-31T13:14:17.488Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T13:14:17.591Z"}
+info: Strategy reloaded: pair (size=462 bytes, mtime=2026-01-31T13:14:17.431Z, totalLoad=5.55ms, security=1.4703ms, require=1.4992ms) {"timestamp":"2026-01-31T13:14:17.597Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T13:27:52.925Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T13:27:57.619Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T13:27:57.632Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T13:28:00.689Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T13:28:00.692Z"}
+info: Strategy loaded: demo (size=1334 bytes, mtime=2026-01-31T13:10:44.166Z, totalLoad=5317.10ms, security=38.3267ms, require=5273.6758ms) {"timestamp":"2026-01-31T13:28:06.012Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-31T13:14:17.431Z, totalLoad=26.91ms, security=17.9726ms, require=3.2314ms) {"timestamp":"2026-01-31T13:28:06.049Z"}
+info: Loaded 2 strategies in 5359ms (total registry=2) {"timestamp":"2026-01-31T13:28:06.051Z"}
+info: Diagnostics - _loadAll: registry=2, rss=124MB, heapUsed=62MB {"timestamp":"2026-01-31T13:28:06.053Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T13:28:06.054Z"}
+info: File watcher started {"timestamp":"2026-01-31T13:28:06.063Z"}
+info: StrategyLoader init completed in 5372.93ms, loaded=2 {"timestamp":"2026-01-31T13:28:06.064Z"}
+info: Diagnostics - init: registry=2, rss=124MB, heapUsed=62MB {"timestamp":"2026-01-31T13:28:06.065Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T13:28:06.066Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T13:28:06.070Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T13:28:06.072Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T13:28:06.075Z"}
+info: Strategy Pair created and staged. {"timestamp":"2026-01-31T13:28:35.976Z"}
+info: stopStrategy requested for pair {"timestamp":"2026-01-31T13:28:36.046Z"}
+info: Strategy reloaded: pair (size=462 bytes, mtime=2026-01-31T13:28:35.982Z, totalLoad=7.32ms, security=3.0525ms, require=1.2345ms) {"timestamp":"2026-01-31T13:28:36.055Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T13:28:36.158Z"}
+info: startStrategy requested for pair with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:28:57.999Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:29:21.276Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:43:14.620Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T13:43:46.770Z"}
+info: startStrategy requested for pair with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:44:29.189Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T13:53:22.777Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T13:53:27.302Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T13:53:27.314Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T13:53:30.140Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T13:53:30.144Z"}
+info: Strategy loaded: demo (size=1334 bytes, mtime=2026-01-31T13:10:44.166Z, totalLoad=4791.65ms, security=36.1771ms, require=4750.5202ms) {"timestamp":"2026-01-31T13:53:34.938Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-31T13:28:35.982Z, totalLoad=21.24ms, security=14.716ms, require=2.4508ms) {"timestamp":"2026-01-31T13:53:34.963Z"}
+info: Loaded 2 strategies in 4821ms (total registry=2) {"timestamp":"2026-01-31T13:53:34.964Z"}
+info: Diagnostics - _loadAll: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-01-31T13:53:34.966Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T13:53:34.967Z"}
+info: File watcher started {"timestamp":"2026-01-31T13:53:34.972Z"}
+info: StrategyLoader init completed in 4830.60ms, loaded=2 {"timestamp":"2026-01-31T13:53:34.973Z"}
+info: Diagnostics - init: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-01-31T13:53:34.974Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T13:53:34.975Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T13:53:34.979Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T13:53:34.982Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T13:53:34.985Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:54:09.735Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from OFFLINE to WARMING_UP {"timestamp":"2026-01-31T13:54:09.738Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from OFFLINE to WARMING_UP {"timestamp":"2026-01-31T13:54:09.739Z"}
+warn: [demo] Registration blocked by state controller (Current: OFFLINE) {"timestamp":"2026-01-31T13:54:09.741Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=85MB, heapUsed=50MB {"timestamp":"2026-01-31T13:54:09.742Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T13:57:56.337Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T13:58:00.986Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T13:58:01.000Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T13:58:03.844Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T13:58:03.847Z"}
+info: Strategy loaded: demo (size=1334 bytes, mtime=2026-01-31T13:10:44.166Z, totalLoad=4671.64ms, security=34.5414ms, require=4631.9754ms) {"timestamp":"2026-01-31T13:58:08.521Z"}
+info: Strategy loaded: pair (size=462 bytes, mtime=2026-01-31T13:28:35.982Z, totalLoad=19.36ms, security=11.3266ms, require=3.4102ms) {"timestamp":"2026-01-31T13:58:08.558Z"}
+info: Loaded 2 strategies in 4728ms (total registry=2) {"timestamp":"2026-01-31T13:58:08.574Z"}
+info: Diagnostics - _loadAll: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-01-31T13:58:08.583Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T13:58:08.600Z"}
+info: File watcher started {"timestamp":"2026-01-31T13:58:08.663Z"}
+info: StrategyLoader init completed in 4868.42ms, loaded=2 {"timestamp":"2026-01-31T13:58:08.714Z"}
+info: Diagnostics - init: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-01-31T13:58:08.764Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T13:58:08.799Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T13:58:08.834Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T13:58:08.868Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T13:58:08.908Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T13:58:45.422Z"}
+info: 🔄 [demo] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T13:58:45.425Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T13:58:45.428Z"}
+info: [PAPER] Broker initialized with $100,000 {"timestamp":"2026-01-31T13:58:45.539Z"}
+info: [ARCH] SignalAdapter standardized for mode: PAPER {"timestamp":"2026-01-31T13:58:45.546Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T13:58:45.548Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T13:58:45.555Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=100MB, heapUsed=50MB {"timestamp":"2026-01-31T13:58:45.706Z"}
+error: ❌ REST Portal Error [BTC/USD]: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-31T13:58:56.790Z"}
+error: ❌ [demo] Engine Registration Failed: Cannot read properties of null (reading 'length') {"timestamp":"2026-01-31T13:58:56.792Z"}
+info: 🔄 [demo] WARMING_UP -> ERROR {"timestamp":"2026-01-31T13:58:56.793Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:04:06.743Z"}
+info: 🔄 [demo] ERROR -> WARMING_UP {"timestamp":"2026-01-31T14:04:06.744Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:04:06.745Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:04:06.746Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:04:06.749Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=102MB, heapUsed=51MB {"timestamp":"2026-01-31T14:04:06.761Z"}
+error: ❌ REST Portal Error [BTC/USD]: Client network socket disconnected before secure TLS connection was established {"timestamp":"2026-01-31T14:04:06.809Z"}
+error: ❌ [demo] Engine Registration Failed: Cannot read properties of null (reading 'length') {"timestamp":"2026-01-31T14:04:06.812Z"}
+info: 🔄 [demo] WARMING_UP -> ERROR {"timestamp":"2026-01-31T14:04:06.813Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T14:14:37.480Z"}
+info: Strategy Pair created and staged. {"timestamp":"2026-01-31T14:14:51.773Z"}
+info: stopStrategy requested for pair {"timestamp":"2026-01-31T14:14:51.841Z"}
+info: Strategy reloaded: pair (size=462 bytes, mtime=2026-01-31T14:14:51.766Z, totalLoad=8.94ms, security=4.5911ms, require=1.8277ms) {"timestamp":"2026-01-31T14:14:51.852Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T14:14:51.944Z"}
+info: Strategy Pair created and staged. {"timestamp":"2026-01-31T14:15:03.063Z"}
+info: stopStrategy requested for pair {"timestamp":"2026-01-31T14:15:03.121Z"}
+info: Strategy reloaded: pair (size=462 bytes, mtime=2026-01-31T14:15:03.071Z, totalLoad=6.74ms, security=2.5147ms, require=1.82ms) {"timestamp":"2026-01-31T14:15:03.129Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T14:15:03.232Z"}
+info: Strategy demo created and staged. {"timestamp":"2026-01-31T14:15:13.382Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T14:15:13.442Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:15:13.443Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:15:13.445Z"}
+info: 🔄 [demo] ERROR -> OFFLINE {"timestamp":"2026-01-31T14:15:13.446Z"}
+info: 🗑️ [demo] Unregistered {"timestamp":"2026-01-31T14:15:13.447Z"}
+info: Unregistered strategy demo (unregister took 3.7049ms) {"timestamp":"2026-01-31T14:15:13.448Z"}
+info: Diagnostics - stop:demo: registry=2, rss=104MB, heapUsed=53MB {"timestamp":"2026-01-31T14:15:13.449Z"}
+info: Strategy reloaded: demo (size=1334 bytes, mtime=2026-01-31T14:15:13.388Z, totalLoad=9.47ms, security=5.0078ms, require=1.9597ms) {"timestamp":"2026-01-31T14:15:13.459Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T14:15:13.557Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:15:20.121Z"}
+info: 🔄 [demo] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T14:15:20.122Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:15:20.123Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:15:20.124Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:15:20.128Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=105MB, heapUsed=53MB {"timestamp":"2026-01-31T14:15:20.135Z"}
+error: ❌ REST Portal Error [BTC/USD]: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-31T14:15:20.141Z"}
+error: ❌ [demo] Engine Registration Failed: Cannot read properties of null (reading 'length') {"timestamp":"2026-01-31T14:15:20.157Z"}
+info: 🔄 [demo] WARMING_UP -> ERROR {"timestamp":"2026-01-31T14:15:20.159Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T14:16:13.177Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:16:13.178Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:16:13.179Z"}
+info: 🔄 [demo] ERROR -> OFFLINE {"timestamp":"2026-01-31T14:16:13.180Z"}
+info: 🗑️ [demo] Unregistered {"timestamp":"2026-01-31T14:16:13.181Z"}
+info: Unregistered strategy demo (unregister took 2.532ms) {"timestamp":"2026-01-31T14:16:13.182Z"}
+info: Diagnostics - stop:demo: registry=2, rss=104MB, heapUsed=53MB {"timestamp":"2026-01-31T14:16:13.183Z"}
+info: Strategy pair created and staged. {"timestamp":"2026-01-31T14:16:42.491Z"}
+info: stopStrategy requested for pair {"timestamp":"2026-01-31T14:16:42.551Z"}
+info: Strategy reloaded: pair (size=460 bytes, mtime=2026-01-31T14:16:42.488Z, totalLoad=7.27ms, security=3.1884ms, require=1.7549ms) {"timestamp":"2026-01-31T14:16:42.559Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T14:16:42.665Z"}
+info: 🔁 Backtest start [32cc8ab5] - strategy=test id=demo {"timestamp":"2026-01-31T14:18:25.087Z"}
+info: 📥 Loading data (file:false symbol:true)... {"timestamp":"2026-01-31T14:18:25.088Z"}
+error: ❌ REST Portal Error [ETH/USD]: getaddrinfo ENOTFOUND api.twelvedata.com {"timestamp":"2026-01-31T14:18:37.153Z"}
+error: ❌ BACKTEST FAILED → Cannot read properties of null (reading 'map') {"timestamp":"2026-01-31T14:18:37.156Z"}
+info: 🔁 Backtest start [34243475] - strategy=test id=demo {"timestamp":"2026-01-31T14:18:52.011Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T14:18:52.012Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T14:18:52.086Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T14:18:52.123Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T14:18:52.126Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T14:18:52.146Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T14:18:52.147Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T14:18:52.148Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\34243475.json {"timestamp":"2026-01-31T14:18:52.164Z"}
+info: ✅ Backtest complete [34243475] (duration: 0.16s) {"timestamp":"2026-01-31T14:18:52.169Z"}
+info: 🔁 Backtest start [3e0766aa] - strategy=test id=demo {"timestamp":"2026-01-31T14:19:26.193Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T14:19:26.194Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T14:19:26.229Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T14:19:26.254Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T14:19:26.255Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T14:19:26.279Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T14:19:26.286Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T14:19:26.287Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\3e0766aa.json {"timestamp":"2026-01-31T14:19:26.291Z"}
+info: ✅ Backtest complete [3e0766aa] (duration: 0.10s) {"timestamp":"2026-01-31T14:19:26.297Z"}
+info: 🔁 Backtest start [128b0016] - strategy=pair id=pair {"timestamp":"2026-01-31T14:19:47.268Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T14:19:47.279Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T14:19:47.314Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T14:19:47.340Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T14:19:47.348Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T14:19:48.078Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T14:19:48.078Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T14:19:48.078Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\128b0016.json {"timestamp":"2026-01-31T14:19:48.083Z"}
+info: ✅ Backtest complete [128b0016] (duration: 0.81s) {"timestamp":"2026-01-31T14:19:48.083Z"}
+info: Strategy pair created and staged. {"timestamp":"2026-01-31T14:21:13.265Z"}
+info: stopStrategy requested for pair {"timestamp":"2026-01-31T14:21:13.333Z"}
+info: Strategy reloaded: pair (size=341 bytes, mtime=2026-01-31T14:21:13.266Z, totalLoad=6.02ms, security=1.3653ms, require=1.9712ms) {"timestamp":"2026-01-31T14:21:13.341Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T14:21:13.443Z"}
+info: 🔁 Backtest start [798a420d] - strategy=pair id=pair {"timestamp":"2026-01-31T14:21:23.828Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T14:21:23.843Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T14:21:23.869Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T14:21:23.881Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T14:21:23.882Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T14:21:24.811Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T14:21:24.812Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T14:21:24.812Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\798a420d.json {"timestamp":"2026-01-31T14:21:24.816Z"}
+info: ✅ Backtest complete [798a420d] (duration: 0.99s) {"timestamp":"2026-01-31T14:21:24.818Z"}
+info: Strategy test created and staged. {"timestamp":"2026-01-31T14:23:05.837Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T14:23:05.908Z"}
+info: Detected change/add for test, reloading {"timestamp":"2026-01-31T14:23:06.002Z"}
+info: Strategy loaded: test (size=1335 bytes, mtime=2026-01-31T14:23:05.835Z, totalLoad=9.63ms, security=2.9616ms, require=2.2948ms) {"timestamp":"2026-01-31T14:23:06.013Z"}
+info: 🔁 Backtest start [120ef111] - strategy=pair id=pair {"timestamp":"2026-01-31T14:23:12.919Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T14:23:12.922Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T14:23:12.951Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T14:23:12.967Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T14:23:12.968Z"}
+info: 🧪 Simulation finished → 0 trades generated. {"timestamp":"2026-01-31T14:23:16.211Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T14:23:16.212Z"}
+info: ⚠️ No trades to analyze. {"timestamp":"2026-01-31T14:23:16.212Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\120ef111.json {"timestamp":"2026-01-31T14:23:16.221Z"}
+info: ✅ Backtest complete [120ef111] (duration: 3.31s) {"timestamp":"2026-01-31T14:23:16.225Z"}
+info: 🔁 Backtest start [1c663c44] - strategy=test id=demo {"timestamp":"2026-01-31T14:23:34.852Z"}
+info: 📥 Loading data (file:true symbol:true)... {"timestamp":"2026-01-31T14:23:34.856Z"}
+info: 📥 Loaded and normalized 1440 bars. {"timestamp":"2026-01-31T14:23:34.885Z"}
+info: 🧾 DataFrame baked → 1440 bars. Starting simulation... ⏱️ {"timestamp":"2026-01-31T14:23:34.898Z"}
+info: [ARCH] SignalAdapter standardized for mode: BACKTEST {"timestamp":"2026-01-31T14:23:34.899Z"}
+info: 🧪 Simulation finished → 66 trades generated. {"timestamp":"2026-01-31T14:23:35.320Z"}
+info: 📊 Analyzing results with initial capital = 100 {"timestamp":"2026-01-31T14:23:35.321Z"}
+info: 📈 Analysis complete → profit=-0.11 maxDD%=-0.86 sharpe=N/A {"timestamp":"2026-01-31T14:23:35.443Z"}
+info: 💾 Report saved → C:\Users\SBUM\Desktop\corex\data\backtests\1c663c44.json {"timestamp":"2026-01-31T14:23:35.451Z"}
+info: ✅ Backtest complete [1c663c44] (duration: 0.60s) {"timestamp":"2026-01-31T14:23:35.452Z"}
+info: stopStrategy requested for test {"timestamp":"2026-01-31T14:24:30.494Z"}
+warn: [API] Strategy test purged from disk and memory by admin. {"timestamp":"2026-01-31T14:24:30.501Z"}
+info: Detected removal of test, stopping and removing from registry {"timestamp":"2026-01-31T14:24:30.666Z"}
+info: stopStrategy requested for test {"timestamp":"2026-01-31T14:24:30.667Z"}
+warn: stopStrategy: no entry for test {"timestamp":"2026-01-31T14:24:30.668Z"}
+info: Diagnostics - file removed: registry=2, rss=103MB, heapUsed=50MB {"timestamp":"2026-01-31T14:24:30.669Z"}
+info: Strategy test created and staged. {"timestamp":"2026-01-31T14:33:41.585Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T14:33:41.653Z"}
+info: Detected change/add for test, reloading {"timestamp":"2026-01-31T14:33:41.769Z"}
+info: Strategy loaded: test (size=1338 bytes, mtime=2026-01-31T14:33:41.580Z, totalLoad=7.90ms, security=3.8101ms, require=1.8122ms) {"timestamp":"2026-01-31T14:33:41.778Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:36:38.880Z"}
+info: 🔄 [demo] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T14:36:38.881Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:36:38.882Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:36:38.883Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:36:38.886Z"}
+info: Diagnostics - start_attempt:demo: registry=3, rss=105MB, heapUsed=53MB {"timestamp":"2026-01-31T14:36:38.902Z"}
+info: 🔄 [demo] WARMING_UP -> ACTIVE {"timestamp":"2026-01-31T14:36:39.593Z"}
+info: 🚀 [demo] Strategy successfully deployed to engine {"timestamp":"2026-01-31T14:36:39.605Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-31T14:36:39.945Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T14:36:39.951Z"}
+error: [CRASH] [test] this.isWarmedUp is not a function {"timestamp":"2026-01-31T14:36:40.743Z"}
+info: 🔄 [demo] ACTIVE -> ERROR {"timestamp":"2026-01-31T14:36:40.744Z"}
+info: Strategy test created and staged. {"timestamp":"2026-01-31T14:38:14.962Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T14:38:15.033Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:38:15.034Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:38:15.034Z"}
+info: 🔄 [demo] ERROR -> OFFLINE {"timestamp":"2026-01-31T14:38:15.035Z"}
+info: 🗑️ [demo] Unregistered {"timestamp":"2026-01-31T14:38:15.036Z"}
+info: Unregistered strategy demo (unregister took 2.5332ms) {"timestamp":"2026-01-31T14:38:15.037Z"}
+info: Diagnostics - stop:demo: registry=3, rss=107MB, heapUsed=54MB {"timestamp":"2026-01-31T14:38:15.038Z"}
+info: Detected change/add for test, reloading {"timestamp":"2026-01-31T14:38:15.129Z"}
+info: Strategy reloaded: test (size=1340 bytes, mtime=2026-01-31T14:38:14.968Z, totalLoad=7.24ms, security=2.6704ms, require=2.1033ms) {"timestamp":"2026-01-31T14:38:15.137Z"}
+info: Load stats: totalLoads=10, reloads=6, avgLoadMs=475.42 {"timestamp":"2026-01-31T14:38:15.138Z"}
+info: Diagnostics - periodic: registry=3, rss=107MB, heapUsed=54MB {"timestamp":"2026-01-31T14:38:15.139Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:38:21.385Z"}
+info: 🔄 [demo] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T14:38:21.388Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:38:21.389Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:38:21.390Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:38:21.395Z"}
+info: Diagnostics - start_attempt:demo: registry=3, rss=107MB, heapUsed=54MB {"timestamp":"2026-01-31T14:38:21.405Z"}
+error: ❌ [demo] Engine Registration Failed: this.isWarmedUp is not a function {"timestamp":"2026-01-31T14:38:22.009Z"}
+info: 🔄 [demo] WARMING_UP -> ERROR {"timestamp":"2026-01-31T14:38:22.010Z"}
+info: Strategy test created and staged. {"timestamp":"2026-01-31T14:38:49.517Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T14:38:49.575Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:38:49.576Z"}
+error: 🚫 [STATE COLLISION] Cannot move demo from ERROR to STOPPING {"timestamp":"2026-01-31T14:38:49.577Z"}
+info: 🔄 [demo] ERROR -> OFFLINE {"timestamp":"2026-01-31T14:38:49.578Z"}
+info: 🗑️ [demo] Unregistered {"timestamp":"2026-01-31T14:38:49.578Z"}
+info: Unregistered strategy demo (unregister took 2.3452ms) {"timestamp":"2026-01-31T14:38:49.579Z"}
+info: Diagnostics - stop:demo: registry=3, rss=107MB, heapUsed=54MB {"timestamp":"2026-01-31T14:38:49.580Z"}
+info: Detected change/add for test, reloading {"timestamp":"2026-01-31T14:38:49.685Z"}
+info: Strategy reloaded: test (size=1333 bytes, mtime=2026-01-31T14:38:49.515Z, totalLoad=6.80ms, security=2.6947ms, require=1.7694ms) {"timestamp":"2026-01-31T14:38:49.695Z"}
+info: Strategy uuu created and staged. {"timestamp":"2026-01-31T14:39:36.269Z"}
+info: stopStrategy requested for test {"timestamp":"2026-01-31T14:39:36.337Z"}
+info: Detected change/add for uuu, reloading {"timestamp":"2026-01-31T14:39:36.445Z"}
+info: Strategy loaded: uuu (size=1339 bytes, mtime=2026-01-31T14:39:36.272Z, totalLoad=8.95ms, security=2.8749ms, require=2.399ms) {"timestamp":"2026-01-31T14:39:36.457Z"}
+info: startStrategy requested for test with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:39:46.921Z"}
+info: 🔄 [test] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T14:39:46.922Z"}
+info: 🔗 [test] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:39:46.923Z"}
+info: ⏳ [test] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:39:46.924Z"}
+info: [test] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:39:46.928Z"}
+info: Diagnostics - start_attempt:test: registry=4, rss=108MB, heapUsed=55MB {"timestamp":"2026-01-31T14:39:46.936Z"}
+info: 🔄 [test] WARMING_UP -> ACTIVE {"timestamp":"2026-01-31T14:39:47.523Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T14:39:47.524Z"}
+info: 🚀 [test] Strategy successfully deployed to engine {"timestamp":"2026-01-31T14:39:47.525Z"}
+error: [CRASH] [uuu] this.isWarmedUp is not a function {"timestamp":"2026-01-31T14:39:47.724Z"}
+info: 🔄 [test] ACTIVE -> ERROR {"timestamp":"2026-01-31T14:39:47.725Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T14:41:10.726Z"}
+info: Strategy reloaded: demo (size=1333 bytes, mtime=2026-01-31T14:41:10.542Z, totalLoad=9.68ms, security=1.9635ms, require=2.9481ms) {"timestamp":"2026-01-31T14:41:10.802Z"}
+info: startStrategy requested for uuu with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:41:45.552Z"}
+info: 🔄 [uuu] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T14:41:45.553Z"}
+info: 🔗 [uuu] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:41:45.554Z"}
+info: ⏳ [uuu] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:41:45.555Z"}
+info: [uuu] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:41:45.559Z"}
+info: Diagnostics - start_attempt:uuu: registry=4, rss=108MB, heapUsed=56MB {"timestamp":"2026-01-31T14:41:45.569Z"}
+error: ❌ [uuu] Engine Registration Failed: isWarmedUp is not a function {"timestamp":"2026-01-31T14:41:46.213Z"}
+info: 🔄 [uuu] WARMING_UP -> ERROR {"timestamp":"2026-01-31T14:41:46.214Z"}
+info: startStrategy requested for test with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T14:41:55.769Z"}
+info: 🔄 [test] ERROR -> WARMING_UP {"timestamp":"2026-01-31T14:41:55.770Z"}
+info: 🔗 [test] Linking to market stream via PAPER {"timestamp":"2026-01-31T14:41:55.772Z"}
+info: ⏳ [test] Commencing historical data synchronization... {"timestamp":"2026-01-31T14:41:55.773Z"}
+info: [test] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T14:41:55.778Z"}
+info: Diagnostics - start_attempt:test: registry=4, rss=109MB, heapUsed=56MB {"timestamp":"2026-01-31T14:41:55.790Z"}
+error: ❌ [test] Engine Registration Failed: this.isWarmedUp is not a function {"timestamp":"2026-01-31T14:41:56.111Z"}
+info: 🔄 [test] WARMING_UP -> ERROR {"timestamp":"2026-01-31T14:41:56.112Z"}
+info: Detected removal of test, stopping and removing from registry {"timestamp":"2026-01-31T14:42:15.056Z"}
+info: stopStrategy requested for test {"timestamp":"2026-01-31T14:42:15.083Z"}
+error: 🚫 [STATE COLLISION] Cannot move test from ERROR to STOPPING {"timestamp":"2026-01-31T14:42:15.090Z"}
+error: 🚫 [STATE COLLISION] Cannot move test from ERROR to STOPPING {"timestamp":"2026-01-31T14:42:15.098Z"}
+info: 🔄 [test] ERROR -> OFFLINE {"timestamp":"2026-01-31T14:42:15.100Z"}
+info: 🗑️ [test] Unregistered {"timestamp":"2026-01-31T14:42:15.100Z"}
+info: Unregistered strategy test (unregister took 3.1642ms) {"timestamp":"2026-01-31T14:42:15.101Z"}
+info: Diagnostics - stop:test: registry=4, rss=109MB, heapUsed=56MB {"timestamp":"2026-01-31T14:42:15.102Z"}
+info: Diagnostics - file removed: registry=3, rss=109MB, heapUsed=56MB {"timestamp":"2026-01-31T14:42:15.103Z"}
+info: Detected removal of uuu, stopping and removing from registry {"timestamp":"2026-01-31T14:42:30.377Z"}
+info: stopStrategy requested for uuu {"timestamp":"2026-01-31T14:42:30.415Z"}
+error: 🚫 [STATE COLLISION] Cannot move uuu from ERROR to STOPPING {"timestamp":"2026-01-31T14:42:30.459Z"}
+error: 🚫 [STATE COLLISION] Cannot move uuu from ERROR to STOPPING {"timestamp":"2026-01-31T14:42:30.502Z"}
+info: 🔄 [uuu] ERROR -> OFFLINE {"timestamp":"2026-01-31T14:42:30.547Z"}
+info: 🗑️ [uuu] Unregistered {"timestamp":"2026-01-31T14:42:30.599Z"}
+info: Unregistered strategy uuu (unregister took 163.9932ms) {"timestamp":"2026-01-31T14:42:30.666Z"}
+info: Diagnostics - stop:uuu: registry=3, rss=109MB, heapUsed=56MB {"timestamp":"2026-01-31T14:42:30.744Z"}
+info: Diagnostics - file removed: registry=2, rss=109MB, heapUsed=56MB {"timestamp":"2026-01-31T14:42:30.774Z"}
+warn: 🔄 Connection lost. Attempting recovery in 2000ms... {"timestamp":"2026-01-31T14:42:43.940Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-31T14:42:47.009Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T14:42:47.010Z"}
+warn: 🔄 Connection lost. Attempting recovery in 2000ms... {"timestamp":"2026-01-31T14:43:15.969Z"}
+error: 🔌 WS Socket Error:  {"timestamp":"2026-01-31T14:43:39.564Z"}
+warn: 🔄 Connection lost. Attempting recovery in 4000ms... {"timestamp":"2026-01-31T14:43:39.585Z"}
+error: 🔌 WS Socket Error:  {"timestamp":"2026-01-31T14:44:05.152Z"}
+warn: 🔄 Connection lost. Attempting recovery in 8000ms... {"timestamp":"2026-01-31T14:44:05.154Z"}
+error: 🔌 WS Socket Error:  {"timestamp":"2026-01-31T14:44:34.721Z"}
+warn: 🔄 Connection lost. Attempting recovery in 16000ms... {"timestamp":"2026-01-31T14:44:34.722Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T14:44:50.740Z"}
+warn: 🔄 Connection lost. Attempting recovery in 32000ms... {"timestamp":"2026-01-31T14:44:50.740Z"}
+error: 🔌 WS Socket Error:  {"timestamp":"2026-01-31T14:45:44.330Z"}
+error: 🛑 Max reconnection attempts reached. Broker enters CRITICAL state. {"timestamp":"2026-01-31T14:45:44.330Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T15:00:13.253Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T15:00:18.119Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T15:00:18.133Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T15:00:21.415Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T15:00:21.418Z"}
+info: Strategy loaded: demo (size=1333 bytes, mtime=2026-01-31T14:41:10.542Z, totalLoad=6806.78ms, security=34.8378ms, require=6766.9789ms) {"timestamp":"2026-01-31T15:00:28.227Z"}
+info: Strategy loaded: pair (size=341 bytes, mtime=2026-01-31T14:21:13.266Z, totalLoad=36.26ms, security=4.7562ms, require=18.9481ms) {"timestamp":"2026-01-31T15:00:28.290Z"}
+info: Loaded 2 strategies in 6875ms (total registry=2) {"timestamp":"2026-01-31T15:00:28.292Z"}
+info: Diagnostics - _loadAll: registry=2, rss=124MB, heapUsed=61MB {"timestamp":"2026-01-31T15:00:28.294Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T15:00:28.297Z"}
+info: File watcher started {"timestamp":"2026-01-31T15:00:28.305Z"}
+info: StrategyLoader init completed in 6889.37ms, loaded=2 {"timestamp":"2026-01-31T15:00:28.306Z"}
+info: Diagnostics - init: registry=2, rss=124MB, heapUsed=61MB {"timestamp":"2026-01-31T15:00:28.307Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T15:00:28.308Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T15:00:28.317Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T15:00:28.320Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T15:00:28.323Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T15:00:47.413Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T15:00:51.692Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T15:00:51.705Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T15:00:54.108Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T15:00:54.111Z"}
+info: Strategy loaded: demo (size=1333 bytes, mtime=2026-01-31T14:41:10.542Z, totalLoad=4211.06ms, security=36.043ms, require=4170.7428ms) {"timestamp":"2026-01-31T15:00:58.324Z"}
+info: Strategy loaded: pair (size=341 bytes, mtime=2026-01-31T14:21:13.266Z, totalLoad=8.12ms, security=3.0638ms, require=1.5993ms) {"timestamp":"2026-01-31T15:00:58.335Z"}
+info: Loaded 2 strategies in 4227ms (total registry=2) {"timestamp":"2026-01-31T15:00:58.337Z"}
+info: Diagnostics - _loadAll: registry=2, rss=126MB, heapUsed=56MB {"timestamp":"2026-01-31T15:00:58.338Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T15:00:58.339Z"}
+info: File watcher started {"timestamp":"2026-01-31T15:00:58.343Z"}
+info: StrategyLoader init completed in 4234.86ms, loaded=2 {"timestamp":"2026-01-31T15:00:58.344Z"}
+info: Diagnostics - init: registry=2, rss=126MB, heapUsed=56MB {"timestamp":"2026-01-31T15:00:58.345Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T15:00:58.347Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T15:00:58.351Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T15:00:58.354Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T15:00:58.356Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T15:01:52.682Z"}
+info: 🔄 [demo] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T15:01:52.685Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T15:01:52.688Z"}
+info: [PAPER] Broker initialized with $100,000 {"timestamp":"2026-01-31T15:01:52.747Z"}
+info: [ARCH] SignalAdapter standardized for mode: PAPER {"timestamp":"2026-01-31T15:01:52.752Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T15:01:52.753Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T15:01:52.757Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=99MB, heapUsed=50MB {"timestamp":"2026-01-31T15:01:52.910Z"}
+info: 🔄 [demo] WARMING_UP -> ACTIVE {"timestamp":"2026-01-31T15:01:53.669Z"}
+info: 🚀 [demo] Strategy successfully deployed to engine {"timestamp":"2026-01-31T15:01:53.723Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-31T15:01:54.188Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T15:01:54.194Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-01-31T15:10:41.033Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-01-31T15:10:46.770Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-01-31T15:10:46.784Z"}
+info: StrategyLoader init starting {"timestamp":"2026-01-31T15:10:49.742Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-01-31T15:10:49.746Z"}
+info: 🔄 [demo] OFFLINE -> STAGED {"timestamp":"2026-01-31T15:10:54.670Z"}
+info: Strategy loaded: demo (4924.10ms) {"timestamp":"2026-01-31T15:10:54.672Z"}
+info: 🔄 [pair] OFFLINE -> STAGED {"timestamp":"2026-01-31T15:10:54.684Z"}
+info: Strategy loaded: pair (11.40ms) {"timestamp":"2026-01-31T15:10:54.685Z"}
+info: Loaded 2 strategies in 4941ms (total registry=2) {"timestamp":"2026-01-31T15:10:54.686Z"}
+info: Diagnostics - _loadAll: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-01-31T15:10:54.687Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-01-31T15:10:54.689Z"}
+info: File watcher started {"timestamp":"2026-01-31T15:10:54.692Z"}
+info: StrategyLoader init completed in 4948.99ms, loaded=2 {"timestamp":"2026-01-31T15:10:54.693Z"}
+info: Diagnostics - init: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-01-31T15:10:54.694Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-01-31T15:10:54.695Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-01-31T15:10:54.702Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-01-31T15:10:54.705Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-01-31T15:10:54.707Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T15:11:03.525Z"}
+info: 🔄 [demo] STAGED -> WARMING_UP {"timestamp":"2026-01-31T15:11:03.527Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T15:11:03.528Z"}
+info: [PAPER] Broker initialized with $100,000 {"timestamp":"2026-01-31T15:11:03.592Z"}
+info: [ARCH] SignalAdapter standardized for mode: PAPER {"timestamp":"2026-01-31T15:11:03.598Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T15:11:03.599Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T15:11:03.607Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=132MB, heapUsed=55MB {"timestamp":"2026-01-31T15:11:03.765Z"}
+info: 🔄 [demo] WARMING_UP -> ACTIVE {"timestamp":"2026-01-31T15:11:04.494Z"}
+info: 🚀 [demo] Strategy successfully deployed to engine {"timestamp":"2026-01-31T15:11:04.509Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-31T15:11:04.860Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T15:11:04.869Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T15:14:30.985Z"}
+warn: startStrategy: [demo] is already ACTIVE. Ignoring request. {"timestamp":"2026-01-31T15:14:30.986Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T18:02:57.018Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T18:03:00.488Z"}
+warn: 🔄 Connection lost. Attempting recovery in 2000ms... {"timestamp":"2026-01-31T19:46:53.933Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:46:56.869Z"}
+warn: 🔄 Connection lost. Attempting recovery in 4000ms... {"timestamp":"2026-01-31T19:46:57.194Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:47:02.099Z"}
+warn: 🔄 Connection lost. Attempting recovery in 8000ms... {"timestamp":"2026-01-31T19:47:02.282Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-31T19:47:11.158Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T19:47:11.309Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T19:54:26.309Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T19:54:30.679Z"}
+info: stopStrategy requested for demo {"timestamp":"2026-01-31T19:54:36.063Z"}
+info: 🔄 [demo] ACTIVE -> STOPPING {"timestamp":"2026-01-31T19:54:36.064Z"}
+info: 🔄 [demo] STOPPING -> OFFLINE {"timestamp":"2026-01-31T19:54:36.076Z"}
+info: 🗑️ [demo] Unregistered {"timestamp":"2026-01-31T19:54:36.077Z"}
+info: Unregistered strategy demo (unregister took 9.3421ms) {"timestamp":"2026-01-31T19:54:36.079Z"}
+info: Diagnostics - stop:demo: registry=2, rss=70MB, heapUsed=54MB {"timestamp":"2026-01-31T19:54:36.083Z"}
+info: startStrategy requested for demo with options={"mode":"PAPER","strategyParams":{}} {"timestamp":"2026-01-31T19:54:48.467Z"}
+info: 🔄 [demo] OFFLINE -> WARMING_UP {"timestamp":"2026-01-31T19:54:48.469Z"}
+info: 🔗 [demo] Linking to market stream via PAPER {"timestamp":"2026-01-31T19:54:48.470Z"}
+info: ⏳ [demo] Commencing historical data synchronization... {"timestamp":"2026-01-31T19:54:48.472Z"}
+info: [demo] Fetching 20 bars for BTC/USD {"timestamp":"2026-01-31T19:54:48.486Z"}
+info: Diagnostics - start_attempt:demo: registry=2, rss=50MB, heapUsed=54MB {"timestamp":"2026-01-31T19:54:48.532Z"}
+info: 🔄 [demo] WARMING_UP -> ACTIVE {"timestamp":"2026-01-31T19:54:49.247Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T19:54:49.250Z"}
+info: 🚀 [demo] Strategy successfully deployed to engine {"timestamp":"2026-01-31T19:54:49.251Z"}
+warn: 🔄 Connection lost. Attempting recovery in 2000ms... {"timestamp":"2026-01-31T19:57:39.269Z"}
+info: 🌐 TwelveData Real-time Portal: ONLINE {"timestamp":"2026-01-31T19:57:45.315Z"}
+info: 📡 WS Subscription sent for: 1 symbols. {"timestamp":"2026-01-31T19:57:45.324Z"}
+warn: 🔄 Connection lost. Attempting recovery in 2000ms... {"timestamp":"2026-01-31T19:57:50.506Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:58:05.186Z"}
+warn: 🔄 Connection lost. Attempting recovery in 4000ms... {"timestamp":"2026-01-31T19:58:05.187Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:58:09.209Z"}
+warn: 🔄 Connection lost. Attempting recovery in 8000ms... {"timestamp":"2026-01-31T19:58:09.210Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:58:17.218Z"}
+warn: 🔄 Connection lost. Attempting recovery in 16000ms... {"timestamp":"2026-01-31T19:58:17.219Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:58:45.261Z"}
+warn: 🔄 Connection lost. Attempting recovery in 32000ms... {"timestamp":"2026-01-31T19:58:45.262Z"}
+error: 🔌 WS Socket Error: getaddrinfo ENOTFOUND ws.twelvedata.com {"timestamp":"2026-01-31T19:59:17.268Z"}
+error: 🛑 Max reconnection attempts reached. Broker enters CRITICAL state. {"timestamp":"2026-01-31T19:59:17.269Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-01-31T22:10:49.164Z"}
+info: Detected change/add for pair, reloading {"timestamp":"2026-01-31T22:10:51.052Z"}
+info: Detected change/add for demo, reloading {"timestamp":"2026-02-01T00:50:30.505Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-02-01T01:29:44.103Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-02-01T01:34:46.871Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-02-01T01:34:46.884Z"}
+info: StrategyLoader init starting {"timestamp":"2026-02-01T01:34:49.247Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-02-01T01:34:49.250Z"}
+info: 🔄 [demo] OFFLINE -> STAGED {"timestamp":"2026-02-01T01:34:54.658Z"}
+info: Strategy loaded: demo (5415.04ms) {"timestamp":"2026-02-01T01:34:54.668Z"}
+info: 🔄 [pair] OFFLINE -> STAGED {"timestamp":"2026-02-01T01:34:54.685Z"}
+info: Strategy loaded: pair (16.98ms) {"timestamp":"2026-02-01T01:34:54.691Z"}
+info: Loaded 2 strategies in 5449ms (total registry=2) {"timestamp":"2026-02-01T01:34:54.698Z"}
+info: Diagnostics - _loadAll: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-02-01T01:34:54.713Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-02-01T01:34:54.719Z"}
+info: File watcher started {"timestamp":"2026-02-01T01:34:54.729Z"}
+info: StrategyLoader init completed in 5486.94ms, loaded=2 {"timestamp":"2026-02-01T01:34:54.735Z"}
+info: Diagnostics - init: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-02-01T01:34:54.745Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-02-01T01:34:54.757Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-02-01T01:34:54.763Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-02-01T01:34:54.791Z"}
+info: ✅ System Bootstrapped Successfully. {"timestamp":"2026-02-01T01:34:54.796Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-02-01T01:34:54.800Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-02-01T01:41:45.221Z"}
+info: StrategyLoader initialized (strategies: C:\Users\SBUM\Desktop\corex\strategies, settings: C:\Users\SBUM\Desktop\corex\data\settings) {"timestamp":"2026-02-01T01:41:49.964Z"}
+info: ⚙️ Booting Corex Engine {"timestamp":"2026-02-01T01:41:49.977Z"}
+info: StrategyLoader init starting {"timestamp":"2026-02-01T01:41:54.279Z"}
+info: Found 2 strategy files, starting load {"timestamp":"2026-02-01T01:41:54.292Z"}
+info: 🔄 [demo] OFFLINE -> STAGED {"timestamp":"2026-02-01T01:42:02.879Z"}
+info: Strategy loaded: demo (8583.21ms) {"timestamp":"2026-02-01T01:42:02.880Z"}
+info: 🔄 [pair] OFFLINE -> STAGED {"timestamp":"2026-02-01T01:42:02.895Z"}
+info: Strategy loaded: pair (14.44ms) {"timestamp":"2026-02-01T01:42:02.896Z"}
+info: Loaded 2 strategies in 8614ms (total registry=2) {"timestamp":"2026-02-01T01:42:02.897Z"}
+info: Diagnostics - _loadAll: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-02-01T01:42:02.898Z"}
+info: Starting file watcher on C:\Users\SBUM\Desktop\corex\strategies {"timestamp":"2026-02-01T01:42:02.900Z"}
+info: File watcher started {"timestamp":"2026-02-01T01:42:02.903Z"}
+info: StrategyLoader init completed in 8620.89ms, loaded=2 {"timestamp":"2026-02-01T01:42:02.904Z"}
+info: Diagnostics - init: registry=2, rss=123MB, heapUsed=62MB {"timestamp":"2026-02-01T01:42:02.904Z"}
+info: 🟢 CoreX Engine: [36m Active [0m {"timestamp":"2026-02-01T01:42:02.909Z"}
+info: 🌐 CoreX Hub READY on port 3000 {"timestamp":"2026-02-01T01:42:02.914Z"}
+info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-02-01T01:42:02.916Z"}
+info: ✅ System Bootstrapped Successfully. {"timestamp":"2026-02-01T01:42:02.917Z"}
+info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-02-01T01:42:02.919Z"}
+info: Execution request for [undefined] in mode: PAPER {"timestamp":"2026-02-01T01:42:36.094Z"}

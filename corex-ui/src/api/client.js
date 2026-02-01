@@ -1,15 +1,38 @@
 import axios from 'axios';
 
-const API_KEY = import.meta.env.VITE_ADMIN_SECRET || 'your_dev_secret';
-const BASE_URL = 'http://localhost:3000/api';
+// 1. Resolve the URL dynamically (Useful if you move to a VPS later)
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const ADMIN_SECRET = import.meta.env.VITE_ADMIN_SECRET;
 
-export const corexApi = axios.create({
+console.log(`📡 API Bridge: ${BASE_URL} | Auth: ${ADMIN_SECRET ? "READY" : "MISSING"}`);
+
+const client = axios.create({
     baseURL: BASE_URL,
     headers: {
-        'x-admin-key': API_KEY,
-        'Content-Type': 'application/json'
-    }
+        'Content-Type': 'application/json',
+        'x-admin-key': ADMIN_SECRET
+    },
+    timeout: 10000 // 10s timeout prevents the UI from hanging if the server is dead
 });
 
-// Helper for State Transitions
-export const transitionStrategy = (id, action) => corexApi.post(`/strategies/${id}/${action}`);
+/**
+ * Global Response Interceptor
+ * This ensures all Tab Views receive a standard { success, payload } structure
+ * and handles 401 Unauthorized errors globally.
+ */
+client.interceptors.response.use(
+    (response) => response.data, // Strip the Axios wrapper, return our {success, payload}
+    (error) => {
+        if (error.response?.status === 401) {
+            console.error("🚫 Access Denied: Invalid ADMIN_SECRET");
+        }
+        // Return a standardized error object so the UI can show a Toast/Alert
+        return Promise.reject({
+            success: false,
+            message: error.response?.data?.error || "NETWORK_ERROR",
+            details: error.message
+        });
+    }
+);
+
+export default client;

@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "id": "34243475",
+    "strategyId": "demo",
+    "strategyName": "test",
+    "timestamp": "2026-01-31T14:18:52.150Z",
+    "executionTime": "0.14s"
+  },
+  "performance": {
+    "netProfit": "0.00",
+    "roiPercent": "0.00",
+    "maxDrawdownPercent": "0.00",
+    "totalTrades": 0,
+    "winRate": "0.00",
+    "sharpeRatio": "N/A"
+  },
+  "trades": []
+}

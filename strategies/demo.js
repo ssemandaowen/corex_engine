@@ -4,7 +4,7 @@ const BaseStrategy = require('@utils/BaseStrategy');
 class ValidationStrategy extends BaseStrategy {
     constructor() {
         super({
-            name: "CoreX_Validation_v1",
+            name: "test",
             symbols: ["BTC/USD"],
             lookback: 20
         });
@@ -14,11 +14,11 @@ class ValidationStrategy extends BaseStrategy {
         this._isLong = false; 
     }
 
-   next(data) {
+   next(data, isWarmedUp) {
     const symbol = data.symbol || this.symbols[0];
     const history = this.getLookbackWindow(symbol);
     
-    if (!this.isWarmedUp(symbol)) return null;
+    if (!isWarmedUp) return null;
 
     const prices = history.map(c => c.close);
     const ema = this.indicators.EMA.calculate({ 

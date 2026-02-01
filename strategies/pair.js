@@ -1,9 +1,9 @@
-const BaseStrategy = require("../utils/BaseStrategy");
+const BaseStrategy = require("@utils/BaseStrategy");
 
 class Pair extends BaseStrategy {
   constructor() {
     super({
-      name: "Pair",
+      name: "pair",
       symbols: ["BTC/USD"],
       timeframe: "1m"
     });
@@ -12,7 +12,7 @@ class Pair extends BaseStrategy {
 
   next(tick, isBacktest) {
     this.tickCount++;
-    console.log(`[${this.name}] Tick #${this.tickCount} for ${tick.symbol} at ${new Date(tick.time).toISOString()} - Price: ${tick.price}`);
+    console.log(tick)
 }
 }
 

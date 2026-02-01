@@ -1,6 +1,6 @@
 const EventEmitter = require('events');
 
-class EventBus extends EventEmitter {}
+class EventBus extends EventEmitter { }
 
 const bus = new EventBus();
 
@@ -8,8 +8,8 @@ const EVENTS = Object.freeze({
   // System & API Controls
   SYSTEM: {
     STRATEGY_LOADED: 'system:strategy:loaded',
-    STRATEGY_START: 'system:strategy:start',
-    STRATEGY_STOP: 'system:strategy:stop',
+    STRATEGY_UNLOADED: 'system:strategy:unloaded', // Added for file deletion/rename
+    STATE_CHANGED: 'system:strategy:state_changed', // Crucial for UI Tab sync
     ERROR: 'system:error'
   },
 
@@ -17,7 +17,7 @@ const EVENTS = Object.freeze({
   MARKET: {
     TICK: 'market:tick',
     CANDLE: 'market:candle',
-    CONNECTION_LOST: 'market:lost' 
+    CONNECTION_LOST: 'market:lost'
   },
 
   // 🔑 STRATEGY SIGNALS (NEW - This is what was missing!)

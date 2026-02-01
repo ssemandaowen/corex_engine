@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "id": "ef9ab4cf",
+    "strategyId": "demo",
+    "strategyName": "CoreX_Validation_v1",
+    "timestamp": "2026-01-31T10:44:51.324Z",
+    "executionTime": "1.17s"
+  },
+  "performance": {
+    "netProfit": "0.00",
+    "roiPercent": "0.00",
+    "maxDrawdownPercent": "0.00",
+    "totalTrades": 0,
+    "winRate": "0.00",
+    "sharpeRatio": "N/A"
+  },
+  "trades": []
+}

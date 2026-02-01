@@ -6,16 +6,16 @@ const logger = require("@utils/logger");
 class StateController {
     constructor() {
         this.registry = new Map(); // strategyId -> StateLedger
-        
+
         // SERVER CONTROL RULES: Define legal logic flow
         this.rules = {
-            "OFFLINE": ["STAGED"],
+            "OFFLINE": ["STAGED", "WARMING_UP"],
             "STAGED": ["WARMING_UP", "OFFLINE"],
-            "WARMING_UP": ["ACTIVE", "ERROR"],
-            "ACTIVE": ["PAUSED", "STOPPING", "ERROR"],
-            "PAUSED": ["ACTIVE", "STOPPING"],
+            "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE"],
+            "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE"],
+            "PAUSED": ["ACTIVE", "STOPPING", "OFFLINE"],
             "STOPPING": ["OFFLINE"],
-            "ERROR": ["STAGED", "OFFLINE"]
+            "ERROR": ["STAGED", "OFFLINE", "WARMING_UP", "STOPPING"] // Allow stopping from error
         };
     }
 
