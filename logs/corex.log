@@ -7390,3 +7390,4 @@ info: [📡 Broadcaster Service: [36mLIVE[0m] {"timestamp":"2026-02-01T01:42:0
 info: ✅ System Bootstrapped Successfully. {"timestamp":"2026-02-01T01:42:02.917Z"}
 info: 🟢 CoreX [36m Ready to use...[0m {"timestamp":"2026-02-01T01:42:02.919Z"}
 info: Execution request for [undefined] in mode: PAPER {"timestamp":"2026-02-01T01:42:36.094Z"}
+info: [35m Shutting down CoreX Engine [0m {"timestamp":"2026-02-01T01:52:27.727Z"}
