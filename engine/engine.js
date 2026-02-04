@@ -97,8 +97,8 @@ class CoreXEngine {
             }
 
             // 6. Finalize Activation
-            stateManager.commit(id, "ACTIVE", { 
-                reason: "Handshake complete, strategy is now live" 
+            stateManager.commit(id, "ACTIVE", {
+                reason: "Handshake complete, strategy is now live"
             });
 
             // Update broker with the new aggregate symbol list
@@ -109,8 +109,8 @@ class CoreXEngine {
 
         } catch (err) {
             logger.error(`❌ [${id}] Engine Registration Failed: ${err.message}`);
-            stateManager.commit(id, "ERROR", { 
-                reason: `Registration Error: ${err.message.slice(0, 50)}` 
+            stateManager.commit(id, "ERROR", {
+                reason: `Registration Error: ${err.message.slice(0, 50)}`
             });
             return false;
         }
@@ -123,8 +123,8 @@ class CoreXEngine {
             let brokerInstance = null;
 
             if (mode === "PAPER") {
-                const PaperBroker = require("@broker/paper");
-                brokerInstance = new PaperBroker(100000);
+                const { getPaperBroker } = require("@broker/paperStore");
+                brokerInstance = getPaperBroker(100000);
 
                 bus.on(EVENTS.MARKET.TICK, (tick) => {
                     brokerInstance?.updatePrice?.(tick.symbol, tick.price);
@@ -162,7 +162,7 @@ class CoreXEngine {
     }
 
     async warmupStrategy(strategy) {
-        const cacheDir =path.resolve(__dirname, '../data/cache')
+        const cacheDir = path.resolve(__dirname, '../data/cache')
         fs.mkdirSync(cacheDir, { recursive: true });
 
         const id = strategy.id || strategy.name;

@@ -12,7 +12,7 @@ class Pair extends BaseStrategy {
 
   next(tick, isBacktest) {
     this.tickCount++;
-    console.log(tick)
+    
 }
 }
 

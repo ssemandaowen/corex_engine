@@ -126,7 +126,19 @@ class BaseStrategy {
         let changed = false;
         // ... (same coercion logic as before)
         for (const [key, raw] of Object.entries(newParams)) {
-            const spec = this.schema[key];
+            let spec = this.schema[key];
+            // Fallback: allow updating existing params even if schema is not defined
+            if (!spec && this.params && Object.prototype.hasOwnProperty.call(this.params, key)) {
+                const current = this.params[key];
+                const t = typeof current;
+                if (t === 'number') {
+                    spec = { type: Number.isInteger(current) ? 'integer' : 'float' };
+                } else if (t === 'boolean') {
+                    spec = { type: 'boolean' };
+                } else {
+                    spec = { type: 'string' };
+                }
+            }
             if (!spec) continue;
 
             let val = raw;

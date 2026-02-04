@@ -55,7 +55,7 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
         if (!entry) return res.status(404).json({ success: false, error: "STRATEGY_NOT_FOUND" });
 
         const options = {
-            file: req.file ? req.file.path : null, // Pass full path
+            file: req.file || null, // Pass multer file object (has .path)
             symbol: req.body.symbol || 'BTC/USD',
             interval: req.body.interval || '1m',
             initialCapital: parseFloat(req.body.initialCapital) || 10000,
@@ -63,7 +63,31 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
             outputsize: parseInt(req.body.outputsize) || 1000
         };
 
-        const result = await backtestManager.run(entry.instance, options);
+        let instance = entry.instance;
+        try {
+            // Isolate backtest params from live instance
+            const StrategyClass = require(entry.filePath);
+            instance = typeof StrategyClass === 'function'
+                ? new StrategyClass({ name: entry.id, id: entry.id })
+                : StrategyClass;
+            instance.id = entry.id;
+            instance.name = entry.id;
+        } catch (e) {
+            // Fallback to existing instance if instantiation fails
+            instance = entry.instance;
+        }
+
+        const rawParams = req.body.params;
+        if (rawParams) {
+            try {
+                const parsed = JSON.parse(rawParams);
+                instance.updateParams?.(parsed);
+            } catch (e) {
+                // ignore invalid params payload
+            }
+        }
+
+        const result = await backtestManager.run(instance, options);
 
         // CLEANUP: If a file was uploaded, delete it after processing to prevent bloat
         if (req.file && fs.existsSync(req.file.path)) {

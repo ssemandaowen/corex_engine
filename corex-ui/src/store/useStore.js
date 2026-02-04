@@ -2,11 +2,41 @@ import { create } from 'zustand';
 import client from '../api/client';
 
 export const useStore = create((set, get) => ({
+    systemStatus: {
+        status: "DISCONNECTED",
+        uptime: "0h 0m",
+        resources: { cpu: "0.00", ram: "0.00 MB" },
+        connectivity: { marketData: "DISCONNECTED", bridge: "DISCONNECTED" }
+    },
+    wsStatus: "DISCONNECTED",
+    wsEvents: [],
+    wsLastEvent: null,
+    _ws: null,
+    _wsReconnectTimer: null,
+    _wsAttempts: 0,
     strategies: [],
     selectedStrategy: null,
     currentCode: "",
     logs: [],
     isLoading: false,
+
+    // SYNC: System Heartbeat
+    fetchSystemStatus: async () => {
+        try {
+            const res = await client.get('/system/heartbeat');
+            set({ systemStatus: res.payload });
+        } catch (err) {
+            set({
+                systemStatus: {
+                    status: "DISCONNECTED",
+                    uptime: "0h 0m",
+                    resources: { cpu: "0.00", ram: "0.00 MB" },
+                    connectivity: { marketData: "DISCONNECTED", bridge: "DISCONNECTED" }
+                }
+            });
+            console.error("Heartbeat lost");
+        }
+    },
 
     // SYNC: Get all strategies for the sidebar
     fetchStrategies: async () => {
@@ -72,6 +102,60 @@ export const useStore = create((set, get) => ({
     },
 
     setSelectedStrategy: (strat) => set({ selectedStrategy: strat })
+    ,
+
+    // LIVE: WebSocket bridge (global)
+    connectWebSocket: () => {
+        const existing = get()._ws;
+        if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
+
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const wsUrl = apiUrl.replace(/\/api\/?$/, '/ws');
+
+        const ws = new WebSocket(wsUrl);
+        set({ _ws: ws, wsStatus: "CONNECTING" });
+
+        ws.onopen = () => {
+            set({ wsStatus: "CONNECTED", _wsAttempts: 0 });
+        };
+
+        ws.onmessage = (evt) => {
+            try {
+                const msg = JSON.parse(evt.data);
+                set((state) => ({
+                    wsLastEvent: msg,
+                    wsEvents: [msg, ...state.wsEvents].slice(0, 100)
+                }));
+            } catch (e) {
+                // ignore parse errors
+            }
+        };
+
+        ws.onerror = () => {
+            set({ wsStatus: "ERROR" });
+        };
+
+        ws.onclose = () => {
+            set({ wsStatus: "DISCONNECTED", _ws: null });
+            const attempts = get()._wsAttempts + 1;
+            set({ _wsAttempts: attempts });
+            const delay = Math.min(10000, 1000 * attempts);
+            clearTimeout(get()._wsReconnectTimer);
+            const timer = setTimeout(() => get().connectWebSocket(), delay);
+            set({ _wsReconnectTimer: timer });
+        };
+    },
+
+    disconnectWebSocket: () => {
+        clearTimeout(get()._wsReconnectTimer);
+        const ws = get()._ws;
+        if (ws) {
+            ws.close();
+        }
+        set({ _ws: null, wsStatus: "DISCONNECTED" });
+    }
 }));
 
 

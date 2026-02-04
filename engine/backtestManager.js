@@ -1,7 +1,7 @@
 "use strict";
 
 const dataForge = require('data-forge');
-const { backtest, analyze } = require('grademark');
+const { backtest, analyze, computeEquityCurve } = require('grademark');
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -196,29 +196,71 @@ class BacktestManager {
         }, df); // DF is passed as the source of truth
     }
 
-    _buildReport({ runtimeId, strategy, startMs, initialCapital, trades, stats, df, options }) {
-        const duration = ((Date.now() - startMs) / 1000).toFixed(2);
-        const wins = trades.filter(t => (t.profit || 0) > 0).length;
 
-        return {
-            meta: {
-                id: runtimeId,
-                strategyId: strategy.id,
-                strategyName: strategy.name,
-                timestamp: new Date().toISOString(),
-                executionTime: `${duration}s`
-            },
-            performance: {
-                netProfit: stats.profit?.toFixed(2) ?? "0.00",
-                roiPercent: (((stats.profit || 0) / initialCapital) * 100).toFixed(2),
-                maxDrawdownPercent: (stats.maxDrawdownPct || 0).toFixed(2),
-                totalTrades: trades.length,
-                winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(2) : "0.00",
-                sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A"
-            },
-            trades: options.includeTrades ? trades : []
-        };
+
+// Then inside _buildReport function:
+_buildReport({ runtimeId, strategy, startMs, initialCapital, trades, stats, df, options }) {
+    const duration = ((Date.now() - startMs) / 1000).toFixed(2);
+    const wins = trades.filter(t => (t.profit || 0) > 0).length;
+
+    // ────────────────────────────────────────────────
+    // NEW: Compute equity curve (time + equity points)
+    let equityCurve = [];
+    if (trades.length > 0 && df) {
+        try {
+            const curvePoints = computeEquityCurve(initialCapital, trades);
+
+            // Map to time-based points using the exit time of each trade
+            // (or use entry time — choose what makes most sense for your chart)
+            equityCurve = curvePoints.map((point, idx) => {
+                // For idx=0 → initial capital before any trade
+                if (idx === 0) {
+                    return {
+                        time: df.first().time,   // start of data
+                        equity: point.equity
+                    };
+                }
+
+                // Find the trade this point corresponds to (approx)
+                const trade = trades[idx - 1]; // because point 1 = after trade 1
+                return {
+                    time: trade?.exitTime || df.last().time,
+                    equity: point.equity
+                };
+            });
+        } catch (err) {
+            console.warn("Equity curve computation failed", err);
+        }
     }
+
+    // Fallback: just initial capital if no trades
+    if (equityCurve.length === 0) {
+        equityCurve = [{
+            time: df?.first()?.time || Date.now(),
+            equity: initialCapital
+        }];
+    }
+
+    return {
+        meta: {
+            id: runtimeId,
+            strategyId: strategy.id,
+            strategyName: strategy.name,
+            timestamp: new Date().toISOString(),
+            executionTime: `${duration}s`
+        },
+        performance: {
+            netProfit: stats.profit?.toFixed(2) ?? "0.00",
+            roiPercent: (((stats.profit || 0) / initialCapital) * 100).toFixed(2),
+            maxDrawdownPercent: (stats.maxDrawdownPct || 0).toFixed(2),
+            totalTrades: trades.length,
+            winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(2) : "0.00",
+            sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A"
+        },
+        trades: options.includeTrades ? trades : [],
+        equityCurve   // ← NEW FIELD
+    };
+}
 
     async _saveReport(report) {
         const filepath = path.join(this.storagePath, `${report.meta.id}.json`);

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Home, Code, Play, BarChart2, User, Settings } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import HomeView from "./views/HomeView";
@@ -7,14 +7,17 @@ import RunView from "./views/RunView";
 import DataView from "./views/DataView";
 import AccountView from "./views/AccountView";
 import SettingsView from "./views/SettingsView";
+import { useStore } from "./store/useStore";
 
 function App() {
   const [activeTab, setActiveTab] = useState("home");
+  const connectWebSocket = useStore((s) => s.connectWebSocket);
+  const disconnectWebSocket = useStore((s) => s.disconnectWebSocket);
 
   const renderView = () => {
     switch (activeTab) {
       case "home": return <HomeView />;
-      case "strategies": return <StrategyView />;
+      case "strategies": return <StrategyView onNavigate={setActiveTab} />;
       case "run": return <RunView />;
       case "data": return <DataView />;
       case "account": return <AccountView />;
@@ -22,6 +25,11 @@ function App() {
       default: return <HomeView />;
     }
   };
+
+  useEffect(() => {
+    connectWebSocket();
+    return () => disconnectWebSocket();
+  }, [connectWebSocket, disconnectWebSocket]);
 
   return (
     <div className="flex h-screen bg-[#020617] text-slate-200">

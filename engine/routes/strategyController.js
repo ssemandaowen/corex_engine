@@ -4,26 +4,29 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const loader = require('@core/strategyLoader'); // Your existing loader
+const loader = require('@core/strategyLoader');
+const stateManager = require('@utils/stateController');
 const { bus, EVENTS } = require('@events/bus');
 const logger = require('@utils/logger');
 
-/**
- * STRATEGY DOMAIN
- * Handles Tab 2: Strategy CRUD Operations
- */
+// HELPER: Check if strategy is untouchable
+const isStrategyBusy = (id) => {
+    const status = stateManager.getStatus(id);
+    return ['ACTIVE', 'WARMING_UP', 'STOPPING'].includes(status);
+};
 
-// 1. LIST ALL (For the Strategies Overview Tab)
+// 1. LIST ALL
 router.get('/', (req, res) => {
     const strategies = Array.from(loader.registry.values()).map(s => ({
         id: s.id,
-        name: s.instance.name,
-        symbols: s.instance.symbols,
+        name: s.instance?.name || s.id,
+        symbols: s.instance?.symbols || [],
         lastModified: s.mtime,
-        status: require('@utils/stateController').getStatus(s.id)
+        status: stateManager.getStatus(s.id)
     }));
     res.json({ success: true, payload: strategies });
 });
+
 
 // 2. READ CODE (For the Editor)
 router.get('/:id', (req, res) => {
@@ -34,49 +37,82 @@ router.get('/:id', (req, res) => {
     res.json({ success: true, payload: { id: entry.id, code } });
 });
 
-// 3. CREATE/SAVE (The Sync Point)
-router.put('/:id', async (req, res) => {
-    const { id } = req.params;
-    const { code } = req.body;
+
+// 2. CREATE NEW (The Template Injector)
+router.post('/', (req, res) => {
+    const { name } = req.body;
+    const id = name.replace(/\s+/g, '_').replace(/\.js$/, '');
     const filePath = path.join(process.cwd(), 'strategies', `${id}.js`);
 
+    if (fs.existsSync(filePath)) {
+        return res.status(400).json({ success: false, error: "Strategy already exists" });
+    }
+
+    const templatePath = path.join(process.cwd(), 'utils', 'template.txt');
+    const template = fs.readFileSync(templatePath, 'utf8');
+    const hydrated = template.replace(/\$\{name\}/g, id);
+    fs.writeFileSync(filePath, hydrated, 'utf8');
+    loader._loadOne(filePath); // Register immediately
+    res.json({ success: true, payload: { id } });
+});
+
+// 3. RENAME
+router.patch('/:id/rename', (req, res) => {
+    const { id } = req.params;
+    const { newName } = req.body;
+    const newId = newName.replace(/\s+/g, '_');
+
+    if (isStrategyBusy(id)) {
+        return res.status(403).json({ success: false, error: "Cannot rename a running strategy" });
+    }
+
+    const entry = loader.registry.get(id);
+    const oldPath = entry.filePath;
+    const newPath = path.join(path.dirname(oldPath), `${newId}.js`);
+
     try {
-        // 1. Write to disk
-        fs.writeFileSync(filePath, code, 'utf8');
-        
-        // 2. Tell the Loader to refresh this specific file
-        // This clears require.cache and re-instantiates
-        await loader._loadOne(filePath);
-
-        // 3. Broadcast to all Tabs (Home, Run, etc.)
-        bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { id, timestamp: Date.now() });
-
-        res.json({ success: true, message: `Strategy ${id} updated and synchronized.` });
+        fs.renameSync(oldPath, newPath);
+        loader.registry.delete(id);
+        loader._loadOne(newPath);
+        res.json({ success: true, message: "Strategy renamed successfully" });
     } catch (err) {
-        logger.error(`Failed to save strategy ${id}: ${err.message}`);
         res.status(500).json({ success: false, error: err.message });
     }
 });
 
-// 4. DELETE (The Purge)
-router.delete('/:id', (req, res) => {
+// 4. UPDATE (Save with Hot-Reload)
+router.put('/:id', async (req, res) => {
     const { id } = req.params;
+    const { code } = req.body;
     const entry = loader.registry.get(id);
 
+    if (!entry) return res.status(404).json({ success: false, error: "Not found" });
+
+    try {
+        fs.writeFileSync(entry.filePath, code, 'utf8');
+        
+        // Critical: The loader must handle the 'hot-swap'
+        // If it's active, the engine needs to re-instantiate carefully
+        await loader._loadOne(entry.filePath);
+
+        res.json({ success: true, message: `Logic hot-swapped for ${id}.` });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 5. DELETE
+router.delete('/:id', (req, res) => {
+    const { id } = req.params;
+    if (isStrategyBusy(id)) {
+        return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
+    }
+
+    const entry = loader.registry.get(id);
     if (entry) {
-        // Stop it in the engine first if it's running
-        bus.emit(EVENTS.SYSTEM.STRATEGY_STOP, { id, reason: 'DELETED' });
-        
-        // Remove from disk
         if (fs.existsSync(entry.filePath)) fs.unlinkSync(entry.filePath);
-        
-        // Remove from memory
         loader.registry.delete(id);
-        
-        bus.emit(EVENTS.SYSTEM.STRATEGY_UNLOADED, { id });
-        res.json({ success: true, message: `Strategy ${id} purged from system.` });
-    } else {
-        res.status(404).json({ success: false, error: "Strategy not found" });
+        res.json({ success: true, message: "Purged." });
     }
 });
 

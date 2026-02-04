@@ -1,6 +1,8 @@
 "use strict";
 
 const EventEmitter = require('events');
+const fs = require('fs');
+const path = require('path');
 const { bus, EVENTS } = require('@events/bus');
 const logger = require('@utils/logger');
 
@@ -33,10 +35,115 @@ class PaperBroker extends EventEmitter {
             commissionPerShare: 0.005,
             commissionMin: 1.00,
             slippageBps: 5, // 0.05% slippage
-            fillProbability: 0.98 // 98% chance of full fill
+            fillProbability: 0.98, // 98% chance of full fill
+            minBalance: 0,
+            maxBalance: 100000000
         };
+
+        this.settingsPath = path.join(process.cwd(), 'data', 'settings', 'paper_settings.json');
+        this._loadSettings();
         
         logger.info(`[PAPER] Broker initialized with $${initialCash.toLocaleString()}`);
+    }
+
+    /**
+     * Return account snapshot for UI/API
+     */
+    getAccountSnapshot() {
+        const positions = Array.from(this.positions.entries()).map(([symbol, pos]) => ({
+            symbol,
+            quantity: pos.quantity,
+            avgEntryPrice: pos.avgEntryPrice,
+            side: pos.quantity > 0 ? 'long' : 'short',
+            unrealizedPnL: this._calculateUnrealizedPnL(symbol),
+            marketPrice: this.lastPrices.get(symbol) || 0
+        }));
+
+        return {
+            balance: this.cash,
+            equity: this.getEquity(),
+            positions,
+            config: { ...this.config },
+            lastUpdated: Date.now()
+        };
+    }
+
+    /**
+     * Update broker configuration (fees/slippage/etc)
+     */
+    updateConfig(next = {}) {
+        this.config = { ...this.config, ...next };
+        this._saveSettings();
+        return this.config;
+    }
+
+    /**
+     * Set cash balance (does not modify open positions)
+     */
+    setCash(amount) {
+        const n = Number(amount);
+        if (!Number.isFinite(n)) return false;
+        const min = Number(this.config.minBalance ?? 0);
+        const max = Number(this.config.maxBalance ?? 100000000);
+        if (Number.isFinite(min) && n < min) return false;
+        if (Number.isFinite(max) && n > max) return false;
+        this.cash = n;
+        this._saveSettings();
+        return true;
+    }
+
+    /**
+     * Reset account to a clean state
+     */
+    resetAccount(initialCash = this.initialCash) {
+        const n = Number(initialCash);
+        const min = Number(this.config.minBalance ?? 0);
+        const max = Number(this.config.maxBalance ?? 100000000);
+        if (Number.isFinite(n)) {
+            const clamped = Math.max(min, Math.min(max, n));
+            this.initialCash = clamped;
+            this.cash = clamped;
+        } else {
+            const clamped = Math.max(min, Math.min(max, this.initialCash));
+            this.cash = clamped;
+        }
+        this.positions.clear();
+        this.lastPrices.clear();
+        this.orderId = 0;
+        this._saveSettings();
+        return true;
+    }
+
+    _loadSettings() {
+        try {
+            if (!fs.existsSync(this.settingsPath)) return;
+            const raw = JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
+            if (raw && typeof raw === 'object') {
+                if (raw.cash != null) this.cash = Number(raw.cash);
+                if (raw.initialCash != null) this.initialCash = Number(raw.initialCash);
+                if (raw.config && typeof raw.config === 'object') {
+                    this.config = { ...this.config, ...raw.config };
+                }
+            }
+        } catch (err) {
+            logger.warn(`[PAPER] Failed to load settings: ${err.message}`);
+        }
+    }
+
+    _saveSettings() {
+        try {
+            const dir = path.dirname(this.settingsPath);
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+            const payload = {
+                cash: this.cash,
+                initialCash: this.initialCash,
+                config: this.config,
+                updatedAt: new Date().toISOString()
+            };
+            fs.writeFileSync(this.settingsPath, JSON.stringify(payload, null, 2));
+        } catch (err) {
+            logger.warn(`[PAPER] Failed to save settings: ${err.message}`);
+        }
     }
 
     /**
