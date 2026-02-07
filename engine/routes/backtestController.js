@@ -66,6 +66,13 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
         let instance = entry.instance;
         try {
             // Isolate backtest params from live instance
+            try {
+                const resolved = require.resolve(entry.filePath);
+                if (require.cache[resolved]) delete require.cache[resolved];
+                const baseResolved = require.resolve('@utils/BaseStrategy');
+                if (require.cache[baseResolved]) delete require.cache[baseResolved];
+            } catch (e) { /* ignore */ }
+
             const StrategyClass = require(entry.filePath);
             instance = typeof StrategyClass === 'function'
                 ? new StrategyClass({ name: entry.id, id: entry.id })

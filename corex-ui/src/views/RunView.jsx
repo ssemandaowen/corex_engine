@@ -12,11 +12,20 @@ const RunView = () => {
   const [strategies, setStrategies] = useState([]);
   const [activeTab, setActiveTab] = useState(TABS[0]);
   const [toasts, setToasts] = useState([]);
+  const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | ok | error
+  const [lastSyncAt, setLastSyncAt] = useState(null);
 
   const fetchStatuses = async () => {
-    const res = await client.get('/run/status');
-    const list = Array.isArray(res.payload) ? res.payload : Object.values(res.payload || {});
-    setStrategies(list);
+    setSyncStatus('syncing');
+    try {
+      const res = await client.get('/run/status');
+      const list = Array.isArray(res.payload) ? res.payload : Object.values(res.payload || {});
+      setStrategies(list);
+      setSyncStatus('ok');
+      setLastSyncAt(Date.now());
+    } catch (e) {
+      setSyncStatus('error');
+    }
   };
 
   const notify = useCallback((toast) => {
@@ -29,62 +38,68 @@ const RunView = () => {
   }, []);
 
   useEffect(() => {
-    if (activeTab === 'Simulation') {
-      fetchStatuses();
-    }
+    if (activeTab !== 'Simulation') return;
+    fetchStatuses();
+    const timer = setInterval(fetchStatuses, 5000);
+    return () => clearInterval(timer);
   }, [activeTab]);
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'Simulation':
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {strategies.map(s => (
-              <RunCard 
-                key={s.id} 
-                strategy={s} 
-                onStatusChange={fetchStatuses}
-                onNotify={notify}
-              />
-            ))}
-          </div>
-        );
-      case 'Backtest':
-        return <Backtest />;
-      case 'Live':
-        return <Live />;
-      default:
-        return null;
-    }
-  };
+  const syncLabel = syncStatus === 'syncing'
+    ? 'Syncing...'
+    : syncStatus === 'ok'
+      ? `Synced ${lastSyncAt ? new Date(lastSyncAt).toLocaleTimeString() : ''}`
+      : syncStatus === 'error'
+        ? 'Sync error'
+        : 'Idle';
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold text-slate-100">Run</h1>
-          <p className="text-xs text-slate-500">Deploy, simulate, and audit strategy behavior with clean controls.</p>
-        </div>
-      </div>
+    <div className="ui-page ui-page-scroll">
 
-      <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-full p-1 w-fit">
+      <div className="ui-tabs items-center gap-3">
         {TABS.map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-xs font-semibold rounded-full transition-all ${
-              activeTab === tab
-                ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(59,130,246,0.45)]'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/70'
-            }`}
+            className={`ui-tab ${activeTab === tab ? 'ui-tab-active' : ''}`}
           >
             {tab}
           </button>
         ))}
+        <div className="ml-auto flex items-center gap-2 text-[10px] uppercase tracking-[0.25em] text-slate-500">
+          <span className={`h-2 w-2 rounded-full ${
+            syncStatus === 'ok'
+              ? 'bg-emerald-400'
+              : syncStatus === 'syncing'
+                ? 'bg-amber-400 animate-pulse'
+                : syncStatus === 'error'
+                  ? 'bg-rose-400'
+                  : 'bg-slate-600'
+          }`} />
+          <span>{syncLabel}</span>
+        </div>
       </div>
 
-      <div className="transition-all duration-300 ease-out">
-        {renderContent()}
+      <div className="transition-all duration-300 ease-out ui-view-frame">
+        <div className={activeTab === 'Simulation' ? 'block' : 'hidden'}>
+          <div className="h-full ui-panel-scroll">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {strategies.map(s => (
+                <RunCard
+                  key={s.id}
+                  strategy={s}
+                  onStatusChange={fetchStatuses}
+                  onNotify={notify}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className={activeTab === 'Backtest' ? 'block h-full' : 'hidden'}>
+          <Backtest />
+        </div>
+        <div className={activeTab === 'Live' ? 'block' : 'hidden'}>
+          <Live />
+        </div>
       </div>
 
       {toasts.length > 0 && (
@@ -92,7 +107,7 @@ const RunView = () => {
           {toasts.map(t => (
             <div
               key={t.id}
-              className={`px-4 py-3 rounded-lg border text-xs font-semibold shadow-lg backdrop-blur ${
+              className={`ui-toast ${
                 t.type === 'error'
                   ? 'bg-red-950/80 border-red-500/50 text-red-200'
                   : t.type === 'success'

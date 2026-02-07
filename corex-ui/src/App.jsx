@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { Home, Code, Play, BarChart2, User, Settings } from "lucide-react";
 import Sidebar from "./components/Sidebar";
 import HomeView from "./views/HomeView";
 import StrategyView from "./views/StrategyView";
@@ -11,39 +10,70 @@ import { useStore } from "./store/useStore";
 
 function App() {
   const [activeTab, setActiveTab] = useState("home");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem("corex.sidebar") === "collapsed";
+    } catch {
+      return false;
+    }
+  });
   const connectWebSocket = useStore((s) => s.connectWebSocket);
   const disconnectWebSocket = useStore((s) => s.disconnectWebSocket);
-
-  const renderView = () => {
-    switch (activeTab) {
-      case "home": return <HomeView />;
-      case "strategies": return <StrategyView onNavigate={setActiveTab} />;
-      case "run": return <RunView />;
-      case "data": return <DataView />;
-      case "account": return <AccountView />;
-      case "settings": return <SettingsView />;
-      default: return <HomeView />;
-    }
-  };
+  const startPulse = useStore((s) => s.startPulse);
+  const stopPulse = useStore((s) => s.stopPulse);
+  const startLiveStrategies = useStore((s) => s.startLiveStrategies);
+  const stopLiveStrategies = useStore((s) => s.stopLiveStrategies);
 
   useEffect(() => {
     connectWebSocket();
-    return () => disconnectWebSocket();
-  }, [connectWebSocket, disconnectWebSocket]);
+    startPulse();
+    startLiveStrategies();
+    return () => {
+      disconnectWebSocket();
+      stopPulse();
+      stopLiveStrategies();
+    };
+  }, [connectWebSocket, disconnectWebSocket, startPulse, stopPulse, startLiveStrategies, stopLiveStrategies]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("corex.sidebar", sidebarCollapsed ? "collapsed" : "expanded");
+    } catch {
+      // ignore storage failures
+    }
+  }, [sidebarCollapsed]);
+
+  const views = {
+    home: <HomeView />,
+    strategies: <StrategyView onNavigate={setActiveTab} />,
+    run: <RunView />,
+    data: <DataView />,
+    account: <AccountView />,
+    settings: <SettingsView />,
+  };
 
   return (
-    <div className="flex h-screen bg-[#020617] text-slate-200">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="flex-1 overflow-hidden flex flex-col">
-        <header className="h-16 border-b border-slate-800 flex items-center justify-between px-8 bg-[#020617]/50 backdrop-blur-md">
-          <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-blue-500">{activeTab}</h2>
+    <div className="ui-shell">
+      <Sidebar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
+      />
+      <main className="ui-main">
+        <header className="ui-header">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.25em] text-blue-400">{activeTab}</h2>
           <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse"></div>
-            <span className="text-[10px] font-mono text-slate-500">ENGINE_STABLE_V2</span>
+            <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></div>
+            <span className="text-[10px] mono text-slate-400">ENGINE_STABLE_V2</span>
           </div>
         </header>
-        <div className="flex-1 overflow-y-auto p-8">
-          {renderView()}
+        <div className="ui-content">
+          {Object.entries(views).map(([key, view]) => (
+            <div key={key} className={activeTab === key ? 'h-full overflow-y-auto pr-1' : 'hidden'}>
+              {view}
+            </div>
+          ))}
         </div>
       </main>
     </div>

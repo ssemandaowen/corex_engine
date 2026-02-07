@@ -1,34 +1,31 @@
 "use strict";
 const BaseStrategy = require('@utils/BaseStrategy');
 
-class ValidationStrategy extends BaseStrategy {
-    constructor() {
-        super({
-            symbols: ["BTC/USD"],
-            lookback: 20,
-        });
-        
-        this.params = { emaPeriod: 10 };
-        // Internal state tracker for debugging purposes
-        this._isLong = false; 
-    }
+/**
+ * A simple demonstration strategy that enters a long position
+ * once the lookback period is warmed up, and then holds it.
+ */
+class Demo extends BaseStrategy {
+  constructor() {
+    super({
+      name: "demo",
+      symbols: ["BTC/USD"],
+      lookback: 20,
+      timeframe: "1m"
+    });
 
-   next(data, isWarmedUp) {
-   let isUp = data.close > data.open;
-   let isDown = data.close < data.open;
+    // This strategy has no configurable parameters.
 
-    if (isUp) {
-        this._isLong = true;
-        return this.buy();
-    } 
-    
-    if (isDown) {
-        this._isLong = false;
-        return this.exit();
-    }
+    this._positionEntered = false;
+  }
 
-    return null;
-}
+  next(data) {
+    const symbol = data.symbol || this.symbols[0];
+    if (this._positionEntered || !this.isWarmedUp(symbol)) return null;
+
+    this._positionEntered = true;
+    return this.entryLong({ symbol, label: "Demo Entry" });
+  }
 }
 
-module.exports = ValidationStrategy;
+module.exports = Demo;

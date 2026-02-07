@@ -1,262 +1,229 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import client from "../api/client";
-import StatusRing from '../components/home/StatusRing';
+import React, { useMemo, useState, useRef } from 'react';
 import { useStore } from '../store/useStore';
 
+/**
+ * @component HomeView
+ * @description Primary dashboard for real-time strategy monitoring and system telemetry.
+ */
 const HomeView = () => {
-  const [pulse, setPulse] = useState(null);
-  const [strategies, setStrategies] = useState([]);
-  const [feedMode, setFeedMode] = useState('all'); // all | errors | hidden
-  const wsEvents = useStore((s) => s.wsEvents);
-  const wsStatus = useStore((s) => s.wsStatus);
+  const { pulse, strategiesLive, wsEvents, wsStatus } = useStore();
 
-  useEffect(() => {
-    const fetchPulse = async () => {
-      try {
-        const res = await client.get('/system/heartbeat');
-        setPulse(res.payload);
-      } catch (err) {
-        console.error("Heartbeat lost");
-      }
-    };
-
-    fetchPulse();
-    const timer = setInterval(fetchPulse, 5000); // Poll every 5s
-    return () => clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const fetchRunStatus = async () => {
-      try {
-        const res = await client.get('/run/status');
-        const list = Array.isArray(res.payload) ? res.payload : Object.values(res.payload || {});
-        setStrategies(list);
-      } catch (err) {
-        console.error("Run status lost");
-      }
-    };
-
-    fetchRunStatus();
-    const timer = setInterval(fetchRunStatus, 5000);
-    return () => clearInterval(timer);
-  }, []);
+  // --- Data Processing ---
 
   const liveStats = useMemo(() => {
-    const summary = {
-      ticks: 0,
-      orders: 0,
-      paramUpdates: 0,
-      lastTickTs: null,
-      lastOrderTs: null
-    };
-    for (const evt of wsEvents) {
-      if (evt?.type === 'DATA_TICK') {
-        summary.ticks += 1;
-        if (!summary.lastTickTs) summary.lastTickTs = evt?.meta?.ts;
-      } else if (evt?.type === 'ORDER_FILLED') {
-        summary.orders += 1;
-        if (!summary.lastOrderTs) summary.lastOrderTs = evt?.meta?.ts;
-      } else if (evt?.type === 'PARAM_UPDATE') {
-        summary.paramUpdates += 1;
-      }
-    }
+    const summary = { ticks: 0, orders: 0, paramUpdates: 0 };
+    wsEvents.forEach(evt => {
+      if (evt?.type === 'DATA_TICK') summary.ticks++;
+      else if (evt?.type === 'ORDER_FILLED') summary.orders++;
+      else if (evt?.type === 'PARAM_UPDATE') summary.paramUpdates++;
+    });
     return summary;
   }, [wsEvents]);
 
-  const running = strategies.filter(s => ['ACTIVE', 'WARMING_UP', 'STOPPING'].includes(s.status));
-  const dataHeld = strategies.reduce((acc, s) => acc + (s.dataPoints || 0), 0);
-  const errorEvents = wsEvents.filter((evt) => {
-    const type = evt?.type || '';
-    const level = evt?.payload?.level || '';
-    const message = evt?.payload?.message || '';
-    return type.includes('ERROR') || level === 'error' || message.toLowerCase().includes('error');
-  });
+  const latestTickBySymbol = useMemo(() => {
+    const map = new Map();
+    wsEvents.filter(e => e.type === 'DATA_TICK').forEach(evt => {
+      const symbol = evt?.payload?.symbol || evt?.payload?.instrument;
+      const price = Number(evt?.payload?.price ?? evt?.payload?.close ?? 0);
+      if (symbol) {
+        const prev = map.get(symbol);
+        map.set(symbol, { price, change: prev ? price - prev.price : 0 });
+      }
+    });
+    return map;
+  }, [wsEvents]);
 
-  const latency = Number(pulse?.connectivity?.latency || 0);
-  const strength = wsStatus === 'CONNECTED'
-    ? Math.max(0, Math.min(100, 100 - Math.min(latency, 1000) / 10))
-    : 0;
+  const runningStrategies = useMemo(() => {
+    return strategiesLive.filter((s) => {
+      const statusRaw = s?.status ?? s?.state ?? s?.lifecycle ?? s?.meta?.status;
+      const status = String(statusRaw || '').toUpperCase();
+      if (['ACTIVE', 'WARMING_UP', 'STOPPING', 'RUNNING'].includes(status)) return true;
+      if (s?.enabled === true || s?.isRunning === true || s?.active === true) return true;
+      return false;
+    });
+  }, [strategiesLive]);
 
-  const lastOrder = wsEvents.find((evt) => evt?.type === 'ORDER_FILLED') || null;
-  const lastOrderTime = lastOrder?.meta?.ts ? new Date(lastOrder.meta.ts).toLocaleTimeString() : '—';
-  const lastOrderSymbol = lastOrder?.payload?.symbol || lastOrder?.payload?.instrument || '—';
-  const lastOrderSide = lastOrder?.payload?.side || lastOrder?.payload?.direction || '—';
-  const lastOrderPrice = lastOrder?.payload?.price ?? lastOrder?.payload?.fillPrice ?? null;
-  const lastOrderQty = lastOrder?.payload?.qty ?? lastOrder?.payload?.quantity ?? null;
+  const lastOrder = useMemo(() => 
+    wsEvents.find(evt => evt?.type === 'ORDER_FILLED'), 
+    [wsEvents]
+  );
 
-  if (!pulse) return <div className="text-slate-500 animate-pulse">Connecting to CoreX...</div>;
+  // --- UI State Management ---
+
+  const [logOpen, setLogOpen] = useState(true);
+  const [logHeight, setLogHeight] = useState(240);
+  const resizeRef = useRef({ dragging: false, startY: 0, startH: 0 });
+
+  const onResizeStart = (e) => {
+    resizeRef.current = { dragging: true, startY: e.clientY, startH: logHeight };
+    const onMove = (me) => {
+      if (!resizeRef.current.dragging) return;
+      const next = Math.max(120, Math.min(600, resizeRef.current.startH - (me.clientY - resizeRef.current.startY)));
+      setLogHeight(next);
+    };
+    const onUp = () => {
+      resizeRef.current.dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  if (!pulse) return (
+    <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+      <span className="animate-pulse">INITIALIZING COREX INTERFACE...</span>
+    </div>
+  );
 
   return (
-    <div className="grid grid-cols-12 gap-6">
-      <div className="col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="text-[10px] uppercase text-slate-500 tracking-widest">Running Strategies</div>
-          <div className="mt-2 text-2xl font-bold text-slate-100">{running.length}</div>
-          <div className="mt-3 text-[10px] text-slate-400 space-y-2 max-h-24 overflow-y-auto pr-1">
-            {running.length === 0 && <span>No active runs</span>}
-            {running.map(s => (
-              <div key={s.id} className="flex items-center justify-between bg-slate-800/60 border border-slate-700 rounded-md px-2 py-1">
-                <div className="flex flex-col">
-                  <span className="text-slate-200 font-mono">{s.id}</span>
-                  <span className="text-slate-500">{(s.symbols || []).join(', ') || 'No symbols'}</span>
-                </div>
-                <div className="text-right">
-                  <div className="text-slate-300">{s.timeframe || '1m'}</div>
-                  <div className="text-slate-500">{s.dataPoints || 0} bars</div>
-                </div>
+    <div className="ui-page flex flex-col h-screen overflow-hidden p-6 gap-6">
+      
+      {/* SECTION: EXECUTIVE SUMMARY & SYSTEM HEALTH */}
+      <div className="grid grid-cols-12 gap-4 h-48 shrink-0">
+        
+        {/* Trading Volume */}
+        <div className="col-span-3 ui-panel flex flex-col justify-between p-4 border-l-2 border-l-blue-500">
+          <div>
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Session Activity</p>
+            <h3 className="text-3xl font-light text-white mt-1">{liveStats.orders} <span className="text-sm text-slate-500">Fills</span></h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-[10px] text-slate-400 uppercase tracking-tighter">Live Order Stream Active</span>
+          </div>
+        </div>
+
+        {/* Telemetry Metrics */}
+        <div className="col-span-4 ui-panel p-4">
+          <div className="flex justify-between items-start mb-4">
+            <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">System Resource Load</p>
+            <span className={`text-[10px] font-bold ${wsStatus === 'CONNECTED' ? 'text-emerald-400' : 'text-rose-400'}`}>
+              {wsStatus} // {pulse?.connectivity?.latency || 0}ms
+            </span>
+          </div>
+          <div className="space-y-4">
+            <ResourceBar label="CPU Utilization" percent={pulse.resources.cpuPct} color="bg-blue-500" />
+            <ResourceBar label="Memory Allocation" percent={pulse.resources.ramPct} color="bg-emerald-500" />
+          </div>
+        </div>
+
+        {/* Last Execution Snapshot */}
+        <div className="col-span-5 ui-panel p-4 bg-slate-900/20">
+          <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold mb-3">Last Execution Detail</p>
+          {lastOrder ? (
+            <div className="grid grid-cols-3 gap-2">
+              <DataField label="Instrument" value={lastOrder.payload?.symbol || '--'} />
+              <DataField label="Side" value={lastOrder.payload?.side || '--'} highlight />
+              <DataField label="Price" value={lastOrder.payload?.price || '--'} />
+              <DataField label="Quantity" value={lastOrder.payload?.qty || '--'} />
+              <DataField label="Timestamp" value={new Date(lastOrder.meta?.ts).toLocaleTimeString()} />
+            </div>
+          ) : (
+            <div className="flex items-center h-full text-slate-600 italic text-sm">No fills recorded in current session.</div>
+          )}
+        </div>
+      </div>
+
+      {/* SECTION: STRATEGY MANAGEMENT */}
+      <div className="flex-1 ui-panel flex flex-col overflow-hidden">
+        <div className="px-5 py-3 border-b border-slate-800 flex justify-between items-center bg-slate-900/30">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-slate-300">Active Strategy Deployment</h3>
+          <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px]">{runningStrategies.length} Instance(s)</span>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <table className="w-full text-left border-separate border-spacing-0">
+            <thead className="sticky top-0 bg-[#12151a] shadow-sm">
+              <tr className="text-[10px] uppercase text-slate-500 font-bold">
+                <th className="px-5 py-3 border-b border-slate-800">Strategy ID</th>
+                <th className="px-5 py-3 border-b border-slate-800">Operational Status</th>
+                <th className="px-5 py-3 border-b border-slate-800">Timeframe</th>
+                <th className="px-5 py-3 border-b border-slate-800 text-right">Market Price</th>
+                <th className="px-5 py-3 border-b border-slate-800 text-right">Data Depth</th>
+              </tr>
+            </thead>
+            <tbody className="text-xs">
+              {runningStrategies.map((s) => {
+                const priceInfo = latestTickBySymbol.get(s.symbols?.[0]);
+                const statusRaw = s?.status ?? s?.state ?? s?.lifecycle ?? s?.meta?.status;
+                const status = String(statusRaw || '').toUpperCase();
+                const displayId = s?.id || s?.name || s?.strategyId || 'unknown';
+                return (
+                  <tr key={displayId} className="hover:bg-white/5 transition-colors group">
+                    <td className="px-5 py-3 border-b border-slate-800/50 font-mono text-blue-400">{displayId}</td>
+                    <td className="px-5 py-3 border-b border-slate-800/50">
+                      <span className="flex items-center gap-2">
+                        <span className={`w-1.5 h-1.5 rounded-full ${status === 'ACTIVE' ? 'bg-emerald-500' : status ? 'bg-amber-500' : 'bg-slate-600'}`} />
+                        {status || 'UNKNOWN'}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 border-b border-slate-800/50 text-slate-400">{s.timeframe || '1m'}</td>
+                    <td className={`px-5 py-3 border-b border-slate-800/50 text-right font-mono ${priceInfo?.change > 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {priceInfo?.price?.toFixed(2) || '--'}
+                    </td>
+                    <td className="px-5 py-3 border-b border-slate-800/50 text-right text-slate-500">{s.dataPoints || 0}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* SECTION: SYSTEM LOGS (TERMINAL) */}
+      <div className="shrink-0 bg-[#0d0f14] border border-slate-800 rounded-lg flex flex-col relative" style={{ height: logOpen ? logHeight : 42 }}>
+        <div className="h-10 flex items-center justify-between px-4 border-b border-slate-800 shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+            <div className="w-1 h-1 bg-slate-500 rounded-full" /> Event Log Console
+          </span>
+          <button onClick={() => setLogOpen(!logOpen)} className="text-[10px] text-slate-500 hover:text-white transition-colors uppercase">
+            {logOpen ? '[ Minimize ]' : '[ Expand ]'}
+          </button>
+        </div>
+        
+        {logOpen && (
+          <div className="flex-1 p-3 overflow-y-auto font-mono text-[11px] leading-relaxed">
+            {wsEvents.filter(e => e.type !== 'DATA_TICK').slice(0, 100).map((evt, idx) => (
+              <div key={idx} className="flex gap-3 py-0.5 border-b border-white/[0.02]">
+                <span className="text-slate-600 shrink-0">[{new Date(evt.meta?.ts).toLocaleTimeString()}]</span>
+                <span className={`shrink-0 w-24 ${getLogColor(evt.type)}`}>{evt.type}</span>
+                <span className="text-slate-400 truncate">{evt.payload?.message || evt.payload?.symbol || 'System Notification'}</span>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="text-[10px] uppercase text-slate-500 tracking-widest">Data Held</div>
-          <div className="mt-2 text-2xl font-bold text-slate-100">{dataHeld}</div>
-          <div className="mt-2 text-xs text-slate-500">Total candles across active stores</div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="text-[10px] uppercase text-slate-500 tracking-widest">Network Strength</div>
-          <div className="mt-2 text-2xl font-bold text-slate-100">
-            {wsStatus === 'CONNECTED' ? 'LIVE' : wsStatus}
-          </div>
-          <div className="mt-2 text-xs text-slate-500">
-            WS: {wsStatus} · Latency: {latency}ms
-          </div>
-          <div className="mt-3 w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-            <div
-              className={`h-full ${strength > 66 ? 'bg-emerald-500' : strength > 33 ? 'bg-amber-500' : 'bg-red-500'}`}
-              style={{ width: `${strength}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-          <div className="text-[10px] uppercase text-slate-500 tracking-widest">Last Trade</div>
-          <div className="mt-2 text-2xl font-bold text-slate-100">{lastOrderSymbol}</div>
-          <div className="mt-2 text-xs text-slate-500">
-            {lastOrderSide !== '—' ? `${lastOrderSide}` : 'No fills yet'}
-          </div>
-          <div className="mt-3 text-[10px] text-slate-400 space-y-1">
-            <div className="flex justify-between">
-              <span>Price</span>
-              <span className="font-mono text-slate-200">
-                {lastOrderPrice != null ? lastOrderPrice : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Qty</span>
-              <span className="font-mono text-slate-200">
-                {lastOrderQty != null ? lastOrderQty : '—'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span>Time</span>
-              <span className="font-mono text-slate-200">{lastOrderTime}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="col-span-12 md:col-span-4 bg-slate-800 p-6 rounded-xl border border-slate-700">
-        <h3 className="text-xs font-bold text-slate-500 uppercase mb-4 tracking-widest">System Load</h3>
-        <div className="space-y-4">
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span>CPU Load</span>
-              <span className="text-blue-400">{pulse.resources.cpuPct}%</span>
-            </div>
-            <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-blue-500 h-full" style={{ width: `${pulse.resources.cpuPct}%` }} />
-            </div>
-          </div>
-          <div>
-            <div className="flex justify-between text-xs mb-1">
-              <span>RAM Used</span>
-              <span className="text-emerald-400">{pulse.resources.ramPct}%</span>
-            </div>
-            <div className="w-full bg-slate-900 h-1.5 rounded-full overflow-hidden">
-              <div className="bg-emerald-500 h-full" style={{ width: `${pulse.resources.ramPct}%` }} />
-            </div>
-          </div>
-          <div className="flex justify-between items-center py-2 border-t border-slate-700">
-            <span className="text-sm text-slate-400">RAM (System)</span>
-            <span className="font-mono text-sm">{pulse.resources.ramUsedMb} / {pulse.resources.ramTotalMb} MB</span>
-          </div>
-          <div className="flex justify-between items-center py-2 border-t border-slate-700">
-            <span className="text-sm text-slate-400">Uptime</span>
-            <span className="font-mono text-sm">{pulse.uptime}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Global Activity Feed (Internal Bus Events) */}
-      <div className="col-span-12 md:col-span-8 bg-slate-900 border border-slate-800 rounded-lg p-4 h-72 overflow-hidden flex flex-col">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-xs font-bold text-slate-500 uppercase">Live System Events</h3>
-          <div className="flex items-center gap-4 text-[10px] text-slate-500">
-            <span>Ticks: <span className="text-slate-300">{liveStats.ticks}</span></span>
-            <span>Orders: <span className="text-slate-300">{liveStats.orders}</span></span>
-            <span>Params: <span className="text-slate-300">{liveStats.paramUpdates}</span></span>
-            <span>Errors: <span className="text-slate-300">{errorEvents.length}</span></span>
-            <button
-              onClick={() => setFeedMode((v) => v === 'hidden' ? 'all' : 'hidden')}
-              className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:text-white"
-            >
-              {feedMode === 'hidden' ? 'Show' : 'Hide'}
-            </button>
-            <button
-              onClick={() => setFeedMode('all')}
-              className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:text-white"
-            >
-              All
-            </button>
-            <button
-              onClick={() => setFeedMode('errors')}
-              className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300 hover:text-white"
-            >
-              Errors
-            </button>
-          </div>
-        </div>
-        {feedMode !== 'hidden' ? (
-          <div className="flex-1 font-mono text-[10px] text-slate-400 overflow-y-auto space-y-1">
-            {(feedMode === 'errors' ? errorEvents.length === 0 : wsEvents.length === 0) && (
-              <p className="text-slate-600">Waiting for live events...</p>
-            )}
-            {(feedMode === 'errors' ? errorEvents : wsEvents).map((evt, idx) => {
-              const ts = evt?.meta?.ts ? new Date(evt.meta.ts).toLocaleTimeString() : '--:--:--';
-              const type = evt?.type || 'UNKNOWN';
-              const color =
-                type === 'DATA_TICK' ? 'text-blue-400' :
-                type === 'ORDER_FILLED' ? 'text-emerald-400' :
-                type === 'PARAM_UPDATE' ? 'text-amber-400' :
-                'text-slate-400';
-              const summary = evt?.payload?.symbol
-                ? `${evt.payload.symbol}`
-                : evt?.payload?.id
-                  ? `id=${evt.payload.id}`
-                  : evt?.payload?.message
-                    ? evt.payload.message
-                    : 'event';
-
-              return (
-                <p key={`${evt.meta?.ts || idx}-${type}`} className="truncate">
-                  <span className="text-slate-600">[{ts}]</span>{' '}
-                  <span className={color}>{type}</span>{' '}
-                  <span className="text-slate-500">{summary}</span>
-                </p>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex-1 flex items-center justify-center text-xs text-slate-600">
-            Feed hidden
+            <div className="absolute top-0 left-0 right-0 h-1 cursor-ns-resize" onMouseDown={onResizeStart} />
           </div>
         )}
       </div>
     </div>
   );
+};
+
+// --- Sub-Components for Cleanliness ---
+
+const ResourceBar = ({ label, percent, color }) => (
+  <div>
+    <div className="flex justify-between text-[10px] mb-1 font-medium">
+      <span className="text-slate-500 uppercase">{label}</span>
+      <span className="text-slate-200">{percent}%</span>
+    </div>
+    <div className="w-full bg-slate-800 h-1 rounded-full">
+      <div className={`${color} h-full rounded-full transition-all duration-500`} style={{ width: `${percent}%` }} />
+    </div>
+  </div>
+);
+
+const DataField = ({ label, value, highlight }) => (
+  <div className="flex flex-col">
+    <span className="text-[9px] text-slate-600 uppercase font-bold">{label}</span>
+    <span className={`text-xs font-mono ${highlight ? 'text-blue-400' : 'text-slate-300'}`}>{value}</span>
+  </div>
+);
+
+const getLogColor = (type) => {
+  if (type === 'ORDER_FILLED') return 'text-emerald-400';
+  if (type === 'PARAM_UPDATE') return 'text-amber-400';
+  if (type.includes('ERROR')) return 'text-rose-400';
+  return 'text-blue-500';
 };
 
 export default HomeView;

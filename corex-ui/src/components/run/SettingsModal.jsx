@@ -71,7 +71,7 @@ const SettingsModal = ({ isOpen, onClose, strategy, onSave, onRestoreDefaults })
                         max={spec.max}
                         step={spec.type === 'integer' ? 1 : 'any'}
                         onChange={(e) => setParams({ ...params, [key]: e.target.value })}
-                        className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-sm"
+                        className="ui-input text-sm"
                     />
                 );
             case 'boolean':
@@ -80,7 +80,7 @@ const SettingsModal = ({ isOpen, onClose, strategy, onSave, onRestoreDefaults })
                         type="checkbox"
                         checked={value}
                         onChange={(e) => setParams({ ...params, [key]: e.target.checked })}
-                        className="h-6 w-6 rounded text-blue-500 bg-slate-800 border-slate-700 focus:ring-blue-500"
+                        className="h-5 w-5 rounded text-blue-500 bg-slate-800 border-slate-700 focus:ring-blue-500"
                     />
                 );
             default: // string and others
@@ -89,27 +89,27 @@ const SettingsModal = ({ isOpen, onClose, strategy, onSave, onRestoreDefaults })
                         type="text"
                         value={value}
                         onChange={(e) => setParams({ ...params, [key]: e.target.value })}
-                        className="w-full bg-slate-800 border border-slate-700 p-2 rounded text-sm"
+                        className="ui-input text-sm"
                     />
                 );
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-[#0D1117] border border-slate-800 rounded-lg shadow-xl w-full max-w-md m-4">
-                <div className="flex justify-between items-center p-4 border-b border-slate-800">
+        <div className="ui-modal">
+            <div className="ui-modal-card">
+                <div className="ui-modal-header">
                     <h3 className="text-lg font-bold text-slate-100">{strategy.id} Settings</h3>
-                    <button onClick={onClose} className="text-slate-500 hover:text-white">
-                        <X size={20} />
+                    <button onClick={onClose} className="ui-button ui-button-secondary !px-3 !py-2 !text-[10px]">
+                        <X size={16} />
                     </button>
                 </div>
 
-                <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                <div className="ui-modal-body space-y-4 max-h-[60vh] overflow-y-auto">
                     {strategy.schema && Object.keys(strategy.schema).length > 0 ? (
                         Object.entries(strategy.schema).map(([key, spec]) => (
-                            <div key={key}>
-                                <label className="text-sm text-slate-400 mb-1 block">{spec.label || key}</label>
+                            <div key={key} className="ui-field">
+                                <label className="ui-label">{spec.label || key}</label>
                                 {renderInput(key, spec)}
                                 {spec.description && <p className="text-xs text-slate-500 mt-1">{spec.description}</p>}
                             </div>
@@ -119,11 +119,11 @@ const SettingsModal = ({ isOpen, onClose, strategy, onSave, onRestoreDefaults })
                     )}
                 </div>
 
-                <div className="flex justify-between p-4 border-t border-slate-800">
+                <div className="ui-modal-footer">
                     <button
                         onClick={handleRestoreDefaults}
                         disabled={Object.keys(defaults).length === 0 || loading}
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded font-bold text-sm bg-slate-800 text-slate-200 hover:bg-slate-700 disabled:bg-slate-900 disabled:text-slate-600 transition-all"
+                        className="ui-button ui-button-secondary disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         <RotateCcw size={16} />
                         Restore Defaults
@@ -131,7 +131,7 @@ const SettingsModal = ({ isOpen, onClose, strategy, onSave, onRestoreDefaults })
                     <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="flex items-center justify-center gap-2 px-4 py-2 rounded font-bold text-sm bg-blue-600 text-white hover:bg-blue-500 disabled:bg-slate-700 transition-all"
+                        className="ui-button ui-button-primary disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {loading ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
                         Save

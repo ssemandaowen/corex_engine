@@ -6,7 +6,7 @@ require('module-alias/register');
 require("dotenv").config();
 
 // 3. Load the engine
-const engine = require("@core/engine");
+const engine = require("@core/core/engine");
 const server = require("@core/server");
 const logger = require("@utils/logger");
 

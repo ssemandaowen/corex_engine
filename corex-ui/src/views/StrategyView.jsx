@@ -9,6 +9,7 @@ const StrategyView = ({ onNavigate }) => {
   const [currentCode, setCurrentCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [listError, setListError] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
@@ -24,9 +25,19 @@ const StrategyView = ({ onNavigate }) => {
   const refreshList = async () => {
     try {
       const res = await client.get('/strategies');
-      setStrategies(res.payload);
+      const list = Array.isArray(res?.payload)
+        ? res.payload
+        : Array.isArray(res?.data)
+          ? res.data
+          : Array.isArray(res)
+            ? res
+            : [];
+      setStrategies(list);
+      setListError(null);
     } catch (err) {
       console.error("Registry sync failed");
+      const msg = err?.message || "Failed to load strategies. Is the engine running?";
+      setListError(msg);
     }
   };
 
@@ -122,90 +133,105 @@ const StrategyView = ({ onNavigate }) => {
   };
 
   return (
-    <div className="grid grid-cols-12 gap-6 h-[calc(100vh-120px)] bg-[#020617] p-2">
-      <div className="col-span-3 bg-[#0B0F1A] rounded-xl border border-slate-800 flex flex-col overflow-hidden">
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/20">
-          <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Logic Registry</h2>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="text-blue-500 hover:text-white transition-colors"
-            aria-label="Create strategy"
-          >
-            +
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-2">
-          <StrategyList
-            items={strategies}
-            activeId={selectedId}
-            onSelect={setSelectedId}
-            onAction={handleAction}
-          />
-        </div>
-      </div>
-      <div className="col-span-9 bg-[#0B0F1A] rounded-xl border border-slate-800 overflow-hidden relative">
-        {saveError && (
-          <div className="absolute top-3 right-3 z-20 bg-red-950/80 border border-red-500/50 text-red-200 text-[10px] px-3 py-2 rounded-lg">
-            {saveError}
+    <div className="ui-page ui-page-scroll">
+      <div className="grid grid-cols-12 gap-6 ui-view-frame">
+        <div className="col-span-12 lg:col-span-4 ui-panel-soft flex flex-col ui-panel-fixed">
+          <div className="ui-panel-header px-5 pt-5 pb-4">
+            <h2 className="ui-panel-title">Logic Registry</h2>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="ui-button ui-button-secondary !px-3 !py-2 !text-[10px]"
+              aria-label="Create strategy"
+            >
+              New
+            </button>
           </div>
-        )}
-        {selectedId ? (
-          <EditorPanel
-            id={selectedId}
-            code={currentCode}
-            setCode={setCurrentCode}
-            onSave={handleSave}
-            loading={loading}
-          />
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full text-slate-600 gap-4">
-            <div className="w-12 h-12 rounded-full border-2 border-slate-800 flex items-center justify-center animate-pulse">
-               <div className="w-2 h-2 rounded-full bg-slate-700" />
+          {listError && (
+            <div className="mx-4 mb-3 rounded-lg border border-red-500/30 bg-red-950/60 px-3 py-2 text-[11px] text-red-200">
+              {listError}
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-widest">Select logic to initialize editor</span>
+          )}
+          <div className="flex-1 ui-panel-scroll p-3">
+            {strategies.length === 0 ? (
+              <div className="text-[11px] text-slate-500 px-2 py-3">
+                No strategies found. If the engine is running, check `ADMIN_SECRET` or refresh.
+              </div>
+            ) : (
+              <StrategyList
+                items={strategies}
+                activeId={selectedId}
+                onSelect={setSelectedId}
+                onAction={handleAction}
+              />
+            )}
           </div>
-        )}
+        </div>
+        <div className="col-span-12 lg:col-span-8 ui-panel-soft ui-panel-fixed relative">
+          {saveError && (
+            <div className="absolute top-3 right-3 z-20 bg-red-950/80 border border-red-500/50 text-red-200 text-[10px] px-3 py-2 rounded-lg">
+              {saveError}
+            </div>
+          )}
+          {selectedId ? (
+            <EditorPanel
+              id={selectedId}
+              code={currentCode}
+              setCode={setCurrentCode}
+              onSave={handleSave}
+              loading={loading}
+            />
+          ) : (
+            <div className="ui-empty h-full gap-3">
+              <div className="w-12 h-12 rounded-full border-2 border-slate-800 flex items-center justify-center animate-pulse">
+                 <div className="w-2 h-2 rounded-full bg-slate-700" />
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
+                Select logic to initialize editor
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center">
-          <div className="bg-[#0B0F1A] border border-slate-800 rounded-xl w-full max-w-md overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="ui-modal">
+          <div className="ui-modal-card">
+            <div className="ui-modal-header">
               <div>
-                <h3 className="text-sm font-bold text-slate-100">Create Strategy</h3>
-                <p className="text-[10px] text-slate-500">New strategy file will be created.</p>
+                <h3 className="text-sm font-semibold text-slate-100">Create Strategy</h3>
+                <p className="text-[11px] text-slate-500">New strategy file will be created.</p>
               </div>
               <button
                 onClick={() => setShowCreate(false)}
-                className="text-slate-500 hover:text-white transition-colors"
+                className="ui-button ui-button-secondary !px-3 !py-2 !text-[10px]"
                 aria-label="Close"
               >
-                ✕
+                Close
               </button>
             </div>
-            <div className="p-6 space-y-3">
-              <label className="flex flex-col gap-1 text-xs">
-                <span className="text-slate-400">Strategy Name</span>
+            <div className="ui-modal-body">
+              <label className="ui-field">
+                <span className="ui-label">Strategy Name</span>
                 <input
                   type="text"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded px-3 py-2 text-slate-200"
+                  className="ui-input"
                   placeholder="e.g. mean_reversion"
                 />
               </label>
             </div>
-            <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-2">
+            <div className="ui-modal-footer">
               <button
                 onClick={() => setShowCreate(false)}
-                className="px-4 py-2 text-[10px] font-bold bg-slate-900 border border-slate-700 text-slate-200 rounded hover:bg-slate-800"
+                className="ui-button ui-button-secondary"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreate}
                 disabled={loading}
-                className="px-4 py-2 text-[10px] font-bold bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50"
+                className="ui-button ui-button-primary disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 Create
               </button>
@@ -219,7 +245,7 @@ const StrategyView = ({ onNavigate }) => {
           {toasts.map(t => (
             <div
               key={t.id}
-              className={`px-4 py-3 rounded-lg border text-xs font-semibold shadow-lg backdrop-blur ${
+              className={`ui-toast ${
                 t.type === 'error'
                   ? 'bg-red-950/80 border-red-500/50 text-red-200'
                   : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'

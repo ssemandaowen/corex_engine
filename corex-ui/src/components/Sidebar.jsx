@@ -1,7 +1,7 @@
 import React from 'react';
-import { Home, Code, Play, BarChart2, User, Settings } from "lucide-react";
+import { Home, Code, Play, BarChart2, User, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, collapsed, onToggleCollapse }) => {
   const menu = [
     { id: 'home', label: 'Pulse', icon: Home },
     { id: 'strategies', label: 'Library', icon: Code },
@@ -12,23 +12,35 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <aside className="w-64 border-r border-slate-800 flex flex-col bg-[#020617]">
-      <div className="p-8">
-        <h1 className="text-xl font-black tracking-tighter text-white">CORE<span className="text-blue-600">X</span></h1>
+    <aside className={`ui-sidebar flex flex-col ${collapsed ? 'collapsed' : ''}`}>
+      <div className="p-6">
+        <div className="flex items-center justify-between relative">
+          <h1 className="text-xl font-semibold tracking-tight text-white brand-text">
+            CORE<span className="text-blue-400">X</span>
+          </h1>
+          <button
+            onClick={onToggleCollapse}
+            className="ui-sidebar-toggle"
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </button>
+        </div>
+        <div className="mt-3 text-[11px] text-slate-500 brand-text">Strategy engine console</div>
       </div>
       <nav className="flex-1 px-4 space-y-1">
         {menu.map((item) => (
           <button
             key={item.id}
             onClick={() => setActiveTab(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm transition-all ${
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all ${
               activeTab === item.id 
-                ? 'bg-blue-600/10 text-blue-500 font-bold' 
+                ? 'bg-blue-500/15 text-blue-300 font-semibold shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
                 : 'text-slate-500 hover:bg-slate-800/50 hover:text-slate-300'
             }`}
           >
             <item.icon size={18} />
-            {item.label}
+            <span className="nav-label">{item.label}</span>
           </button>
         ))}
       </nav>

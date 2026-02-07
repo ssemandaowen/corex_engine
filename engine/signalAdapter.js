@@ -59,6 +59,15 @@ class SignalAdapter {
         }
     }
 
+    /**
+     * Synchronous handler for backtests (no async, no locks).
+     */
+    handleSync(signal) {
+        if (!this._isValid(signal)) return { status: 'REJECTED', reason: 'INVALID_SCHEMA' };
+        if (this.mode !== "BACKTEST") return { status: 'REJECTED', reason: 'SYNC_ONLY_BACKTEST' };
+        return this._execBacktest(signal);
+    }
+
     _isValid(s) {
         const required = ['strategyId', 'symbol', 'intent'];
         return required.every(field => s && s[field]);
@@ -68,9 +77,10 @@ class SignalAdapter {
 
     _execBacktest(s) {
         if (!this.btContext) return;
-        return s.intent === "ENTER" 
-            ? this.btContext.enter(s.side) 
-            : this.btContext.exit();
+        if (s.intent === "ENTER") {
+            return this.btContext.enter({ direction: s.side });
+        }
+        return this.btContext.exit();
     }
 
     _execPaper(s) {

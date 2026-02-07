@@ -17,13 +17,16 @@ const isStrategyBusy = (id) => {
 
 // 1. LIST ALL
 router.get('/', (req, res) => {
-    const strategies = Array.from(loader.registry.values()).map(s => ({
-        id: s.id,
-        name: s.instance?.name || s.id,
-        symbols: s.instance?.symbols || [],
-        lastModified: s.mtime,
-        status: stateManager.getStatus(s.id)
-    }));
+    const strategies = Array.from(loader.registry.values()).map(s => {
+        const id = s.instance?.id || s.instance?.name || (s.filePath ? path.basename(s.filePath, '.js') : 'unknown');
+        return {
+            id,
+            name: s.instance?.name || id,
+            symbols: s.instance?.symbols || [],
+            lastModified: s.mtime,
+            status: stateManager.getStatus(id)
+        };
+    });
     res.json({ success: true, payload: strategies });
 });
 

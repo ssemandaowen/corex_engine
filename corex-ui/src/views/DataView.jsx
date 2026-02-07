@@ -61,7 +61,8 @@ const DataView = () => {
   }, [selectedId]);
 
   return (
-    <div className="flex h-[calc(100vh-148px)] overflow-hidden bg-slate-950">
+    <div className="ui-page ui-page-scroll">
+    <div className="flex min-h-[640px] overflow-hidden ui-panel-soft">
       {/* Sidebar */}
       <aside 
         className={`
@@ -71,7 +72,7 @@ const DataView = () => {
         `}
       >
         <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-5 py-4">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
+          <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
             Backtest Reports
           </h3>
         </div>
@@ -107,14 +108,14 @@ const DataView = () => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-y-auto bg-slate-950 p-6">
+      <main className="flex-1 overflow-y-auto p-6">
         {!selectedId ? (
           <div className="h-full flex flex-col items-center justify-center text-slate-500">
             <svg className="w-24 h-24 mb-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <h2 className="text-2xl font-semibold text-slate-300 mb-3">
+            <h2 className="text-2xl font-semibold text-slate-200 mb-3">
               Select a backtest
             </h2>
             <p className="text-slate-500 max-w-md text-center">
@@ -140,6 +141,7 @@ const DataView = () => {
           <ReportView report={reportData} />
         ) : null}
       </main>
+    </div>
     </div>
   );
 };
@@ -176,11 +178,11 @@ function ReportView({ report }) {
           value={`${Number(performance?.maxDrawdownPercent || 0).toFixed(2)}%`} 
           trend="negative"
         />
-        <Stat label="Sharpe" value={performance?.sharpeRatio ?? '—'} />
+        <Stat label="Sharpe" value={performance?.sharpeRatio ?? '--'} />
       </div>
 
       {/* Chart */}
-      <div className="bg-slate-900/60 rounded-xl border border-slate-800 p-5 shadow-inner">
+      <div className="ui-panel">
         <h3 className="text-lg font-semibold text-slate-200 mb-4">Equity Curve</h3>
         <div className="h-[420px]">
           <ResponsiveContainer>
@@ -229,24 +231,24 @@ function ReportView({ report }) {
             Trades <span className="text-slate-500 font-normal">({trades.length})</span>
           </h3>
           <div className="overflow-x-auto rounded-xl border border-slate-800 bg-slate-900/40">
-            <table className="min-w-full divide-y divide-slate-800 text-sm">
-              <thead className="bg-slate-800/80 sticky top-0">
+            <table className="ui-table min-w-full">
+              <thead className="sticky top-0">
                 <tr>
-                  <th className="px-6 py-4 text-left font-medium text-slate-300">Entry</th>
-                  <th className="px-6 py-4 text-left font-medium text-slate-300">Dir</th>
-                  <th className="px-6 py-4 text-right font-medium text-slate-300">Entry $</th>
-                  <th className="px-6 py-4 text-right font-medium text-slate-300">Exit $</th>
-                  <th className="px-6 py-4 text-right font-medium text-slate-300">Profit</th>
-                  <th className="px-6 py-4 text-right font-medium text-slate-300">%</th>
+                  <th>Entry</th>
+                  <th>Dir</th>
+                  <th className="text-right">Entry $</th>
+                  <th className="text-right">Exit $</th>
+                  <th className="text-right">Profit</th>
+                  <th className="text-right">%</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/70">
+              <tbody>
                 {trades.map((t, i) => (
-                  <tr key={i} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-slate-300">
+                  <tr key={i}>
+                    <td className="whitespace-nowrap text-slate-300">
                       {new Date(t.entryTime).toLocaleString()}
                     </td>
-                    <td className="px-6 py-4">
+                    <td>
                       <span className={
                         t.direction === 'long' 
                           ? 'text-emerald-400 font-medium' 
@@ -255,18 +257,18 @@ function ReportView({ report }) {
                         {t.direction?.toUpperCase() || '?'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right text-slate-300">
-                      {t.entryPrice?.toFixed(2) ?? '—'}
+                    <td className="text-right text-slate-300">
+                      {t.entryPrice?.toFixed(2) ?? '--'}
                     </td>
-                    <td className="px-6 py-4 text-right text-slate-300">
-                      {t.exitPrice?.toFixed(2) ?? '—'}
+                    <td className="text-right text-slate-300">
+                      {t.exitPrice?.toFixed(2) ?? '--'}
                     </td>
-                    <td className={`px-6 py-4 text-right font-medium ${
+                    <td className={`text-right font-medium ${
                       Number(t.profit) >= 0 ? 'text-emerald-400' : 'text-rose-400'
                     }`}>
                       ${Number(t.profit || 0).toFixed(2)}
                     </td>
-                    <td className={`px-6 py-4 text-right ${
+                    <td className={`text-right ${
                       Number(t.profitPct) >= 0 ? 'text-emerald-400' : 'text-rose-400'
                     }`}>
                       {Number(t.profitPct || 0).toFixed(2)}%
@@ -288,9 +290,9 @@ function Stat({ label, value, trend = 'neutral' }) {
                 'text-slate-100';
   
   return (
-    <div className="bg-slate-900/70 rounded-xl p-5 border border-slate-800 shadow-sm">
-      <div className="text-xs uppercase tracking-wider text-slate-500 mb-2">{label}</div>
-      <div className={`text-2xl font-bold ${color}`}>{value}</div>
+    <div className="ui-card">
+      <div className="ui-panel-title mb-2">{label}</div>
+      <div className={`text-2xl font-semibold ${color}`}>{value}</div>
     </div>
   );
 }

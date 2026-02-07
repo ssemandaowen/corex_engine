@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import client from '../../api/client';
 import { Upload, Play, Loader, FileText, ChevronRight, ChevronDown } from 'lucide-react';
+import {
+    LineChart,
+    Line,
+    XAxis,
+    YAxis,
+    CartesianGrid,
+    Tooltip,
+    ResponsiveContainer
+} from 'recharts';
 
 const TreeRow = ({ label, value, level = 0 }) => {
     const [open, setOpen] = useState(level < 1);
@@ -109,13 +118,21 @@ const Backtest = () => {
         const fetchStrategies = async () => {
             try {
                 const res = await client.get('/strategies');
-                setStrategies(res.payload);
-                if (res.payload.length > 0) {
-                    setSelectedStrategy(res.payload[0].id);
+                const list = Array.isArray(res?.payload)
+                    ? res.payload
+                    : Array.isArray(res?.data)
+                        ? res.data
+                        : Array.isArray(res)
+                            ? res
+                            : [];
+                setStrategies(list);
+                if (list.length > 0) {
+                    setSelectedStrategy(list[0].id);
                 }
             } catch (err) {
                 console.error("Failed to fetch strategies", err);
-                setError("Failed to load strategies. Is the engine running?");
+                const msg = err?.message || "Failed to load strategies. Is the engine running?";
+                setError(msg);
             }
         };
         fetchStrategies();
@@ -214,29 +231,40 @@ const Backtest = () => {
         }
     };
 
+    const perf = results?.performance || null;
+    const perfRaw = results?.performanceRaw || null;
+    const trades = Array.isArray(results?.trades) ? results.trades : [];
+    const equityCurve = Array.isArray(results?.equityCurve)
+        ? results.equityCurve
+            .map((p) => ({ time: Number(p.time), equity: Number(p.equity) }))
+            .filter((p) => Number.isFinite(p.time) && Number.isFinite(p.equity))
+        : [];
+    const hasEquity = equityCurve.length > 1;
+    const header = results?.meta || null;
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 ui-view-frame h-full">
             {/* Column 1: Configuration */}
-            <div className="lg:col-span-1 bg-[#0D1117] border border-slate-800 rounded-lg p-6 h-fit">
-                <h2 className="text-lg font-bold text-slate-100 mb-4">Run Backtest</h2>
-                <form onSubmit={runBacktest} className="space-y-4">
-                    <div>
-                        <label className="text-xs text-slate-400 mb-1 block">Strategy</label>
-                        <select
-                            value={selectedStrategy}
-                            onChange={(e) => setSelectedStrategy(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-700 text-slate-300 text-sm p-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                            {strategies.map(s => (
-                                <option key={s.id} value={s.id}>{s.name || s.id}</option>
-                            ))}
-                        </select>
+        <div className="lg:col-span-1 ui-panel ui-panel-fixed flex flex-col h-full">
+            <h2 className="text-lg font-bold text-slate-100 mb-4">Run Backtest</h2>
+            <form onSubmit={runBacktest} className="space-y-4 flex-1 ui-panel-scroll">
+                <div>
+                    <label className="text-xs text-slate-400 mb-1 block">Strategy</label>
+                    <select
+                        value={selectedStrategy}
+                        onChange={(e) => setSelectedStrategy(e.target.value)}
+                        className="ui-select"
+                    >
+                        {strategies.map(s => (
+                            <option key={s.id} value={s.id}>{s.name || s.id}</option>
+                        ))}
+                    </select>
                     </div>
 
-                    <div className="bg-black/30 border border-slate-800 rounded-lg overflow-hidden max-h-[55vh] overflow-auto">
-                        <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-slate-500 bg-slate-900/60">
+                    <details className="bg-black/30 border border-slate-800 rounded-lg overflow-hidden ui-panel-scroll" open>
+                        <summary className="px-3 py-2 text-[10px] uppercase tracking-widest text-slate-500 bg-slate-900/60 cursor-pointer select-none">
                             Payload Builder
-                        </div>
+                        </summary>
                         <table className="w-full text-left">
                             <thead className="bg-slate-900/40">
                                 <tr>
@@ -280,7 +308,7 @@ const Backtest = () => {
                                             value={symbol}
                                             onChange={e => setSymbol(e.target.value)}
                                             disabled={!enabled.symbol}
-                                            className={`w-full border p-2 rounded text-xs ${enabled.symbol ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-900/40 border-slate-800 text-slate-600'}`}
+                                            className={`ui-input text-xs ${enabled.symbol ? '' : 'opacity-60'}`}
                                         />
                                     </td>
                                 </tr>
@@ -300,7 +328,7 @@ const Backtest = () => {
                                             value={interval}
                                             onChange={e => setInterval(e.target.value)}
                                             disabled={!enabled.interval}
-                                            className={`w-full border p-2 rounded text-xs ${enabled.interval ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-900/40 border-slate-800 text-slate-600'}`}
+                                            className={`ui-input text-xs ${enabled.interval ? '' : 'opacity-60'}`}
                                         />
                                     </td>
                                 </tr>
@@ -320,7 +348,7 @@ const Backtest = () => {
                                             value={initialCapital}
                                             onChange={e => setInitialCapital(e.target.value)}
                                             disabled={!enabled.initialCapital}
-                                            className={`w-full border p-2 rounded text-xs ${enabled.initialCapital ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-900/40 border-slate-800 text-slate-600'}`}
+                                            className={`ui-input text-xs ${enabled.initialCapital ? '' : 'opacity-60'}`}
                                         />
                                     </td>
                                 </tr>
@@ -340,7 +368,7 @@ const Backtest = () => {
                                             value={outputsize}
                                             onChange={e => setOutputsize(e.target.value)}
                                             disabled={!enabled.outputsize}
-                                            className={`w-full border p-2 rounded text-xs ${enabled.outputsize ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-900/40 border-slate-800 text-slate-600'}`}
+                                            className={`ui-input text-xs ${enabled.outputsize ? '' : 'opacity-60'}`}
                                         />
                                     </td>
                                 </tr>
@@ -369,12 +397,12 @@ const Backtest = () => {
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
+                    </details>
 
-                    <div className="bg-black/30 border border-slate-800 rounded-lg overflow-hidden max-h-[55vh] overflow-auto">
-                        <div className="px-3 py-2 text-[10px] uppercase tracking-widest text-slate-500 bg-slate-900/60">
+                    <details className="bg-black/30 border border-slate-800 rounded-lg overflow-hidden ui-panel-scroll" open>
+                        <summary className="px-3 py-2 text-[10px] uppercase tracking-widest text-slate-500 bg-slate-900/60 cursor-pointer select-none">
                             Strategy Params
-                        </div>
+                        </summary>
                         {Object.keys(paramSchema).length === 0 ? (
                             <div className="p-4 text-xs text-slate-500">No configurable params found for this strategy.</div>
                         ) : (
@@ -421,7 +449,7 @@ const Backtest = () => {
                                                             value={value ?? ''}
                                                             onChange={(e) => setParamValues({ ...paramValues, [key]: e.target.value })}
                                                             disabled={!isOn}
-                                                            className={`w-full border p-2 rounded text-xs ${isOn ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-slate-900/40 border-slate-800 text-slate-600'}`}
+                                                            className={`ui-input text-xs ${isOn ? '' : 'opacity-60'}`}
                                                         />
                                                     )}
                                                 </td>
@@ -431,12 +459,12 @@ const Backtest = () => {
                                 </tbody>
                             </table>
                         )}
-                    </div>
+                    </details>
 
                     <button
                         type="submit"
                         disabled={loading || !selectedStrategy}
-                        className="w-full flex items-center justify-center gap-2 py-3 rounded font-bold text-sm bg-blue-600 text-white hover:bg-blue-500 disabled:bg-slate-700 disabled:cursor-not-allowed transition-all"
+                        className="ui-button ui-button-primary w-full disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                         {loading ? <Loader size={16} className="animate-spin"/> : <Play size={14}/>}
                         Run Backtest
@@ -445,17 +473,176 @@ const Backtest = () => {
             </div>
 
             {/* Column 2: Results */}
-            <div className="lg:col-span-2 bg-[#0D1117] border border-slate-800 rounded-lg p-6 max-h-[80vh] overflow-auto">
+            <div className="lg:col-span-2 ui-panel ui-panel-fixed flex flex-col h-full">
                 <div className="flex items-center gap-3 mb-4">
                     <FileText size={18} className="text-slate-500"/>
                     <h2 className="text-lg font-bold text-slate-100">Results</h2>
                 </div>
-                {loading && <p className="text-slate-400">Running backtest...</p>}
-                {error && <div className="bg-red-900/50 border border-red-500/30 text-red-300 p-4 rounded text-sm">{error}</div>}
-                {results && (
-                    <TreeTable data={results} />
-                )}
-                 {!loading && !error && !results && <p className="text-slate-500 text-sm">Results will appear here after running a backtest.</p>}
+                <div className="flex-1 ui-panel-scroll">
+                    {loading && <p className="text-slate-400">Running backtest...</p>}
+                    {error && <div className="bg-red-900/50 border border-red-500/30 text-red-300 p-4 rounded text-sm">{error}</div>}
+
+                    {results && (
+                        <div className="space-y-6">
+                        {header && (
+                            <div className="ui-card flex flex-col gap-2">
+                                <div className="text-xs uppercase tracking-widest text-slate-500">Strategy Report</div>
+                                <div className="text-lg font-semibold text-slate-100">{header.strategyName || header.strategyId}</div>
+                                <div className="text-xs text-slate-500">
+                                    ID: <span className="text-slate-300">{header.id}</span> ·
+                                    Symbol: <span className="text-slate-300">{header.symbol}</span> ·
+                                    TF: <span className="text-slate-300">{header.timeframe}</span> ·
+                                    Duration: <span className="text-slate-300">{header.executionTime}</span>
+                                </div>
+                                <div className="text-[11px] text-slate-500">{new Date(header.timestamp).toLocaleString()}</div>
+                            </div>
+                        )}
+                        {perf && (
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                                <div className="ui-card">
+                                    <div className="ui-panel-title mb-1">Net Profit</div>
+                                    <div className={`text-lg font-semibold ${Number(perfRaw?.netProfit ?? perf.netProfit) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>${perf.netProfit}</div>
+                                </div>
+                                <div className="ui-card">
+                                    <div className="ui-panel-title mb-1">ROI</div>
+                                    <div className={`text-lg font-semibold ${Number(perfRaw?.roiPercent ?? perf.roiPercent) >= 0 ? 'text-emerald-300' : 'text-rose-300'}`}>{perf.roiPercent}%</div>
+                                </div>
+                                <div className="ui-card">
+                                    <div className="ui-panel-title mb-1">Win Rate</div>
+                                    <div className="text-lg font-semibold text-slate-100">{perf.winRate}%</div>
+                                </div>
+                                <div className="ui-card">
+                                    <div className="ui-panel-title mb-1">Trades</div>
+                                    <div className="text-lg font-semibold text-slate-100">{perf.totalTrades}</div>
+                                </div>
+                                <div className="ui-card">
+                                    <div className="ui-panel-title mb-1">Max DD</div>
+                                    <div className="text-lg font-semibold text-rose-300">{perf.maxDrawdownPercent}%</div>
+                                </div>
+                                <div className="ui-card">
+                                    <div className="ui-panel-title mb-1">Sharpe</div>
+                                    <div className="text-lg font-semibold text-slate-100">{perf.sharpeRatio}</div>
+                                </div>
+                            </div>
+                        )}
+
+                        <details className="ui-panel-soft" open>
+                            <summary className="px-4 py-3 text-[10px] uppercase tracking-widest text-slate-500 cursor-pointer select-none border-b border-slate-800">
+                                Equity Curve
+                            </summary>
+                            <div className="p-4 h-[320px]">
+                                <ResponsiveContainer>
+                                    <LineChart data={hasEquity ? equityCurve : [{ time: Date.now(), equity: 0 }]}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+                                        <XAxis
+                                            dataKey="time"
+                                            type="number"
+                                            scale="time"
+                                            domain={['dataMin', 'dataMax']}
+                                            tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                                            stroke="#475569"
+                                            tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                        />
+                                        <YAxis
+                                            tickFormatter={(v) => `$${Math.round(v).toLocaleString()}`}
+                                            stroke="#475569"
+                                            tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                        />
+                                        <Tooltip
+                                            contentStyle={{
+                                                background: '#0f172a',
+                                                border: '1px solid #334155',
+                                                borderRadius: '8px',
+                                                color: '#e2e8f0'
+                                            }}
+                                            labelFormatter={(v) => new Date(v).toLocaleString()}
+                                        />
+                                        <Line
+                                            type="monotone"
+                                            dataKey="equity"
+                                            stroke="#22d3ee"
+                                            strokeWidth={2.5}
+                                            dot={{ r: 2, strokeWidth: 0 }}
+                                            activeDot={{ r: 5, strokeWidth: 2 }}
+                                        />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </details>
+
+                        <details className="ui-panel-soft" open>
+                            <summary className="px-4 py-3 text-[10px] uppercase tracking-widest text-slate-500 cursor-pointer select-none border-b border-slate-800">
+                                Trades ({trades.length})
+                            </summary>
+                            <div className="overflow-x-auto">
+                                {trades.length === 0 ? (
+                                    <div className="p-4 text-xs text-slate-500">No trades available.</div>
+                                ) : (
+                                    <table className="ui-table min-w-full">
+                                        <thead className="sticky top-0">
+                                            <tr>
+                                                <th>Entry</th>
+                                                <th>Dir</th>
+                                                <th className="text-right">Entry $</th>
+                                                <th className="text-right">Exit $</th>
+                                                <th className="text-right">Profit</th>
+                                                <th className="text-right">%</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {trades.map((t, i) => {
+                                                const dirRaw = t.direction ?? t.side ?? t.position;
+                                                const dir = String(dirRaw || '').toLowerCase();
+                                                const isLong = dir.includes('long') || dir === 'buy';
+                                                const isShort = dir.includes('short') || dir === 'sell';
+                                                const label = isLong ? 'LONG' : isShort ? 'SHORT' : (dirRaw || '?');
+                                                return (
+                                                <tr key={i}>
+                                                    <td className="whitespace-nowrap text-slate-300">
+                                                        {new Date(t.entryTime).toLocaleString()}
+                                                    </td>
+                                                    <td>
+                                                        <span className={
+                                                            isLong
+                                                                ? 'text-emerald-400 font-medium'
+                                                                : 'text-rose-400 font-medium'
+                                                        }>
+                                                            {String(label).toUpperCase()}
+                                                        </span>
+                                                    </td>
+                                                    <td className="text-right text-slate-300">
+                                                        {t.entryPrice?.toFixed(2) ?? '--'}
+                                                    </td>
+                                                    <td className="text-right text-slate-300">
+                                                        {t.exitPrice?.toFixed(2) ?? '--'}
+                                                    </td>
+                                                    <td className={`text-right font-medium ${Number(t.profit) >= 0 ? '!text-emerald-400' : '!text-rose-400'}`}>
+                                                        ${Number(t.profit || 0).toFixed(2)}
+                                                    </td>
+                                                    <td className={`text-right ${Number(t.profitPct) >= 0 ? '!text-emerald-400' : '!text-rose-400'}`}>
+                                                        {Number(t.profitPct || 0).toFixed(2)}%
+                                                    </td>
+                                                </tr>
+                                            )})}
+                                        </tbody>
+                                    </table>
+                                )}
+                            </div>
+                        </details>
+
+                        <details className="ui-panel-soft">
+                            <summary className="px-4 py-3 text-[10px] uppercase tracking-widest text-slate-500 cursor-pointer select-none border-b border-slate-800">
+                                Raw Report JSON
+                            </summary>
+                            <div className="p-4">
+                                <TreeTable data={results} />
+                            </div>
+                        </details>
+                        </div>
+                    )}
+
+                    {!loading && !error && !results && <p className="text-slate-500 text-sm">Results will appear here after running a backtest.</p>}
+                </div>
             </div>
         </div>
     );

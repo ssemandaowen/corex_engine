@@ -2,23 +2,35 @@ import { create } from 'zustand';
 import client from '../api/client';
 
 export const useStore = create((set, get) => ({
+    // System Status
     systemStatus: {
         status: "DISCONNECTED",
         uptime: "0h 0m",
         resources: { cpu: "0.00", ram: "0.00 MB" },
         connectivity: { marketData: "DISCONNECTED", bridge: "DISCONNECTED" }
     },
+    pulse: null,
+    strategiesLive: [],
+    feedMode: 'all', // all | errors | hidden
+
+    // WebSocket
     wsStatus: "DISCONNECTED",
     wsEvents: [],
     wsLastEvent: null,
     _ws: null,
     _wsReconnectTimer: null,
     _wsAttempts: 0,
+
+    // Strategy Editor
     strategies: [],
     selectedStrategy: null,
     currentCode: "",
     logs: [],
     isLoading: false,
+
+    // Timers
+    _pulseTimer: null,
+    _liveStrategiesTimer: null,
 
     // SYNC: System Heartbeat
     fetchSystemStatus: async () => {
@@ -38,11 +50,67 @@ export const useStore = create((set, get) => ({
         }
     },
 
+    // HOME VIEW POLLING
+    fetchPulse: async () => {
+        try {
+            const res = await client.get('/system/heartbeat');
+            set({ pulse: res.payload });
+        } catch (err) {
+            console.error("Heartbeat lost");
+        }
+    },
+
+    fetchLiveStrategies: async () => {
+        try {
+            const res = await client.get('/run/status');
+            const list = Array.isArray(res.payload) ? res.payload : Object.values(res.payload || {});
+            set({ strategiesLive: list });
+        } catch (err) {
+            console.error("Run status lost");
+        }
+    },
+
+    startPulse: () => {
+        get().stopPulse();
+        get().fetchPulse();
+        const timer = setInterval(get().fetchPulse, 5000);
+        set({ _pulseTimer: timer });
+    },
+
+    stopPulse: () => {
+        const timer = get()._pulseTimer;
+        if (timer) clearInterval(timer);
+        set({ _pulseTimer: null });
+    },
+
+    startLiveStrategies: () => {
+        get().stopLiveStrategies();
+        get().fetchLiveStrategies();
+        const timer = setInterval(get().fetchLiveStrategies, 5000);
+        set({ _liveStrategiesTimer: timer });
+    },
+
+    stopLiveStrategies: () => {
+        const timer = get()._liveStrategiesTimer;
+        if (timer) clearInterval(timer);
+        set({ _liveStrategiesTimer: null });
+    },
+
+    setFeedMode: (mode) => set({ feedMode: mode }),
+
+
     // SYNC: Get all strategies for the sidebar
     fetchStrategies: async () => {
         try {
-            const { data } = await client.get('/strategies');
-            set({ strategies: data.data });
+            const res = await client.get('/strategies');
+            const list = Array.isArray(res?.payload)
+                ? res.payload
+                : Array.isArray(res?.data)
+                    ? res.data
+                    : Array.isArray(res)
+                        ? res
+                        : [];
+            set({ strategies: list });
         } catch (err) {
             console.error("Sync Error:", err);
         }
@@ -89,10 +157,10 @@ export const useStore = create((set, get) => ({
         try {
             const { data } = await client.post(`/strategies/${id}/${action}`);
             set((state) => ({
-                logs: [{ 
-                    state: data.status, 
-                    timestamp: Date.now(), 
-                    reason: `System Action: ${action.toUpperCase()}` 
+                logs: [{
+                    state: data.status,
+                    timestamp: Date.now(),
+                    reason: `System Action: ${action.toUpperCase()}`
                 }, ...state.logs].slice(0, 50)
             }));
             await get().fetchStrategies();

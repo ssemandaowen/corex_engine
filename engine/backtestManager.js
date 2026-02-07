@@ -1,5 +1,3 @@
-"use strict";
-
 const dataForge = require('data-forge');
 const { backtest, analyze, computeEquityCurve } = require('grademark');
 const fs = require('fs');
@@ -151,116 +149,182 @@ class BacktestManager {
  * Unified Simulation Pass
  * Standardizes how data flows into the strategy and how signals flow to the adapter.
  */
+    /**
+ * Unified Simulation Pass
+ * Standardizes how data flows into the strategy and how signals flow to the adapter.
+ * Handles same-bar flip logic by coordinating exitRule and entryRule.
+ */
     _runGrademarkSimulation(df, strategy, options) {
-        const SignalAdapter = require('@core/signalAdapter');
-        const adapter = new SignalAdapter({ mode: 'BACKTEST' });
-        strategy.executionContext = { adapter };
         const symbol = options.symbol || "SYMBOL";
 
-        // Grademark iterates over the DF. We must ensure the entry/exit rules match your strategy.
+        const normalizeSignal = (signal) => {
+            if (!signal || typeof signal !== 'object') return null;
+            const intentRaw = signal.intent || signal.action || signal.type;
+            const sideRaw = signal.side || signal.direction || signal.orderSide;
+            const intent = String(intentRaw || '').toUpperCase();
+            let side = String(sideRaw || '').toLowerCase();
+
+            if (!side && (intent === 'BUY' || intent === 'LONG')) side = 'long';
+            if (!side && (intent === 'SELL' || intent === 'SHORT')) side = 'short';
+            if (side === 'buy') side = 'long';
+            if (side === 'sell') side = 'short';
+
+            return {
+                intent,
+                side,
+                price: Number(signal.price),
+                raw: signal
+            };
+        };
+
         return backtest({
+            // 1. ENTRY RULE: Processes new positions and "Flip" completions
             entryRule: (enter, args) => {
                 const bar = args.bar;
-                bar.symbol = symbol; // Ensure the key matches the strategy Map
+                bar.symbol = symbol;
 
-                adapter.bindBacktestContext({ enter });
+                // Check if we have a pending flip from an exit that just occurred on this bar
+                if (strategy._flipNext) {
+                    const flipSignal = strategy.applyFlip(symbol);
+                    if (flipSignal) {
+                        enter({
+                            direction: flipSignal.side,
+                            entryPrice: flipSignal.price || bar.close
+                        });
+                        return;
+                    }
+                }
 
-                // 1. THIS IS THE KEY: Use onBar to fill the CircularBuffer
-                // This internally calls this.next(bar) and returns the signal
+                // Normal Signal Processing
                 const signal = strategy.onBar(bar);
+                const normalized = normalizeSignal(signal);
 
-                // 2. Handle the signal returned by onBar
-                if (signal && signal.intent === 'ENTER') adapter.handle(signal);
+                if (normalized && (normalized.intent === 'ENTER' || normalized.intent === 'BUY')) {
+                    enter({
+                        direction: normalized.side,
+                        entryPrice: Number.isFinite(normalized.price) ? normalized.price : bar.close
+                    });
+                }
             },
+
+            // 2. EXIT RULE: Processes closings and initiates "Flips"
             exitRule: (exit, args) => {
                 const bar = args.bar;
                 bar.symbol = symbol;
 
-                adapter.bindBacktestContext({ exit });
-
-                // 3. Re-run onBar (it will detect the bar is already active or update it)
                 const signal = strategy.onBar(bar);
+                const normalized = normalizeSignal(signal);
 
-                if (signal && signal.intent === 'EXIT') adapter.handle(signal);
+                if (!normalized) return;
+
+                const currentSide = args.position.direction;
+                const isExitIntent = normalized.intent === 'EXIT' || normalized.intent === 'CLOSE';
+
+                // Detection of a Flip (Enter signal for the opposite side)
+                const isFlipIntent = normalized.intent === 'ENTER' &&
+                    normalized.side &&
+                    normalized.side !== currentSide;
+
+                if (isExitIntent || isFlipIntent) {
+                    // If it's a flip, the BaseStrategy flipToX method has already 
+                    // set _flipNext. We trigger the exit now.
+                    exit();
+
+                    // Manual override: Ensure strategy position manager knows we are flat
+                    // so onBar doesn't get confused during the same-bar transition.
+                    strategy.positions.close(symbol, bar.close);
+                }
             },
+
             stopLoss: ({ direction, entryPrice }) => {
                 const sl = Number(options.stopLossPercent) || 0;
                 if (sl <= 0) return undefined;
                 return direction === 'long' ? entryPrice * (1 - sl / 100) : entryPrice * (1 + sl / 100);
             },
+
             takeProfit: ({ direction, entryPrice }) => {
                 const tp = Number(options.takeProfitPercent) || 0;
                 if (tp <= 0) return undefined;
                 return direction === 'long' ? entryPrice * (1 + tp / 100) : entryPrice * (1 - tp / 100);
             }
-        }, df); // DF is passed as the source of truth
+        }, df);
     }
 
 
 
-// Then inside _buildReport function:
-_buildReport({ runtimeId, strategy, startMs, initialCapital, trades, stats, df, options }) {
-    const duration = ((Date.now() - startMs) / 1000).toFixed(2);
-    const wins = trades.filter(t => (t.profit || 0) > 0).length;
+    // Then inside _buildReport function:
+    _buildReport({ runtimeId, strategy, startMs, initialCapital, trades, stats, df, options }) {
+        const duration = ((Date.now() - startMs) / 1000).toFixed(2);
+        const wins = trades.filter(t => (t.profit || 0) > 0).length;
 
-    // ────────────────────────────────────────────────
-    // NEW: Compute equity curve (time + equity points)
-    let equityCurve = [];
-    if (trades.length > 0 && df) {
-        try {
-            const curvePoints = computeEquityCurve(initialCapital, trades);
+        // ────────────────────────────────────────────────
+        // NEW: Compute equity curve (time + equity points)
+        let equityCurve = [];
+        if (trades.length > 0 && df) {
+            try {
+                const curvePoints = computeEquityCurve(initialCapital, trades);
 
-            // Map to time-based points using the exit time of each trade
-            // (or use entry time — choose what makes most sense for your chart)
-            equityCurve = curvePoints.map((point, idx) => {
-                // For idx=0 → initial capital before any trade
-                if (idx === 0) {
+                // Map to time-based points using the exit time of each trade
+                // (or use entry time — choose what makes most sense for your chart)
+                equityCurve = curvePoints.map((point, idx) => {
+                    // For idx=0 → initial capital before any trade
+                    if (idx === 0) {
+                        return {
+                            time: Number(df.first().time),   // start of data
+                            equity: Number(point.equity)
+                        };
+                    }
+
+                    // Find the trade this point corresponds to (approx)
+                    const trade = trades[idx - 1]; // because point 1 = after trade 1
                     return {
-                        time: df.first().time,   // start of data
-                        equity: point.equity
+                        time: Number(trade?.exitTime || df.last().time),
+                        equity: Number(point.equity)
                     };
-                }
-
-                // Find the trade this point corresponds to (approx)
-                const trade = trades[idx - 1]; // because point 1 = after trade 1
-                return {
-                    time: trade?.exitTime || df.last().time,
-                    equity: point.equity
-                };
-            });
-        } catch (err) {
-            console.warn("Equity curve computation failed", err);
+                });
+            } catch (err) {
+                console.warn("Equity curve computation failed", err);
+            }
         }
-    }
 
-    // Fallback: just initial capital if no trades
-    if (equityCurve.length === 0) {
-        equityCurve = [{
-            time: df?.first()?.time || Date.now(),
-            equity: initialCapital
-        }];
-    }
+        // Fallback: just initial capital if no trades
+        if (equityCurve.length === 0) {
+            equityCurve = [{
+                time: Number(df?.first()?.time || Date.now()),
+                equity: Number(initialCapital)
+            }];
+        }
 
-    return {
-        meta: {
-            id: runtimeId,
-            strategyId: strategy.id,
-            strategyName: strategy.name,
-            timestamp: new Date().toISOString(),
-            executionTime: `${duration}s`
-        },
-        performance: {
-            netProfit: stats.profit?.toFixed(2) ?? "0.00",
-            roiPercent: (((stats.profit || 0) / initialCapital) * 100).toFixed(2),
-            maxDrawdownPercent: (stats.maxDrawdownPct || 0).toFixed(2),
-            totalTrades: trades.length,
-            winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(2) : "0.00",
-            sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A"
-        },
-        trades: options.includeTrades ? trades : [],
-        equityCurve   // ← NEW FIELD
-    };
-}
+        return {
+            meta: {
+                id: runtimeId,
+                strategyId: strategy.id,
+                strategyName: strategy.name,
+                symbol: options.symbol || strategy.symbols?.[0] || "SYMBOL",
+                timeframe: options.interval || strategy.timeframe || "1m",
+                timestamp: new Date().toISOString(),
+                executionTime: `${duration}s`
+            },
+            performance: {
+                netProfit: stats.profit?.toFixed(2) ?? "0.00",
+                roiPercent: (((stats.profit || 0) / initialCapital) * 100).toFixed(2),
+                maxDrawdownPercent: (stats.maxDrawdownPct || 0).toFixed(2),
+                totalTrades: trades.length,
+                winRate: trades.length > 0 ? ((wins / trades.length) * 100).toFixed(2) : "0.00",
+                sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A"
+            },
+            performanceRaw: {
+                netProfit: Number(stats.profit || 0),
+                roiPercent: Number(((stats.profit || 0) / initialCapital) * 100),
+                maxDrawdownPercent: Number(stats.maxDrawdownPct || 0),
+                totalTrades: Number(trades.length || 0),
+                winRate: trades.length > 0 ? Number((wins / trades.length) * 100) : 0,
+                sharpeRatio: Number(stats.sharpeRatio || 0)
+            },
+            trades: options.includeTrades ? trades : [],
+            equityCurve   // ← NEW FIELD
+        };
+    }
 
     async _saveReport(report) {
         const filepath = path.join(this.storagePath, `${report.meta.id}.json`);

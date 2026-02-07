@@ -5,6 +5,7 @@ const router = express.Router();
 const os = require('os');
 const { bus, EVENTS } = require('@events/bus');
 const { getPaperBroker } = require("@broker/paperStore");
+const { getLiveBroker } = require("@broker/liveStore");
 const marketBroker = require("@broker/twelvedata");
 const logger = require('@utils/logger');
 
@@ -47,7 +48,37 @@ router.get('/heartbeat', (req, res) => {
     });
 });
 
+const getBrokerByMode = (mode = 'paper') => {
+    const m = String(mode || 'paper').toLowerCase();
+    if (m === 'paper') return getPaperBroker();
+    if (m === 'live') return getLiveBroker();
+    return null;
+};
+
+router.get('/account/modes', (req, res) => {
+    const active = String(process.env.COREX_ACTIVE_BROKER || 'paper').toLowerCase();
+    res.json({
+        success: true,
+        payload: {
+            active: ['paper', 'live'].includes(active) ? active : 'paper',
+            available: ['paper', 'live']
+        }
+    });
+});
+
 // 2. ACCOUNT BALANCES (For Account Tab)
+router.get('/account/:mode/balance', async (req, res) => {
+    try {
+        const broker = getBrokerByMode(req.params.mode);
+        if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
+        const snapshot = broker.getAccountSnapshot();
+        res.json({ success: true, payload: snapshot });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "Broker unreachable" });
+    }
+});
+
+// Backward-compatible paper route
 router.get('/account/balance', async (req, res) => {
     try {
         const broker = getPaperBroker();
@@ -59,10 +90,11 @@ router.get('/account/balance', async (req, res) => {
 });
 
 // PAPER ACCOUNT SETTINGS
-router.patch('/account/settings', (req, res) => {
+router.patch('/account/:mode/settings', (req, res) => {
     try {
-        const broker = getPaperBroker();
-        const { cash, config } = req.body || {};
+        const broker = getBrokerByMode(req.params.mode);
+        if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
+        const { cash, initialCash, config } = req.body || {};
 
         if (config && typeof config === 'object') {
             const next = { ...config };
@@ -76,6 +108,10 @@ router.patch('/account/settings', (req, res) => {
             const ok = broker.setCash(cash);
             if (!ok) return res.status(400).json({ success: false, error: "INVALID_CASH" });
         }
+        if (initialCash != null) {
+            const ok = broker.setInitialCash(initialCash);
+            if (!ok) return res.status(400).json({ success: false, error: "INVALID_INITIAL_CASH" });
+        }
 
         res.json({ success: true, payload: broker.getAccountSnapshot() });
     } catch (err) {
@@ -83,6 +119,48 @@ router.patch('/account/settings', (req, res) => {
     }
 });
 
+// Backward-compatible paper route
+router.patch('/account/settings', (req, res) => {
+    try {
+        const broker = getPaperBroker();
+        const { cash, initialCash, config } = req.body || {};
+
+        if (config && typeof config === 'object') {
+            const next = { ...config };
+            if (next.commissionPerShare != null) next.commissionPerShare = Number(next.commissionPerShare);
+            if (next.commissionMin != null) next.commissionMin = Number(next.commissionMin);
+            if (next.slippageBps != null) next.slippageBps = Number(next.slippageBps);
+            if (next.fillProbability != null) next.fillProbability = Number(next.fillProbability);
+            broker.updateConfig(next);
+        }
+        if (cash != null) {
+            const ok = broker.setCash(cash);
+            if (!ok) return res.status(400).json({ success: false, error: "INVALID_CASH" });
+        }
+        if (initialCash != null) {
+            const ok = broker.setInitialCash(initialCash);
+            if (!ok) return res.status(400).json({ success: false, error: "INVALID_INITIAL_CASH" });
+        }
+
+        res.json({ success: true, payload: broker.getAccountSnapshot() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "UPDATE_FAILED" });
+    }
+});
+
+router.post('/account/:mode/reset', (req, res) => {
+    try {
+        const broker = getBrokerByMode(req.params.mode);
+        if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
+        const { initialCash } = req.body || {};
+        broker.resetAccount(initialCash);
+        res.json({ success: true, payload: broker.getAccountSnapshot() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "RESET_FAILED" });
+    }
+});
+
+// Backward-compatible paper route
 router.post('/account/reset', (req, res) => {
     try {
         const broker = getPaperBroker();
@@ -93,7 +171,6 @@ router.post('/account/reset', (req, res) => {
         res.status(500).json({ success: false, error: "RESET_FAILED" });
     }
 });
-
 // 3. GLOBAL SETTINGS (For Settings Tab)
 router.post('/settings/update', (req, res) => {
     const { theme, logLevel, dataPath } = req.body;
