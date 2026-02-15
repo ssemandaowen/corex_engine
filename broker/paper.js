@@ -1,11 +1,10 @@
 "use strict";
 
 const EventEmitter = require('events');
-const fs = require('fs');
-const path = require('path');
 const { bus, EVENTS } = require('@events/bus');
 const logger = require('@utils/logger');
 const StrategyPositionManager = require('@utils/strategy/StrategyPositionManager');
+const pgStore = require('@core/services/pgStore');
 
 /**
  * PaperBroker - Professional Execution Engine
@@ -30,8 +29,7 @@ class PaperBroker extends EventEmitter {
             marginRequirement: 1.0 // 1.0 = 100% Cash, 0.2 = 5x Leverage
         };
 
-        this.settingsPath = path.join(process.cwd(), 'data', 'settings', 'paper_settings.json');
-        this._loadSettings();
+        this._loadSettings().catch((e) => logger.warn(`[BROKER] Config Load Error: ${e.message}`));
 
         logger.info(`[BROKER] Engine initialized. Initial Capital: $${this.cash.toLocaleString()}`);
     }
@@ -214,7 +212,7 @@ class PaperBroker extends EventEmitter {
      */
     updateConfig(next = {}) {
         this.config = { ...this.config, ...next };
-        this._saveSettings();
+        this._saveSettings().catch((e) => logger.warn(`[BROKER] Config Save Error: ${e.message}`));
         return this.config;
     }
 
@@ -222,32 +220,27 @@ class PaperBroker extends EventEmitter {
         this.cash = this.initialCash;
         this.positions.reset();
         this.lastPrices.clear();
-        this._saveSettings();
+        this._saveSettings().catch((e) => logger.warn(`[BROKER] Config Save Error: ${e.message}`));
         logger.info(`[BROKER] Account Reset to $${this.cash}`);
         return true;
     }
 
-    _loadSettings() {
-        try {
-            if (!fs.existsSync(this.settingsPath)) return;
-            const data = JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
-            if (data.cash) this.cash = Number(data.cash);
-            if (data.initialCash) this.initialCash = Number(data.initialCash);
-            if (data.config) this.config = { ...this.config, ...data.config };
-        } catch (e) { logger.warn(`[BROKER] Config Load Error: ${e.message}`); }
+    async _loadSettings() {
+        const data = await pgStore.getBrokerSettings("paper");
+        if (!data) return;
+        if (data.cash != null) this.cash = Number(data.cash);
+        if (data.initialCash != null) this.initialCash = Number(data.initialCash);
+        if (data.config && typeof data.config === "object") {
+            this.config = { ...this.config, ...data.config };
+        }
     }
 
-    _saveSettings() {
-        try {
-            const dir = path.dirname(this.settingsPath);
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            fs.writeFileSync(this.settingsPath, JSON.stringify({
-                cash: this.cash,
-                initialCash: this.initialCash,
-                config: this.config,
-                updatedAt: new Date().toISOString()
-            }, null, 2));
-        } catch (e) { logger.warn(`[BROKER] Config Save Error: ${e.message}`); }
+    async _saveSettings() {
+        await pgStore.upsertBrokerSettings("paper", {
+            cash: this.cash,
+            initialCash: this.initialCash,
+            config: this.config
+        });
     }
 }
 

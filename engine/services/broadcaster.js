@@ -9,6 +9,7 @@ class Broadcaster {
         this.wss = null;
         this.isInitialized = false;
         this.heartbeatInterval = null;
+        this._listeners = [];
     }
 
     /**
@@ -18,8 +19,8 @@ class Broadcaster {
     initServer(server) {
         if (this.isInitialized) return;
 
-        // Create WS server on /ws path
-        this.wss = new WebSocket.Server({ server, path: "/ws" });
+        // Create WS server without binding to HTTP server (upgrade handled centrally)
+        this.wss = new WebSocket.Server({ noServer: true });
 
         // Handle connections
         this.wss.on("connection", (ws, req) => this._handleConnection(ws, req));
@@ -37,12 +38,24 @@ class Broadcaster {
     _bindInternalEvents() {
         const mappings = [
             { event: EVENTS.MARKET.TICK, type: "DATA_TICK" },
-            { event: EVENTS.ORDER.CREATE, type: "ORDER_FILLED" },
-            { event: EVENTS.SYSTEM.SETTINGS, type: "PARAM_UPDATE" }
+            { event: EVENTS.ORDER.FILLED, type: "ORDER_FILLED" },
+            { event: EVENTS.SYSTEM.SETTINGS_UPDATED, type: "PARAM_UPDATE" },
+            { event: EVENTS.STRATEGY.SIGNAL, type: "STRATEGY_SIGNAL" },
+            { event: EVENTS.MT5.CONNECTED, type: "MT5_CONNECTED" },
+            { event: EVENTS.MT5.DISCONNECTED, type: "MT5_DISCONNECTED" },
+            { event: EVENTS.MT5.AUTHORIZED, type: "MT5_AUTHORIZED" },
+            { event: EVENTS.MT5.AUTH_FAILED, type: "MT5_AUTH_FAILED" },
+            { event: EVENTS.MT5.HEARTBEAT, type: "MT5_HEARTBEAT" },
+            { event: EVENTS.MT5.ACCOUNT_SYNC, type: "MT5_ACCOUNT_SYNC" },
+            { event: EVENTS.MT5.POSITIONS_SYNC, type: "MT5_POSITIONS_SYNC" },
+            { event: EVENTS.MT5.ORDER_REQUEST, type: "MT5_ORDER_REQUEST" },
+            { event: EVENTS.MT5.ORDER_RESULT, type: "MT5_ORDER_RESULT" }
         ];
 
         mappings.forEach(({ event, type }) => {
-            bus.on(event, (payload) => this.transmit(type, payload));
+            const handler = (payload) => this.transmit(type, payload);
+            bus.on(event, handler);
+            this._listeners.push({ event, handler });
         });
     }
 
@@ -80,6 +93,27 @@ class Broadcaster {
             ws.isAlive = false;
             ws.ping();
         });
+    }
+
+    stop() {
+        if (this.heartbeatInterval) {
+            clearInterval(this.heartbeatInterval);
+            this.heartbeatInterval = null;
+        }
+
+        this._listeners.forEach(({ event, handler }) => bus.off(event, handler));
+        this._listeners = [];
+
+        if (this.wss) {
+            this.wss.clients.forEach(ws => {
+                try { ws.terminate(); } catch { /* ignore */ }
+            });
+            try { this.wss.close(); } catch { /* ignore */ }
+            this.wss = null;
+        }
+
+        this.isInitialized = false;
+        logger.info("[Broadcaster Service: STOPPED]");
     }
 }
 

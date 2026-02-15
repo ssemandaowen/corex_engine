@@ -7,134 +7,98 @@ const SettingsModal = ({ isOpen, onClose, strategy, onSave, onRestoreDefaults })
     const [defaults, setDefaults] = useState({});
 
     useEffect(() => {
-        if (strategy?.params) {
-            setParams(strategy.params);
-        } else {
-            setParams({});
-        }
-
+        if (strategy?.params) setParams(strategy.params);
         if (strategy?.schema) {
             const nextDefaults = {};
             Object.entries(strategy.schema).forEach(([key, spec]) => {
-                if (spec && Object.prototype.hasOwnProperty.call(spec, 'default')) {
-                    nextDefaults[key] = spec.default;
-                }
+                if (spec && 'default' in spec) nextDefaults[key] = spec.default;
             });
             setDefaults(nextDefaults);
-        } else {
-            setDefaults({});
         }
     }, [strategy]);
 
-    if (!isOpen || !strategy) {
-        return null;
-    }
+    if (!isOpen || !strategy) return null;
 
     const handleSave = async () => {
         setLoading(true);
-        try {
-            await onSave(params);
-        } catch (error) {
-            console.error("Failed to save settings", error);
-        }
+        try { await onSave(params); } catch (e) { console.error(e); }
         setLoading(false);
         onClose();
     };
 
-    const handleRestoreDefaults = async () => {
-        if (onRestoreDefaults) {
-            try {
-                const next = await onRestoreDefaults();
-                if (next && typeof next === 'object') {
-                    setParams(next);
-                    return;
-                }
-            } catch (e) {
-                console.error("Failed to restore defaults", e);
-            }
-        }
-        setParams((prev) => ({ ...prev, ...defaults }));
-    };
-
     const renderInput = (key, spec) => {
-        const value = params[key];
+        const baseClass = "w-full bg-black/40 border border-slate-700 rounded px-2 py-1.5 text-xs text-slate-200 focus:border-blue-500 outline-none transition-colors font-mono";
+        const value = params[key] ?? '';
 
-        switch (spec.type) {
-            case 'integer':
-            case 'float':
-            case 'number':
-                return (
-                    <input
-                        type="number"
-                        value={value}
-                        min={spec.min}
-                        max={spec.max}
-                        step={spec.type === 'integer' ? 1 : 'any'}
-                        onChange={(e) => setParams({ ...params, [key]: e.target.value })}
-                        className="ui-input text-sm"
-                    />
-                );
-            case 'boolean':
-                return (
-                    <input
-                        type="checkbox"
-                        checked={value}
-                        onChange={(e) => setParams({ ...params, [key]: e.target.checked })}
-                        className="h-5 w-5 rounded text-blue-500 bg-slate-800 border-slate-700 focus:ring-blue-500"
-                    />
-                );
-            default: // string and others
-                return (
-                    <input
-                        type="text"
-                        value={value}
-                        onChange={(e) => setParams({ ...params, [key]: e.target.value })}
-                        className="ui-input text-sm"
-                    />
-                );
+        if (spec.type === 'boolean') {
+            return (
+                <input
+                    type="checkbox"
+                    checked={!!value}
+                    onChange={(e) => setParams({ ...params, [key]: e.target.checked })}
+                    className="h-4 w-4 rounded border-slate-700 bg-slate-800 text-blue-500 focus:ring-0"
+                />
+            );
         }
+
+        return (
+            <input
+                type={['integer', 'float', 'number'].includes(spec.type) ? "number" : "text"}
+                value={value}
+                step={spec.type === 'integer' ? 1 : 'any'}
+                onChange={(e) => setParams({ ...params, [key]: e.target.value })}
+                className={baseClass}
+            />
+        );
     };
 
     return (
-        <div className="ui-modal">
-            <div className="ui-modal-card">
-                <div className="ui-modal-header">
-                    <h3 className="text-lg font-bold text-slate-100">{strategy.id} Settings</h3>
-                    <button onClick={onClose} className="ui-button ui-button-secondary !px-3 !py-2 !text-[10px]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div className="w-full max-w-xs bg-[#0B0F16] border border-slate-800 rounded-xl shadow-2xl overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between p-3 border-b border-slate-800 bg-slate-900/50">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-blue-400 font-black uppercase tracking-widest">Configuration</span>
+                        <h3 className="text-xs font-bold text-slate-100 font-mono truncate">{strategy.id}</h3>
+                    </div>
+                    <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
                         <X size={16} />
                     </button>
                 </div>
 
-                <div className="ui-modal-body space-y-4 max-h-[60vh] overflow-y-auto">
-                    {strategy.schema && Object.keys(strategy.schema).length > 0 ? (
-                        Object.entries(strategy.schema).map(([key, spec]) => (
-                            <div key={key} className="ui-field">
-                                <label className="ui-label">{spec.label || key}</label>
-                                {renderInput(key, spec)}
-                                {spec.description && <p className="text-xs text-slate-500 mt-1">{spec.description}</p>}
+                {/* Body */}
+                <div className="p-4 space-y-4 max-h-[50vh] overflow-y-auto custom-scrollbar">
+                    {strategy.schema ? Object.entries(strategy.schema).map(([key, spec]) => (
+                        <div key={key} className="space-y-1.5">
+                            <div className="flex justify-between items-center">
+                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">
+                                    {spec.label || key}
+                                </label>
+                                {spec.type === 'boolean' && renderInput(key, spec)}
                             </div>
-                        ))
-                    ) : (
-                        <p className="text-slate-500">No configurable parameters for this strategy.</p>
-                    )}
+                            {spec.type !== 'boolean' && renderInput(key, spec)}
+                            {spec.description && (
+                                <p className="text-[9px] text-slate-500 leading-tight italic">{spec.description}</p>
+                            )}
+                        </div>
+                    )) : <p className="text-[10px] text-slate-600 italic">No parameters available.</p>}
                 </div>
 
-                <div className="ui-modal-footer">
+                {/* Footer */}
+                <div className="p-3 bg-black/20 border-t border-slate-800 flex gap-2">
                     <button
-                        onClick={handleRestoreDefaults}
-                        disabled={Object.keys(defaults).length === 0 || loading}
-                        className="ui-button ui-button-secondary disabled:opacity-60 disabled:cursor-not-allowed"
+                        onClick={onRestoreDefaults}
+                        disabled={loading}
+                        className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold transition-all disabled:opacity-50"
                     >
-                        <RotateCcw size={16} />
-                        Restore Defaults
+                        <RotateCcw size={12} /> Reset
                     </button>
                     <button
                         onClick={handleSave}
                         disabled={loading}
-                        className="ui-button ui-button-primary disabled:opacity-60 disabled:cursor-not-allowed"
+                        className="flex-1 h-8 flex items-center justify-center gap-1.5 rounded bg-blue-600 hover:bg-blue-500 text-white text-[10px] font-bold transition-all disabled:opacity-50"
                     >
-                        {loading ? <Loader size={16} className="animate-spin" /> : <Save size={16} />}
-                        Save
+                        {loading ? <Loader size={12} className="animate-spin" /> : <Save size={12} />} Save
                     </button>
                 </div>
             </div>

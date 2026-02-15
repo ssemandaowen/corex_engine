@@ -1,6 +1,6 @@
 "use strict";
 // 1. Register aliases first
-require('module-alias/register');
+require("module-alias/register");
 
 // 2. Load environment variables
 require("dotenv").config();
@@ -9,13 +9,17 @@ require("dotenv").config();
 const engine = require("@core/core/engine");
 const server = require("@core/server");
 const logger = require("@utils/logger");
+const dbMigrator = require("./db/migrate");
+const db = require("@core/services/postgres");
 
 async function bootstrap() {
     try {
+        await dbMigrator.run();
         await engine.start();
-        logger.info(`🟢 CoreX \x1b[36m Ready to use...\x1b[0m`);
+        await server.start();
+        logger.info(`CoreX Ready to use...`);
     } catch (err) {
-        console.error("🔴 Bootstrap Failed:", err);
+        console.error("Bootstrap Failed:", err);
         process.exit(1);
     }
 }
@@ -24,5 +28,7 @@ bootstrap();
 
 process.on("SIGINT", async () => {
     await engine.stop();
+    await server.stop();
+    await db.close();
     process.exit();
 });

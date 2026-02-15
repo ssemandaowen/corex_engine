@@ -1,76 +1,100 @@
 "use strict";
 
-require('dotenv').config(); // Ensure env vars are loaded first
+require("dotenv").config(); // Ensure env vars are loaded first
 const express = require("express");
 const http = require("http");
-const cors = require('cors');
+const cors = require("cors");
 const logger = require("@utils/logger");
 
 // 1. Core Domain Routes
 const strategyRoutes = require("@core/routes/strategyController");
 const executionRoutes = require("@core/routes/executionController");
-const backtestRoutes = require("@core/routes/backtestController"); // Your multer-based script
+const backtestRoutes = require("@core/routes/backtestController");
 const systemRoutes = require("@core/routes/systemController");
-// Note: If you have a separate dataController for cache/logs, add it here
+const authRoutes = require("@core/routes/authController");
+const authGuard = require("@core/middleware/authGuard");
 
 // 2. Services
 const broadcaster = require("@core/services/broadcaster");
+const mt5Bridge = require("@core/services/mt5Bridge");
 
 const app = express();
 const server = http.createServer(app);
 
-// ──────────────
 // Middleware
-// ──────────────
 app.use(cors({
-    origin: 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'x-admin-key']
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "x-admin-key", "Authorization"]
 }));
 
-app.use(express.json());
+const JSON_LIMIT = process.env.JSON_LIMIT || "1mb";
+app.use(express.json({ limit: JSON_LIMIT }));
 
-// Auth Guard - Protecting the Trading Floor
-const authGuard = (req, res, next) => {
-    const key = req.headers["x-admin-key"];
-    if (!process.env.ADMIN_SECRET || key !== process.env.ADMIN_SECRET) {
-        logger.warn(`🚫 Unauthorized REST access from ${req.ip}`);
-        return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-    }
-    next();
-};
+app.use("/api/auth", authRoutes);
 
-// ──────────────
-// Domain Routing (The 6-Tab Bridge)
-// ──────────────
-app.use("/api/strategies", authGuard, strategyRoutes);  // Tab 2: CRUD
-app.use("/api/run",        authGuard, executionRoutes); // Tab 3: Execution/Live/Paper
-app.use("/api/backtest",   authGuard, backtestRoutes);  // Tab 5: Simulation
-app.use("/api/system",     authGuard, systemRoutes);    // Tab 1 & 6: Home/Settings
+// Domain Routing
+app.use("/api/strategies", authGuard, strategyRoutes);
+app.use("/api/run", authGuard, executionRoutes);
+app.use("/api/backtest", authGuard, backtestRoutes);
+app.use("/api/system", authGuard, systemRoutes);
 
 // Health check (Public)
 app.get("/ping", (req, res) => res.send("PONG"));
 
-// ──────────────
-// Server Boot Sequence
-// ──────────────
 const PORT = process.env.PORT || 3000;
 
-async function bootstrap() {
-    try {
-        // 2. Start the HTTP/WS Server
-        server.listen(PORT, () => {
-            logger.info(`🌐 CoreX Hub READY on port ${PORT}`);
-
-            // 3. Initialize WebSocket Broadcaster (The UI Bridge)
-            broadcaster.initServer(server);
-            
-            logger.info("✅ System Bootstrapped Successfully.");
+function start() {
+    return new Promise((resolve, reject) => {
+        if (server.listening) return resolve(server);
+        // Traffic controller for WebSocket upgrades
+        server.on("upgrade", (request, socket, head) => {
+            try {
+                const { pathname } = new URL(request.url, `http://${request.headers.host}`);
+                if (pathname === "/ws") {
+                    if (!broadcaster.wss) return socket.destroy();
+                    broadcaster.wss.handleUpgrade(request, socket, head, (ws) => {
+                        broadcaster.wss.emit("connection", ws, request);
+                    });
+                    return;
+                }
+                if (pathname === "/mt5") {
+                    if (!mt5Bridge.wss) return socket.destroy();
+                    mt5Bridge.wss.handleUpgrade(request, socket, head, (ws) => {
+                        mt5Bridge.wss.emit("connection", ws, request);
+                    });
+                    return;
+                }
+                socket.destroy();
+            } catch {
+                socket.destroy();
+            }
         });
-    } catch (err) {
-        logger.error(`❌ Critical Boot Failure: ${err.message}`);
-        process.exit(1);
-    }
+        server.once("error", reject);
+        server.listen(PORT, () => {
+            logger.info(`CoreX Hub READY on port ${PORT}`);
+
+            broadcaster.initServer(server);
+            mt5Bridge.initServer(server);
+
+            logger.info("System Bootstrapped Successfully.");
+            resolve(server);
+        });
+    });
 }
 
-bootstrap();
+function stop() {
+    return new Promise((resolve) => {
+        if (!server.listening) return resolve();
+        broadcaster.stop();
+        mt5Bridge.stop();
+        server.close(() => resolve());
+    });
+}
+
+module.exports = {
+    app,
+    server,
+    start,
+    stop
+};

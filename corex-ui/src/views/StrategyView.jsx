@@ -1,43 +1,46 @@
 import React, { useState, useEffect } from 'react';
+import { FileCode, Plus, X, Box, Save, Trash2, Play } from 'lucide-react';
 import client from '../api/client';
 import StrategyList from '../components/strategies/StrategyList';
 import EditorPanel from '../components/strategies/EditorPanel';
 
 const StrategyView = ({ onNavigate }) => {
   const [strategies, setStrategies] = useState([]);
+  const [openTabs, setOpenTabs] = useState([]); // Tracking open files
   const [selectedId, setSelectedId] = useState(null);
   const [currentCode, setCurrentCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [saveError, setSaveError] = useState(null);
-  const [listError, setListError] = useState(null);
   const [toasts, setToasts] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
-  const addToast = (toast) => {
-    const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-    const next = { id, type: toast?.type || 'info', message: toast?.message || 'Saved.' };
-    setToasts((prev) => [...prev, next]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter(t => t.id !== id));
-    }, 2800);
-  };
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // --- Logic Registry & Tabs ---
+  
   const refreshList = async () => {
     try {
       const res = await client.get('/strategies');
-      const list = Array.isArray(res?.payload)
-        ? res.payload
-        : Array.isArray(res?.data)
-          ? res.data
-          : Array.isArray(res)
-            ? res
-            : [];
-      setStrategies(list);
-      setListError(null);
+      setStrategies(Array.isArray(res?.payload) ? res.payload : []);
     } catch (err) {
       console.error("Registry sync failed");
-      const msg = err?.message || "Failed to load strategies. Is the engine running?";
-      setListError(msg);
+    }
+  };
+
+  useEffect(() => { refreshList(); }, []);
+
+  const selectTab = (id) => {
+    if (!openTabs.includes(id)) {
+      setOpenTabs(prev => [...prev, id]);
+    }
+    setSelectedId(id);
+  };
+
+  const closeTab = (e, id) => {
+    e.stopPropagation();
+    const nextTabs = openTabs.filter(t => t !== id);
+    setOpenTabs(nextTabs);
+    if (selectedId === id) {
+      setSelectedId(nextTabs.length > 0 ? nextTabs[nextTabs.length - 1] : null);
     }
   };
 
@@ -48,214 +51,154 @@ const StrategyView = ({ onNavigate }) => {
       try {
         const res = await client.get(`/strategies/${selectedId}`);
         setCurrentCode(res.payload.code);
-      } catch (err) {
-        console.error("Code fetch failed");
-      } finally {
-        setLoading(false);
-      }
+      } catch (err) { console.error("Fetch failed"); }
+      finally { setLoading(false); }
     };
     fetchCode();
   }, [selectedId]);
 
-  useEffect(() => { refreshList(); }, []);
-  const doSave = async () => {
-    if (!selectedId) return;
-    setLoading(true);
-    setSaveError(null);
-    try {
-      await client.put(`/strategies/${selectedId}`, { code: currentCode });
-      addToast({ type: 'success', message: `${selectedId} saved and hot-swapped.` });
-      refreshList();
-    } catch (err) {
-      const msg = err?.message || "NETWORK_ERROR";
-      const details = err?.details ? ` (${err.details})` : "";
-      setSaveError(`Runtime Push Failed: ${msg}${details}`);
-      addToast({ type: 'error', message: `Save failed for ${selectedId}.` });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // --- Actions ---
 
   const handleSave = async () => {
-    await doSave();
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm(`Purge strategy: ${id}?`)) return;
-    try {
-      await client.delete(`/strategies/${id}`);
-      if (selectedId === id) setSelectedId(null);
-      refreshList();
-    } catch (err) {
-      alert(err.message);
-    }
-  };
-  
-  const handleAction = (cmd, id) => {
-    if (cmd === 'DELETE') {
-      handleDelete(id);
-      return;
-    }
-    if (cmd === 'RUN') {
-      if (onNavigate) onNavigate('run');
-      return;
-    }
-    setSelectedId(id);
-  };
-
-  const handleCreate = async () => {
-    const name = newName.trim();
-    if (!name) return;
+    if (!selectedId) return;
     setLoading(true);
     try {
-      const res = await client.post('/strategies', { name });
-      const id = res.payload?.id || name.replace(/\s+/g, '_');
-      setStrategies((prev) => ([...prev, { id, name: id, status: 'OFFLINE' }]));
-      await refreshList();
-      setSelectedId(id);
-      try {
-        const codeRes = await client.get(`/strategies/${id}`);
-        setCurrentCode(codeRes.payload?.code || "");
-      } catch (e) {
-        // ignore
-      }
-      setShowCreate(false);
-      setNewName('');
-      addToast({ type: 'success', message: `Created ${id}.` });
+      await client.put(`/strategies/${selectedId}`, { code: currentCode });
+      addToast({ type: 'success', message: `Deployed ${selectedId}` });
     } catch (err) {
-      const msg = err?.message || "NETWORK_ERROR";
-      const details = err?.details ? ` (${err.details})` : "";
-      setSaveError(`Create Failed: ${msg}${details}`);
-      addToast({ type: 'error', message: `Create failed.` });
-    } finally {
-      setLoading(false);
-    }
+      addToast({ type: 'error', message: "Push failed" });
+    } finally { setLoading(false); }
+  };
+
+  const addToast = (t) => {
+    const id = Date.now();
+    setToasts(p => [...p, { ...t, id }]);
+    setTimeout(() => setToasts(p => p.filter(x => x.id !== id)), 3000);
   };
 
   return (
-    <div className="ui-page ui-page-scroll">
-      <div className="grid grid-cols-12 gap-6 ui-view-frame">
-        <div className="col-span-12 lg:col-span-4 ui-panel-soft flex flex-col ui-panel-fixed">
-          <div className="ui-panel-header px-5 pt-5 pb-4">
-            <h2 className="ui-panel-title">Logic Registry</h2>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="ui-button ui-button-secondary !px-3 !py-2 !text-[10px]"
-              aria-label="Create strategy"
-            >
-              New
-            </button>
-          </div>
-          {listError && (
-            <div className="mx-4 mb-3 rounded-lg border border-red-500/30 bg-red-950/60 px-3 py-2 text-[11px] text-red-200">
-              {listError}
-            </div>
-          )}
-          <div className="flex-1 ui-panel-scroll p-3">
-            {strategies.length === 0 ? (
-              <div className="text-[11px] text-slate-500 px-2 py-3">
-                No strategies found. If the engine is running, check `ADMIN_SECRET` or refresh.
-              </div>
-            ) : (
-              <StrategyList
-                items={strategies}
-                activeId={selectedId}
-                onSelect={setSelectedId}
-                onAction={handleAction}
-              />
-            )}
-          </div>
+    <div className="flex h-screen bg-[#0b0e14] overflow-hidden">
+      
+      {/* SIDEBAR: LOGIC REGISTRY */}
+      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r border-slate-800 bg-[#0d1117] flex flex-col overflow-hidden`}>
+        <div className="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Logic Registry</span>
+          <button onClick={() => setShowCreate(true)} className="p-1 hover:bg-slate-800 rounded text-blue-400">
+            <Plus size={16} />
+          </button>
         </div>
-        <div className="col-span-12 lg:col-span-8 ui-panel-soft ui-panel-fixed relative">
-          {saveError && (
-            <div className="absolute top-3 right-3 z-20 bg-red-950/80 border border-red-500/50 text-red-200 text-[10px] px-3 py-2 rounded-lg">
-              {saveError}
+        <div className="flex-1 overflow-y-auto p-2">
+          <StrategyList
+            items={strategies}
+            activeId={selectedId}
+            onSelect={selectTab}
+            onAction={(cmd, id) => cmd === 'RUN' ? onNavigate('run') : selectTab(id)}
+          />
+        </div>
+      </div>
+
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        
+        {/* VS TABS BAR */}
+        <div className="h-10 bg-[#0d1117] border-b border-slate-800 flex items-center overflow-x-auto no-scrollbar">
+          <button 
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="px-3 h-full border-r border-slate-800 hover:bg-slate-800 text-slate-500"
+          >
+            <Box size={14} />
+          </button>
+          
+          {openTabs.map(tabId => (
+            <div 
+              key={tabId}
+              onClick={() => setSelectedId(tabId)}
+              className={`flex items-center h-full px-4 gap-3 border-r border-slate-800 cursor-pointer transition-colors min-w-[120px] max-w-[200px]
+                ${selectedId === tabId ? 'bg-[#1e2227] text-blue-400 border-b border-b-blue-500' : 'text-slate-500 hover:bg-slate-800/50'}`}
+            >
+              <FileCode size={12} />
+              <span className="text-[11px] font-medium truncate flex-1">{tabId}</span>
+              <X size={12} className="hover:text-white" onClick={(e) => closeTab(e, tabId)} />
             </div>
-          )}
+          ))}
+        </div>
+
+        {/* EDITOR AREA */}
+        <div className="flex-1 bg-[#12151a]">
           {selectedId ? (
-            <EditorPanel
-              id={selectedId}
-              code={currentCode}
-              setCode={setCurrentCode}
-              onSave={handleSave}
-              loading={loading}
-            />
-          ) : (
-            <div className="ui-empty h-full gap-3">
-              <div className="w-12 h-12 rounded-full border-2 border-slate-800 flex items-center justify-center animate-pulse">
-                 <div className="w-2 h-2 rounded-full bg-slate-700" />
+            <div className="h-full flex flex-col">
+              {/* Toolbar */}
+              <div className="px-4 py-2 border-b border-slate-800 flex justify-between items-center bg-[#0d1117]/50">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono text-slate-500 uppercase">Working on:</span>
+                  <span className="text-[10px] font-mono text-blue-400">{selectedId}.js</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleSave} disabled={loading} className="flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-50">
+                    <Save size={12} /> {loading ? 'SAVING...' : 'DEPLOY'}
+                  </button>
+                  <button onClick={() => onNavigate('run')} className="flex items-center gap-2 px-3 py-1 bg-emerald-600/20 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-600/30 rounded text-[10px] font-bold">
+                    <Play size={12} /> RUN
+                  </button>
+                </div>
               </div>
-              <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-slate-500">
-                Select logic to initialize editor
-              </span>
+              
+              <div className="flex-1">
+                <EditorPanel
+                  id={selectedId}
+                  code={currentCode}
+                  setCode={setCurrentCode}
+                  onSave={handleSave}
+                  loading={loading}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+              <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-700 flex items-center justify-center mb-4">
+                <FileCode size={32} className="text-slate-700" />
+              </div>
+              <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-slate-500">
+                System Awaiting Logic Selection
+              </p>
             </div>
           )}
         </div>
       </div>
 
+      {/* CREATE MODAL */}
       {showCreate && (
-        <div className="ui-modal">
-          <div className="ui-modal-card">
-            <div className="ui-modal-header">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-100">Create Strategy</h3>
-                <p className="text-[11px] text-slate-500">New strategy file will be created.</p>
-              </div>
-              <button
-                onClick={() => setShowCreate(false)}
-                className="ui-button ui-button-secondary !px-3 !py-2 !text-[10px]"
-                aria-label="Close"
-              >
-                Close
-              </button>
-            </div>
-            <div className="ui-modal-body">
-              <label className="ui-field">
-                <span className="ui-label">Strategy Name</span>
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  className="ui-input"
-                  placeholder="e.g. mean_reversion"
-                />
-              </label>
-            </div>
-            <div className="ui-modal-footer">
-              <button
-                onClick={() => setShowCreate(false)}
-                className="ui-button ui-button-secondary"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                disabled={loading}
-                className="ui-button ui-button-primary disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                Create
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="w-full max-w-sm bg-[#161b22] border border-slate-800 rounded-lg shadow-2xl p-6">
+            <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider">Initialize Strategy</h3>
+            <p className="text-[11px] text-slate-500 mb-4">Assign a unique identifier for the logic registry.</p>
+            <input 
+              autoFocus
+              className="w-full bg-[#0d1117] border border-slate-700 rounded p-2 text-sm text-white focus:border-blue-500 outline-none mb-4"
+              placeholder="e.g. scalp_v1"
+              value={newName}
+              onChange={e => setNewName(e.target.value)}
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-white uppercase">Cancel</button>
+              <button onClick={() => {
+                const id = newName.trim();
+                if(id) { selectTab(id); setShowCreate(false); setNewName(''); }
+              }} className="px-4 py-2 bg-blue-600 text-white rounded text-[10px] font-bold uppercase">Create</button>
             </div>
           </div>
         </div>
       )}
 
-      {toasts.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-50 space-y-2">
-          {toasts.map(t => (
-            <div
-              key={t.id}
-              className={`ui-toast ${
-                t.type === 'error'
-                  ? 'bg-red-950/80 border-red-500/50 text-red-200'
-                  : 'bg-emerald-950/80 border-emerald-500/50 text-emerald-200'
-              }`}
-            >
-              {t.message}
-            </div>
-          ))}
-        </div>
-      )}
+      {/* TOASTS */}
+      <div className="fixed bottom-6 right-6 z-[100] space-y-2">
+        {toasts.map(t => (
+          <div key={t.id} className={`px-4 py-2 rounded-lg border text-[11px] font-bold shadow-lg animate-in slide-in-from-right-4 
+            ${t.type === 'error' ? 'bg-rose-950 border-rose-500 text-rose-200' : 'bg-emerald-950 border-emerald-500 text-emerald-200'}`}>
+            {t.message}
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

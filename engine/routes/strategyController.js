@@ -36,8 +36,12 @@ router.get('/:id', (req, res) => {
     const entry = loader.registry.get(req.params.id);
     if (!entry) return res.status(404).json({ success: false, error: "Strategy not found" });
 
-    const code = fs.readFileSync(entry.filePath, 'utf8');
-    res.json({ success: true, payload: { id: entry.id, code } });
+    try {
+        const code = fs.readFileSync(entry.filePath, 'utf8');
+        res.json({ success: true, payload: { id: entry.id, code } });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "READ_FAILED", message: err.message });
+    }
 });
 
 
@@ -70,6 +74,9 @@ router.patch('/:id/rename', (req, res) => {
     }
 
     const entry = loader.registry.get(id);
+    if (!entry) {
+        return res.status(404).json({ success: false, error: "Strategy not found" });
+    }
     const oldPath = entry.filePath;
     const newPath = path.join(path.dirname(oldPath), `${newId}.js`);
 
@@ -116,6 +123,8 @@ router.delete('/:id', (req, res) => {
         if (fs.existsSync(entry.filePath)) fs.unlinkSync(entry.filePath);
         loader.registry.delete(id);
         res.json({ success: true, message: "Purged." });
+    } else {
+        res.status(404).json({ success: false, error: "Strategy not found" });
     }
 });
 

@@ -9,28 +9,21 @@ const path = require("path");
 const fs = require("fs");
 const logger = require("@utils/logger");
 const stateManager = require("@utils/stateController");
+const { clampCache, setConfig: setStorageConfig, getConfig: getStorageConfig } = require("@utils/storageManager");
 
-const BANNER = `
-\x1b[36m
-   ██████╗ ██████╗ ██████╗ ███████╗██╗  ██╗
-  ██╔════╝██╔═══██╗██╔══██╗██╔════╝╚██╗██╔╝
-  ██║     ██║   ██║██████╔╝█████╗   ╚███╔╝ 
-  ██║     ██║   ██║██╔══██╗██╔══╝   ██╔██╗ 
-  ╚██████╗╚██████╔╝██║  ██║███████╗██╔╝ ██╗
-   ╚═════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝
-\x1b[0m
-\x1b[90m──────────────────────────────────────────\x1b[0m
-\x1b[32m   ▶ SERVER CONTROL MODE : ACTIVE\x1b[0m
-\x1b[90m   Build: 2026.1.20  |  Tier: FREE\x1b[0m
-\x1b[90m──────────────────────────────────────────\x1b[0m
-`;
+const BANNER_PATH = path.join(__dirname, "banner.txt");
+
 
 
 function showBanner() {
     console.clear();
-    console.log(BANNER);
+    try {
+        const banner = fs.readFileSync(BANNER_PATH, "utf8");
+        console.log(banner);
+    } catch (err) {
+        console.log("CoreX Engine");
+    }
 }
-
 class CoreXEngine {
     constructor() {
         showBanner();
@@ -39,18 +32,64 @@ class CoreXEngine {
         this.status = "IDLE";
         this.startTime = null;
         this.activeSymbols = new Set();
+        // Tick distribution backpressure
+        this.tickQueues = new Map();              // symbol -> Array<tick>
+        this.flushScheduled = false;
+        this.maxQueueSize = Number(process.env.TICK_QUEUE_MAX || 5000);
+        this.maxFlushCount = Number(process.env.TICK_FLUSH_MAX || 10000);
+        this._droppedTicks = new Map();           // symbol -> count
+        this.feedStats = {
+            startedAt: Date.now(),
+            totalTicks: 0,
+            droppedTicks: 0,
+            lastTickAt: 0,
+            perSymbol: new Map()                  // symbol -> { count, lastTickAt, dropped }
+        };
         this.subscriptions = new Map();           // symbol → Set<strategy>
         this.executionContexts = new Map();       // mode → {adapter, broker}
+        // Per-strategy scheduling queues
+        this.strategyQueues = new Map();          // id -> { queue: [], running: false }
+        this.maxStrategyQueueSize = Number(process.env.STRAT_QUEUE_MAX || 1000);
+        this.strategySliceMs = Number(process.env.STRAT_SLICE_MS || 5);
+        this._droppedStrategyTicks = new Map();   // id -> count
+        this.strategyStats = new Map();           // id -> { processedTicks, totalProcessMs, lastProcessMs, lastProcessedAt, dropped }
     }
 
     async start() {
         if (this.status !== "IDLE") return;
         this.status = "INITIALIZING";
         this.startTime = Date.now();
+        this.feedStats.startedAt = this.startTime;
+        this.feedStats.totalTicks = 0;
+        this.feedStats.droppedTicks = 0;
+        this.feedStats.lastTickAt = 0;
+        this.strategyQueues.clear();
+        this._droppedStrategyTicks.clear();
+        this.strategyStats.clear();
+        this.feedStats.perSymbol.clear();
+
+        try {
+            const settingsPath = path.join(process.cwd(), 'data', 'settings', 'system_settings.json');
+            if (fs.existsSync(settingsPath)) {
+                const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+                if (saved && typeof saved === 'object') {
+                    this.updateSettings(saved);
+                }
+            }
+        } catch (e) {
+            logger.warn(`Failed to load system settings: ${e.message}`);
+        }
+
+        try {
+            const cacheDir = path.join(process.cwd(), "data", "cache");
+            clampCache(cacheDir);
+        } catch (e) {
+            logger.warn(`Cache clamp failed: ${e.message}`);
+        }
 
         loader.init(this);
 
-        bus.on(EVENTS.MARKET.TICK, (data) => this.safeDistribute(data));
+        bus.on(EVENTS.MARKET.TICK, (data) => this._enqueueTick(data));
 
         this.status = "RUNNING";
         logger.info("🟢 CoreX Engine: \x1b[36m Active \x1b[0m");
@@ -130,7 +169,9 @@ class CoreXEngine {
                     brokerInstance?.updatePrice?.(tick.symbol, tick.price);
                 });
             }
-            // Future: else if (mode === "LIVE") { ... }
+            if (mode === "LIVE") {
+                brokerInstance = require("@core/services/mt5Bridge");
+            }
 
             const SignalAdapter = require("@core/signalAdapter");
             const adapter = new SignalAdapter({ mode, broker: brokerInstance });
@@ -141,18 +182,111 @@ class CoreXEngine {
         strategy.executionContext = this.executionContexts.get(mode);
     }
 
-    safeDistribute(data) {
+    _enqueueTick(data) {
+        if (this.status !== "RUNNING") return;
+        if (!data || !data.symbol) return;
+
+        let queue = this.tickQueues.get(data.symbol);
+        if (!queue) {
+            queue = [];
+            this.tickQueues.set(data.symbol, queue);
+        }
+
+        queue.push(data);
+        this._recordTick(data.symbol);
+        if (queue.length > this.maxQueueSize) {
+            queue.shift();
+            const dropped = (this._droppedTicks.get(data.symbol) || 0) + 1;
+            this._droppedTicks.set(data.symbol, dropped);
+            this._recordDrop(data.symbol);
+            if (dropped % 1000 === 0) {
+                logger.warn(`[FEED] Dropped ${dropped} ticks for ${data.symbol} (queue overflow)`);
+            }
+        }
+
+        if (!this.flushScheduled) {
+            this.flushScheduled = true;
+            setImmediate(() => this._flushTickQueues());
+        }
+    }
+
+    _flushTickQueues() {
+        if (this.status !== "RUNNING") {
+            this.flushScheduled = false;
+            return;
+        }
+
+        let processed = 0;
+        for (const [symbol, queue] of this.tickQueues) {
+            while (queue.length > 0) {
+                const tick = queue.shift();
+                this._deliverTick(tick);
+                processed++;
+                if (processed >= this.maxFlushCount) {
+                    this.flushScheduled = false;
+                    setImmediate(() => this._flushTickQueues());
+                    return;
+                }
+            }
+        }
+
+        this.flushScheduled = false;
+    }
+
+    _deliverTick(data) {
         if (this.status !== "RUNNING") return;
 
         const strategies = this.subscriptions.get(data.symbol);
         if (!strategies) return;
 
         for (const strat of strategies) {
-            const id = strat.id || strat.name;
+            this._enqueueStrategyTick(strat, data);
+        }
+    }
+
+    _enqueueStrategyTick(strat, tick) {
+        const id = strat.id || strat.name;
+        let entry = this.strategyQueues.get(id);
+        if (!entry) {
+            entry = { queue: [], running: false };
+            this.strategyQueues.set(id, entry);
+        }
+
+        entry.queue.push(tick);
+        this._ensureStrategyStats(id);
+        if (entry.queue.length > this.maxStrategyQueueSize) {
+            entry.queue.shift();
+            const dropped = (this._droppedStrategyTicks.get(id) || 0) + 1;
+            this._droppedStrategyTicks.set(id, dropped);
+            const stats = this.strategyStats.get(id);
+            if (stats) stats.dropped += 1;
+            if (dropped % 1000 === 0) {
+                logger.warn(`[STRAT] Dropped ${dropped} ticks for ${id} (queue overflow)`);
+            }
+        }
+
+        if (!entry.running) {
+            entry.running = true;
+            setImmediate(() => this._processStrategyQueue(id));
+        }
+    }
+
+    _processStrategyQueue(id) {
+        const entry = this.strategyQueues.get(id);
+        if (!entry) return;
+
+        const start = Date.now();
+        let processedInBatch = 0;
+        while (entry.queue.length > 0) {
+            const tick = entry.queue.shift();
+            const liveEntry = loader.registry.get(id);
+            const strat = liveEntry?.instance;
+            if (!strat) continue;
+
             try {
                 const currentState = stateManager.getStatus(id);
                 if (currentState === "ACTIVE" && strat.enabled !== false) {
-                    const signal = strat.onTick(data, false);
+                    const signal = strat.onTick(tick, false);
                     const adapter = strat.executionContext?.adapter;
                     if (signal && adapter) {
                         Promise.resolve(adapter.handle(signal)).catch(err => {
@@ -161,10 +295,105 @@ class CoreXEngine {
                     }
                 }
             } catch (err) {
-                logger.error(`[CRASH] [${strat.name}] ${err.message}`);
+                logger.error(`[CRASH] [${strat?.name || id}] ${err.message}`);
                 stateManager.commit(id, "ERROR", { error: err.message, at: new Date().toISOString() });
             }
+
+            processedInBatch += 1;
+            if (Date.now() - start >= this.strategySliceMs) {
+                this._recordStrategyBatch(id, Date.now() - start, processedInBatch);
+                setImmediate(() => this._processStrategyQueue(id));
+                return;
+            }
         }
+
+        this._recordStrategyBatch(id, Date.now() - start, processedInBatch);
+        entry.running = false;
+    }
+
+    _ensureStrategyStats(id) {
+        if (this.strategyStats.has(id)) return;
+        this.strategyStats.set(id, {
+            processedTicks: 0,
+            totalProcessMs: 0,
+            lastProcessMs: 0,
+            lastProcessedAt: 0,
+            dropped: 0
+        });
+    }
+
+    _recordStrategyBatch(id, durationMs, processed) {
+        if (!processed) return;
+        const stats = this.strategyStats.get(id);
+        if (!stats) return;
+        stats.processedTicks += processed;
+        stats.totalProcessMs += durationMs;
+        stats.lastProcessMs = durationMs;
+        stats.lastProcessedAt = Date.now();
+    }
+
+    _recordTick(symbol) {
+        this.feedStats.totalTicks += 1;
+        this.feedStats.lastTickAt = Date.now();
+        let entry = this.feedStats.perSymbol.get(symbol);
+        if (!entry) {
+            entry = { count: 0, lastTickAt: 0, dropped: 0 };
+            this.feedStats.perSymbol.set(symbol, entry);
+        }
+        entry.count += 1;
+        entry.lastTickAt = this.feedStats.lastTickAt;
+    }
+
+    _recordDrop(symbol) {
+        this.feedStats.droppedTicks += 1;
+        let entry = this.feedStats.perSymbol.get(symbol);
+        if (!entry) {
+            entry = { count: 0, lastTickAt: 0, dropped: 0 };
+            this.feedStats.perSymbol.set(symbol, entry);
+        }
+        entry.dropped += 1;
+    }
+
+    getFeedMetrics() {
+        const now = Date.now();
+        const symbols = Array.from(this.subscriptions.keys());
+        const payload = symbols.map((symbol) => {
+            const entry = this.feedStats.perSymbol.get(symbol) || { count: 0, lastTickAt: 0, dropped: 0 };
+            const queue = this.tickQueues.get(symbol);
+            return {
+                symbol,
+                count: entry.count,
+                lastTickAt: entry.lastTickAt,
+                dropped: entry.dropped,
+                queueDepth: queue ? queue.length : 0
+            };
+        });
+
+        const strategies = Array.from(this.strategyQueues.keys()).map((id) => {
+            const entry = this.strategyQueues.get(id);
+            const stats = this.strategyStats.get(id) || { processedTicks: 0, totalProcessMs: 0, lastProcessMs: 0, lastProcessedAt: 0, dropped: 0 };
+            const avgMs = stats.processedTicks > 0 ? (stats.totalProcessMs / stats.processedTicks) : 0;
+            return {
+                id,
+                queueDepth: entry ? entry.queue.length : 0,
+                processedTicks: stats.processedTicks,
+                avgProcessMs: Number(avgMs.toFixed(3)),
+                lastProcessMs: stats.lastProcessMs,
+                lastProcessedAt: stats.lastProcessedAt,
+                dropped: stats.dropped
+            };
+        });
+
+        return {
+            status: this.status,
+            startedAt: this.feedStats.startedAt,
+            uptimeMs: this.startTime ? (now - this.startTime) : 0,
+            totalTicks: this.feedStats.totalTicks,
+            droppedTicks: this.feedStats.droppedTicks,
+            lastTickAt: this.feedStats.lastTickAt,
+            symbols: payload,
+            strategies
+        };
     }
 
     async warmupStrategy(strategy) {
@@ -208,7 +437,8 @@ class CoreXEngine {
                                 outputsize: gapCount
                             });
 
-                            const afterLast = patch.filter(c => c.time > lastTs);
+                            const patchRows = Array.isArray(patch) ? patch : [];
+                            const afterLast = patchRows.filter(c => c.time > lastTs);
                             candles = [...cached, ...afterLast];
                             needsFullFetch = false;
                         }
@@ -232,6 +462,7 @@ class CoreXEngine {
             }
 
             // 3. Process & save
+            if (!Array.isArray(candles)) candles = [];
             if (candles.length > 0) {
                 const trimmed = candles.slice(-strategy.lookback);
                 trimmed.forEach(candle => strategy.onTick(candle, true));
@@ -283,6 +514,8 @@ class CoreXEngine {
         stateManager.commit(strategyId, "OFFLINE", { reason: "Unregistered" });
 
         broker.updateSymbols(Array.from(this.activeSymbols));
+        this.strategyQueues.delete(strategyId);
+        this._droppedStrategyTicks.delete(strategyId);
         logger.info(`🗑️ [${strategyId}] Unregistered`);
     }
 
@@ -294,6 +527,16 @@ class CoreXEngine {
         bus.removeAllListeners(EVENTS.MARKET.TICK);
         this.subscriptions.clear();
         this.activeSymbols.clear();
+        this.tickQueues.clear();
+        this._droppedTicks.clear();
+        this.flushScheduled = false;
+        this.feedStats.perSymbol.clear();
+        this.feedStats.totalTicks = 0;
+        this.feedStats.droppedTicks = 0;
+        this.feedStats.lastTickAt = 0;
+        this.strategyQueues.clear();
+        this._droppedStrategyTicks.clear();
+        this.strategyStats.clear();
 
         this.status = "IDLE";
         logger.info("🏁 Shutdown complete");
@@ -302,6 +545,46 @@ class CoreXEngine {
 
     getUptime() {
         return this.startTime ? Date.now() - this.startTime : 0;
+    }
+
+    getSettings() {
+        return {
+            tickQueueMax: this.maxQueueSize,
+            tickFlushMax: this.maxFlushCount,
+            stratQueueMax: this.maxStrategyQueueSize,
+            stratSliceMs: this.strategySliceMs,
+            logLevel: logger.level,
+            storage: getStorageConfig()
+        };
+    }
+
+    updateSettings(next = {}) {
+        const toNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+        };
+
+        const tickQueueMax = toNum(next.tickQueueMax);
+        if (tickQueueMax && tickQueueMax > 0) this.maxQueueSize = tickQueueMax;
+
+        const tickFlushMax = toNum(next.tickFlushMax);
+        if (tickFlushMax && tickFlushMax > 0) this.maxFlushCount = tickFlushMax;
+
+        const stratQueueMax = toNum(next.stratQueueMax);
+        if (stratQueueMax && stratQueueMax > 0) this.maxStrategyQueueSize = stratQueueMax;
+
+        const stratSliceMs = toNum(next.stratSliceMs);
+        if (stratSliceMs && stratSliceMs > 0) this.strategySliceMs = stratSliceMs;
+
+        if (next.logLevel) {
+            logger.setLevel(String(next.logLevel));
+        }
+
+        if (next.storage && typeof next.storage === "object") {
+            setStorageConfig(next.storage);
+        }
+
+        return this.getSettings();
     }
 }
 

@@ -39,6 +39,15 @@ class SignalAdapter {
         }
 
         this.processing.add(lockKey);
+        bus.emit(EVENTS.STRATEGY.SIGNAL, {
+            strategyId: signal.strategyId,
+            symbol: signal.symbol,
+            intent: signal.intent,
+            side: signal.side,
+            quantity: signal.quantity,
+            mode: this.mode,
+            ts: Date.now()
+        });
 
         try {
             let result;
@@ -91,16 +100,17 @@ class SignalAdapter {
     }
 
     async _execLive(s) {
-        // This maps 1:1 to the MT5 Bridge Interface we will build
         if (!this.broker) throw new Error("Live broker not initialized");
-        
+
         const action = s.intent === "ENTER" ? "openPosition" : "closePosition";
-        return await this.broker[action]({
+        const result = await this.broker[action]({
             symbol: s.symbol,
             side: s.side,
             volume: s.quantity,
-            params: s.meta
+            params: s.meta,
+            strategyId: s.strategyId
         });
+        return result;
     }
 }
 

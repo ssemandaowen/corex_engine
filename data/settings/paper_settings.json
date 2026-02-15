@@ -1,5 +1,5 @@
 {
-  "cash": 1000,
+  "cash": 10,
   "initialCash": 10,
   "config": {
     "commissionPerShare": 0.005,
@@ -7,7 +7,8 @@
     "slippageBps": 5,
     "fillProbability": 0.98,
     "minBalance": 0,
-    "maxBalance": 100000000
+    "maxBalance": 100000000,
+    "marginRequirement": 1
   },
-  "updatedAt": "2026-02-06T10:58:07.346Z"
+  "updatedAt": "2026-02-10T14:32:42.146Z"
 }

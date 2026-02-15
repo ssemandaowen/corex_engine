@@ -1,230 +1,178 @@
 import { create } from 'zustand';
 import client from '../api/client';
 
+const INITIAL_SYSTEM_STATUS = {
+    status: "DISCONNECTED",
+    uptime: "0h 0m",
+    resources: { cpu: "0.00", ram: "0.00 MB" },
+    connectivity: { marketData: "DISCONNECTED", bridge: "DISCONNECTED" }
+};
+
 export const useStore = create((set, get) => ({
-    // System Status
-    systemStatus: {
-        status: "DISCONNECTED",
-        uptime: "0h 0m",
-        resources: { cpu: "0.00", ram: "0.00 MB" },
-        connectivity: { marketData: "DISCONNECTED", bridge: "DISCONNECTED" }
-    },
+    // --- State ---
+    systemStatus: { ...INITIAL_SYSTEM_STATUS },
     pulse: null,
     strategiesLive: [],
-    feedMode: 'all', // all | errors | hidden
-
-    // WebSocket
+    feedMode: 'all',
+    feedMetrics: null,
     wsStatus: "DISCONNECTED",
     wsEvents: [],
     wsLastEvent: null,
-    _ws: null,
-    _wsReconnectTimer: null,
-    _wsAttempts: 0,
-
-    // Strategy Editor
+    apiStatus: "UNKNOWN",
     strategies: [],
     selectedStrategy: null,
     currentCode: "",
     logs: [],
     isLoading: false,
+    systemSettings: null,
+    persistedSettings: null,
+    settingsLoading: false,
 
-    // Timers
-    _pulseTimer: null,
-    _liveStrategiesTimer: null,
+    // --- Internal Refs ---
+    _ws: null,
+    _timers: {},
+    _apiDownUntil: 0,
+    _wsAttempts: 0,
+    _wsManualClose: false,
 
-    // SYNC: System Heartbeat
-    fetchSystemStatus: async () => {
+    // --- Helpers ---
+    _apiCooldownActive: () => Date.now() < (get()._apiDownUntil || 0),
+
+    _request: async (path, method = 'get', body = null) => {
+        if (get()._apiCooldownActive()) return null;
         try {
-            const res = await client.get('/system/heartbeat');
-            set({ systemStatus: res.payload });
+            const res = await client[method](path, body);
+            set({ apiStatus: "OK", _apiDownUntil: 0 });
+            return res.payload || res.data || res;
         } catch (err) {
-            set({
-                systemStatus: {
-                    status: "DISCONNECTED",
-                    uptime: "0h 0m",
-                    resources: { cpu: "0.00", ram: "0.00 MB" },
-                    connectivity: { marketData: "DISCONNECTED", bridge: "DISCONNECTED" }
-                }
-            });
-            console.error("Heartbeat lost");
+            set({ apiStatus: "DOWN", _apiDownUntil: Date.now() + 5000 });
+            if (path === '/system/heartbeat') set({ systemStatus: { ...INITIAL_SYSTEM_STATUS } });
+            return null;
         }
     },
 
-    // HOME VIEW POLLING
+    _managePolling: (key, fn, interval = 5000) => {
+        const { _timers } = get();
+        if (_timers[key]) clearInterval(_timers[key]);
+        fn();
+        set({ _timers: { ..._timers, [key]: setInterval(fn, interval) } });
+    },
+
+    // --- Actions ---
+    fetchSystemStatus: async () => {
+        const payload = await get()._request('/system/heartbeat');
+        if (payload) set({ systemStatus: payload });
+    },
+
     fetchPulse: async () => {
-        try {
-            const res = await client.get('/system/heartbeat');
-            set({ pulse: res.payload });
-        } catch (err) {
-            console.error("Heartbeat lost");
-        }
+        const payload = await get()._request('/system/heartbeat');
+        set({ pulse: payload });
     },
 
     fetchLiveStrategies: async () => {
-        try {
-            const res = await client.get('/run/status');
-            const list = Array.isArray(res.payload) ? res.payload : Object.values(res.payload || {});
-            set({ strategiesLive: list });
-        } catch (err) {
-            console.error("Run status lost");
-        }
+        const payload = await get()._request('/run/status');
+        if (payload) set({ strategiesLive: Array.isArray(payload) ? payload : Object.values(payload) });
     },
 
-    startPulse: () => {
-        get().stopPulse();
-        get().fetchPulse();
-        const timer = setInterval(get().fetchPulse, 5000);
-        set({ _pulseTimer: timer });
+    fetchSystemSettings: async () => {
+        set({ settingsLoading: true });
+        const payload = await get()._request('/system/settings');
+        set({ systemSettings: payload?.runtime, persistedSettings: payload?.persisted, settingsLoading: false });
     },
 
-    stopPulse: () => {
-        const timer = get()._pulseTimer;
-        if (timer) clearInterval(timer);
-        set({ _pulseTimer: null });
+    updateSystemSettings: async (settings, persist = true) => {
+        set({ settingsLoading: true });
+        const payload = await get()._request('/system/settings', 'patch', { settings, persist });
+        set({ systemSettings: payload, settingsLoading: false });
+        return payload;
     },
 
-    startLiveStrategies: () => {
-        get().stopLiveStrategies();
-        get().fetchLiveStrategies();
-        const timer = setInterval(get().fetchLiveStrategies, 5000);
-        set({ _liveStrategiesTimer: timer });
+    fetchFeedMetrics: async () => {
+        const payload = await get()._request('/system/feed/metrics');
+        set({ feedMetrics: payload });
     },
 
-    stopLiveStrategies: () => {
-        const timer = get()._liveStrategiesTimer;
-        if (timer) clearInterval(timer);
-        set({ _liveStrategiesTimer: null });
-    },
+    // --- Polling Controllers ---
+    startFeedMetrics: () => get()._managePolling('feed', get().fetchFeedMetrics),
+    stopFeedMetrics: () => { clearInterval(get()._timers.feed); },
+
+    startPulse: () => get()._managePolling('pulse', get().fetchPulse),
+    stopPulse: () => { clearInterval(get()._timers.pulse); },
+
+    startLiveStrategies: () => get()._managePolling('live', get().fetchLiveStrategies),
+    stopLiveStrategies: () => { clearInterval(get()._timers.live); },
 
     setFeedMode: (mode) => set({ feedMode: mode }),
 
-
-    // SYNC: Get all strategies for the sidebar
+    // --- Strategy Management ---
     fetchStrategies: async () => {
-        try {
-            const res = await client.get('/strategies');
-            const list = Array.isArray(res?.payload)
-                ? res.payload
-                : Array.isArray(res?.data)
-                    ? res.data
-                    : Array.isArray(res)
-                        ? res
-                        : [];
-            set({ strategies: list });
-        } catch (err) {
-            console.error("Sync Error:", err);
-        }
+        const res = await get()._request('/strategies');
+        set({ strategies: Array.isArray(res) ? res : [] });
     },
 
-    // READ: Get raw code for the Monaco Editor
     fetchCode: async (id) => {
         set({ isLoading: true });
-        try {
-            const { data } = await client.get(`/strategies/${id}/code`);
-            set({ currentCode: data.code, isLoading: false });
-        } catch (err) {
-            set({ isLoading: false });
-            console.error("Code Fetch Error:", err);
-        }
+        const res = await get()._request(`/strategies/${id}/code`);
+        set({ currentCode: res?.code || "", isLoading: false });
     },
 
-    // CREATE / UPDATE: Save code to disk
     saveStrategy: async (name, code) => {
-        try {
-            await client.post('/strategies/create', { name, code });
-            await get().fetchStrategies();
-            return true;
-        } catch (err) {
-            alert("Save failed: " + err.response?.data?.error);
-            return false;
-        }
+        const res = await get()._request('/strategies/create', 'post', { name, code });
+        if (res) await get().fetchStrategies();
+        return !!res;
     },
 
-    // DELETE: Purge from disk and memory
     deleteStrategy: async (id) => {
-        if (!window.confirm("Permanently delete this strategy from server?")) return;
-        try {
-            await client.delete(`/strategies/${id}`);
+        if (!window.confirm("Delete strategy?")) return;
+        const res = await get()._request(`/strategies/${id}`, 'delete');
+        if (res) {
             set({ selectedStrategy: null, currentCode: "" });
             await get().fetchStrategies();
-        } catch (err) {
-            console.error("Delete Error:", err);
         }
     },
 
-    // CONTROL: Start/Stop/Reload transitions
     transitionState: async (id, action) => {
-        try {
-            const { data } = await client.post(`/strategies/${id}/${action}`);
-            set((state) => ({
-                logs: [{
-                    state: data.status,
-                    timestamp: Date.now(),
-                    reason: `System Action: ${action.toUpperCase()}`
-                }, ...state.logs].slice(0, 50)
+        const data = await get()._request(`/strategies/${id}/${action}`, 'post');
+        if (data) {
+            set((s) => ({
+                logs: [{ state: data.status, timestamp: Date.now(), reason: `Action: ${action.toUpperCase()}` }, ...s.logs].slice(0, 50)
             }));
             await get().fetchStrategies();
-        } catch (err) {
-            console.error(`Action ${action} failed:`, err);
         }
     },
 
-    setSelectedStrategy: (strat) => set({ selectedStrategy: strat })
-    ,
+    setSelectedStrategy: (strat) => set({ selectedStrategy: strat }),
 
-    // LIVE: WebSocket bridge (global)
+    // --- WebSocket ---
     connectWebSocket: () => {
-        const existing = get()._ws;
-        if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
-            return;
-        }
+        if (get()._apiCooldownActive() || (get()._ws?.readyState <= 1)) return;
 
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-        const wsUrl = apiUrl.replace(/\/api\/?$/, '/ws');
+        const url = new URL(import.meta.env.VITE_API_URL || 'http://localhost:3000/api');
+        url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+        url.pathname = '/ws';
 
-        const ws = new WebSocket(wsUrl);
-        set({ _ws: ws, wsStatus: "CONNECTING" });
+        const ws = new WebSocket(url.toString());
+        set({ _ws: ws, wsStatus: "CONNECTING", _wsManualClose: false });
 
-        ws.onopen = () => {
-            set({ wsStatus: "CONNECTED", _wsAttempts: 0 });
+        ws.onopen = () => set({ wsStatus: "CONNECTED", _wsAttempts: 0 });
+        ws.onmessage = (e) => {
+            const msg = JSON.parse(e.data);
+            set(s => ({ wsLastEvent: msg, wsEvents: [msg, ...s.wsEvents].slice(0, 100) }));
         };
-
-        ws.onmessage = (evt) => {
-            try {
-                const msg = JSON.parse(evt.data);
-                set((state) => ({
-                    wsLastEvent: msg,
-                    wsEvents: [msg, ...state.wsEvents].slice(0, 100)
-                }));
-            } catch (e) {
-                // ignore parse errors
-            }
-        };
-
-        ws.onerror = () => {
-            set({ wsStatus: "ERROR" });
-        };
-
         ws.onclose = () => {
             set({ wsStatus: "DISCONNECTED", _ws: null });
-            const attempts = get()._wsAttempts + 1;
-            set({ _wsAttempts: attempts });
-            const delay = Math.min(10000, 1000 * attempts);
-            clearTimeout(get()._wsReconnectTimer);
-            const timer = setTimeout(() => get().connectWebSocket(), delay);
-            set({ _wsReconnectTimer: timer });
+            if (get()._wsManualClose) return;
+            const delay = Math.min(10000, 1000 * (get()._wsAttempts + 1));
+            setTimeout(() => get().connectWebSocket(), delay);
+            set(s => ({ _wsAttempts: s._wsAttempts + 1 }));
         };
     },
 
     disconnectWebSocket: () => {
-        clearTimeout(get()._wsReconnectTimer);
-        const ws = get()._ws;
-        if (ws) {
-            ws.close();
-        }
+        set({ _wsManualClose: true });
+        get()._ws?.close();
         set({ _ws: null, wsStatus: "DISCONNECTED" });
     }
 }));
-
 
 export default useStore;

@@ -7,6 +7,9 @@ const { bus, EVENTS } = require('@events/bus');
 const { getPaperBroker } = require("@broker/paperStore");
 const { getLiveBroker } = require("@broker/liveStore");
 const marketBroker = require("@broker/twelvedata");
+const mt5Bridge = require("@core/services/mt5Bridge");
+const pgStore = require("@core/services/pgStore");
+const engine = require("@core/core/engine");
 const logger = require('@utils/logger');
 
 /**
@@ -26,6 +29,8 @@ router.get('/heartbeat', (req, res) => {
     const usedMem = totalMem - freeMem;
     const ramPct = totalMem > 0 ? (usedMem / totalMem) * 100 : 0;
 
+    const bridgeStatus = mt5Bridge.getStatus();
+
     res.json({
         success: true,
         payload: {
@@ -41,11 +46,41 @@ router.get('/heartbeat', (req, res) => {
             },
             connectivity: {
                 marketData: marketBroker.isConnected ? "CONNECTED" : "DISCONNECTED",
-                bridge: "READY", // Logic for MT4/5 Bridge state
+                bridge: bridgeStatus.authorized ? "CONNECTED" : (bridgeStatus.connected ? "PENDING_AUTH" : "DISCONNECTED"),
+                bridgeDetail: bridgeStatus,
                 latency: marketBroker.lastLatency || 0
             }
         }
     });
+});
+
+// Feed metrics & health telemetry
+router.get('/feed/metrics', (req, res) => {
+    try {
+        const brokerInfo = {
+            connected: !!marketBroker.isConnected,
+            lastLatency: marketBroker.lastLatency || 0,
+            reconnectAttempts: marketBroker.reconnectAttempts || 0,
+            symbols: Array.from(marketBroker.symbols || [])
+        };
+
+        const engineMetrics = engine.getFeedMetrics();
+        const config = {
+            tickQueueMax: engine.maxQueueSize,
+            tickFlushMax: engine.maxFlushCount
+        };
+
+        res.json({
+            success: true,
+            payload: {
+                broker: brokerInfo,
+                engine: engineMetrics,
+                config
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "FEED_METRICS_FAILED", message: err.message });
+    }
 });
 
 const getBrokerByMode = (mode = 'paper') => {
@@ -69,9 +104,23 @@ router.get('/account/modes', (req, res) => {
 // 2. ACCOUNT BALANCES (For Account Tab)
 router.get('/account/:mode/balance', async (req, res) => {
     try {
-        const broker = getBrokerByMode(req.params.mode);
+        const mode = String(req.params.mode || "").toLowerCase();
+        const broker = getBrokerByMode(mode);
         if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
-        const snapshot = broker.getAccountSnapshot();
+        let snapshot = broker.getAccountSnapshot();
+        if (mode === "live") {
+            const mt5Account = mt5Bridge.getAccountSnapshot();
+            const mt5Positions = mt5Bridge.getPositions();
+            if (mt5Account && typeof mt5Account === "object") {
+                snapshot = {
+                    ...snapshot,
+                    ...mt5Account,
+                    mode: "LIVE",
+                    positions: Array.isArray(mt5Positions) ? mt5Positions : (snapshot.positions || [])
+                };
+            }
+            snapshot.bridge = mt5Bridge.getStatus();
+        }
         res.json({ success: true, payload: snapshot });
     } catch (err) {
         res.status(500).json({ success: false, error: "Broker unreachable" });
@@ -183,6 +232,29 @@ router.post('/settings/update', (req, res) => {
     res.json({ success: true, message: "Global settings updated." });
 });
 
+router.get('/settings', async (req, res) => {
+    try {
+        const runtime = engine.getSettings();
+        const persisted = await pgStore.getSystemSettings();
+        res.json({ success: true, payload: { runtime, persisted } });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "SETTINGS_READ_FAILED", message: err.message });
+    }
+});
+
+router.patch('/settings', async (req, res) => {
+    try {
+        const { settings, persist } = req.body || {};
+        const updated = engine.updateSettings(settings || {});
+        if (persist !== false) {
+            await pgStore.upsertSystemSettings(updated);
+        }
+        res.json({ success: true, payload: updated });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "SETTINGS_UPDATE_FAILED", message: err.message });
+    }
+});
+
 // 4. THE "CLEAR STATE" BUTTON (Emergency Reset)
 router.post('/maintenance/reset-states', (req, res) => {
     try {
@@ -194,6 +266,84 @@ router.post('/maintenance/reset-states', (req, res) => {
         res.json({ success: true, message: "All strategy states cleared to OFFLINE." });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+router.get('/mt5/status', (req, res) => {
+    res.json({
+        success: true,
+        payload: {
+            ...mt5Bridge.getStatus(),
+            account: mt5Bridge.getAccountSnapshot(),
+            positions: mt5Bridge.getPositions()
+        }
+    });
+});
+
+router.get('/db/summary', async (req, res) => {
+    try {
+        res.json({ success: true, payload: await pgStore.getSummary() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "DB_SUMMARY_FAILED", message: err.message });
+    }
+});
+
+router.get('/db/users', async (req, res) => {
+    try {
+        res.json({ success: true, payload: await pgStore.listUsers() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "DB_USERS_READ_FAILED", message: err.message });
+    }
+});
+
+router.post('/db/users', async (req, res) => {
+    try {
+        const { hashPassword } = require("@core/services/authService");
+        const password = String(req.body?.password || "");
+        if (!password) {
+            return res.status(400).json({ success: false, error: "PASSWORD_REQUIRED" });
+        }
+        const passwordHash = await hashPassword(password);
+        const created = await pgStore.createUser({ ...(req.body || {}), passwordHash });
+        res.json({ success: true, payload: created });
+    } catch (err) {
+        res.status(400).json({ success: false, error: "DB_USER_CREATE_FAILED", message: err.message });
+    }
+});
+
+router.get('/db/accounts', async (req, res) => {
+    try {
+        res.json({ success: true, payload: await pgStore.listAccounts() });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "DB_ACCOUNTS_READ_FAILED", message: err.message });
+    }
+});
+
+router.post('/db/accounts', async (req, res) => {
+    try {
+        const account = await pgStore.upsertAccount(req.body || {});
+        res.json({ success: true, payload: account });
+    } catch (err) {
+        res.status(400).json({ success: false, error: "DB_ACCOUNT_UPSERT_FAILED", message: err.message });
+    }
+});
+
+router.get('/db/quota/:userId', async (req, res) => {
+    try {
+        const quota = await pgStore.getQuota(String(req.params.userId || ""));
+        if (!quota) return res.status(404).json({ success: false, error: "QUOTA_NOT_FOUND" });
+        res.json({ success: true, payload: quota });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "DB_QUOTA_READ_FAILED", message: err.message });
+    }
+});
+
+router.patch('/db/quota/:userId', async (req, res) => {
+    try {
+        const quota = await pgStore.upsertQuota(String(req.params.userId || ""), req.body || {});
+        res.json({ success: true, payload: quota });
+    } catch (err) {
+        res.status(400).json({ success: false, error: "DB_QUOTA_UPDATE_FAILED", message: err.message });
     }
 });
 

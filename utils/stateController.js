@@ -49,6 +49,12 @@ class StateController {
     getStatus(id) {
         return this.registry.get(id)?.last() || "OFFLINE";
     }
+
+    resetAll() {
+        this.registry.clear();
+        logger.info("State registry cleared (all strategies -> OFFLINE).");
+        return true;
+    }
 }
 
 // Export as Singleton to ensure Engine and Loader share the same registry

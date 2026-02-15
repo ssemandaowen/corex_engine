@@ -2,17 +2,19 @@
 
 const WebSocket = require("ws");
 const axios = require("axios");
+const http = require("http");
+const https = require("https");
 const { bus, EVENTS } = require("../events/bus");
 const logger = require("../utils/logger");
 
-// 1. ADD THIS MAP: Translates CoreX timeframes to TwelveData format
+// Translates CoreX timeframes to TwelveData format
 const INTERVAL_MAP = {
-    '1m': '1min',
-    '5m': '5min',
-    '15m': '15min',
-    '1h': '1h',
-    '4h': '4h',
-    '1d': '1day'
+    "1m": "1min",
+    "5m": "5min",
+    "15m": "15min",
+    "1h": "1h",
+    "4h": "4h",
+    "1d": "1day"
 };
 
 class TwelveDataBroker {
@@ -31,6 +33,21 @@ class TwelveDataBroker {
         this.symbols = new Set();
         this.reconnectAttempts = 0;
         this.heartbeatTimer = null;
+        this.isConnected = false;
+        this.lastLatency = 0;
+
+        // Reuse HTTP connections for REST calls
+        this.httpClient = axios.create({
+            timeout: 15000,
+            httpAgent: new http.Agent({ keepAlive: true }),
+            httpsAgent: new https.Agent({ keepAlive: true })
+        });
+
+        // Debounced WS subscribe batching
+        this._pendingSubs = new Set();
+        this._pendingUnsubs = new Set();
+        this._flushTimer = null;
+        this._flushDelayMs = 120;
     }
 
     /**
@@ -38,53 +55,11 @@ class TwelveDataBroker {
      * UNIFIED NORMALIZER: Ensures data consistency between REST and WebSocket
      */
     _normalize(data, symbolOverride = null) {
-        const timestamp = data.timestamp
-            ? parseInt(data.timestamp) * 1000
-            : new Date(data.datetime).getTime();
-
-        return {
-            symbol: data.symbol || symbolOverride,
-            time: timestamp,
-            open: parseFloat(data.open || data.price),
-            high: parseFloat(data.high || data.price),
-            low: parseFloat(data.low || data.price),
-            close: parseFloat(data.close || data.price),
-            price: parseFloat(data.price || data.close),
-            volume: parseFloat(data.volume || 0),
-            is_live: !!data.event // Meta-tag to distinguish live ticks
-        };
-    }
-
-    /**
-     * DYNAMIC SYMBOL MANAGEMENT
-     */
-    updateSymbols(symbolArray) {
-        const currentSize = this.symbols.size;
-        symbolArray.forEach(s => this.symbols.add(s));
-
-        if (this.stream?.readyState === WebSocket.OPEN && this.symbols.size > currentSize) {
-            this.subscribe(symbolArray);
-        }
-    }
-
-    subscribe(symbolArray) {
-        if (!this.stream || this.stream.readyState !== WebSocket.OPEN) return;
-
-        const payload = JSON.stringify({
-            action: "subscribe",
-            params: { symbols: symbolArray.join(",") }
-        });
-
-        this.stream.send(payload);
-        logger.info(`📡 WS Subscription sent for: ${symbolArray.length} symbols.`);
-    }
-
-    _normalize(data, symbolOverride = null) {
         // Standardize TwelveData 'price' (WS) vs 'close' (REST)
         const currentPrice = parseFloat(data.price || data.close || 0);
 
         // Safety check for timestamps
-        let ts = data.timestamp ? parseInt(data.timestamp) : new Date(data.datetime).getTime();
+        let ts = data.timestamp ? parseInt(data.timestamp, 10) : new Date(data.datetime).getTime();
         if (ts < 10000000000) ts *= 1000;
 
         return {
@@ -94,16 +69,101 @@ class TwelveDataBroker {
             high: parseFloat(data.high || currentPrice),
             low: parseFloat(data.low || currentPrice),
             close: currentPrice,
-            price: currentPrice, // This prevents the 'undefined' error
+            price: currentPrice,
             volume: parseFloat(data.volume || 0),
             is_live: !!data.event
         };
     }
 
+    /**
+     * DYNAMIC SYMBOL MANAGEMENT
+     */
+    updateSymbols(symbolArray = []) {
+        const next = new Set((symbolArray || []).filter(Boolean));
+        const added = [];
+        const removed = [];
+
+        for (const s of next) {
+            if (!this.symbols.has(s)) added.push(s);
+        }
+        for (const s of this.symbols) {
+            if (!next.has(s)) removed.push(s);
+        }
+
+        this.symbols = next;
+
+        if (this.stream?.readyState === WebSocket.OPEN) {
+            if (added.length > 0) this._queueSubscribe(added);
+            if (removed.length > 0) this._queueUnsubscribe(removed);
+        }
+    }
+
+    subscribe(symbolArray) {
+        this._queueSubscribe(symbolArray);
+    }
+
+    _queueSubscribe(symbolArray = []) {
+        if (!Array.isArray(symbolArray)) return;
+        for (const s of symbolArray) this._pendingSubs.add(s);
+        this._scheduleFlush();
+    }
+
+    _queueUnsubscribe(symbolArray = []) {
+        if (!Array.isArray(symbolArray)) return;
+        for (const s of symbolArray) this._pendingUnsubs.add(s);
+        this._scheduleFlush();
+    }
+
+    _scheduleFlush() {
+        if (this._flushTimer) return;
+        this._flushTimer = setTimeout(() => {
+            this._flushTimer = null;
+            this._flushSubscriptions();
+        }, this._flushDelayMs);
+    }
+
+    _flushSubscriptions() {
+        if (!this.stream || this.stream.readyState !== WebSocket.OPEN) return;
+
+        const subs = Array.from(this._pendingSubs);
+        const unsubs = Array.from(this._pendingUnsubs);
+        this._pendingSubs.clear();
+        this._pendingUnsubs.clear();
+
+        if (subs.length > 0) this._sendSubscribe(subs);
+        if (unsubs.length > 0) this._sendUnsubscribe(unsubs);
+    }
+
+    _sendSubscribe(symbolArray = []) {
+        if (!this.stream || this.stream.readyState !== WebSocket.OPEN) return;
+        if (!symbolArray.length) return;
+
+        const payload = JSON.stringify({
+            action: "subscribe",
+            params: { symbols: symbolArray.join(",") }
+        });
+
+        this.stream.send(payload);
+        logger.info(`WS Subscription sent for: ${symbolArray.length} symbols.`);
+    }
+
+    _sendUnsubscribe(symbolArray = []) {
+        if (!this.stream || this.stream.readyState !== WebSocket.OPEN) return;
+        if (!symbolArray.length) return;
+
+        const payload = JSON.stringify({
+            action: "unsubscribe",
+            params: { symbols: symbolArray.join(",") }
+        });
+
+        this.stream.send(payload);
+        logger.info(`WS Unsubscribe sent for: ${symbolArray.length} symbols.`);
+    }
+
     async fetchHistory({ symbol, interval = "1m", outputsize = 500 }) {
         try {
             const apiInterval = INTERVAL_MAP[interval] || interval;
-            const response = await axios.get(`${this.config.restBase}/time_series`, {
+            const response = await this.httpClient.get(`${this.config.restBase}/time_series`, {
                 params: {
                     symbol,
                     interval: apiInterval,
@@ -116,8 +176,8 @@ class TwelveDataBroker {
 
             // Safety: TwelveData returns 'status: error' inside a 200 OK response often
             if (response.data.status === "error" || !Array.isArray(rawValues)) {
-                logger.error(`❌ TwelveData API Error: ${response.data.message || 'Invalid Symbol or Interval'}`);
-                return null; // Return null to trigger the 'SIMULATION_CRASH' safety in Manager
+                logger.error(`TwelveData API Error: ${response.data.message || "Invalid Symbol or Interval"}`);
+                return [];
             }
 
             return rawValues
@@ -125,15 +185,21 @@ class TwelveDataBroker {
                 .sort((a, b) => a.time - b.time);
 
         } catch (error) {
-            logger.error(`❌ REST Portal Error [${symbol}]: ${error.message}`);
-            return null;
+            logger.error(`REST Portal Error [${symbol}]: ${error.message}`);
+            return [];
         }
     }
+
     /**
      * RESILIENT CONNECTION LOGIC
      */
     connect() {
-        if (this.symbols.size === 0) return logger.warn("🚫 Connection Aborted: Registry is empty.");
+        if (!this.config.apiKey) {
+            logger.error("TWELVE_DATA_KEY missing. Broker cannot connect.");
+            return;
+        }
+        if (this.symbols.size === 0) return logger.warn("Connection Aborted: Registry is empty.");
+        if (this.stream?.readyState === WebSocket.CONNECTING) return;
         if (this.stream?.readyState === WebSocket.OPEN) return this.subscribe(Array.from(this.symbols));
 
         const url = `${this.config.wsBase}?apikey=${this.config.apiKey}`;
@@ -141,7 +207,8 @@ class TwelveDataBroker {
 
         this.stream.on("open", () => {
             this.reconnectAttempts = 0;
-            logger.info("🌐 TwelveData Real-time Portal: ONLINE");
+            this.isConnected = true;
+            logger.info("TwelveData Real-time Portal: ONLINE");
             this.subscribe(Array.from(this.symbols));
             this._startHeartbeat();
         });
@@ -150,12 +217,13 @@ class TwelveDataBroker {
             try {
                 const data = JSON.parse(raw);
 
-                // CRITICAL: Filter out status messages and heartbeats
+                // Filter out status messages and heartbeats
                 if (data.event === "price" && data.price) {
                     const tick = this._normalize(data);
+                    this.lastLatency = Math.max(0, Date.now() - tick.time);
                     bus.emit(EVENTS.MARKET.TICK, tick);
                 } else {
-                    logger.debug(`TwelveData Control Message: ${data.message || 'Heartbeat'}`);
+                    logger.debug(`TwelveData Control Message: ${data.message || "Heartbeat"}`);
                 }
             } catch (e) {
                 logger.error("WS Parse Error");
@@ -163,11 +231,12 @@ class TwelveDataBroker {
         });
 
         this.stream.on("close", () => {
+            this.isConnected = false;
             this._handleReconnection();
         });
 
         this.stream.on("error", (err) => {
-            logger.error(`🔌 WS Socket Error: ${err.message}`);
+            logger.error(`WS Socket Error: ${err.message}`);
         });
     }
 
@@ -175,11 +244,13 @@ class TwelveDataBroker {
         this._stopHeartbeat();
         if (this.reconnectAttempts < this.config.reconnectLimit) {
             this.reconnectAttempts++;
-            const delay = Math.pow(2, this.reconnectAttempts) * 1000;
-            logger.warn(`🔄 Connection lost. Attempting recovery in ${delay}ms...`);
+            const baseDelay = Math.pow(2, this.reconnectAttempts) * 1000;
+            const jitter = Math.floor(Math.random() * 500);
+            const delay = baseDelay + jitter;
+            logger.warn(`Connection lost. Attempting recovery in ${delay}ms...`);
             setTimeout(() => this.connect(), delay);
         } else {
-            logger.error("🛑 Max reconnection attempts reached. Broker enters CRITICAL state.");
+            logger.error("Max reconnection attempts reached. Broker enters CRITICAL state.");
             bus.emit(EVENTS.MARKET.CONNECTION_LOST);
         }
     }
@@ -199,13 +270,20 @@ class TwelveDataBroker {
 
     cleanup() {
         this._stopHeartbeat();
+        if (this._flushTimer) {
+            clearTimeout(this._flushTimer);
+            this._flushTimer = null;
+        }
+        this._pendingSubs.clear();
+        this._pendingUnsubs.clear();
         if (this.stream) {
             this.stream.removeAllListeners();
             this.stream.terminate();
             this.stream = null;
         }
         this.symbols.clear();
-        logger.info("🧹 TwelveData Broker: Cleaned and Purged.");
+        this.isConnected = false;
+        logger.info("TwelveData Broker: Cleaned and Purged.");
     }
 }
 

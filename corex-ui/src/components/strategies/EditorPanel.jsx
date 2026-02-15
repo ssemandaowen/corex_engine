@@ -100,31 +100,6 @@ const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
 
   return (
     <div className="flex flex-col h-full bg-[#020617] font-sans border-l border-white/5">
-      {/* Pro Header */}
-      <div className="h-14 flex items-center justify-between px-6 border-b border-white/5 bg-[#020617]">
-        <div className="flex items-center gap-4">
-          <div className="p-2 bg-blue-500/10 rounded-lg">
-            <FileCode size={18} className="text-blue-500" />
-          </div>
-          <div className="flex flex-col">
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-100 tracking-tight">{id}.js</span>
-
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-4">
-            <button
-            onClick={onSave}
-            disabled={loading}
-            className="group flex items-center gap-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 text-white px-5 py-2 rounded-lg text-xs font-black transition-all shadow-xl shadow-blue-900/40 active:scale-95"
-            >
-            {loading ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} fill="currentColor" />}
-            <span className="tracking-tighter">PUSH TO RUNTIME</span>
-            </button>
-        </div>
-      </div>
 
       {/* Monaco Container */}
       <div className="flex-1 overflow-hidden relative">

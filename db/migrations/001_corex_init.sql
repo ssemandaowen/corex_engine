@@ -1,0 +1,55 @@
+CREATE TABLE IF NOT EXISTS schema_migrations (
+  version TEXT PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'user',
+  status TEXT NOT NULL DEFAULT 'active',
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_login_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+CREATE TABLE IF NOT EXISTS user_accounts (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  mode TEXT NOT NULL DEFAULT 'live',
+  broker TEXT NOT NULL DEFAULT 'mt5',
+  account_ref TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_accounts_user_id ON user_accounts(user_id);
+
+CREATE TABLE IF NOT EXISTS quota_profiles (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  plan TEXT NOT NULL DEFAULT 'starter',
+  signals_per_day INTEGER NOT NULL DEFAULT 100,
+  signals_used_today INTEGER NOT NULL DEFAULT 0,
+  reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS system_settings (
+  id SMALLINT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS broker_settings (
+  mode TEXT PRIMARY KEY,
+  cash DOUBLE PRECISION NOT NULL DEFAULT 0,
+  initial_cash DOUBLE PRECISION NOT NULL DEFAULT 0,
+  config JSONB NOT NULL DEFAULT '{}'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

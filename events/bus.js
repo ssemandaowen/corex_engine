@@ -8,8 +8,11 @@ const EVENTS = Object.freeze({
   // System & API Controls
   SYSTEM: {
     STRATEGY_LOADED: 'system:strategy:loaded',
-    STRATEGY_UNLOADED: 'system:strategy:unloaded', // Added for file deletion/rename
-    STATE_CHANGED: 'system:strategy:state_changed', // Crucial for UI Tab sync
+    STRATEGY_UNLOADED: 'system:strategy:unloaded',
+    STRATEGY_START: 'system:strategy:start',
+    STRATEGY_STOP: 'system:strategy:stop',
+    STATE_CHANGED: 'system:strategy:state_changed',
+    SETTINGS_UPDATED: 'system:settings:updated',
     ERROR: 'system:error'
   },
 
@@ -20,9 +23,9 @@ const EVENTS = Object.freeze({
     CONNECTION_LOST: 'market:lost'
   },
 
-  // 🔑 STRATEGY SIGNALS (NEW - This is what was missing!)
+  // Strategy signal bus
   STRATEGY: {
-    SIGNAL: 'strategy:signal'  // ← Strategies emit HERE
+    SIGNAL: 'strategy:signal'
   },
 
   // Trading (Outbound/Execution)
@@ -35,8 +38,21 @@ const EVENTS = Object.freeze({
 
   // Position State (Feedback Loop)
   POSITION: {
-    UPDATED: 'position:updated',           // Execution engine emits position changes
+    UPDATED: 'position:updated',
     PORTFOLIO_UPDATE: 'position:portfolio_update'
+  },
+
+  // MT4/MT5 bridge lifecycle and handshake
+  MT5: {
+    CONNECTED: 'mt5:connected',
+    DISCONNECTED: 'mt5:disconnected',
+    AUTHORIZED: 'mt5:authorized',
+    AUTH_FAILED: 'mt5:auth_failed',
+    HEARTBEAT: 'mt5:heartbeat',
+    ACCOUNT_SYNC: 'mt5:account_sync',
+    POSITIONS_SYNC: 'mt5:positions_sync',
+    ORDER_REQUEST: 'mt5:order_request',
+    ORDER_RESULT: 'mt5:order_result'
   }
 });
 

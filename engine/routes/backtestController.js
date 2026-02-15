@@ -6,19 +6,41 @@ const path = require('path');
 const fs = require('fs');
 const backtestManager = require("@core/backtestManager");
 const loader = require("@core/strategyLoader");
+const { ensureDir, cleanupBacktests, cleanupUploads } = require("@utils/storageManager");
+const crypto = require("crypto");
 
 // Standardize Paths
 const DATA_DIR = path.join(process.cwd(), 'data');
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const UPLOADS_TMP_DIR = path.join(UPLOADS_DIR, 'tmp');
+const UPLOADS_DEDUP_DIR = path.join(UPLOADS_DIR, 'dedup');
 const REPORTS_DIR = path.join(DATA_DIR, 'backtests');
 
 // Ensure directories exist
-[UPLOADS_DIR, REPORTS_DIR].forEach(dir => {
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-});
+ensureDir(UPLOADS_DIR);
+ensureDir(UPLOADS_TMP_DIR);
+ensureDir(UPLOADS_DEDUP_DIR);
+ensureDir(REPORTS_DIR);
 
 // Configure Multer for CSV datasets
-const upload = multer({ dest: UPLOADS_DIR });
+const MAX_UPLOAD_MB = Number(process.env.BACKTEST_MAX_MB || 50);
+const upload = multer({
+    dest: UPLOADS_TMP_DIR,
+    limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const ok = file.mimetype === "text/csv" || file.originalname.toLowerCase().endsWith(".csv");
+        if (!ok) return cb(new Error("INVALID_FILE_TYPE"));
+        cb(null, true);
+    }
+});
+
+const hashFile = (filePath) => new Promise((resolve, reject) => {
+    const hash = crypto.createHash("sha256");
+    const stream = fs.createReadStream(filePath);
+    stream.on("data", (d) => hash.update(d));
+    stream.on("error", reject);
+    stream.on("end", () => resolve(hash.digest("hex")));
+});
 
 /**
  * @route GET /api/backtest
@@ -26,6 +48,8 @@ const upload = multer({ dest: UPLOADS_DIR });
  */
 router.get("/", (req, res) => {
     try {
+        cleanupBacktests(REPORTS_DIR);
+        cleanupUploads(UPLOADS_DEDUP_DIR);
         const files = fs.readdirSync(REPORTS_DIR);
         const reports = files
             .filter(file => file.endsWith('.json'))
@@ -50,12 +74,25 @@ router.get("/", (req, res) => {
  * @desc Triggered by "Run" Tab for Backtest mode
  */
 router.post("/:id", upload.single('dataset'), async (req, res) => {
+    let uploadedPath = null;
+    let dedupPath = null;
     try {
         const entry = loader.registry.get(req.params.id);
         if (!entry) return res.status(404).json({ success: false, error: "STRATEGY_NOT_FOUND" });
 
+        uploadedPath = req.file?.path || null;
+        if (uploadedPath) {
+            const digest = await hashFile(uploadedPath);
+            const ext = path.extname(req.file.originalname || ".csv") || ".csv";
+            dedupPath = path.join(UPLOADS_DEDUP_DIR, `${digest}${ext}`);
+            if (fs.existsSync(dedupPath)) {
+                try { fs.unlinkSync(uploadedPath); } catch { /* ignore */ }
+            } else {
+                fs.renameSync(uploadedPath, dedupPath);
+            }
+        }
         const options = {
-            file: req.file || null, // Pass multer file object (has .path)
+            file: req.file ? { ...req.file, path: dedupPath || uploadedPath } : null,
             symbol: req.body.symbol || 'BTC/USD',
             interval: req.body.interval || '1m',
             initialCapital: parseFloat(req.body.initialCapital) || 10000,
@@ -96,14 +133,18 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
 
         const result = await backtestManager.run(instance, options);
 
-        // CLEANUP: If a file was uploaded, delete it after processing to prevent bloat
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+        cleanupBacktests(REPORTS_DIR);
+        cleanupUploads(UPLOADS_DEDUP_DIR);
 
         res.json({ success: true, payload: result });
     } catch (err) {
-        res.status(500).json({ success: false, error: "SIMULATION_FAILED", message: err.message });
+        const code = err.message === "INVALID_FILE_TYPE" ? 400 : 500;
+        res.status(code).json({ success: false, error: "SIMULATION_FAILED", message: err.message });
+    } finally {
+        // CLEANUP: Remove temp upload if any remains
+        if (uploadedPath && fs.existsSync(uploadedPath)) {
+            try { fs.unlinkSync(uploadedPath); } catch { /* ignore */ }
+        }
     }
 });
 

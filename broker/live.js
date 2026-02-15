@@ -1,8 +1,7 @@
 "use strict";
 
-const fs = require('fs');
-const path = require('path');
 const logger = require('@utils/logger');
+const pgStore = require('@core/services/pgStore');
 
 /**
  * LiveBroker (stub)
@@ -25,8 +24,7 @@ class LiveBroker {
             maxBalance: 100000000
         };
 
-        this.settingsPath = path.join(process.cwd(), 'data', 'settings', 'live_settings.json');
-        this._loadSettings();
+        this._loadSettings().catch((err) => logger.warn(`[LIVE] Failed to load settings: ${err.message}`));
 
         logger.info(`[LIVE] Broker initialized with $${initialCash.toLocaleString()}`);
     }
@@ -45,7 +43,7 @@ class LiveBroker {
 
     updateConfig(next = {}) {
         this.config = { ...this.config, ...next };
-        this._saveSettings();
+        this._saveSettings().catch((err) => logger.warn(`[LIVE] Failed to save settings: ${err.message}`));
         return this.config;
     }
 
@@ -57,7 +55,7 @@ class LiveBroker {
         if (Number.isFinite(min) && n < min) return false;
         if (Number.isFinite(max) && n > max) return false;
         this.cash = n;
-        this._saveSettings();
+        this._saveSettings().catch((err) => logger.warn(`[LIVE] Failed to save settings: ${err.message}`));
         return true;
     }
 
@@ -69,7 +67,7 @@ class LiveBroker {
         if (Number.isFinite(min) && n < min) return false;
         if (Number.isFinite(max) && n > max) return false;
         this.initialCash = n;
-        this._saveSettings();
+        this._saveSettings().catch((err) => logger.warn(`[LIVE] Failed to save settings: ${err.message}`));
         return true;
     }
 
@@ -86,40 +84,27 @@ class LiveBroker {
             this.cash = clamped;
         }
         this.positions = [];
-        this._saveSettings();
+        this._saveSettings().catch((err) => logger.warn(`[LIVE] Failed to save settings: ${err.message}`));
         return true;
     }
 
-    _loadSettings() {
-        try {
-            if (!fs.existsSync(this.settingsPath)) return;
-            const raw = JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
-            if (raw && typeof raw === 'object') {
-                if (raw.cash != null) this.cash = Number(raw.cash);
-                if (raw.initialCash != null) this.initialCash = Number(raw.initialCash);
-                if (raw.config && typeof raw.config === 'object') {
-                    this.config = { ...this.config, ...raw.config };
-                }
+    async _loadSettings() {
+        const raw = await pgStore.getBrokerSettings("live");
+        if (raw && typeof raw === 'object') {
+            if (raw.cash != null) this.cash = Number(raw.cash);
+            if (raw.initialCash != null) this.initialCash = Number(raw.initialCash);
+            if (raw.config && typeof raw.config === 'object') {
+                this.config = { ...this.config, ...raw.config };
             }
-        } catch (err) {
-            logger.warn(`[LIVE] Failed to load settings: ${err.message}`);
         }
     }
 
-    _saveSettings() {
-        try {
-            const dir = path.dirname(this.settingsPath);
-            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-            const payload = {
-                cash: this.cash,
-                initialCash: this.initialCash,
-                config: this.config,
-                updatedAt: new Date().toISOString()
-            };
-            fs.writeFileSync(this.settingsPath, JSON.stringify(payload, null, 2));
-        } catch (err) {
-            logger.warn(`[LIVE] Failed to save settings: ${err.message}`);
-        }
+    async _saveSettings() {
+        await pgStore.upsertBrokerSettings("live", {
+            cash: this.cash,
+            initialCash: this.initialCash,
+            config: this.config
+        });
     }
 }
 
