@@ -38,10 +38,13 @@ const SIDES = {
 const EVENTS = {
   SYSTEM: {
     STRATEGY_LOADED: 'system:strategy:loaded',
+    STRATEGY_UNLOADED: 'system:strategy:unloaded',
     STRATEGY_START: 'system:strategy:start',
     STRATEGY_STOP: 'system:strategy:stop',
+    STATE_CHANGED: 'system:strategy:state_changed',
     ERROR: 'system:error',
-    SETTINGS_UPDATED: 'system:settings:updated'
+    SETTINGS_UPDATED: 'system:settings:updated',
+    CONFIG_REFRESH: 'system:config:refresh'
   },
   MARKET: {
     TICK: 'market:tick',
@@ -60,8 +63,79 @@ const EVENTS = {
   POSITION: {
     UPDATED: 'position:updated',
     PORTFOLIO_UPDATE: 'position:portfolio_update'
+  },
+  MT5: {
+    CONNECTED: 'mt5:connected',
+    DISCONNECTED: 'mt5:disconnected',
+    AUTHORIZED: 'mt5:authorized',
+    AUTH_FAILED: 'mt5:auth_failed',
+    HEARTBEAT: 'mt5:heartbeat',
+    ACCOUNT_SYNC: 'mt5:account_sync',
+    POSITIONS_SYNC: 'mt5:positions_sync',
+    ORDER_REQUEST: 'mt5:order_request',
+    ORDER_RESULT: 'mt5:order_result'
   }
 };
+
+const WS_EVENT_TYPES = {
+  DATA_TICK: "DATA_TICK",
+  DATA_CANDLE: "DATA_CANDLE",
+  MARKET_LOST: "MARKET_LOST",
+  ORDER_CREATED: "ORDER_CREATED",
+  ORDER_FILLED: "ORDER_FILLED",
+  ORDER_CANCELLED: "ORDER_CANCELLED",
+  ORDER_UPDATED: "ORDER_UPDATED",
+  POSITION_UPDATED: "POSITION_UPDATED",
+  PORTFOLIO_UPDATED: "PORTFOLIO_UPDATED",
+  STRATEGY_SIGNAL: "STRATEGY_SIGNAL",
+  STRATEGY_LOADED: "STRATEGY_LOADED",
+  STRATEGY_UNLOADED: "STRATEGY_UNLOADED",
+  STRATEGY_START: "STRATEGY_START",
+  STRATEGY_STOP: "STRATEGY_STOP",
+  STRATEGY_STATE: "STRATEGY_STATE",
+  SYSTEM_ERROR: "SYSTEM_ERROR",
+  PARAM_UPDATE: "PARAM_UPDATE",
+  STATUS_UPDATE: "STATUS_UPDATE",
+  FEED_METRICS: "FEED_METRICS",
+  MT5_CONNECTED: "MT5_CONNECTED",
+  MT5_DISCONNECTED: "MT5_DISCONNECTED",
+  MT5_AUTHORIZED: "MT5_AUTHORIZED",
+  MT5_AUTH_FAILED: "MT5_AUTH_FAILED",
+  MT5_HEARTBEAT: "MT5_HEARTBEAT",
+  MT5_ACCOUNT_SYNC: "MT5_ACCOUNT_SYNC",
+  MT5_POSITIONS_SYNC: "MT5_POSITIONS_SYNC",
+  MT5_ORDER_REQUEST: "MT5_ORDER_REQUEST",
+  MT5_ORDER_RESULT: "MT5_ORDER_RESULT"
+};
+
+const BUS_EVENT_TO_WS = [
+  { event: EVENTS.MARKET.TICK, type: WS_EVENT_TYPES.DATA_TICK, category: "market" },
+  { event: EVENTS.MARKET.CANDLE, type: WS_EVENT_TYPES.DATA_CANDLE, category: "market" },
+  { event: EVENTS.MARKET.CONNECTION_LOST, type: WS_EVENT_TYPES.MARKET_LOST, category: "market" },
+  { event: EVENTS.ORDER.CREATE, type: WS_EVENT_TYPES.ORDER_CREATED, category: "execution" },
+  { event: EVENTS.ORDER.FILLED, type: WS_EVENT_TYPES.ORDER_FILLED, category: "execution" },
+  { event: EVENTS.ORDER.CANCELLED, type: WS_EVENT_TYPES.ORDER_CANCELLED, category: "execution" },
+  { event: EVENTS.ORDER.UPDATE, type: WS_EVENT_TYPES.ORDER_UPDATED, category: "execution" },
+  { event: EVENTS.POSITION.UPDATED, type: WS_EVENT_TYPES.POSITION_UPDATED, category: "execution" },
+  { event: EVENTS.POSITION.PORTFOLIO_UPDATE, type: WS_EVENT_TYPES.PORTFOLIO_UPDATED, category: "execution" },
+  { event: EVENTS.STRATEGY.SIGNAL, type: WS_EVENT_TYPES.STRATEGY_SIGNAL, category: "strategy" },
+  { event: EVENTS.SYSTEM.STRATEGY_LOADED, type: WS_EVENT_TYPES.STRATEGY_LOADED, category: "system" },
+  { event: EVENTS.SYSTEM.STRATEGY_UNLOADED, type: WS_EVENT_TYPES.STRATEGY_UNLOADED, category: "system" },
+  { event: EVENTS.SYSTEM.STRATEGY_START, type: WS_EVENT_TYPES.STRATEGY_START, category: "system" },
+  { event: EVENTS.SYSTEM.STRATEGY_STOP, type: WS_EVENT_TYPES.STRATEGY_STOP, category: "system" },
+  { event: EVENTS.SYSTEM.STATE_CHANGED, type: WS_EVENT_TYPES.STRATEGY_STATE, category: "system" },
+  { event: EVENTS.SYSTEM.ERROR, type: WS_EVENT_TYPES.SYSTEM_ERROR, category: "system" },
+  { event: EVENTS.SYSTEM.SETTINGS_UPDATED, type: WS_EVENT_TYPES.PARAM_UPDATE, category: "system" },
+  { event: EVENTS.MT5.CONNECTED, type: WS_EVENT_TYPES.MT5_CONNECTED, category: "mt5" },
+  { event: EVENTS.MT5.DISCONNECTED, type: WS_EVENT_TYPES.MT5_DISCONNECTED, category: "mt5" },
+  { event: EVENTS.MT5.AUTHORIZED, type: WS_EVENT_TYPES.MT5_AUTHORIZED, category: "mt5" },
+  { event: EVENTS.MT5.AUTH_FAILED, type: WS_EVENT_TYPES.MT5_AUTH_FAILED, category: "mt5" },
+  { event: EVENTS.MT5.HEARTBEAT, type: WS_EVENT_TYPES.MT5_HEARTBEAT, category: "mt5" },
+  { event: EVENTS.MT5.ACCOUNT_SYNC, type: WS_EVENT_TYPES.MT5_ACCOUNT_SYNC, category: "mt5" },
+  { event: EVENTS.MT5.POSITIONS_SYNC, type: WS_EVENT_TYPES.MT5_POSITIONS_SYNC, category: "mt5" },
+  { event: EVENTS.MT5.ORDER_REQUEST, type: WS_EVENT_TYPES.MT5_ORDER_REQUEST, category: "mt5" },
+  { event: EVENTS.MT5.ORDER_RESULT, type: WS_EVENT_TYPES.MT5_ORDER_RESULT, category: "mt5" }
+];
 
 // ────────────────────────────────────────────────
 // DEFAULT CONFIGURATION VALUES
@@ -166,6 +240,8 @@ module.exports = {
   INTENTS,
   SIDES,
   EVENTS,
+  WS_EVENT_TYPES,
+  BUS_EVENT_TO_WS,
   DEFAULT_STRATEGY_CONFIG,
   PAPER_BROKER_DEFAULTS,
   RISK_DEFAULTS,

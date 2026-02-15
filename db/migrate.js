@@ -19,17 +19,42 @@ const LEGACY_PAPER_SETTINGS = path.join(LEGACY_SETTINGS_DIR, "paper_settings.jso
 const LEGACY_LIVE_SETTINGS = path.join(LEGACY_SETTINGS_DIR, "live_settings.json");
 const newId = () => crypto.randomUUID();
 
+function envTrue(v) {
+    return ["1", "true", "yes", "on"].includes(String(v || "").trim().toLowerCase());
+}
+
+function isDbRequired() {
+    if (process.env.COREX_DB_REQUIRED != null) {
+        return envTrue(process.env.COREX_DB_REQUIRED);
+    }
+    return String(process.env.NODE_ENV || "").toLowerCase() === "production";
+}
+
+function isDbConnectionError(err) {
+    if (!err) return false;
+    const directCode = String(err.code || "");
+    if (["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET"].includes(directCode)) return true;
+    const nested = Array.isArray(err.errors) ? err.errors : [];
+    return nested.some((e) => ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET"].includes(String(e?.code || "")));
+}
+
 async function applyMigrations() {
+    await db.query(
+        `CREATE TABLE IF NOT EXISTS public.schema_migrations (
+            version TEXT PRIMARY KEY,
+            applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )`
+    );
     const files = fs.readdirSync(MIGRATION_DIR).filter((f) => f.endsWith(".sql")).sort();
     for (const file of files) {
         const version = file.replace(/\.sql$/i, "");
-        const exists = await db.query("SELECT 1 FROM schema_migrations WHERE version = $1", [version]);
+        const exists = await db.query("SELECT 1 FROM public.schema_migrations WHERE version = $1", [version]);
         if (exists.rowCount > 0) continue;
 
         const sql = fs.readFileSync(path.join(MIGRATION_DIR, file), "utf8");
         await db.withTransaction(async (tx) => {
             await tx.query(sql);
-            await tx.query("INSERT INTO schema_migrations (version) VALUES ($1)", [version]);
+            await tx.query("INSERT INTO public.schema_migrations (version) VALUES ($1)", [version]);
         });
         logger.info(`[DB] Applied migration: ${version}`);
     }
@@ -187,14 +212,29 @@ async function seedDefaultAdminIfEmpty() {
 }
 
 async function run() {
+    const dbRequired = isDbRequired();
+
     if (!db.hasDbConfig()) {
-        throw new Error("POSTGRES_NOT_CONFIGURED: set DATABASE_URL or PGHOST/PGUSER/PGPASSWORD/PGDATABASE");
+        if (dbRequired) {
+            throw new Error("POSTGRES_NOT_CONFIGURED: set DATABASE_URL or PGHOST/PGUSER/PGPASSWORD/PGDATABASE");
+        }
+        logger.warn("[DB] Postgres not configured. Skipping migrations (COREX_DB_REQUIRED=false).");
+        return { skipped: true, reason: "NOT_CONFIGURED" };
     }
 
-    await applyMigrations();
-    await migrateLegacyUsersAndAccounts();
-    await migrateLegacySettings();
-    await seedDefaultAdminIfEmpty();
+    try {
+        await applyMigrations();
+        await migrateLegacyUsersAndAccounts();
+        await migrateLegacySettings();
+        await seedDefaultAdminIfEmpty();
+        return { skipped: false };
+    } catch (err) {
+        if (!dbRequired && isDbConnectionError(err)) {
+            logger.warn(`[DB] Postgres unreachable (${err.code || "CONNECTION_ERROR"}). Skipping migrations (COREX_DB_REQUIRED=false).`);
+            return { skipped: true, reason: "UNREACHABLE", error: err.message };
+        }
+        throw err;
+    }
 }
 
 if (require.main === module) {

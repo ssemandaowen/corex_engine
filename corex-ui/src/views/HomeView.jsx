@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useStore } from '../store/useStore';
 import { 
   Activity, 
@@ -50,7 +50,20 @@ const HomeView = () => {
 
   // --- UI State ---
   const [logOpen, setLogOpen] = useState(true);
-  const [logHeight, setLogHeight] = useState(240);
+  const [logHeight] = useState(240);
+  const [logCategory, setLogCategory] = useState('all');
+  const [errorsOnly, setErrorsOnly] = useState(false);
+
+  const filteredLogs = useMemo(() => {
+    let events = wsEvents || [];
+    if (logCategory !== 'all') {
+      events = events.filter(e => e?.meta?.category === logCategory);
+    }
+    if (errorsOnly) {
+      events = events.filter(e => String(e?.type || '').includes('ERROR') || e?.payload?.error || e?.payload?.reason);
+    }
+    return events;
+  }, [wsEvents, logCategory, errorsOnly]);
 
   // Initializing State (Google-style)
   if (!pulse) return <GoogleLoader />;
@@ -178,11 +191,35 @@ const HomeView = () => {
         </div>
         {logOpen && (
           <div className="p-4 overflow-y-auto font-mono text-[11px] h-full pb-12">
-            {wsEvents.slice(0, 50).map((evt, idx) => (
+            <div className="flex items-center gap-2 mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              <button
+                onClick={() => setLogCategory('all')}
+                className={`px-2 py-1 rounded border ${logCategory === 'all' ? 'text-blue-300 border-blue-500/40 bg-blue-500/10' : 'border-slate-800 text-slate-500'}`}
+              >
+                All
+              </button>
+              {['system', 'strategy', 'execution', 'market', 'mt5'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setLogCategory(cat)}
+                  className={`px-2 py-1 rounded border ${logCategory === cat ? 'text-blue-300 border-blue-500/40 bg-blue-500/10' : 'border-slate-800 text-slate-500'}`}
+                >
+                  {cat}
+                </button>
+              ))}
+              <button
+                onClick={() => setErrorsOnly(!errorsOnly)}
+                className={`ml-auto px-2 py-1 rounded border ${errorsOnly ? 'text-rose-300 border-rose-500/40 bg-rose-500/10' : 'border-slate-800 text-slate-500'}`}
+              >
+                Errors Only
+              </button>
+            </div>
+            {filteredLogs.slice(0, 80).map((evt, idx) => (
               <div key={idx} className="flex gap-4 mb-1 opacity-80 hover:opacity-100">
                 <span className="text-slate-600">[{new Date(evt.meta?.ts).toLocaleTimeString()}]</span>
-                <span className={`w-24 font-bold ${getLogColor(evt.type)}`}>{evt.type}</span>
-                <span className="text-slate-300">{JSON.stringify(evt.payload).slice(0, 80)}...</span>
+                <span className={`w-24 font-bold ${getLogColor(evt.type, evt.meta?.category)}`}>{evt.type}</span>
+                <span className="text-slate-500 uppercase w-20">{evt.meta?.category || 'system'}</span>
+                <span className="text-slate-300">{formatPayload(evt.payload)}</span>
               </div>
             ))}
           </div>
@@ -241,11 +278,29 @@ const ResourceBar = ({ label, percent, color }) => (
   </div>
 );
 
-const getLogColor = (type) => {
+const getLogColor = (type, category) => {
+  if (category === 'strategy') return 'text-indigo-400';
+  if (category === 'execution') return 'text-emerald-400';
+  if (category === 'market') return 'text-blue-400';
+  if (category === 'mt5') return 'text-amber-400';
   if (type === 'ORDER_FILLED') return 'text-emerald-400';
   if (type === 'PARAM_UPDATE') return 'text-amber-400';
   if (type.includes('ERROR')) return 'text-rose-400';
   return 'text-blue-500';
+};
+
+const formatPayload = (payload) => {
+  if (!payload) return '';
+  if (payload.message) return payload.message;
+  if (payload.reason) return payload.reason;
+  if (payload.error) return payload.error;
+  if (payload.strategyId) return `strategy=${payload.strategyId}`;
+  if (payload.symbol) return `symbol=${payload.symbol}`;
+  try {
+    return JSON.stringify(payload).slice(0, 100);
+  } catch {
+    return String(payload);
+  }
 };
 
 export default HomeView;

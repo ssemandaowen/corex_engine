@@ -11,10 +11,13 @@ const server = require("@core/server");
 const logger = require("@utils/logger");
 const dbMigrator = require("./db/migrate");
 const db = require("@core/services/postgres");
+const configService = require("@core/services/configService");
 
 async function bootstrap() {
     try {
         await dbMigrator.run();
+        configService.init();
+        await configService.load();
         await engine.start();
         await server.start();
         logger.info(`CoreX Ready to use...`);

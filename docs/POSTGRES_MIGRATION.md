@@ -22,9 +22,8 @@ What migration does:
 - Applies SQL schema in `db/migrations/001_corex_init.sql`
 - Migrates legacy JSON data from:
   - `data/db/corex_db.json` (users/accounts/quota)
-  - `data/settings/system_settings.json`
-  - `data/settings/paper_settings.json`
-  - `data/settings/live_settings.json`
+  - `system_settings` (DB)
+  - `broker_settings` (DB)
 - Seeds admin user if no users exist
 
 ## 3. Authentication Flow

@@ -112,6 +112,7 @@ class BaseStrategy {
     constructor(config = {}) {
         this.id = config.id || `strat_${Date.now()}`;
         this.name = config.name || "BaseStrategy";
+        this.__corexStandardized = true;
         this.symbols = Array.isArray(config.symbols) ? [...config.symbols] : [];
         if (this.symbols.length === 0) {
             throw new Error("BaseStrategy requires at least one symbol");
@@ -221,55 +222,51 @@ class BaseStrategy {
         return (parseInt(match[1], 10) || 1) * (units[match[2]] || 60000);
     }
 
+    _processData(packet, meta = {}) {
+        const source = meta.source || meta.type || "tick";
+        const isBar = source === "bar";
+
+        if (!packet?.symbol || typeof packet.time !== 'number') return null;
+
+        const symbol = packet.symbol;
+
+        if (isBar) {
+            this.dataManager.ingestBar(packet);
+            this.currentBar = packet;
+        } else {
+            this.lastTick = packet;
+            const result = this.dataManager.updateTick({
+                symbol,
+                time: packet.time,
+                price: packet.price ?? packet.close,
+                volume: packet.volume ?? 0
+            }, this._getTFMs());
+            if (this.candleBased && !result.closed) return null;
+        }
+
+        let signal = this.next(packet);
+
+        if (!signal && this._flipNext) {
+            signal = this.applyFlip(symbol);
+        }
+
+        if (signal) {
+            signal.symbol = symbol;
+            signal.time = packet.time;
+            signal.barTime = this.currentBar?.time;
+            signal.tf = this.timeframe;
+        }
+
+        return signal;
+    }
+
     onTick(tick) {
-        if (!tick?.symbol || typeof tick.time !== 'number') return null;
-        this.lastTick = tick;
-        const result = this.dataManager.updateTick({
-            symbol: tick.symbol,
-            time: tick.time,
-            price: tick.price ?? tick.close,
-            volume: tick.volume ?? 0
-        }, this._getTFMs());
-
-        return (this.candleBased && !result.closed) ? null : this.next(tick);
+        return this._processData(tick, { source: "tick" });
     }
 
-    /**
- * Core execution wrapper.
- * Ingests data and handles the lifecycle of a signal, 
- * including automatic same-bar flip recovery.
- */
-onBar(bar) {
-    // 1. Validation & Ingestion
-    if (!bar?.symbol || typeof bar.time !== 'number') return null;
-    
-    // Update internal state before running logic
-    this.dataManager.ingestBar(bar);
-    this.currentBar = bar;
-    const symbol = bar.symbol;
-
-    // 2. Execute User Logic
-    // We call next() which contains the user's crossover/rule logic
-    let signal = this.next(bar);
-
-    // 3. Automatic Same-Bar Flip Recovery
-    // If the user's next() returned null (because the position is now flat),
-    // but a flip was triggered in the previous pass of this same bar:
-    if (!signal && this._flipNext) {
-        // applyFlip() is a BaseStrategy method that converts the 
-        // pending flip state into a concrete ENTER signal.
-        signal = this.applyFlip(symbol);
+    onBar(bar) {
+        return this._processData(bar, { source: "bar" });
     }
-
-    // 4. Final Signal Cleanup
-    // Ensure the signal has the required metadata for the adapter/backtester
-    if (signal) {
-        signal.symbol = symbol;
-        signal.time = bar.time;
-    }
-
-    return signal;
-}
 
     next(data) { return null; }
 

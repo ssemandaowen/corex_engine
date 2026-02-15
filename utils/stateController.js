@@ -2,6 +2,7 @@
 
 const StateLedger = require("@utils/LinkedList");
 const logger = require("@utils/logger");
+const { bus, EVENTS } = require("@events/bus");
 
 class StateController {
     constructor() {
@@ -43,6 +44,17 @@ class StateController {
 
         ledger.push(target, meta);
         logger.info(`🔄 [${id}] ${current} -> ${target}`);
+        try {
+            bus.emit(EVENTS.SYSTEM.STATE_CHANGED, {
+                id,
+                from: current,
+                to: target,
+                meta,
+                at: new Date().toISOString()
+            });
+        } catch {
+            // ignore bus errors
+        }
         return true;
     }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Activity, PlayCircle, History, Radio, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import client from "../api/client";
+import { useStore } from "../store/useStore";
 
 import RunCard from '../components/run/RunCard';
 import Backtest from '../components/run/backtest';
@@ -19,6 +20,7 @@ const RunView = () => {
   const [toasts, setToasts] = useState([]);
   const [syncStatus, setSyncStatus] = useState('idle'); // idle | syncing | ok | error
   const [lastSyncAt, setLastSyncAt] = useState(null);
+  const { realtimeMode, connectWebSocket, strategiesLive } = useStore();
 
   // --- Data Fetching ---
   const fetchStatuses = useCallback(async () => {
@@ -48,9 +50,24 @@ const RunView = () => {
   useEffect(() => {
     if (activeTab !== 'Simulation') return;
     fetchStatuses();
+    if (realtimeMode !== 'polling') return;
     const timer = setInterval(fetchStatuses, 5000);
     return () => clearInterval(timer);
-  }, [activeTab, fetchStatuses]);
+  }, [activeTab, fetchStatuses, realtimeMode]);
+
+  useEffect(() => {
+    if (realtimeMode !== 'ws') return;
+    connectWebSocket();
+  }, [realtimeMode, connectWebSocket]);
+
+  useEffect(() => {
+    if (realtimeMode !== 'ws') return;
+    if (activeTab !== 'Simulation') return;
+    if (!Array.isArray(strategiesLive)) return;
+    setStrategies(strategiesLive);
+    setSyncStatus('ok');
+    setLastSyncAt(Date.now());
+  }, [realtimeMode, activeTab, strategiesLive]);
 
   // --- Sub-components for Clarity ---
   const SyncIndicator = useMemo(() => {

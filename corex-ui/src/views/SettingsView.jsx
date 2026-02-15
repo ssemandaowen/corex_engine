@@ -19,7 +19,9 @@ const SettingsView = () => {
     systemSettings,
     settingsLoading,
     fetchSystemSettings,
-    updateSystemSettings
+    updateSystemSettings,
+    realtimeMode,
+    setRealtimeMode
   } = useStore();
 
   const [form, setForm] = useState({
@@ -38,6 +40,7 @@ const SettingsView = () => {
   useEffect(() => { 
     fetchSystemSettings(); 
   }, [fetchSystemSettings]);
+
 
   useEffect(() => {
     if (systemSettings) setForm(systemSettings);
@@ -145,6 +148,34 @@ const SettingsView = () => {
                     <option value="info">INFO</option>
                     <option value="debug">DEBUG</option>
                   </select>
+                </div>
+                <div className="col-span-2 mt-2">
+                  <label className="text-[10px] uppercase font-bold text-slate-500 mb-1.5 block tracking-tighter">Realtime Updates</label>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setRealtimeMode("ws")}
+                      className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-wide border transition-all ${
+                        realtimeMode === "ws"
+                          ? "bg-emerald-600/20 text-emerald-300 border-emerald-500/40"
+                          : "bg-[#0d1117] text-slate-400 border-slate-800 hover:border-slate-600"
+                      }`}
+                    >
+                      WebSocket
+                    </button>
+                    <button
+                      onClick={() => setRealtimeMode("polling")}
+                      className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-wide border transition-all ${
+                        realtimeMode === "polling"
+                          ? "bg-amber-600/20 text-amber-300 border-amber-500/40"
+                          : "bg-[#0d1117] text-slate-400 border-slate-800 hover:border-slate-600"
+                      }`}
+                    >
+                      Polling
+                    </button>
+                  </div>
+                  <p className="text-[9px] text-slate-600 mt-2 font-medium italic">
+                    WebSocket reduces CPU by avoiding intervals. Polling can be used as fallback.
+                  </p>
                 </div>
               </div>
             </section>

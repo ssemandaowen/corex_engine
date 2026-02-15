@@ -5,6 +5,7 @@ const router = express.Router();
 const fs = require('fs');
 const path = require('path');
 const logger = require('@utils/logger');
+const db = require("@core/services/postgres");
 
 const BACKTEST_DIR = path.join(process.cwd(), 'data', 'backtests');
 
@@ -16,6 +17,25 @@ const BACKTEST_DIR = path.join(process.cwd(), 'data', 'backtests');
 // 1. LIST ALL REPORTS (For the Data Tab sidebar/list)
 router.get('/reports', (req, res) => {
     try {
+        if (db.hasDbConfig()) {
+            db.query(
+                `SELECT id, created_at, report
+                 FROM backtests
+                 ORDER BY created_at DESC`
+            ).then(({ rows }) => {
+                const files = (rows || []).map(r => ({
+                    id: r.id,
+                    name: String(r.id),
+                    timestamp: r.created_at,
+                    size: JSON.stringify(r.report || {}).length
+                }));
+                return res.json({ success: true, payload: files });
+            }).catch(() => {
+                return res.json({ success: true, payload: [] });
+            });
+            return;
+        }
+
         if (!fs.existsSync(BACKTEST_DIR)) return res.json({ success: true, payload: [] });
 
         const files = fs.readdirSync(BACKTEST_DIR)
@@ -39,6 +59,26 @@ router.get('/reports', (req, res) => {
 
 // 2. GET SPECIFIC REPORT SUMMARY (For UI Charts)
 router.get('/reports/:id', (req, res) => {
+    if (db.hasDbConfig()) {
+        db.query(
+            `SELECT report FROM backtests WHERE id = $1 LIMIT 1`,
+            [String(req.params.id)]
+        ).then(({ rows }) => {
+            if (!rows[0]) return res.status(404).json({ success: false, error: "Report not found" });
+            const report = rows[0].report || {};
+            const response = {
+                metadata: report.metadata || report.meta || {},
+                summary: report.summary || report.performance || { totalTrades: 0, netProfit: 0 },
+                equityCurve: report.equityCurve || [],
+                trades: report.trades || []
+            };
+            return res.json({ success: true, payload: response });
+        }).catch((err) => {
+            res.status(500).json({ success: false, error: "Failed to parse report data", message: err.message });
+        });
+        return;
+    }
+
     const filePath = path.join(BACKTEST_DIR, req.params.id);
     
     if (!fs.existsSync(filePath)) {

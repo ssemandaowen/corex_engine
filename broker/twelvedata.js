@@ -6,6 +6,7 @@ const http = require("http");
 const https = require("https");
 const { bus, EVENTS } = require("../events/bus");
 const logger = require("../utils/logger");
+const configService = require("@core/services/configService");
 
 // Translates CoreX timeframes to TwelveData format
 const INTERVAL_MAP = {
@@ -21,11 +22,11 @@ class TwelveDataBroker {
     constructor() {
         // --- 1. CONFIGURATION ---
         this.config = {
-            restBase: "https://api.twelvedata.com",
-            wsBase: "wss://ws.twelvedata.com/v1/quotes/price",
+            restBase: null,
+            wsBase: null,
             apiKey: process.env.TWELVE_DATA_KEY,
-            heartbeatMs: 10000,
-            reconnectLimit: 5
+            heartbeatMs: 0,
+            reconnectLimit: 0
         };
 
         // --- 2. STATE MANAGEMENT ---
@@ -48,6 +49,27 @@ class TwelveDataBroker {
         this._pendingUnsubs = new Set();
         this._flushTimer = null;
         this._flushDelayMs = 120;
+
+        this._loadConfig();
+        bus.on(EVENTS.SYSTEM.CONFIG_REFRESH, () => this._loadConfig());
+    }
+
+    _loadConfig() {
+        const get = typeof configService.getSync === "function" ? configService.getSync : () => undefined;
+        const restBase = get("broker.twelvedata.restBase", "https://api.twelvedata.com") || "https://api.twelvedata.com";
+        const wsBase = get("broker.twelvedata.wsBase", "wss://ws.twelvedata.com/v1/quotes/price") || "wss://ws.twelvedata.com/v1/quotes/price";
+        const heartbeatMs = Number(get("broker.twelvedata.heartbeatMs", 10000));
+        const reconnectLimit = Number(get("broker.twelvedata.reconnectLimit", 5));
+        const flushDelayMs = Number(get("broker.twelvedata.flushDelayMs", 120));
+        const httpTimeoutMs = Number(get("broker.twelvedata.httpTimeoutMs", 15000));
+
+        this.config.restBase = restBase;
+        this.config.wsBase = wsBase;
+        this.config.heartbeatMs = heartbeatMs;
+        this.config.reconnectLimit = reconnectLimit;
+
+        this.httpClient.defaults.timeout = httpTimeoutMs;
+        this._flushDelayMs = flushDelayMs;
     }
 
     /**
@@ -194,6 +216,7 @@ class TwelveDataBroker {
      * RESILIENT CONNECTION LOGIC
      */
     connect() {
+        this._loadConfig();
         if (!this.config.apiKey) {
             logger.error("TWELVE_DATA_KEY missing. Broker cannot connect.");
             return;

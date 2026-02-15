@@ -2,8 +2,109 @@ import React, { useState, useEffect } from 'react';
 import client from "../api/client";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
-  ResponsiveContainer 
+  ResponsiveContainer,
+  BarChart, Bar, Cell, AreaChart, Area
 } from 'recharts';
+
+const fmtMoney = (v) => {
+  const n = Number(v || 0);
+  return `$${n.toFixed(2)}`;
+};
+
+const calcDrawdownSeries = (equityCurve) => {
+  let peak = -Infinity;
+  return equityCurve.map((p) => {
+    const equity = Number(p.equity || 0);
+    if (equity > peak) peak = equity;
+    const dd = peak > 0 ? ((equity / peak) - 1) * 100 : 0;
+    return { time: Number(p.time), drawdown: dd };
+  });
+};
+
+const calcReturns = (equityCurve) => {
+  const returns = [];
+  for (let i = 1; i < equityCurve.length; i += 1) {
+    const prev = Number(equityCurve[i - 1]?.equity || 0);
+    const cur = Number(equityCurve[i]?.equity || 0);
+    if (!prev) continue;
+    returns.push({ time: Number(equityCurve[i].time), r: (cur / prev) - 1 });
+  }
+  return returns;
+};
+
+const calcRollingSharpe = (returns, window = 20) => {
+  const out = [];
+  for (let i = window - 1; i < returns.length; i += 1) {
+    const slice = returns.slice(i - window + 1, i + 1).map(r => r.r);
+    const mean = slice.reduce((s, v) => s + v, 0) / slice.length;
+    const variance = slice.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / slice.length;
+    const std = Math.sqrt(variance);
+    const sharpe = std === 0 ? 0 : (mean / std) * Math.sqrt(window);
+    out.push({ time: returns[i].time, sharpe });
+  }
+  return out;
+};
+
+const calcHistogram = (returns, bins = 20) => {
+  if (returns.length === 0) return [];
+  const values = returns.map(r => r.r);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (min === max) {
+    return [{ label: min.toFixed(3), count: returns.length, mid: min }];
+  }
+  const width = (max - min) / bins;
+  const buckets = Array.from({ length: bins }, (_, i) => ({
+    min: min + i * width,
+    max: min + (i + 1) * width,
+    count: 0
+  }));
+  values.forEach((v) => {
+    const idx = Math.min(buckets.length - 1, Math.floor((v - min) / width));
+    buckets[idx].count += 1;
+  });
+  return buckets.map(b => ({
+    label: `${(b.min * 100).toFixed(1)}%`,
+    count: b.count,
+    mid: (b.min + b.max) / 2
+  }));
+};
+
+const calcExpectancy = (trades) => {
+  const wins = trades.filter(t => Number(t.profit || 0) > 0);
+  const losses = trades.filter(t => Number(t.profit || 0) < 0);
+  const winRate = trades.length > 0 ? wins.length / trades.length : 0;
+  const avgWin = wins.length ? wins.reduce((s, t) => s + Number(t.profit || 0), 0) / wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + Number(t.profit || 0), 0)) / losses.length : 0;
+  const expectancy = (winRate * avgWin) - ((1 - winRate) * avgLoss);
+  return { winRate, avgWin, avgLoss, expectancy };
+};
+
+const isoWeek = (date) => {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+};
+
+const calcHeatmap = (trades, mode = 'month') => {
+  const map = new Map();
+  trades.forEach((t) => {
+    const ts = t.exitTime || t.entryTime;
+    if (!ts) return;
+    const d = new Date(ts);
+    const key = mode === 'week'
+      ? isoWeek(d)
+      : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const prev = map.get(key) || 0;
+    map.set(key, prev + Number(t.profit || 0));
+  });
+  return Array.from(map.entries())
+    .map(([key, value]) => ({ key, value }))
+    .sort((a, b) => a.key.localeCompare(b.key));
+};
 
 const DataView = () => {
   const [reports, setReports] = useState([]);
@@ -83,25 +184,56 @@ const DataView = () => {
           </div>
         ) : (
           <div className="divide-y divide-slate-800/60">
-            {reports.map(r => (
-              <button
-                key={r.id}
-                onClick={() => setSelectedId(r.id)}
-                className={`
-                  w-full px-5 py-4 text-left transition-all
-                  hover:bg-slate-800/60 focus:outline-none focus:bg-slate-800/70
-                  ${selectedId === r.id ? 'bg-slate-800/80 border-l-4 border-l-indigo-500' : 'border-l-4 border-transparent'}
-                `}
-              >
-                <div className="font-medium text-slate-100 truncate text-sm">
-                  {r.id}
+            {Object.entries(
+              reports.reduce((acc, r) => {
+                const key = r.strategyName || r.strategyId || 'Unassigned';
+                acc[key] = acc[key] || [];
+                acc[key].push(r);
+                return acc;
+              }, {})
+            ).map(([group, items]) => (
+              <div key={group}>
+                <div className="px-5 py-2 text-[10px] uppercase tracking-widest text-slate-500 bg-slate-900/70 border-b border-slate-800">
+                  {group}
                 </div>
-                <div className="text-xs text-slate-500 mt-1">
-                  {new Date(r.timestamp).toLocaleString('en-US', {
-                    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                  })}
-                </div>
-              </button>
+                {items.map(r => (
+                  <div
+                    key={r.id}
+                    className={`
+                      px-5 py-4 text-left transition-all border-l-4
+                      ${selectedId === r.id ? 'bg-slate-800/80 border-l-indigo-500' : 'border-l-transparent hover:bg-slate-800/60'}
+                    `}
+                  >
+                    <button
+                      onClick={() => setSelectedId(r.id)}
+                      className="w-full text-left focus:outline-none"
+                    >
+                      <div className="font-medium text-slate-100 truncate text-sm">
+                        {r.id}
+                      </div>
+                      <div className="text-[11px] text-slate-500 mt-1">
+                        {r.symbol || '--'} • {r.timeframe || '--'}
+                      </div>
+                      <div className="text-xs text-slate-500 mt-1">
+                        {new Date(r.timestamp).toLocaleString('en-US', {
+                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                        })}
+                      </div>
+                    </button>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await client.delete(`/backtest/${r.id}`);
+                        setReports((prev) => prev.filter(p => p.id !== r.id));
+                        if (selectedId === r.id) setSelectedId(null);
+                      }}
+                      className="mt-2 text-[10px] uppercase tracking-widest text-rose-400 hover:text-rose-300"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                ))}
+              </div>
             ))}
           </div>
         )}
@@ -150,6 +282,22 @@ function ReportView({ report }) {
   const { meta, performance, trades = [], equityCurve = [] } = report;
 
   const hasEquity = equityCurve.length > 1;
+  const pnlSeriesRaw = trades
+    .map((t, i) => {
+      const profit = Number(t.profit ?? t.pnl ?? 0);
+      return { index: i + 1, profit };
+    })
+    .filter((p) => Number.isFinite(p.profit));
+  const pnlSeries = pnlSeriesRaw.length > 200 ? pnlSeriesRaw.slice(-200) : pnlSeriesRaw;
+  const hasPnL = pnlSeries.length > 0;
+  const drawdownSeries = calcDrawdownSeries(equityCurve);
+  const returns = calcReturns(equityCurve);
+  const hist = calcHistogram(returns);
+  const sharpeSeries = calcRollingSharpe(returns, 20);
+  const monthly = calcHeatmap(trades, 'month');
+  const weekly = calcHeatmap(trades, 'week');
+  const maxHeat = Math.max(1, ...monthly.map(m => Math.abs(m.value)), ...weekly.map(w => Math.abs(w.value)));
+  const expectancy = calcExpectancy(trades);
 
   return (
     <div className="space-y-8 max-w-[1800px] mx-auto">
@@ -179,6 +327,18 @@ function ReportView({ report }) {
           trend="negative"
         />
         <Stat label="Sharpe" value={performance?.sharpeRatio ?? '--'} />
+      </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Profit Factor & Expectancy</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <Stat label="Profit Factor" value={performance?.profitFactor ?? '--'} />
+          <Stat label="Gross Profit" value={fmtMoney(performance?.grossProfit)} trend="positive" />
+          <Stat label="Gross Loss" value={fmtMoney(performance?.grossLoss)} trend="negative" />
+          <Stat label="Avg Win" value={fmtMoney(expectancy.avgWin)} trend="positive" />
+          <Stat label="Avg Loss" value={fmtMoney(expectancy.avgLoss)} trend="negative" />
+          <Stat label="Expectancy" value={fmtMoney(expectancy.expectancy)} trend={expectancy.expectancy >= 0 ? 'positive' : 'negative'} />
+        </div>
       </div>
 
       {/* Chart */}
@@ -223,6 +383,146 @@ function ReportView({ report }) {
           </ResponsiveContainer>
         </div>
       </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Drawdown Curve</h3>
+        <div className="h-[260px]">
+          <ResponsiveContainer>
+            <AreaChart data={drawdownSeries}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="time" hide />
+              <YAxis tickFormatter={v => `${v.toFixed(1)}%`} stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
+                labelFormatter={v => new Date(v).toLocaleString()}
+              />
+              <Area type="monotone" dataKey="drawdown" stroke="#f43f5e" fillOpacity={0.3} fill="#f43f5e" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Returns Histogram</h3>
+        <div className="h-[260px]">
+          <ResponsiveContainer>
+            <BarChart data={hist.length ? hist : [{ label: '0', count: 0 }]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="label" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <YAxis stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
+              />
+              <Bar dataKey="count" fill="#6366f1" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Rolling Sharpe (20)</h3>
+        <div className="h-[260px]">
+          <ResponsiveContainer>
+            <LineChart data={sharpeSeries.length ? sharpeSeries : [{ time: Date.now(), sharpe: 0 }]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+              <XAxis dataKey="time" hide />
+              <YAxis stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
+                labelFormatter={v => new Date(v).toLocaleString()}
+              />
+              <Line type="monotone" dataKey="sharpe" stroke="#22c55e" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Profit / Loss Bars</h3>
+        <div className="h-[260px]">
+          <ResponsiveContainer>
+            <BarChart data={hasPnL ? pnlSeries : [{ index: 0, profit: 0 }]}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <XAxis dataKey="index" hide />
+              <YAxis 
+                tickFormatter={v => `$${Math.round(v).toLocaleString()}`}
+                stroke="#475569"
+                tick={{ fill: '#94a3b8', fontSize: 12 }}
+              />
+              <Tooltip 
+                contentStyle={{ 
+                  background: '#0f172a', 
+                  border: '1px solid #334155', 
+                  borderRadius: '8px', 
+                  color: '#e2e8f0' 
+                }}
+                labelFormatter={v => `Trade ${v}`}
+              />
+              <Bar dataKey="profit">
+                {pnlSeries.map((entry, idx) => (
+                  <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#f43f5e'} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Monthly Performance Heatmap</h3>
+        <div className="grid grid-cols-6 gap-2">
+          {monthly.map((m) => {
+            const intensity = Math.min(1, Math.abs(m.value) / maxHeat);
+            const color = m.value >= 0
+              ? `rgba(16, 185, 129, ${0.2 + 0.6 * intensity})`
+              : `rgba(244, 63, 94, ${0.2 + 0.6 * intensity})`;
+            return (
+              <div key={m.key} className="rounded-lg p-2 text-xs text-slate-100" style={{ background: color }}>
+                <div className="text-[10px] uppercase tracking-widest text-slate-200">{m.key}</div>
+                <div className="font-mono">{fmtMoney(m.value)}</div>
+              </div>
+            );
+          })}
+          {monthly.length === 0 && (
+            <div className="text-xs text-slate-500">No monthly data.</div>
+          )}
+        </div>
+      </div>
+
+      <div className="ui-panel">
+        <h3 className="text-lg font-semibold text-slate-200 mb-4">Weekly Performance Heatmap</h3>
+        <div className="grid grid-cols-6 gap-2">
+          {weekly.map((w) => {
+            const intensity = Math.min(1, Math.abs(w.value) / maxHeat);
+            const color = w.value >= 0
+              ? `rgba(34, 197, 94, ${0.2 + 0.6 * intensity})`
+              : `rgba(248, 113, 113, ${0.2 + 0.6 * intensity})`;
+            return (
+              <div key={w.key} className="rounded-lg p-2 text-xs text-slate-100" style={{ background: color }}>
+                <div className="text-[10px] uppercase tracking-widest text-slate-200">{w.key}</div>
+                <div className="font-mono">{fmtMoney(w.value)}</div>
+              </div>
+            );
+          })}
+          {weekly.length === 0 && (
+            <div className="text-xs text-slate-500">No weekly data.</div>
+          )}
+        </div>
+      </div>
+
+      {meta?.runtimeParams && Object.keys(meta.runtimeParams).length > 0 && (
+        <div className="ui-panel">
+          <h3 className="text-lg font-semibold text-slate-200 mb-4">Runtime Params</h3>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+            {Object.entries(meta.runtimeParams).map(([k, v]) => (
+              <div key={k} className="bg-slate-900/50 border border-slate-800 rounded-lg p-3">
+                <div className="text-[10px] uppercase tracking-widest text-slate-500">{k}</div>
+                <div className="font-mono text-slate-200">{String(v)}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Trades */}
       {trades.length > 0 && (

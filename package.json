@@ -11,9 +11,18 @@
     "dev": "nodemon index.js",
     "test": "jest --passWithNoTests",
     "test:auth": "jest --runInBand test/auth.service.test.js test/auth.integration.test.js",
+    "ui:dev": "npm --prefix corex-ui run dev",
+    "ui:build": "npm --prefix corex-ui run build",
+    "ui:preview": "npm --prefix corex-ui run preview",
     "db:migrate": "node db/migrate.js",
-    "core:clean": "rm -rf ./data/backtests/*",
-    "status": "node ./utils/system-check.js"
+    "strategies:migrate": "node db/migrate_strategies_to_db.js",
+    "core:clean": "node -e \"const fs=require('fs'); fs.rmSync('./data/backtests/', {recursive:true, force:true})\"",
+    "status": "node ./utils/system-check.js",
+    "mt5:receiver": "python engine/managers/mt5Receiver.py",
+    "mt5:receiver:env": "set DOTENV_CONFIG_PATH=.env.receiver && python engine/managers/mt5Receiver.py",
+    "db:start": "pg_ctl start -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -w",
+    "db:stop": "pg_ctl stop -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -m fast",
+    "db:status": "pg_ctl status -D \"%USERPROFILE%/scoop/persist/postgresql/data\""
   },
   "_moduleAliases": {
     "@root": ".",

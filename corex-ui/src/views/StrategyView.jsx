@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileCode, Plus, X, Box, Save, Trash2, Play } from 'lucide-react';
+import { FileCode, Plus, X, Box, Save, Play } from 'lucide-react';
 import client from '../api/client';
 import StrategyList from '../components/strategies/StrategyList';
 import EditorPanel from '../components/strategies/EditorPanel';
@@ -13,6 +13,7 @@ const StrategyView = ({ onNavigate }) => {
   const [toasts, setToasts] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
+  const [creating, setCreating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // --- Logic Registry & Tabs ---
@@ -70,10 +71,109 @@ const StrategyView = ({ onNavigate }) => {
     } finally { setLoading(false); }
   };
 
+  const exportStrategy = async (id) => {
+    let code = currentCode;
+    if (selectedId !== id) {
+      try {
+        const res = await client.get(`/strategies/${id}`);
+        code = res?.payload?.code || "";
+      } catch {
+        code = "";
+      }
+    }
+    const blob = new Blob([code || ""], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${id}.js`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleContextAction = async (cmd, id) => {
+    switch (cmd) {
+      case "OPEN":
+      case "EDIT":
+        selectTab(id);
+        return;
+      case "RENAME": {
+        const next = window.prompt("Rename strategy:", id);
+        if (!next || next.trim() === id) return;
+        try {
+          await client.patch(`/strategies/${id}/rename`, { newName: next.trim() });
+          await refreshList();
+          setSelectedId(next.trim());
+          addToast({ type: "success", message: `Renamed to ${next.trim()}` });
+        } catch {
+          addToast({ type: "error", message: "Rename failed" });
+        }
+        return;
+      }
+      case "EXPORT":
+        await exportStrategy(id);
+        return;
+      case "START":
+        try {
+          await client.post(`/run/start/${id}`, { mode: "PAPER" });
+          addToast({ type: "success", message: `Started ${id}` });
+          await refreshList();
+        } catch {
+          addToast({ type: "error", message: "Start failed" });
+        }
+        return;
+      case "STOP":
+        try {
+          await client.post(`/run/stop/${id}`);
+          addToast({ type: "success", message: `Stopped ${id}` });
+          await refreshList();
+        } catch {
+          addToast({ type: "error", message: "Stop failed" });
+        }
+        return;
+      case "DELETE":
+        if (!window.confirm(`Delete strategy ${id}?`)) return;
+        try {
+          await client.delete(`/strategies/${id}`);
+          if (selectedId === id) {
+            setSelectedId(null);
+            setCurrentCode("");
+          }
+          await refreshList();
+          addToast({ type: "success", message: `Deleted ${id}` });
+        } catch {
+          addToast({ type: "error", message: "Delete failed" });
+        }
+        return;
+      default:
+        return;
+    }
+  };
+
   const addToast = (t) => {
     const id = Date.now();
     setToasts(p => [...p, { ...t, id }]);
     setTimeout(() => setToasts(p => p.filter(x => x.id !== id)), 3000);
+  };
+
+  const handleCreate = async () => {
+    const rawName = newName.trim();
+    if (!rawName || creating) return;
+
+    setCreating(true);
+    try {
+      const res = await client.post('/strategies', { name: rawName });
+      const createdId = res?.payload?.id || rawName.replace(/\s+/g, '_').replace(/\.js$/, '');
+
+      await refreshList();
+      selectTab(createdId);
+      setShowCreate(false);
+      setNewName('');
+      addToast({ type: 'success', message: `Created ${createdId}` });
+    } catch (err) {
+      addToast({ type: 'error', message: err?.message || 'Create failed' });
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -92,7 +192,7 @@ const StrategyView = ({ onNavigate }) => {
             items={strategies}
             activeId={selectedId}
             onSelect={selectTab}
-            onAction={(cmd, id) => cmd === 'RUN' ? onNavigate('run') : selectTab(id)}
+            onAction={handleContextAction}
           />
         </div>
       </div>
@@ -178,13 +278,15 @@ const StrategyView = ({ onNavigate }) => {
               placeholder="e.g. scalp_v1"
               value={newName}
               onChange={e => setNewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleCreate();
+              }}
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-white uppercase">Cancel</button>
-              <button onClick={() => {
-                const id = newName.trim();
-                if(id) { selectTab(id); setShowCreate(false); setNewName(''); }
-              }} className="px-4 py-2 bg-blue-600 text-white rounded text-[10px] font-bold uppercase">Create</button>
+              <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-blue-600 text-white rounded text-[10px] font-bold uppercase disabled:opacity-50">
+                {creating ? 'Creating...' : 'Create'}
+              </button>
             </div>
           </div>
         </div>

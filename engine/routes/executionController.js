@@ -83,6 +83,7 @@ router.patch('/params/:id', (req, res) => {
         entry.instance.updateParams(params);
     }
     loader._saveParams(id, params);
+    loader._updateRuntimeStateInDb(id, { params }).catch(() => {});
 
     if (status === 'ACTIVE') {
         return res.json({ success: true, message: "Parameters hot-swapped and persisted." });
@@ -100,14 +101,9 @@ router.post('/params/:id/reset', (req, res) => {
 
     let defaults = null;
     try {
-        const StrategyClass = require(entry.filePath);
-        const fresh = typeof StrategyClass === 'function'
-            ? new StrategyClass({ name: entry.id, id: entry.id })
-            : StrategyClass;
-        fresh.id = entry.id;
-        fresh.name = entry.id;
-        if (fresh._applyDefaults) fresh._applyDefaults();
-        defaults = fresh.params || {};
+        const fresh = loader._instantiateStrategy(entry.source || "", entry.id);
+        if (fresh && typeof fresh._applyDefaults === 'function') fresh._applyDefaults();
+        defaults = fresh?.params || {};
     } catch (e) {
         defaults = null;
     }

@@ -3,7 +3,7 @@
   "tickFlushMax": 10000,
   "stratQueueMax": 1000,
   "stratSliceMs": 5,
-  "logLevel": "warn",
+  "logLevel": "info",
   "storage": {
     "backtests": {
       "keepN": 20,

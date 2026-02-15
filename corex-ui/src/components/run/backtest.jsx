@@ -19,8 +19,113 @@ import {
     Tooltip,
     ResponsiveContainer,
     AreaChart,
-    Area
+    Area,
+    BarChart,
+    Bar,
+    Cell,
+    LineChart,
+    Line
 } from 'recharts';
+
+const fmtMoney = (v) => {
+    const n = Number(v || 0);
+    return `$${n.toFixed(2)}`;
+};
+
+const calcDrawdownSeries = (equityCurve) => {
+    let peak = -Infinity;
+    return equityCurve.map((p) => {
+        const equity = Number(p.equity || 0);
+        if (equity > peak) peak = equity;
+        const dd = peak > 0 ? ((equity / peak) - 1) * 100 : 0;
+        return { time: Number(p.time), drawdown: dd };
+    });
+};
+
+const calcReturns = (equityCurve) => {
+    const returns = [];
+    for (let i = 1; i < equityCurve.length; i += 1) {
+        const prev = Number(equityCurve[i - 1]?.equity || 0);
+        const cur = Number(equityCurve[i]?.equity || 0);
+        if (!prev) continue;
+        returns.push({ time: Number(equityCurve[i].time), r: (cur / prev) - 1 });
+    }
+    return returns;
+};
+
+const calcRollingSharpe = (returns, window = 20) => {
+    const out = [];
+    for (let i = window - 1; i < returns.length; i += 1) {
+        const slice = returns.slice(i - window + 1, i + 1).map(r => r.r);
+        const mean = slice.reduce((s, v) => s + v, 0) / slice.length;
+        const variance = slice.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / slice.length;
+        const std = Math.sqrt(variance);
+        const sharpe = std === 0 ? 0 : (mean / std) * Math.sqrt(window);
+        out.push({ time: returns[i].time, sharpe });
+    }
+    return out;
+};
+
+const calcHistogram = (returns, bins = 20) => {
+    if (returns.length === 0) return [];
+    const values = returns.map(r => r.r);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    if (min === max) {
+        return [{ label: min.toFixed(3), count: returns.length, mid: min }];
+    }
+    const width = (max - min) / bins;
+    const buckets = Array.from({ length: bins }, (_, i) => ({
+        min: min + i * width,
+        max: min + (i + 1) * width,
+        count: 0
+    }));
+    values.forEach((v) => {
+        const idx = Math.min(buckets.length - 1, Math.floor((v - min) / width));
+        buckets[idx].count += 1;
+    });
+    return buckets.map(b => ({
+        label: `${(b.min * 100).toFixed(1)}%`,
+        count: b.count,
+        mid: (b.min + b.max) / 2
+    }));
+};
+
+const calcExpectancy = (trades) => {
+    const wins = trades.filter(t => Number(t.profit || 0) > 0);
+    const losses = trades.filter(t => Number(t.profit || 0) < 0);
+    const winRate = trades.length > 0 ? wins.length / trades.length : 0;
+    const avgWin = wins.length ? wins.reduce((s, t) => s + Number(t.profit || 0), 0) / wins.length : 0;
+    const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + Number(t.profit || 0), 0)) / losses.length : 0;
+    const expectancy = (winRate * avgWin) - ((1 - winRate) * avgLoss);
+    return { winRate, avgWin, avgLoss, expectancy };
+};
+
+const isoWeek = (date) => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+};
+
+const calcHeatmap = (trades, mode = 'month') => {
+    const map = new Map();
+    trades.forEach((t) => {
+        const ts = t.exitTime || t.entryTime;
+        if (!ts) return;
+        const d = new Date(ts);
+        const key = mode === 'week'
+            ? isoWeek(d)
+            : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        const prev = map.get(key) || 0;
+        map.set(key, prev + Number(t.profit || 0));
+    });
+    return Array.from(map.entries())
+        .map(([key, value]) => ({ key, value }))
+        .sort((a, b) => a.key.localeCompare(b.key));
+};
 
 const TreeRow = ({ label, value, level = 0 }) => {
     const [open, setOpen] = useState(level < 1);
@@ -276,7 +381,23 @@ const Backtest = () => {
             .map((p) => ({ time: Number(p.time), equity: Number(p.equity) }))
             .filter((p) => Number.isFinite(p.time) && Number.isFinite(p.equity))
         : [];
+    const drawdownSeries = calcDrawdownSeries(equityCurve);
+    const returns = calcReturns(equityCurve);
+    const hist = calcHistogram(returns);
+    const sharpeSeries = calcRollingSharpe(returns, 20);
+    const monthly = calcHeatmap(trades, 'month');
+    const weekly = calcHeatmap(trades, 'week');
+    const maxHeat = Math.max(1, ...monthly.map(m => Math.abs(m.value)), ...weekly.map(w => Math.abs(w.value)));
+    const expectancy = calcExpectancy(trades);
+    const pnlSeriesRaw = trades
+        .map((t, i) => {
+            const profit = Number(t.profit ?? t.pnl ?? 0);
+            return { index: i + 1, profit };
+        })
+        .filter((p) => Number.isFinite(p.profit));
+    const pnlSeries = pnlSeriesRaw.length > 200 ? pnlSeriesRaw.slice(-200) : pnlSeriesRaw;
     const hasEquity = equityCurve.length > 1;
+    const hasPnL = pnlSeries.length > 0;
     const header = results?.meta || null;
 
     return (
@@ -497,6 +618,20 @@ const Backtest = () => {
                                 </div>
                             )}
 
+                            {perf && (
+                                <div className="bg-[#0d1117] border border-slate-800 rounded-xl p-4">
+                                    <div className="text-[10px] uppercase tracking-widest text-slate-500 mb-4">Profit Factor & Expectancy</div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                                        <MetricCard label="Profit Factor" value={perf.profitFactor ?? '--'} color="text-slate-300" />
+                                        <MetricCard label="Gross Profit" value={fmtMoney(perf.grossProfit)} color="text-emerald-400" />
+                                        <MetricCard label="Gross Loss" value={fmtMoney(perf.grossLoss)} color="text-rose-400" />
+                                        <MetricCard label="Avg Win" value={fmtMoney(expectancy.avgWin)} color="text-emerald-400" />
+                                        <MetricCard label="Avg Loss" value={fmtMoney(expectancy.avgLoss)} color="text-rose-400" />
+                                        <MetricCard label="Expectancy" value={fmtMoney(expectancy.expectancy)} trend={expectancy.expectancy >= 0} />
+                                    </div>
+                                </div>
+                            )}
+
                             <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
                                 <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Equity Growth Sequence</h3>
                                 <div className="h-[300px] w-full">
@@ -533,6 +668,151 @@ const Backtest = () => {
                                     </ResponsiveContainer>
                                 </div>
                             </section>
+
+                            <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Drawdown Curve</h3>
+                                <div className="h-[240px] w-full">
+                                    <ResponsiveContainer>
+                                        <AreaChart data={drawdownSeries}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis dataKey="time" hide />
+                                            <YAxis
+                                                orientation="right"
+                                                tick={{ fill: '#475569', fontSize: 10 }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tickFormatter={(v) => `${v.toFixed(1)}%`}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}
+                                                labelFormatter={(v) => new Date(v).toLocaleString()}
+                                            />
+                                            <Area
+                                                type="monotone"
+                                                dataKey="drawdown"
+                                                stroke="#f43f5e"
+                                                strokeWidth={2}
+                                                fillOpacity={0.35}
+                                                fill="#f43f5e"
+                                            />
+                                        </AreaChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </section>
+
+                            <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Returns Histogram</h3>
+                                <div className="h-[240px] w-full">
+                                    <ResponsiveContainer>
+                                        <BarChart data={hist.length ? hist : [{ label: '0', count: 0 }]}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis dataKey="label" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                            <YAxis stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }} />
+                                            <Bar dataKey="count" fill="#6366f1" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </section>
+
+                            <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Rolling Sharpe (20)</h3>
+                                <div className="h-[240px] w-full">
+                                    <ResponsiveContainer>
+                                        <LineChart data={sharpeSeries.length ? sharpeSeries : [{ time: Date.now(), sharpe: 0 }]}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis dataKey="time" hide />
+                                            <YAxis stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 10 }} />
+                                            <Tooltip contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }} />
+                                            <Line type="monotone" dataKey="sharpe" stroke="#22c55e" strokeWidth={2} dot={false} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </section>
+
+                            <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Profit / Loss Bars</h3>
+                                <div className="h-[220px] w-full">
+                                    <ResponsiveContainer>
+                                        <BarChart data={hasPnL ? pnlSeries : [{ index: 0, profit: 0 }]}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+                                            <XAxis dataKey="index" hide />
+                                            <YAxis
+                                                orientation="right"
+                                                tick={{ fill: '#475569', fontSize: 10 }}
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tickFormatter={(v) => `$${Math.round(v).toLocaleString()}`}
+                                            />
+                                            <Tooltip
+                                                contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #1e293b' }}
+                                                labelFormatter={(v) => `Trade ${v}`}
+                                            />
+                                            <Bar dataKey="profit">
+                                                {pnlSeries.map((entry, idx) => (
+                                                    <Cell key={`cell-${idx}`} fill={entry.profit >= 0 ? '#10b981' : '#f43f5e'} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </section>
+
+                            <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Monthly Performance Heatmap</h3>
+                                <div className="grid grid-cols-6 gap-2">
+                                    {monthly.map((m) => {
+                                        const intensity = Math.min(1, Math.abs(m.value) / maxHeat);
+                                        const color = m.value >= 0
+                                            ? `rgba(16, 185, 129, ${0.2 + 0.6 * intensity})`
+                                            : `rgba(244, 63, 94, ${0.2 + 0.6 * intensity})`;
+                                        return (
+                                            <div key={m.key} className="rounded-lg p-2 text-xs text-slate-100" style={{ background: color }}>
+                                                <div className="text-[10px] uppercase tracking-widest text-slate-200">{m.key}</div>
+                                                <div className="font-mono">{fmtMoney(m.value)}</div>
+                                            </div>
+                                        );
+                                    })}
+                                    {monthly.length === 0 && (
+                                        <div className="text-xs text-slate-500">No monthly data.</div>
+                                    )}
+                                </div>
+                            </section>
+
+                            <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Weekly Performance Heatmap</h3>
+                                <div className="grid grid-cols-6 gap-2">
+                                    {weekly.map((w) => {
+                                        const intensity = Math.min(1, Math.abs(w.value) / maxHeat);
+                                        const color = w.value >= 0
+                                            ? `rgba(34, 197, 94, ${0.2 + 0.6 * intensity})`
+                                            : `rgba(248, 113, 113, ${0.2 + 0.6 * intensity})`;
+                                        return (
+                                            <div key={w.key} className="rounded-lg p-2 text-xs text-slate-100" style={{ background: color }}>
+                                                <div className="text-[10px] uppercase tracking-widest text-slate-200">{w.key}</div>
+                                                <div className="font-mono">{fmtMoney(w.value)}</div>
+                                            </div>
+                                        );
+                                    })}
+                                    {weekly.length === 0 && (
+                                        <div className="text-xs text-slate-500">No weekly data.</div>
+                                    )}
+                                </div>
+                            </section>
+
+                            {header?.runtimeParams && Object.keys(header.runtimeParams).length > 0 && (
+                                <section className="bg-slate-900/30 border border-slate-800 rounded-xl p-5 shadow-inner">
+                                    <h3 className="text-[10px] font-black uppercase text-slate-500 tracking-widest mb-6">Runtime Params</h3>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                                        {Object.entries(header.runtimeParams).map(([k, v]) => (
+                                            <div key={k} className="bg-slate-900/50 border border-slate-800 rounded-lg p-3">
+                                                <div className="text-[10px] uppercase tracking-widest text-slate-500">{k}</div>
+                                                <div className="font-mono text-slate-200">{String(v)}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
 
                             <section className="space-y-4">
                                 <div className="flex items-center gap-2">

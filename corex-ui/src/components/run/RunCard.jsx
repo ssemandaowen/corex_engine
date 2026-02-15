@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import client from "../../api/client";
 import { Play, Square, Activity, Cpu, ShieldAlert, Timer, Radio, Settings, Zap } from "lucide-react";
 import SettingsModal from './SettingsModal';
@@ -6,11 +6,20 @@ import SettingsModal from './SettingsModal';
 const StrategyRuntime = ({ strategy, onStatusChange, onNotify }) => {
   const [loading, setLoading] = useState(false);
   const [timeframe, setTimeframe] = useState(strategy.timeframe || '1m');
+  const [mode, setMode] = useState((strategy.mode || 'PAPER').toUpperCase());
+  const [runtimeParams, setRuntimeParams] = useState(strategy.params || {});
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const hasSchema = strategy?.schema && Object.keys(strategy.schema).length > 0;
 
   const targetId = strategy.id || strategy.name;
   const isRunning = ['ACTIVE', 'WARMING_UP'].includes(strategy.status);
   const isStopping = strategy.status === 'STOPPING';
+
+  useEffect(() => {
+    setTimeframe(strategy.timeframe || '1m');
+    setMode((strategy.mode || 'PAPER').toUpperCase());
+    setRuntimeParams(strategy.params || {});
+  }, [strategy.timeframe, strategy.mode, strategy.params]);
 
   const formatUptime = (ms) => {
     if (!ms) return '00:00:00';
@@ -27,7 +36,11 @@ const StrategyRuntime = ({ strategy, onStatusChange, onNotify }) => {
         await client.post(`/run/stop/${targetId}`);
         onNotify?.({ type: 'success', message: `SIGTERM sent to ${targetId}` });
       } else {
-        await client.post(`/run/start/${targetId}`, { mode: 'PAPER', timeframe });
+        await client.post(`/run/start/${targetId}`, {
+          mode,
+          timeframe,
+          params: runtimeParams
+        });
         onNotify?.({ type: 'success', message: `${targetId} lifecycle: START` });
       }
     } catch (err) {
@@ -74,12 +87,14 @@ const StrategyRuntime = ({ strategy, onStatusChange, onNotify }) => {
               </div>
             </div>
 
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="p-1.5 text-slate-600 hover:text-white hover:bg-white/5 rounded-md transition-all"
-            >
-              <Settings size={14} />
-            </button>
+            {hasSchema && (
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="p-1.5 text-slate-600 hover:text-white hover:bg-white/5 rounded-md transition-all"
+              >
+                <Settings size={14} />
+              </button>
+            )}
           </div>
 
           {/* Telemetry Grid */}
@@ -104,15 +119,26 @@ const StrategyRuntime = ({ strategy, onStatusChange, onNotify }) => {
           {/* Action Row */}
           <div className="flex gap-2">
             {!isRunning && (
-              <select 
-                value={timeframe} 
-                onChange={(e) => setTimeframe(e.target.value)}
-                className="w-16 h-8 bg-slate-900 border border-slate-700 text-slate-400 text-[10px] font-bold px-1 rounded hover:border-slate-500 transition-colors outline-none cursor-pointer font-mono"
-              >
-                {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => (
-                  <option key={tf} value={tf}>{tf}</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={mode}
+                  onChange={(e) => setMode(e.target.value)}
+                  className="w-20 h-8 bg-slate-900 border border-slate-700 text-slate-400 text-[10px] font-bold px-1 rounded hover:border-slate-500 transition-colors outline-none cursor-pointer font-mono"
+                >
+                  {['PAPER', 'LIVE'].map((m) => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+                <select 
+                  value={timeframe} 
+                  onChange={(e) => setTimeframe(e.target.value)}
+                  className="w-16 h-8 bg-slate-900 border border-slate-700 text-slate-400 text-[10px] font-bold px-1 rounded hover:border-slate-500 transition-colors outline-none cursor-pointer font-mono"
+                >
+                  {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => (
+                    <option key={tf} value={tf}>{tf}</option>
+                  ))}
+                </select>
+              </>
             )}
 
             <button
@@ -156,14 +182,16 @@ const StrategyRuntime = ({ strategy, onStatusChange, onNotify }) => {
       <SettingsModal 
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        strategy={strategy}
+        strategy={{ ...strategy, params: runtimeParams }}
         onSave={async (params) => {
+          setRuntimeParams(params || {});
           await client.patch(`/run/params/${targetId}`, { params });
           onNotify?.({ type: 'success', message: 'Parameters committed' });
           onStatusChange?.();
         }}
         onRestoreDefaults={async () => {
           const res = await client.post(`/run/params/${targetId}/reset`);
+          setRuntimeParams(res.payload || {});
           onNotify?.({ type: 'success', message: 'Environment Reset' });
           onStatusChange?.();
           return res.payload;

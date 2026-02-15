@@ -1,5 +1,4 @@
 {
   "fastPeriod": 12,
-  "slowPeriod": 26,
-  "quantity": "0.01"
+  "slowPeriod": "50"
 }

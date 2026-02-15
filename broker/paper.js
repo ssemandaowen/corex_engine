@@ -7,8 +7,8 @@ const StrategyPositionManager = require('@utils/strategy/StrategyPositionManager
 const pgStore = require('@core/services/pgStore');
 
 /**
- * PaperBroker - Professional Execution Engine
- * Supports PAPER mode with LIVE stubs for future expansion.
+ * PaperBroker: Virtual Execution Engine
+ * The "Control" for Paper Trading state management.
  */
 class PaperBroker extends EventEmitter {
     constructor(initialCash = 100000) {
@@ -23,24 +23,31 @@ class PaperBroker extends EventEmitter {
             commissionPerShare: 0.005,
             commissionMin: 1.00,
             slippageBps: 5,
-            fillProbability: 0.98,
-            minBalance: 0,
-            maxBalance: 100000000,
-            marginRequirement: 1.0 // 1.0 = 100% Cash, 0.2 = 5x Leverage
+            marginRequirement: 1.0 // 1.0 = Cash, <1.0 = Leverage
         };
 
-        this._loadSettings().catch((e) => logger.warn(`[BROKER] Config Load Error: ${e.message}`));
-
-        logger.info(`[BROKER] Engine initialized. Initial Capital: $${this.cash.toLocaleString()}`);
+        this._loadSettings().catch(e => logger.error(`[BROKER] Init Error: ${e.message}`));
     }
 
-    /**
-     * CORE ACCOUNT METRICS
-     */
+    // --- SENSORY METRICS ---
+    getAccountSnapshot() {
+        return {
+            balance: this.cash,
+            equity: this.getEquity(),
+            usedMargin: this.getUsedMargin(),
+            freeMargin: this.getFreeMargin(),
+            positions: this.positions.all().map(p => ({
+                ...p,
+                unrealized: p.getPnL(this.lastPrices.get(p.symbol) || p.avgEntryPrice)
+            })),
+            timestamp: Date.now()
+        };
+    }
+
     getEquity() {
         let unrealized = 0;
         for (const pos of this.positions.all()) {
-            unrealized += this._calculateUnrealizedPnL(pos.symbol);
+            unrealized += pos.getPnL(this.lastPrices.get(pos.symbol) || pos.avgEntryPrice);
         }
         return this.cash + unrealized;
     }
@@ -49,7 +56,7 @@ class PaperBroker extends EventEmitter {
         let used = 0;
         for (const pos of this.positions.all()) {
             const price = this.lastPrices.get(pos.symbol) || pos.avgEntryPrice;
-            used += (Math.abs(pos.quantity) * price) * (this.config.marginRequirement || 1.0);
+            used += (Math.abs(pos.quantity) * price) * this.config.marginRequirement;
         }
         return used;
     }
@@ -58,189 +65,77 @@ class PaperBroker extends EventEmitter {
         return this.getEquity() - this.getUsedMargin();
     }
 
-    getAccountSnapshot(mode = "PAPER") {
-        const positions = this.positions.all().map((pos) => ({
-            symbol: pos.symbol,
-            quantity: pos.quantity,
-            avgEntryPrice: pos.avgEntryPrice,
-            side: pos.side,
-            unrealizedPnL: this._calculateUnrealizedPnL(pos.symbol),
-            marketPrice: this.lastPrices.get(pos.symbol) || 0
-        }));
-
-        return {
-            mode: mode.toUpperCase(),
-            balance: this.cash,
-            equity: this.getEquity(),
-            margin: this.getUsedMargin(),
-            freeMargin: this.getFreeMargin(),
-            initialCash: this.initialCash,
-            positions,
-            config: { ...this.config },
-            lastUpdated: Date.now()
-        };
-    }
-
-    /**
-     * EXECUTION LOGIC
-     */
-    buy(symbol, quantity = 1) {
-        const price = this._getExecutionPrice(symbol, 'BUY');
+    // --- EXECUTION CORE ---
+    execute(symbol, side, quantity) {
+        const price = this._getExecutionPrice(symbol, side);
         const commission = this._calculateCommission(quantity);
-        const totalCost = (quantity * price) + commission;
-
-        const position = this.positions.get(symbol);
-        const reducingShort = position && position.side === 'short';
-
-        // Margin Guard (only when adding long exposure)
-        if (!reducingShort) {
-            const requiredMargin = (quantity * price) * this.config.marginRequirement;
-            if (requiredMargin > this.getFreeMargin()) {
-                logger.error(`[BROKER] MARGIN REJECTION: Required $${requiredMargin.toFixed(2)} > Free $${this.getFreeMargin().toFixed(2)}`);
-                return false;
-            }
-        }
-
-        this.cash -= totalCost;
-        this._updatePosition(symbol, quantity, price);
-        this._emitOrderFilled('BUY', symbol, quantity, price, commission);
-        return true;
-    }
-
-    sell(symbol, quantity = 1) {
-        const position = this.positions.get(symbol);
-
-        // If we don't have a long position, treat as short entry/increase
-        const openingShort = !position || position.side === 'short';
-
-        const price = this._getExecutionPrice(symbol, 'SELL');
-        const commission = this._calculateCommission(quantity);
-        const netProceeds = (quantity * price) - commission;
-
-        if (openingShort) {
-            const requiredMargin = (quantity * price) * this.config.marginRequirement;
-            if (requiredMargin > this.getFreeMargin()) {
-                logger.error(`[BROKER] MARGIN REJECTION: Required $${requiredMargin.toFixed(2)} > Free $${this.getFreeMargin().toFixed(2)}`);
-                return false;
-            }
-        } else if (position.quantity < quantity) {
-            logger.error(`[BROKER] INSUFFICIENT INVENTORY: ${symbol}`);
+        const cost = (quantity * price);
+        
+        // Margin Check
+        if (side === 'BUY' && (cost + commission) > this.getFreeMargin()) {
+            logger.warn(`[BROKER] MARGIN REJECTION: ${symbol}`);
             return false;
         }
 
-        this.cash += netProceeds;
-        this._updatePosition(symbol, -quantity, price);
-        this._emitOrderFilled('SELL', symbol, quantity, price, commission);
+        // State Update
+        if (side === 'BUY') {
+            this.cash -= (cost + commission);
+            this.positions.applyDelta(symbol, quantity, price);
+        } else {
+            this.cash += (cost - commission);
+            this.positions.applyDelta(symbol, -quantity, price);
+        }
+
+        this._persist();
+        this._broadcastTrade(side, symbol, quantity, price, commission);
         return true;
     }
 
-    closePosition(symbol) {
-        const pos = this.positions.get(symbol);
-        if (!pos) return false;
-        return pos.side === 'short' ? this.buy(symbol, pos.quantity) : this.sell(symbol, pos.quantity);
-    }
-
-    /**
-     * MARKET DATA & STATE
-     */
-    updatePrice(symbol, price) {
-        if (price <= 0) return;
-        const prevPrice = this.lastPrices.get(symbol);
-        this.lastPrices.set(symbol, price);
-
-        if (this.positions.get(symbol)) {
-            bus.emit(EVENTS.POSITION.UPDATED, this._getPositionState(symbol));
-        }
-        this._emitPortfolioUpdate();
-    }
-
-    _calculateUnrealizedPnL(symbol) {
-        const pos = this.positions.get(symbol);
-        return pos ? pos.getPnL(this.lastPrices.get(symbol) || 0) : 0;
-    }
-
+    // --- INTERNAL LOGIC ---
     _getExecutionPrice(symbol, side) {
         const marketPrice = this.lastPrices.get(symbol);
-        if (!marketPrice) throw new Error(`Price feed unavailable: ${symbol}`);
-        const slippage = 1 + (this.config.slippageBps / 10000) * (side === 'BUY' ? 1 : -1);
-        return marketPrice * slippage;
+        if (!marketPrice) throw new Error(`Market data offline: ${symbol}`);
+        const slip = 1 + (this.config.slippageBps / 10000) * (side === 'BUY' ? 1 : -1);
+        return marketPrice * slip;
     }
 
     _calculateCommission(qty) {
         return Math.max(this.config.commissionMin, qty * this.config.commissionPerShare);
     }
 
-    _updatePosition(symbol, delta, price) {
-        this.positions.applyDelta(symbol, delta, price);
-    }
-
-    _emitOrderFilled(side, symbol, quantity, price, commission) {
-        const id = `ord_${Date.now()}_${this.orderId++}`;
-        bus.emit(EVENTS.ORDER.FILLED, {
-            id, symbol, side, quantity, price, commission,
-            timestamp: Date.now(),
-            type: 'MARKET'
-        });
-    }
-
-    _getPositionState(symbol) {
-        const pos = this.positions.get(symbol);
-        if (!pos) return null;
-        return {
-            symbol,
-            quantity: pos.quantity,
-            avgEntryPrice: pos.avgEntryPrice,
-            side: pos.side,
-            unrealizedPnL: this._calculateUnrealizedPnL(symbol),
-            marketPrice: this.lastPrices.get(symbol) || 0,
+    _broadcastTrade(side, symbol, quantity, price, commission) {
+        const payload = {
+            id: `PPR_${Date.now()}`,
+            symbol, side, quantity, price, commission,
             timestamp: Date.now()
         };
+        bus.emit(EVENTS.ORDER.FILLED, payload);
+        // This is the "Nerve Impulse" for your Portal/Client
+        bus.emit(EVENTS.BROKER.UPDATE, this.getAccountSnapshot()); 
     }
 
-    _emitPortfolioUpdate() {
-        bus.emit(EVENTS.POSITION.PORTFOLIO_UPDATE, {
-            equity: this.getEquity(),
-            cash: this.cash,
-            margin: this.getUsedMargin(),
-            freeMargin: this.getFreeMargin(),
-            timestamp: Date.now()
-        });
-    }
-
-    /**
-     * PERSISTENCE & SETTINGS
-     */
-    updateConfig(next = {}) {
-        this.config = { ...this.config, ...next };
-        this._saveSettings().catch((e) => logger.warn(`[BROKER] Config Save Error: ${e.message}`));
-        return this.config;
-    }
-
-    resetAccount() {
-        this.cash = this.initialCash;
-        this.positions.reset();
-        this.lastPrices.clear();
-        this._saveSettings().catch((e) => logger.warn(`[BROKER] Config Save Error: ${e.message}`));
-        logger.info(`[BROKER] Account Reset to $${this.cash}`);
-        return true;
-    }
-
-    async _loadSettings() {
-        const data = await pgStore.getBrokerSettings("paper");
-        if (!data) return;
-        if (data.cash != null) this.cash = Number(data.cash);
-        if (data.initialCash != null) this.initialCash = Number(data.initialCash);
-        if (data.config && typeof data.config === "object") {
-            this.config = { ...this.config, ...data.config };
-        }
-    }
-
-    async _saveSettings() {
+    async _persist() {
         await pgStore.upsertBrokerSettings("paper", {
             cash: this.cash,
             initialCash: this.initialCash,
             config: this.config
         });
+    }
+
+    async _loadSettings() {
+        const data = await pgStore.getBrokerSettings("paper");
+        if (data) {
+            this.cash = Number(data.cash);
+            this.config = { ...this.config, ...data.config };
+        }
+    }
+
+    updatePrice(symbol, price) {
+        this.lastPrices.set(symbol, price);
+        // Only broadcast if position exists to save bandwidth
+        if (this.positions.get(symbol)) {
+            bus.emit(EVENTS.POSITION.UPDATED, this.getAccountSnapshot());
+        }
     }
 }
 

@@ -8,8 +8,11 @@ const { getPaperBroker } = require("@broker/paperStore");
 const { getLiveBroker } = require("@broker/liveStore");
 const marketBroker = require("@broker/twelvedata");
 const mt5Bridge = require("@core/services/mt5Bridge");
+const broadcaster = require("@core/services/broadcaster");
+const db = require("@core/services/postgres");
 const pgStore = require("@core/services/pgStore");
 const engine = require("@core/core/engine");
+const { runHealthCheck } = require("@core/services/healthCheck");
 const logger = require('@utils/logger');
 
 /**
@@ -80,6 +83,17 @@ router.get('/feed/metrics', (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ success: false, error: "FEED_METRICS_FAILED", message: err.message });
+    }
+});
+
+// Control Gates: DB + MT5 + Strategy Hash Integrity
+router.get('/health/control-gates', async (req, res) => {
+    try {
+        const report = await runHealthCheck();
+        const status = report.ok ? 200 : 503;
+        res.status(status).json({ success: report.ok, payload: report });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "HEALTH_CHECK_FAILED", message: err.message });
     }
 });
 
@@ -245,10 +259,27 @@ router.get('/settings', async (req, res) => {
 router.patch('/settings', async (req, res) => {
     try {
         const { settings, persist } = req.body || {};
-        const updated = engine.updateSettings(settings || {});
+        const uiSettings = settings?.ui;
+        const engineSettings = { ...(settings || {}) };
+        delete engineSettings.ui;
+
+        const updated = engine.updateSettings(engineSettings || {});
         if (persist !== false) {
-            await pgStore.upsertSystemSettings(updated);
+            const existing = await pgStore.getSystemSettings();
+            const payload = existing?.payload && typeof existing.payload === "object" ? existing.payload : {};
+            const nextPayload = {
+                ...payload,
+                engine: {
+                    ...(payload.engine || {}),
+                    ...updated
+                }
+            };
+            if (uiSettings && typeof uiSettings === "object") {
+                nextPayload.ui = { ...(payload.ui || {}), ...uiSettings };
+            }
+            await pgStore.upsertSystemSettings(nextPayload);
         }
+        bus.emit(EVENTS.SYSTEM.CONFIG_REFRESH, { source: "api", updated });
         res.json({ success: true, payload: updated });
     } catch (err) {
         res.status(500).json({ success: false, error: "SETTINGS_UPDATE_FAILED", message: err.message });
@@ -270,14 +301,101 @@ router.post('/maintenance/reset-states', (req, res) => {
 });
 
 router.get('/mt5/status', (req, res) => {
+    Promise.all([
+        db.query(
+        `SELECT terminal_id, last_seen, status, account_id
+         FROM bridge_status
+         ORDER BY last_seen DESC`
+        ),
+        db.query(`SELECT execution_enabled FROM execution_control WHERE id = 1`)
+    ]).then(([bridgeRes, execRes]) => {
+        const rows = bridgeRes.rows || [];
+        const heartbeat = rows[0] || null;
+        const pending = rows.filter((r) => r.status === "PENDING_APPROVAL");
+        const executionEnabled = execRes.rows?.[0]?.execution_enabled ?? true;
+
+        let bridgeStatus = "DISCONNECTED";
+        if (heartbeat?.last_seen) {
+            const lastSeen = new Date(heartbeat.last_seen).getTime();
+            if (Date.now() - lastSeen < 30000) {
+                bridgeStatus = "CONNECTED";
+            }
+        }
+
+        res.json({
+            success: true,
+            payload: {
+                bridgeStatus,
+                account: mt5Bridge.getAccountSnapshot(),
+                positions: mt5Bridge.getPositions(),
+                heartbeat,
+                pending,
+                executionEnabled
+            }
+        });
+    }).catch(() => {
+        res.json({
+            success: true,
+            payload: {
+                bridgeStatus: "DISCONNECTED",
+                account: mt5Bridge.getAccountSnapshot(),
+                positions: mt5Bridge.getPositions(),
+                heartbeat: null,
+                pending: [],
+                executionEnabled: false
+            }
+        });
+    });
+});
+
+// WS Health Check
+router.get('/ws-health', (req, res) => {
+    const clients = broadcaster?.wss?.clients ? broadcaster.wss.clients.size : 0;
     res.json({
         success: true,
         payload: {
-            ...mt5Bridge.getStatus(),
-            account: mt5Bridge.getAccountSnapshot(),
-            positions: mt5Bridge.getPositions()
+            enabled: !!broadcaster?.wss,
+            clients
         }
     });
+});
+
+// Push-test: seed a LIVE order for a specific terminal
+router.post('/mt5/push-test', async (req, res) => {
+    const terminalId = String(req.body?.terminal_id || "105388034").trim();
+    const symbol = String(req.body?.symbol || "EURUSD").trim().toUpperCase();
+    const side = String(req.body?.side || "BUY").trim().toUpperCase() === "SELL" ? "SELL" : "BUY";
+    const quantity = Number(req.body?.quantity ?? 0.01);
+    if (!terminalId || !symbol || !Number.isFinite(quantity) || quantity <= 0) {
+        return res.status(400).json({ success: false, error: "INVALID_PAYLOAD" });
+    }
+    try {
+        await db.query(
+            `INSERT INTO orders (strategy_id, symbol, side, order_type, quantity, status, environment, terminal_id)
+             VALUES ($1, $2, $3, 'MARKET', $4, 'PENDING', 'LIVE', $5)`,
+            [null, symbol, side, quantity, terminalId]
+        );
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "PUSH_FAILED", message: err.message });
+    }
+});
+
+router.post('/mt5/execution', async (req, res) => {
+    const enabled = req.body?.enabled === true;
+    try {
+        await db.query(
+            `INSERT INTO execution_control (id, execution_enabled, updated_at)
+             VALUES (1, $1, NOW())
+             ON CONFLICT (id) DO UPDATE
+             SET execution_enabled = EXCLUDED.execution_enabled,
+                 updated_at = EXCLUDED.updated_at`,
+            [enabled]
+        );
+        res.json({ success: true, payload: { executionEnabled: enabled } });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "EXECUTION_UPDATE_FAILED", message: err.message });
+    }
 });
 
 router.get('/db/summary', async (req, res) => {

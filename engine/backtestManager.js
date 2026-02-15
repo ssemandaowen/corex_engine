@@ -2,10 +2,13 @@ const dataForge = require("data-forge");
 const { backtest, analyze, computeEquityCurve } = require("grademark");
 const fs = require("fs");
 const path = require("path");
+const readline = require("readline");
 const { v4: uuidv4 } = require("uuid");
 
 const logger = require("@utils/logger");
 const broker = require("@broker/twelvedata");
+const db = require("@core/services/postgres");
+const { compile } = require("@core/services/strategyCompiler");
 
 /**
  * @class BacktestManager
@@ -33,6 +36,11 @@ class BacktestManager {
     async run(strategy, options = {}) {
         const runtimeId = uuidv4().slice(0, 8);
         const startMs = Date.now();
+
+        const compiled = compile(strategy);
+        if (!compiled.ok) {
+            throw new Error(`STRATEGY_COMPILE_FAILED: ${compiled.reason}`);
+        }
 
         logger.info(`Backtest start [${runtimeId}] - strategy=${strategy?.name || "unknown"} id=${strategy?.id || "n/a"}`);
 
@@ -96,7 +104,7 @@ class BacktestManager {
     async _loadAndNormalizeData(options) {
         let rawRows;
         if (options.file?.path) {
-            rawRows = this._readCsv(options.file.path);
+            rawRows = await this._readCsv(options.file.path);
         } else if (options.symbol && options.interval) {
             rawRows = await this._fetchFromBroker(options);
         } else {
@@ -105,7 +113,7 @@ class BacktestManager {
         return this._normalizeBars(rawRows);
     }
 
-    _readCsv(filePath) {
+    async _readCsv(filePath) {
         const maxMb = Number(process.env.BACKTEST_MAX_MB || 50);
         try {
             const stat = fs.statSync(filePath);
@@ -116,8 +124,53 @@ class BacktestManager {
         } catch (err) {
             if (err.code === "ENOENT") throw err;
         }
-        const content = fs.readFileSync(filePath, "utf-8");
-        return dataForge.fromCSV(content).toArray();
+        const input = fs.createReadStream(filePath, { encoding: "utf8" });
+        const rl = readline.createInterface({ input, crlfDelay: Infinity });
+
+        let headers = null;
+        const rows = [];
+
+        for await (const line of rl) {
+            if (!line || !line.trim()) continue;
+            if (!headers) {
+                headers = this._parseCsvLine(line);
+                continue;
+            }
+            const values = this._parseCsvLine(line);
+            const row = {};
+            for (let i = 0; i < headers.length; i += 1) {
+                row[headers[i]] = values[i] ?? "";
+            }
+            rows.push(row);
+        }
+
+        return rows;
+    }
+
+    _parseCsvLine(line) {
+        const out = [];
+        let cur = "";
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i += 1) {
+            const ch = line[i];
+            if (ch === '"') {
+                if (inQuotes && line[i + 1] === '"') {
+                    cur += '"';
+                    i += 1;
+                } else {
+                    inQuotes = !inQuotes;
+                }
+                continue;
+            }
+            if (ch === "," && !inQuotes) {
+                out.push(cur);
+                cur = "";
+                continue;
+            }
+            cur += ch;
+        }
+        out.push(cur);
+        return out.map((v) => String(v).trim());
     }
 
     async _fetchFromBroker(options) {
@@ -255,6 +308,14 @@ class BacktestManager {
         const duration = ((Date.now() - startMs) / 1000).toFixed(2);
         const safeTrades = Array.isArray(trades) ? trades : [];
         const wins = safeTrades.filter(t => (t.profit || 0) > 0).length;
+        const winRate = safeTrades.length > 0 ? (wins / safeTrades.length) : 0;
+        const grossProfit = safeTrades.filter(t => (t.profit || 0) > 0).reduce((s, t) => s + (t.profit || 0), 0);
+        const grossLoss = safeTrades.filter(t => (t.profit || 0) < 0).reduce((s, t) => s + Math.abs(t.profit || 0), 0);
+        const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss) : null;
+        const avgWin = wins > 0 ? (grossProfit / wins) : 0;
+        const losses = safeTrades.filter(t => (t.profit || 0) < 0).length;
+        const avgLoss = losses > 0 ? (grossLoss / losses) : 0;
+        const expectancy = (winRate * avgWin) - ((1 - winRate) * avgLoss);
 
         // Compute equity curve (time + equity points)
         let equityCurve = [];
@@ -293,6 +354,8 @@ class BacktestManager {
                 id: runtimeId,
                 strategyId: strategy.id,
                 strategyName: strategy.name,
+                strategyVersion: strategy.version || strategy.versionTag || options.versionTag || null,
+                runtimeParams: strategy.params || {},
                 symbol: options.symbol || strategy.symbols?.[0] || "SYMBOL",
                 timeframe: options.interval || strategy.timeframe || "1m",
                 timestamp: new Date().toISOString(),
@@ -304,7 +367,13 @@ class BacktestManager {
                 maxDrawdownPercent: (stats.maxDrawdownPct || 0).toFixed(2),
                 totalTrades: safeTrades.length,
                 winRate: safeTrades.length > 0 ? ((wins / safeTrades.length) * 100).toFixed(2) : "0.00",
-                sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A"
+                sharpeRatio: stats.sharpeRatio?.toFixed(2) ?? "N/A",
+                profitFactor: profitFactor != null ? profitFactor.toFixed(2) : "N/A",
+                grossProfit: grossProfit.toFixed(2),
+                grossLoss: grossLoss.toFixed(2),
+                avgWin: avgWin.toFixed(2),
+                avgLoss: avgLoss.toFixed(2),
+                expectancy: expectancy.toFixed(2)
             },
             performanceRaw: {
                 netProfit: Number(stats.profit || 0),
@@ -312,7 +381,13 @@ class BacktestManager {
                 maxDrawdownPercent: Number(stats.maxDrawdownPct || 0),
                 totalTrades: Number(safeTrades.length || 0),
                 winRate: safeTrades.length > 0 ? Number((wins / safeTrades.length) * 100) : 0,
-                sharpeRatio: Number(stats.sharpeRatio || 0)
+                sharpeRatio: Number(stats.sharpeRatio || 0),
+                profitFactor: profitFactor != null ? Number(profitFactor) : 0,
+                grossProfit: Number(grossProfit || 0),
+                grossLoss: Number(grossLoss || 0),
+                avgWin: Number(avgWin || 0),
+                avgLoss: Number(avgLoss || 0),
+                expectancy: Number(expectancy || 0)
             },
             trades: options.includeTrades ? safeTrades : [],
             equityCurve
@@ -321,7 +396,43 @@ class BacktestManager {
 
     async _saveReport(report) {
         const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
-        fs.writeFileSync(filepath, JSON.stringify(report, null, 2));
+        try {
+            fs.writeFileSync(filepath, JSON.stringify(report, null, 2));
+        } catch (err) {
+            logger.warn(`Backtest file save failed: ${err.message}`);
+        }
+
+        if (!db.hasDbConfig()) return;
+        try {
+            const meta = report.meta || {};
+            const performance = report.performance || {};
+            const options = {
+                symbol: meta.symbol,
+                timeframe: meta.timeframe,
+                executionTime: meta.executionTime
+            };
+            await db.query(
+                `INSERT INTO backtests (id, strategy_id, strategy_name, symbol, timeframe, options, performance, report)
+                 VALUES ($1,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb)
+                 ON CONFLICT (id) DO UPDATE
+                 SET report = EXCLUDED.report,
+                     performance = EXCLUDED.performance,
+                     options = EXCLUDED.options,
+                     created_at = NOW()`,
+                [
+                    String(meta.id),
+                    meta.strategyId || null,
+                    meta.strategyName || null,
+                    meta.symbol || null,
+                    meta.timeframe || null,
+                    JSON.stringify(options),
+                    JSON.stringify(performance),
+                    JSON.stringify(report)
+                ]
+            );
+        } catch (err) {
+            logger.warn(`Backtest DB save failed: ${err.message}`);
+        }
     }
 }
 

@@ -8,6 +8,7 @@ const backtestManager = require("@core/backtestManager");
 const loader = require("@core/strategyLoader");
 const { ensureDir, cleanupBacktests, cleanupUploads } = require("@utils/storageManager");
 const crypto = require("crypto");
+const db = require("@core/services/postgres");
 
 // Standardize Paths
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -50,15 +51,46 @@ router.get("/", (req, res) => {
     try {
         cleanupBacktests(REPORTS_DIR);
         cleanupUploads(UPLOADS_DEDUP_DIR);
+        if (db.hasDbConfig()) {
+            db.query(
+                `SELECT id, created_at, report
+                 FROM backtests
+                 ORDER BY created_at DESC`
+            ).then(({ rows }) => {
+                const reports = (rows || []).map(r => ({
+                    id: r.id,
+                    timestamp: new Date(r.created_at).getTime(),
+                    size: JSON.stringify(r.report || {}).length,
+                    strategyId: r.report?.meta?.strategyId || null,
+                    strategyName: r.report?.meta?.strategyName || null,
+                    symbol: r.report?.meta?.symbol || null,
+                    timeframe: r.report?.meta?.timeframe || null
+                }));
+                res.json({ success: true, payload: reports });
+            }).catch(() => {
+                res.json({ success: true, payload: [] });
+            });
+            return;
+        }
+
         const files = fs.readdirSync(REPORTS_DIR);
         const reports = files
             .filter(file => file.endsWith('.json'))
             .map(file => {
                 const stat = fs.statSync(path.join(REPORTS_DIR, file));
+                let meta = {};
+                try {
+                    const raw = fs.readFileSync(path.join(REPORTS_DIR, file), 'utf8');
+                    meta = JSON.parse(raw)?.meta || {};
+                } catch { /* ignore */ }
                 return {
                     id: file.replace('.json', ''),
                     timestamp: stat.mtimeMs,
-                    size: stat.size
+                    size: stat.size,
+                    strategyId: meta.strategyId || null,
+                    strategyName: meta.strategyName || null,
+                    symbol: meta.symbol || null,
+                    timeframe: meta.timeframe || null
                 };
             })
             .sort((a, b) => b.timestamp - a.timestamp);
@@ -102,22 +134,13 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
 
         let instance = entry.instance;
         try {
-            // Isolate backtest params from live instance
-            try {
-                const resolved = require.resolve(entry.filePath);
-                if (require.cache[resolved]) delete require.cache[resolved];
-                const baseResolved = require.resolve('@utils/BaseStrategy');
-                if (require.cache[baseResolved]) delete require.cache[baseResolved];
-            } catch (e) { /* ignore */ }
-
-            const StrategyClass = require(entry.filePath);
-            instance = typeof StrategyClass === 'function'
-                ? new StrategyClass({ name: entry.id, id: entry.id })
-                : StrategyClass;
-            instance.id = entry.id;
-            instance.name = entry.id;
+            const fresh = loader._instantiateStrategy(entry.source || "", entry.id);
+            if (fresh) {
+                instance = fresh;
+                instance.id = entry.id;
+                instance.name = entry.id;
+            }
         } catch (e) {
-            // Fallback to existing instance if instantiation fails
             instance = entry.instance;
         }
 
@@ -153,6 +176,19 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
  * @desc Fetch report data for the "Data" Tab charts
  */
 router.get("/:reportId", (req, res) => {
+    if (db.hasDbConfig()) {
+        db.query(
+            `SELECT report FROM backtests WHERE id = $1 LIMIT 1`,
+            [String(req.params.reportId)]
+        ).then(({ rows }) => {
+            if (!rows[0]) return res.status(404).json({ success: false, error: "REPORT_NOT_FOUND" });
+            return res.json({ success: true, payload: rows[0].report || {} });
+        }).catch((err) => {
+            res.status(500).json({ success: false, error: "READ_FAILED", message: err.message });
+        });
+        return;
+    }
+
     const filePath = path.join(REPORTS_DIR, `${req.params.reportId}.json`);
     if (!fs.existsSync(filePath)) {
         return res.status(404).json({ success: false, error: "REPORT_NOT_FOUND" });
@@ -163,6 +199,32 @@ router.get("/:reportId", (req, res) => {
         res.json({ success: true, payload: JSON.parse(data) });
     } catch (err) {
         res.status(500).json({ success: false, error: "READ_FAILED" });
+    }
+});
+
+/**
+ * @route DELETE /api/backtest/:reportId
+ * @desc Remove a backtest report from DB and filesystem
+ */
+router.delete("/:reportId", (req, res) => {
+    const reportId = String(req.params.reportId);
+    if (db.hasDbConfig()) {
+        db.query(`DELETE FROM backtests WHERE id = $1`, [reportId])
+            .then(() => res.json({ success: true }))
+            .catch((err) => res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message }));
+        return;
+    }
+
+    const filePath = path.join(REPORTS_DIR, `${reportId}.json`);
+    if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ success: false, error: "REPORT_NOT_FOUND" });
+    }
+
+    try {
+        fs.unlinkSync(filePath);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });
     }
 });
 

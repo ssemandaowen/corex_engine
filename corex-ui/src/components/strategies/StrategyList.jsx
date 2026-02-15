@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
-import { MoreVertical, Play, Edit3, Trash2, Settings, Loader2 } from 'lucide-react';
+import { MoreVertical, Play, Square, Edit3, Trash2, Download, Pencil } from 'lucide-react';
 
 const StrategyItem = ({ item, isActive, onSelect, onAction }) => {
   const [showMenu, setShowMenu] = useState(false);
   const id = item.id || item.name;
+  const isRunning = ['ACTIVE', 'WARMING_UP'].includes(item.status);
 
   const actions = [
-    { label: 'Open Editor', icon: <Edit3 size={14}/>, cmd: 'OPEN', color: 'text-slate-300' },
+    { label: 'Edit', icon: <Edit3 size={14}/>, cmd: 'OPEN', color: 'text-slate-300' },
+    { label: 'Rename', icon: <Pencil size={14}/>, cmd: 'RENAME', color: 'text-slate-300' },
+    { label: 'Export Script', icon: <Download size={14}/>, cmd: 'EXPORT', color: 'text-slate-300' },
+    isRunning
+      ? { label: 'Stop', icon: <Square size={14}/>, cmd: 'STOP', color: 'text-rose-400' }
+      : { label: 'Start', icon: <Play size={14}/>, cmd: 'START', color: 'text-emerald-400' },
     { label: 'Delete', icon: <Trash2 size={14}/>, cmd: 'DELETE', color: 'text-red-500' },
   ];
 

@@ -1,33 +1,33 @@
 "use strict";
 
-const fs = require('fs');
-const path = require('path');
+const Module = require('module');
 const logger = require('@utils/logger');
 const { bus, EVENTS } = require('@events/bus');
 const { validateStrategyCode } = require('@utils/security');
 const stateManager = require('@utils/stateController');
+const { verifyStrategyFile } = require('@core/services/hashVerifier');
+const db = require('@core/services/postgres');
+const { compile } = require("@core/services/strategyCompiler");
+
+const MODULE = "STRATEGY_LOADER";
+const log = {
+    info: (message, meta) => logger.info(`[${MODULE}][INFO] ${message}`, meta),
+    warn: (message, meta) => logger.warn(`[${MODULE}][WARN] ${message}`, meta),
+    error: (message, meta) => logger.error(`[${MODULE}][ERROR] ${message}`, meta),
+    debug: (message, meta) => logger.debug(`[${MODULE}][DEBUG] ${message}`, meta)
+};
 
 /**
  * Manages loading, reloading, starting, and stopping trading strategies.
- * It monitors a designated directory for strategy files and handles their lifecycle.
+ * It loads strategies from the database and handles their lifecycle.
  */
 class StrategyLoader {
-    /**
-     * @param {object} options - Configuration options for the loader.
-     * @param {string} [options.strategiesDir='../strategies'] - Relative path to the strategies directory.
-     * @param {string} [options.settingsDir='../data/settings'] - Relative path to the settings directory.
-     */
     constructor(options = {}) {
         this.engine = null;
-        this.strategiesPath = path.resolve(__dirname, options.strategiesDir || '../../strategies');
-        this.settingsPath = path.resolve(__dirname, options.settingsDir || '../../data/settings');
+        this.options = options;
 
-        // Main storage: id → { instance, filePath, mtime }
+        // Main storage: id -> { instance, source, updatedAt }
         this.registry = new Map();
-
-        this.watcher = null;
-        this.debounceTimer = null;
-        this.DEBOUNCE_DELAY_MS = 150; // Delay for file watcher debounce
 
         // Simple stats for diagnostics
         this.stats = {
@@ -36,24 +36,11 @@ class StrategyLoader {
             loadTimesMs: [] // Could be used for average/max load time
         };
 
-        // Ensure directories exist, create if not
-        [this.strategiesPath, this.settingsPath].forEach(p => {
-            try {
-                if (!fs.existsSync(p)) {
-                    fs.mkdirSync(p, { recursive: true });
-                    logger.info(`Created missing directory: ${p}`);
-                }
-            } catch (err) {
-                logger.error(`Failed to ensure directory ${p} exists: ${err.message}`);
-                // Depending on criticality, might throw or exit here
-            }
-        });
-
-        logger.info(`StrategyLoader initialized (strategies: ${this.strategiesPath}, settings: ${this.settingsPath})`);
+        log.info(`StrategyLoader initialized`);
 
         // Auto-save params when strategy requests it
         bus.on(EVENTS.SYSTEM.SETTINGS_UPDATED, e => {
-            logger.debug(`EVENT: SETTINGS_UPDATED for ${e.id}`);
+            log.debug(`EVENT: SETTINGS_UPDATED for ${e.id}`);
             this._saveParams(e.id, e.params);
         });
     }
@@ -66,31 +53,30 @@ class StrategyLoader {
     _logDiagnostics(context = '') {
         try {
             const mem = process.memoryUsage();
-            logger.info(`Diagnostics${context ? ' - ' + context : ''}: registry=${this.registry.size}, rss=${Math.round(mem.rss/1024/1024)}MB, heapUsed=${Math.round(mem.heapUsed/1024/1024)}MB`);
+            log.info(`Diagnostics${context ? ' - ' + context : ''}: registry=${this.registry.size}, rss=${Math.round(mem.rss/1024/1024)}MB, heapUsed=${Math.round(mem.heapUsed/1024/1024)}MB`);
         } catch (e) {
-            logger.debug(`Diagnostics logging failed: ${e.message}`);
+            log.debug(`Diagnostics logging failed: ${e.message}`);
         }
     }
 
     /**
-     * Initializes the StrategyLoader, loads all existing strategies, and starts the file watcher.
+     * Initializes the StrategyLoader and loads all DB strategies.
      * @param {object} engine - The core trading engine instance.
      * @returns {string[]} An array of active symbols from currently loaded strategies.
      */
-    init(engine) {
+    async init(engine) {
         if (!engine) {
             throw new Error('StrategyLoader requires an engine instance for initialization.');
         }
         this.engine = engine;
-        logger.info('StrategyLoader init starting');
+        log.info('StrategyLoader init starting');
         const t0 = process.hrtime.bigint();
 
-        this._loadAll();
-        this._startWatcher();
+        await this._loadAll();
 
         const t1 = process.hrtime.bigint();
         const ms = Number(t1 - t0) / 1e6;
-        logger.info(`StrategyLoader init completed in ${ms.toFixed(2)}ms, loaded=${this.registry.size} strategies`);
+        log.info(`StrategyLoader init completed in ${ms.toFixed(2)}ms, loaded=${this.registry.size} strategies`);
         this._logDiagnostics('init');
 
         return this.getActiveSymbols();
@@ -99,141 +85,200 @@ class StrategyLoader {
     // ─── Fast & safe loading ───────────────────────────────────────
 
     /**
-     * Loads all strategy files from the strategies directory.
+     * Loads all strategies from the database.
      * @private
      */
-    _loadAll() {
+    async _loadAll() {
         const t0 = Date.now();
-        let files = [];
+        let rows = [];
         try {
-            files = fs.readdirSync(this.strategiesPath)
-                .filter(f => f.endsWith('.js'));
+            const res = await db.query(
+                `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_updated_at
+                 FROM strategies
+                 WHERE script_body IS NOT NULL
+                 ORDER BY name ASC`
+            );
+            rows = res.rows || [];
         } catch (err) {
-            logger.error(`Failed to read strategies directory (${this.strategiesPath}): ${err.message}`);
+            log.error(`[DB] Failed to read strategies: ${err.message}`);
             return;
         }
 
-        logger.info(`Found ${files.length} strategy files, attempting to load...`);
+        log.info(`Found ${rows.length} strategies in DB, attempting to load...`);
 
-        for (const file of files) {
-            this._loadOne(path.join(this.strategiesPath, file));
+        for (const row of rows) {
+            await this._loadOne(row);
         }
 
         const t1 = Date.now();
-        logger.info(`Loaded ${this.registry.size} strategies in ${t1 - t0}ms (total files found: ${files.length})`);
+        log.info(`Loaded ${this.registry.size} strategies in ${t1 - t0}ms (total found: ${rows.length})`);
         this._logDiagnostics('_loadAll');
     }
 
     /**
-     * Loads or reloads a single strategy file.
-     * This method is refactored into smaller, more focused private helpers.
-     * @param {string} filePath - The full path to the strategy file.
+     * Loads or reloads a single strategy from a DB record.
+     * @param {object} record
+     * @param {string} record.name
+     * @param {string} record.script_body
+     * @param {string|Date} [record.updated_at]
      * @private
      */
-    _loadOne(filePath) {
+    async _loadOne(record) {
         const start = process.hrtime.bigint();
-        const id = path.basename(filePath, '.js');
-        logger.debug(`Attempting to load/reload strategy: ${id} from ${filePath}`);
+        const id = String(record?.name || '').trim();
+        const code = String(record?.script_body || '');
+        const updatedAt = record?.updated_at ? new Date(record.updated_at).getTime() : Date.now();
+
+        if (!id || !code) {
+            log.warn(`[DB] Skipping invalid strategy record: ${id || 'unknown'}`);
+            return;
+        }
+
+        log.debug(`Attempting to load/reload strategy: ${id} from DB`);
 
         try {
-            const stat = fs.statSync(filePath);
             const existing = this.registry.get(id);
 
             // 1. Skip if unchanged
-            if (existing && existing.mtime >= stat.mtimeMs) {
-                logger.debug(`Strategy ${id} unchanged, skipping reload.`);
+            if (existing && existing.updatedAt >= updatedAt) {
+                log.debug(`Strategy ${id} unchanged, skipping reload.`);
                 return;
             }
 
-            // 2. Security Validation
-            const code = fs.readFileSync(filePath, 'utf8');
+            // 2. Hash Verification (optional, DB-backed)
+            const verify = await verifyStrategyFile({
+                strategyName: id,
+                filePath: null,
+                code
+            });
+            if (!verify.ok) {
+                log.error(`Hash verification failed for strategy -> ${id}. Reason: ${verify.reason}`);
+                stateManager.commit(id, 'ERROR', { reason: `hash check failed: ${verify.reason}` });
+                return;
+            }
+
+            // 3. Security Validation
             if (!validateStrategyCode(code)) {
-                logger.error(`Security validation failed for strategy → ${id}. File: ${filePath}`);
+                log.error(`Security validation failed for strategy -> ${id}.`);
                 stateManager.commit(id, 'ERROR', { reason: 'security check failed' });
                 return;
             }
 
-            // 3. Prepare for reload (cleanup existing instance if any)
+            // 4. Prepare for reload (cleanup existing instance if any)
             this._prepareForReload(id, existing);
 
-            // 4. Initialize Strategy Instance
-            const instance = this._instantiateStrategy(filePath, id);
+            // 5. Initialize Strategy Instance
+            const instance = this._instantiateStrategy(code, id);
             if (!instance) {
-                // Error already logged in _instantiateStrategy
                 stateManager.commit(id, 'ERROR', { reason: 'instantiation failed' });
                 return;
             }
 
-            // 5. Apply saved parameters and defaults
-            this._applyStrategySettings(instance, id);
+            const compiled = compile(instance);
+            if (!compiled.ok) {
+                stateManager.commit(id, 'ERROR', { reason: compiled.reason });
+                return;
+            }
 
-            // 6. Update Registry
+            // 6. Apply saved parameters and defaults
+            this._applyStrategySettings(instance, id, record);
+
+            // 7. Update Registry
             this.registry.set(id, {
                 instance,
-                filePath,
-                mtime: stat.mtimeMs
+                source: code,
+                updatedAt,
+                runtimeUpdatedAt: record?.runtime_updated_at ? new Date(record.runtime_updated_at).getTime() : 0,
+                lastRuntimeSync: 0
             });
 
-            // 7. State Management & Post-load actions
-            this._handlePostLoadActions(id, existing, stat, start);
+            // 8. State Management & Post-load actions
+            this._handlePostLoadActions(id, existing, start);
 
         } catch (err) {
-            logger.error(`Failed to load strategy [${id}]: ${err.message}`);
+            log.error(`Failed to load strategy [${id}]: ${err.message}`);
             stateManager.commit(id, 'ERROR', { reason: err.message.slice(0, 120) });
         }
     }
 
+    async _loadByName(id) {
+        const name = String(id || '').trim();
+        if (!name) return false;
+        const { rows } = await db.query(
+            `SELECT name, script_body, updated_at
+             FROM strategies
+             WHERE name = $1
+             LIMIT 1`,
+            [name]
+        );
+        if (!rows[0]) return false;
+        await this._loadOne(rows[0]);
+        return true;
+    }
+
     /**
      * Prepares the environment for a strategy reload by unregistering from the engine
-     * and clearing the require cache.
+     * 
      * @param {string} id - The ID of the strategy.
      * @param {object} existing - The existing strategy entry from the registry, if any.
      * @private
      */
     _prepareForReload(id, existing) {
         if (existing && this.engine) {
-            logger.info(`♻️ Purging existing engine instance for ${id} before reload`);
+            log.info(`Purging existing engine instance for ${id} before reload`);
             this.engine.unregisterStrategy(id);
-        }
-
-        // Clear require cache to ensure fresh load
-        const resolvedPath = existing ? existing.filePath : path.join(this.strategiesPath, `${id}.js`);
-        try {
-            const resolved = require.resolve(resolvedPath);
-            if (require.cache[resolved]) {
-                delete require.cache[resolved];
-                logger.debug(`Cleared require cache for ${id}`);
-            }
-        } catch (e) {
-            // This can happen if the file is new or has a syntax error.
-            logger.debug(`Could not resolve or clear require cache for ${resolvedPath}: ${e.message}`);
         }
     }
 
     /**
-     * Instantiates the strategy class from the given file path.
-     * @param {string} filePath - The full path to the strategy file.
+     * Instantiates the strategy class from the provided source code.
+     * @param {string} code - Strategy source code.
      * @param {string} id - The ID of the strategy.
      * @returns {BaseStrategy|null} The instantiated strategy object, or null if an error occurred.
      * @private
      */
-    _instantiateStrategy(filePath, id) {
+    _instantiateStrategy(code, id) {
         try {
-            const StrategyClass = require(filePath);
+            const filename = `db://strategies/${id}.js`;
+            const mod = new Module(filename, module);
+            mod.filename = filename;
+            mod.paths = Module._nodeModulePaths(process.cwd());
+            mod._compile(code, filename);
+            const StrategyClass = mod.exports;
             if (typeof StrategyClass !== 'function' || !StrategyClass.prototype) {
-                logger.error(`Strategy file [${id}] does not export a class.`);
+                log.error(`Strategy [${id}] does not export a class.`);
                 return null;
             }
 
             const instance = new StrategyClass();
-            // Enforce the ID and name to match the filename, preventing mismatches.
-            // A robust BaseStrategy constructor should handle this internally.
             instance.id = instance.name = id;
+            this._standardizeInterface(instance);
             return instance;
         } catch (err) {
-            logger.error(`Failed to instantiate strategy [${id}] from ${filePath}: ${err.message}`);
+            log.error(`Failed to instantiate strategy [${id}] from DB: ${err.message}`);
             return null;
         }
+    }
+
+    _standardizeInterface(instance) {
+        if (!instance || instance.__corexStandardized) return;
+        const hasProcess = typeof instance._processData === 'function';
+        if (!hasProcess) {
+            const originalOnTick = typeof instance.onTick === 'function' ? instance.onTick.bind(instance) : null;
+            const originalOnBar = typeof instance.onBar === 'function' ? instance.onBar.bind(instance) : null;
+            instance._processData = (packet, meta = {}) => {
+                const source = meta.source || meta.type;
+                if (source === "bar" && originalOnBar) return originalOnBar(packet);
+                if (source === "tick" && originalOnTick) return originalOnTick(packet);
+                if (originalOnBar && packet && packet.open != null && packet.close != null) return originalOnBar(packet);
+                if (originalOnTick) return originalOnTick(packet);
+                return null;
+            };
+            instance.onTick = (packet) => instance._processData(packet, { source: "tick" });
+            instance.onBar = (packet) => instance._processData(packet, { source: "bar" });
+        }
+
+        instance.__corexStandardized = true;
     }
 
     /**
@@ -242,23 +287,84 @@ class StrategyLoader {
      * @param {string} id - The ID of the strategy.
      * @private
      */
-    _applyStrategySettings(instance, id) {
-        const saved = this._loadParams(id);
-        if (saved) {
-            instance.updateParams?.(saved);
+    _applyStrategySettings(instance, id, record = null) {
+        if (record?.runtime_params && typeof record.runtime_params === "object") {
+            const params = record.runtime_params;
+            if (Object.keys(params).length > 0) {
+                instance.updateParams?.(params);
+            }
+        }
+        if (record?.runtime_mode) {
+            instance.mode = String(record.runtime_mode).toUpperCase();
         }
         instance._applyDefaults?.(); // Apply internal defaults if method exists
+    }
+
+    async _updateRuntimeStateInDb(id, { mode, params } = {}) {
+        if (!db.hasDbConfig()) return false;
+        const name = String(id || "").trim();
+        if (!name) return false;
+        const m = mode ? String(mode).toUpperCase() : null;
+        const p = params && typeof params === "object" ? params : null;
+
+        const sql = `
+            UPDATE strategies
+            SET runtime_mode = COALESCE($2, runtime_mode),
+                runtime_params = CASE WHEN $3::jsonb IS NULL THEN runtime_params ELSE $3::jsonb END,
+                runtime_updated_at = NOW()
+            WHERE name = $1
+        `;
+        const payload = p ? JSON.stringify(p) : null;
+        await db.query(sql, [name, m, payload]);
+        return true;
+    }
+
+    async syncRuntimeState(id) {
+        const entry = this.registry.get(id);
+        if (!entry) return;
+        if (!db.hasDbConfig()) return;
+
+        try {
+            const { rows } = await db.query(
+                `SELECT runtime_mode, runtime_params, runtime_updated_at
+                 FROM strategies
+                 WHERE name = $1
+                 LIMIT 1`,
+                [String(id || "").trim()]
+            );
+            const row = rows[0];
+            if (!row) return;
+
+            const updatedAt = row.runtime_updated_at ? new Date(row.runtime_updated_at).getTime() : 0;
+            if (updatedAt && entry.runtimeUpdatedAt && updatedAt <= entry.runtimeUpdatedAt) return;
+
+            if (row.runtime_mode) {
+                entry.instance.mode = String(row.runtime_mode).toUpperCase();
+                if (this.engine && typeof this.engine._setupExecutionContext === "function") {
+                    this.engine._setupExecutionContext(entry.instance);
+                }
+            }
+
+            const params = row.runtime_params && typeof row.runtime_params === "object" ? row.runtime_params : null;
+            if (params && Object.keys(params).length > 0) {
+                entry.instance.updateParams?.(params);
+            }
+
+            entry.runtimeUpdatedAt = updatedAt || Date.now();
+            entry.lastRuntimeSync = Date.now();
+        } catch (err) {
+            log.warn(`Runtime sync failed for ${id}: ${err.message}`);
+        }
     }
 
     /**
      * Handles state management, logging, metrics, and auto-restart after a strategy is loaded.
      * @param {string} id - The ID of the strategy.
      * @param {object|undefined} existing - The existing strategy entry from the registry, if any.
-     * @param {fs.Stats} stat - File system stats for the strategy file.
      * @param {bigint} loadStartTime - The `process.hrtime.bigint()` timestamp when loading started.
      * @private
      */
-    _handlePostLoadActions(id, existing, stat, loadStartTime) {
+    _handlePostLoadActions(id, existing, loadStartTime) {
         const currentStatus = stateManager.getStatus(id);
         if (!currentStatus || currentStatus === 'OFFLINE' || currentStatus === 'ERROR') {
             stateManager.commit(id, 'STAGED', { reason: 'loaded' });
@@ -269,66 +375,28 @@ class StrategyLoader {
         const msTotal = Number(process.hrtime.bigint() - loadStartTime) / 1e6;
         this.stats.loadTimesMs.push(msTotal); // Store for potential average/max calculation
 
-        logger.info(`Strategy ${existing ? 're' : ''}loaded: ${id} (${msTotal.toFixed(2)}ms)`);
+        log.info(`Strategy ${existing ? 're' : ''}loaded: ${id} (${msTotal.toFixed(2)}ms)`);
 
         // Auto-restart if it was ACTIVE before reload
         if (currentStatus === 'ACTIVE' && this.engine) {
-            logger.info(`Strategy ${id} was ACTIVE, attempting auto-restart.`);
+            log.info(`Strategy ${id} was ACTIVE, attempting auto-restart.`);
             this.startStrategy(id); // This will re-register with the engine
         }
 
         bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { id });
     }
 
-    // ─── File watcher with proper debounce ─────────────────────────
+    // File watcher (disabled for DB strategies)
 
     /**
-     * Starts watching the strategies directory for changes.
+     * File watcher disabled (strategies are DB-backed).
      * @private
      */
     _startWatcher() {
-        if (this.watcher) {
-            logger.debug('Watcher already started, skipping.');
-            return;
-        }
-
-        logger.info(`Starting file watcher on ${this.strategiesPath}`);
-        try {
-            this.watcher = fs.watch(this.strategiesPath, (event, filename) => {
-                logger.debug(`Watcher event: ${event} ${filename}`);
-                if (!filename || !filename.endsWith('.js')) {
-                    logger.debug(`Ignoring non-js file event: ${filename}`);
-                    return;
-                }
-
-                // Debounce multiple quick edits to avoid redundant reloads
-                clearTimeout(this.debounceTimer);
-                this.debounceTimer = setTimeout(() => {
-                    const fullPath = path.join(this.strategiesPath, filename);
-                    const id = path.basename(filename, '.js');
-
-                    if (fs.existsSync(fullPath)) {
-                        logger.info(`Detected change/add for ${id}, reloading strategy.`);
-                        this._loadOne(fullPath);
-                    } else {
-                        // File was removed
-                        logger.info(`Detected removal of ${id}, stopping and removing from registry.`);
-                        this.stopStrategy(id); // Ensure it's stopped gracefully
-                        this.registry.delete(id);
-                        stateManager.commit(id, 'OFFLINE', { reason: 'file removed' });
-                        this._logDiagnostics('file removed');
-                        bus.emit(EVENTS.SYSTEM.STRATEGY_UNLOADED, { id });
-                    }
-                }, this.DEBOUNCE_DELAY_MS);
-            });
-            logger.info('File watcher started successfully.');
-        } catch (err) {
-            logger.error(`Failed to start file watcher on ${this.strategiesPath}: ${err.message}`);
-            // Depending on criticality, might throw or exit here
-        }
+        log.info('StrategyLoader watcher disabled (DB-backed).');
     }
 
-    // ─── Persistence (only when needed) ───────────────────────────
+    // Persistence (only when needed) ───────────────────────────
 
     /**
      * Saves strategy parameters to a JSON file.
@@ -337,18 +405,13 @@ class StrategyLoader {
      * @private
      */
     _saveParams(id, params) {
-        if (!params || typeof params !== 'object' || Object.keys(params).length === 0) {
-            logger.debug(`_saveParams called with invalid or empty params for ${id}, skipping save.`);
+        if (!params || typeof params !== 'object') {
+            log.debug(`_saveParams called with invalid params for ${id}, skipping save.`);
             return;
         }
-
-        const file = path.join(this.settingsPath, `settings_${id}.json`);
-        try {
-            fs.writeFileSync(file, JSON.stringify(params, null, 2), 'utf8');
-            logger.info(`Saved settings for ${id} to ${file}`);
-        } catch (err) {
-            logger.warn(`Cannot save settings for ${id} to ${file}: ${err.message}`);
-        }
+        this._updateRuntimeStateInDb(id, { params }).catch((err) => {
+            log.warn(`DB param save failed for ${id}: ${err.message}`);
+        });
     }
 
     /**
@@ -358,17 +421,16 @@ class StrategyLoader {
      * @private
      */
     _loadParams(id) {
-        const file = path.join(this.settingsPath, `settings_${id}.json`);
-        if (!fs.existsSync(file)) {
-            logger.debug(`No saved settings file found for ${id} at ${file}`);
-            return null;
-        }
+        if (!db.hasDbConfig()) return null;
         try {
-            const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-            logger.debug(`Loaded saved settings for ${id} from ${file}`);
-            return data;
-        } catch (err) {
-            logger.warn(`Failed to load saved settings for ${id} from ${file}: ${err.message}`);
+            const name = String(id || '').trim();
+            if (!name) return null;
+            return db.query(
+                `SELECT runtime_params FROM strategies WHERE name = $1 LIMIT 1`,
+                [name]
+            ).then(({ rows }) => rows[0]?.runtime_params || null)
+                .catch(() => null);
+        } catch {
             return null;
         }
     }
@@ -382,11 +444,11 @@ class StrategyLoader {
      * @returns {object|null} The strategy entry from the registry, or null if not found.
      */
     startStrategy(id, options = {}) {
-        logger.info(`startStrategy requested for ${id} with options=${JSON.stringify(options)}`);
+        log.info(`startStrategy requested for ${id} with options=${JSON.stringify(options)}`);
         const entry = this.registry.get(id);
         
         if (!entry) {
-            logger.warn(`startStrategy: Strategy [${id}] not found in registry.`);
+            log.warn(`startStrategy: Strategy [${id}] not found in registry.`);
             return null;
         }
 
@@ -396,7 +458,7 @@ class StrategyLoader {
         const transitionableStates = ['STAGED', 'PAUSED', 'ERROR', 'OFFLINE'];
         
         if (!transitionableStates.includes(currentStatus)) {
-            logger.warn(`startStrategy: Strategy [${id}] is currently ${currentStatus}. Ignoring start request.`);
+            log.warn(`startStrategy: Strategy [${id}] is currently ${currentStatus}. Ignoring start request.`);
             return entry;
         }
 
@@ -409,6 +471,11 @@ class StrategyLoader {
         // 1. Initial State update to inform UI we are working on it
         stateManager.commit(id, 'WARMING_UP', { reason: 'Loader passing control to Engine' });
 
+        this._updateRuntimeStateInDb(id, {
+            mode: entry.instance.mode,
+            params: options.strategyParams || entry.instance.params || {}
+        }).catch(() => {});
+
         // 2. Hand over to Engine for Market Connection
         if (this.engine) {
             // We don't await this here to keep the UI responsive; 
@@ -416,19 +483,19 @@ class StrategyLoader {
             this.engine.registerStrategy(entry.instance, options)
                 .then(success => {
                     if (success) {
-                        logger.info(`🚀 [${id}] Strategy successfully deployed to engine.`);
+                        log.info(`🚀 [${id}] Strategy successfully deployed to engine.`);
                         bus.emit(EVENTS.SYSTEM.STRATEGY_START, { id, mode: entry.instance.mode });
                     } else {
-                        logger.error(`[${id}] Engine registration failed (returned false).`);
+                        log.error(`[${id}] Engine registration failed (returned false).`);
                         stateManager.commit(id, 'ERROR', { reason: 'Engine registration failed' });
                     }
                 })
                 .catch(err => {
-                    logger.error(`[${id}] Engine handover failed: ${err.message}`);
+                    log.error(`[${id}] Engine handover failed: ${err.message}`);
                     stateManager.commit(id, 'ERROR', { reason: `Engine handover failed: ${err.message.slice(0, 100)}` });
                 });
         } else {
-            logger.error(`[${id}] Failed to start: Engine instance not found in Loader.`);
+            log.error(`[${id}] Failed to start: Engine instance not found in Loader.`);
             stateManager.commit(id, 'ERROR', { reason: 'Core Engine Missing' });
         }
 
@@ -442,16 +509,16 @@ class StrategyLoader {
      * @returns {object|null} The strategy entry from the registry, or null if not found.
      */
     stopStrategy(id) {
-        logger.info(`stopStrategy requested for ${id}`);
+        log.info(`stopStrategy requested for ${id}`);
         const entry = this.registry.get(id);
         if (!entry) {
-            logger.warn(`stopStrategy: No entry found for strategy [${id}] in registry.`);
+            log.warn(`stopStrategy: No entry found for strategy [${id}] in registry.`);
             return null;
         }
 
         const currentStatus = stateManager.getStatus(id);
         if (currentStatus === 'OFFLINE' || currentStatus === 'STOPPING') {
-            logger.debug(`stopStrategy: Strategy [${id}] is already ${currentStatus}. Ignoring request.`);
+            log.debug(`stopStrategy: Strategy [${id}] is already ${currentStatus}. Ignoring request.`);
             return entry;
         }
 
@@ -464,7 +531,7 @@ class StrategyLoader {
         stateManager.commit(id, 'OFFLINE', { reason: 'Stopped by user/system' });
 
         const unregisterTimeMs = Number(t1 - t0) / 1e6;
-        logger.info(`Unregistered strategy ${id} (engine unregister took ${unregisterTimeMs.toFixed(2)}ms)`);
+        log.info(`Unregistered strategy ${id} (engine unregister took ${unregisterTimeMs.toFixed(2)}ms)`);
         bus.emit(EVENTS.SYSTEM.STRATEGY_STOP, { id });
 
         this._logDiagnostics(`stop:${id}`);
@@ -496,10 +563,13 @@ class StrategyLoader {
     }
 
     _countDataPoints(instance) {
-        if (!instance || !instance.data || typeof instance.data.forEach !== 'function') return 0;
+        if (!instance) return 0;
+        const dm = instance.dataManager;
+        if (!dm || !dm.data || typeof dm.data.forEach !== 'function') return 0;
         let total = 0;
-        instance.data.forEach((store) => {
+        dm.data.forEach((store) => {
             if (store?.candles?.size != null) total += store.candles.size;
+            if (store?.activeCandle) total += 1;
         });
         return total;
     }
@@ -532,7 +602,7 @@ class StrategyLoader {
                 }
             }
         }
-        logger.debug(`getActiveSymbols returned ${symbols.size} unique symbols.`);
+        log.debug(`getActiveSymbols returned ${symbols.size} unique symbols.`);
         return Array.from(symbols);
     }
 
@@ -542,47 +612,43 @@ class StrategyLoader {
      * @param {string} id - The ID of the strategy to reload.
      * @returns {boolean} True if the reload was initiated, false otherwise.
      */
-    reloadStrategy(id) {
+    async reloadStrategy(id) {
         const entry = this.registry.get(id);
         if (!entry) {
-            logger.warn(`reloadStrategy: Strategy [${id}] not found in registry.`);
+            log.warn(`reloadStrategy: Strategy [${id}] not found in registry.`);
             return false;
         }
-        
-        // Stop it if it's currently running to prevent logic leaks or resource conflicts
-        logger.info(`Reloading strategy ${id}: stopping existing instance before re-loading.`);
+
+        log.info(`Reloading strategy ${id}: stopping existing instance before re-loading.`);
         this.stopStrategy(id);
-        
-        // Use the internal loader to re-process the file
-        this._loadOne(entry.filePath);
+
+        const ok = await this._loadByName(id);
+        if (!ok) {
+            log.error(`Reload strategy failed [${id}]: DB record missing or invalid`);
+        }
         return true;
     }
 
     /**
-     * Shuts down the StrategyLoader, stopping all strategies and closing the file watcher.
+     * Shuts down the StrategyLoader, stopping all strategies.
      */
     shutdown() {
-        logger.info('StrategyLoader shutdown initiated.');
-        if (this.watcher) {
-            this.watcher.close();
-            this.watcher = null;
-            logger.info('File watcher closed.');
-        }
-        clearTimeout(this.debounceTimer); // Clear any pending debounce timers
+        log.info('StrategyLoader shutdown initiated.');
 
         // Stop all strategies gracefully
         for (const [id] of this.registry) {
             try {
                 this.stopStrategy(id);
             } catch (e) {
-                logger.warn(`Error stopping strategy ${id} during shutdown: ${e.message}`);
+                log.warn(`Error stopping strategy ${id} during shutdown: ${e.message}`);
             }
         }
         this.registry.clear();
-        logger.info('StrategyLoader shutdown complete, registry cleared.');
+        log.info('StrategyLoader shutdown complete, registry cleared.');
         this._logDiagnostics('shutdown');
     }
 }
 
 // Export a singleton instance for simplicity, or allow instantiation with options
 module.exports = new StrategyLoader();
+

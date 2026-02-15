@@ -12,6 +12,13 @@ const stateManager = require("@utils/stateController");
 const { clampCache, setConfig: setStorageConfig, getConfig: getStorageConfig } = require("@utils/storageManager");
 
 const BANNER_PATH = path.join(__dirname, "banner.txt");
+const MODULE = "ENGINE";
+const log = {
+    info: (message, meta) => logger.info(`[${MODULE}][INFO] ${message}`, meta),
+    warn: (message, meta) => logger.warn(`[${MODULE}][WARN] ${message}`, meta),
+    error: (message, meta) => logger.error(`[${MODULE}][ERROR] ${message}`, meta),
+    debug: (message, meta) => logger.debug(`[${MODULE}][DEBUG] ${message}`, meta)
+};
 
 
 
@@ -27,7 +34,7 @@ function showBanner() {
 class CoreXEngine {
     constructor() {
         showBanner();
-        logger.info("⚙️ Booting Corex Engine");
+        log.info("Booting Corex Engine");
 
         this.status = "IDLE";
         this.startTime = null;
@@ -69,30 +76,59 @@ class CoreXEngine {
         this.feedStats.perSymbol.clear();
 
         try {
-            const settingsPath = path.join(process.cwd(), 'data', 'settings', 'system_settings.json');
-            if (fs.existsSync(settingsPath)) {
-                const saved = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-                if (saved && typeof saved === 'object') {
-                    this.updateSettings(saved);
-                }
-            }
-        } catch (e) {
-            logger.warn(`Failed to load system settings: ${e.message}`);
-        }
-
-        try {
             const cacheDir = path.join(process.cwd(), "data", "cache");
+            this._sanitizeCacheDirectory(cacheDir);
             clampCache(cacheDir);
         } catch (e) {
-            logger.warn(`Cache clamp failed: ${e.message}`);
+            log.warn(`Cache clamp failed: ${e.message}`);
         }
 
-        loader.init(this);
+        await loader.init(this);
 
         bus.on(EVENTS.MARKET.TICK, (data) => this._enqueueTick(data));
 
         this.status = "RUNNING";
-        logger.info("🟢 CoreX Engine: \x1b[36m Active \x1b[0m");
+        log.info("CoreX Engine Active");
+    }
+
+    _sanitizeCacheDirectory(cacheDir) {
+        if (!fs.existsSync(cacheDir)) return;
+        const files = fs.readdirSync(cacheDir).filter((f) => f.startsWith("candles_") && f.endsWith(".json"));
+        if (!files.length) return;
+
+        const maxWriteBars = Number(process.env.WARMUP_CACHE_MAX_WRITE_BARS || 2000);
+        let fixed = 0;
+        let removed = 0;
+
+        for (const name of files) {
+            const p = path.join(cacheDir, name);
+            try {
+                // filename format: candles_<symbol>_<tf>.json
+                const stem = name.replace(/^candles_/, "").replace(/\.json$/i, "");
+                const parts = stem.split("_");
+                const tf = parts.length > 1 ? parts[parts.length - 1] : "1m";
+                const tfMs = this._timeframeToMs(tf);
+                const raw = JSON.parse(fs.readFileSync(p, "utf8"));
+                const normalized = this._normalizeCachedBars(raw, tfMs)
+                    .slice(-Math.max(1, maxWriteBars));
+                if (!normalized.length) {
+                    fs.unlinkSync(p);
+                    removed += 1;
+                    continue;
+                }
+                const tmp = `${p}.tmp`;
+                fs.writeFileSync(tmp, JSON.stringify(normalized, null, 2));
+                fs.renameSync(tmp, p);
+                fixed += 1;
+            } catch {
+                try { fs.unlinkSync(p); } catch { /* ignore */ }
+                removed += 1;
+            }
+        }
+
+        if (fixed || removed) {
+            log.info(`[CACHE] Sanitized cache files: fixed=${fixed}, removed=${removed}`);
+        }
     }
 
     async registerStrategy(strategy, options = {}) {
@@ -100,7 +136,7 @@ class CoreXEngine {
 
         // 1. Validation Guard
         if (!strategy.symbols || !Array.isArray(strategy.symbols) || strategy.symbols.length === 0) {
-            logger.warn(`[${id}] No symbols defined → registration skipped`);
+            log.warn(`[${id}] No symbols defined -> registration skipped`);
             stateManager.commit(id, "ERROR", { reason: "Missing symbols" });
             return false;
         }
@@ -108,12 +144,12 @@ class CoreXEngine {
         // 2. State Transition
         const canProceed = stateManager.commit(id, "WARMING_UP", { reason: "Registration sequence initiated" });
         if (!canProceed) {
-            logger.warn(`[${id}] Registration blocked by state controller (Current: ${stateManager.getStatus(id)})`);
+            log.warn(`[${id}] Registration blocked by state controller (Current: ${stateManager.getStatus(id)})`);
             return false;
         }
 
         try {
-            logger.info(`🔗 [${id}] Linking to market stream via ${strategy.mode || 'PAPER'}`);
+            log.info(`[${id}] Linking to market stream via ${strategy.mode || 'PAPER'}`);
 
             // 3. Environment Setup
             this._setupExecutionContext(strategy);
@@ -128,7 +164,7 @@ class CoreXEngine {
             }
 
             // 5. Historical Warmup (The Critical Gate)
-            logger.info(`⏳ [${id}] Commencing historical data synchronization...`);
+            log.info(`[${id}] Commencing historical data synchronization...`);
             const warmupSuccess = await this.warmupStrategy(strategy);
 
             if (!warmupSuccess) {
@@ -147,7 +183,7 @@ class CoreXEngine {
             return true;
 
         } catch (err) {
-            logger.error(`❌ [${id}] Engine Registration Failed: ${err.message}`);
+            log.error(`[${id}] Engine Registration Failed: ${err.message}`);
             stateManager.commit(id, "ERROR", {
                 reason: `Registration Error: ${err.message.slice(0, 50)}`
             });
@@ -174,7 +210,14 @@ class CoreXEngine {
             }
 
             const SignalAdapter = require("@core/signalAdapter");
-            const adapter = new SignalAdapter({ mode, broker: brokerInstance });
+            const adapter = new SignalAdapter({
+                mode,
+                broker: brokerInstance,
+                brokers: {
+                    PAPER: require("@broker/paperStore").getPaperBroker(),
+                    LIVE: require("@core/services/mt5Bridge")
+                }
+            });
 
             this.executionContexts.set(mode, { adapter, broker: brokerInstance });
         }
@@ -200,7 +243,7 @@ class CoreXEngine {
             this._droppedTicks.set(data.symbol, dropped);
             this._recordDrop(data.symbol);
             if (dropped % 1000 === 0) {
-                logger.warn(`[FEED] Dropped ${dropped} ticks for ${data.symbol} (queue overflow)`);
+                log.warn(`[FEED] Dropped ${dropped} ticks for ${data.symbol} (queue overflow)`);
             }
         }
 
@@ -261,7 +304,7 @@ class CoreXEngine {
             const stats = this.strategyStats.get(id);
             if (stats) stats.dropped += 1;
             if (dropped % 1000 === 0) {
-                logger.warn(`[STRAT] Dropped ${dropped} ticks for ${id} (queue overflow)`);
+                log.warn(`[STRAT] Dropped ${dropped} ticks for ${id} (queue overflow)`);
             }
         }
 
@@ -282,6 +325,7 @@ class CoreXEngine {
             const liveEntry = loader.registry.get(id);
             const strat = liveEntry?.instance;
             if (!strat) continue;
+            loader.syncRuntimeState(id);
 
             try {
                 const currentState = stateManager.getStatus(id);
@@ -290,13 +334,19 @@ class CoreXEngine {
                     const adapter = strat.executionContext?.adapter;
                     if (signal && adapter) {
                         Promise.resolve(adapter.handle(signal)).catch(err => {
-                            logger.error(`[ADAPTER] ${strat.name} signal failed: ${err.message}`);
+                            log.error(`[ADAPTER] ${strat.name} signal failed: ${err.message}`);
                         });
                     }
                 }
             } catch (err) {
-                logger.error(`[CRASH] [${strat?.name || id}] ${err.message}`);
+                log.error(`[CRASH] [${strat?.name || id}] ${err.message}`);
                 stateManager.commit(id, "ERROR", { error: err.message, at: new Date().toISOString() });
+                bus.emit(EVENTS.SYSTEM.ERROR, {
+                    source: "strategy",
+                    strategyId: strat?.name || id,
+                    message: err.message,
+                    at: new Date().toISOString()
+                });
             }
 
             processedInBatch += 1;
@@ -396,12 +446,98 @@ class CoreXEngine {
         };
     }
 
+    _getWarmupCachePolicy(strategy) {
+        const storage = getStorageConfig();
+        const storageCache = storage?.cache || {};
+        const lookback = Number(strategy?.lookback || 300);
+        const cacheEnabledRaw = String(process.env.WARMUP_CACHE_ENABLED || "true").toLowerCase();
+        const cacheEnabled = !["0", "false", "no", "off"].includes(cacheEnabledRaw);
+        const maxPatchBars = Number(process.env.WARMUP_CACHE_MAX_PATCH_BARS || 5000);
+        const maxWriteBars = Number(process.env.WARMUP_CACHE_MAX_WRITE_BARS || Math.max(lookback * 2, 1000));
+        const maxGapBarsForPatch = Number(process.env.WARMUP_CACHE_MAX_GAP_BARS || lookback * 2);
+        const clampMaxSizeMb = Number(storageCache.maxSizeMb || process.env.CACHE_MAX_SIZE_MB || 500);
+        const clampMaxAgeDays = Number(storageCache.maxAgeDays || process.env.CACHE_MAX_AGE_DAYS || 30);
+
+        return {
+            enabled: cacheEnabled,
+            maxPatchBars: Number.isFinite(maxPatchBars) && maxPatchBars > 0 ? maxPatchBars : 5000,
+            maxWriteBars: Number.isFinite(maxWriteBars) && maxWriteBars > 0 ? maxWriteBars : Math.max(lookback * 2, 1000),
+            maxGapBarsForPatch: Number.isFinite(maxGapBarsForPatch) && maxGapBarsForPatch > 0 ? maxGapBarsForPatch : lookback * 2,
+            clampMaxSizeMb: Number.isFinite(clampMaxSizeMb) && clampMaxSizeMb > 0 ? clampMaxSizeMb : 500,
+            clampMaxAgeDays: Number.isFinite(clampMaxAgeDays) && clampMaxAgeDays > 0 ? clampMaxAgeDays : 30
+        };
+    }
+
+    _normalizeCachedBars(rows = [], tfMs = 60000) {
+        if (!Array.isArray(rows)) return [];
+        const out = [];
+        let prevTs = 0;
+        for (const row of rows) {
+            const ts = Number(row?.time);
+            if (!Number.isFinite(ts) || ts <= 0) continue;
+            const open = Number(row?.open);
+            const high = Number(row?.high);
+            const low = Number(row?.low);
+            const close = Number(row?.close);
+            const volume = Number(row?.volume || 0);
+            if (![open, high, low, close].every(Number.isFinite)) continue;
+            const aligned = Math.floor(ts / tfMs) * tfMs;
+            if (aligned <= prevTs) continue;
+            prevTs = aligned;
+            out.push({
+                time: aligned,
+                open,
+                high,
+                low,
+                close,
+                volume: Number.isFinite(volume) ? volume : 0
+            });
+        }
+        return out;
+    }
+
+    _readWarmupCache(cacheFile, tfMs, maxBars) {
+        if (!fs.existsSync(cacheFile)) return [];
+        const raw = fs.readFileSync(cacheFile, "utf-8");
+        const parsed = JSON.parse(raw);
+        const normalized = this._normalizeCachedBars(parsed, tfMs);
+        if (!normalized.length) return [];
+        return normalized.slice(-Math.max(1, Number(maxBars) || normalized.length));
+    }
+
+    _mergeBarsByTime(base = [], patch = [], maxBars = 2000) {
+        const byTs = new Map();
+        for (const bar of base) byTs.set(Number(bar.time), bar);
+        for (const bar of patch) byTs.set(Number(bar.time), bar);
+        const merged = Array.from(byTs.values())
+            .sort((a, b) => Number(a.time) - Number(b.time));
+        return merged.slice(-Math.max(1, Number(maxBars) || merged.length));
+    }
+
+    _writeWarmupCache(cacheFile, rows = []) {
+        const tmp = `${cacheFile}.tmp`;
+        fs.writeFileSync(tmp, JSON.stringify(rows, null, 2));
+        fs.renameSync(tmp, cacheFile);
+    }
+
     async warmupStrategy(strategy) {
-        const cacheDir = path.resolve(__dirname, '../../data/cache')
+        const cacheDir = path.resolve(__dirname, '../../data/cache');
         fs.mkdirSync(cacheDir, { recursive: true });
+        const cachePolicy = this._getWarmupCachePolicy(strategy);
+        try {
+            clampCache(cacheDir, {
+                maxSizeMb: cachePolicy.clampMaxSizeMb,
+                maxAgeDays: cachePolicy.clampMaxAgeDays
+            });
+        } catch (err) {
+            log.warn(`Warmup cache clamp failed: ${err.message}`);
+        }
 
         const id = strategy.id || strategy.name;
         let success = true;
+        let cacheHits = 0;
+        let cachePatched = 0;
+        let cacheMiss = 0;
 
         // Cap lookback
         const maxLookback = strategy.max_data_history || 5000;
@@ -410,26 +546,28 @@ class CoreXEngine {
         for (const sym of strategy.symbols || []) {
             const safeSym = sym.replace(/[^a-zA-Z0-9-]/g, "-");
             const cacheFile = path.join(cacheDir, `candles_${safeSym}_${strategy.timeframe}.json`);
+            const tfMs = this._timeframeToMs(strategy.timeframe);
 
             let candles = [];
             let needsFullFetch = true;
 
             // 1. Try cache + patch
-            if (fs.existsSync(cacheFile)) {
+            if (cachePolicy.enabled && fs.existsSync(cacheFile)) {
                 try {
-                    const cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
+                    const cached = this._readWarmupCache(cacheFile, tfMs, cachePolicy.maxWriteBars);
                     if (Array.isArray(cached) && cached.length > 0) {
                         const lastTs = cached[cached.length - 1].time;
                         const deltaMs = Date.now() - lastTs;
-                        const tfMs = this._timeframeToMs(strategy.timeframe);
+                        const gapBars = Math.ceil(deltaMs / tfMs);
 
                         if (deltaMs < tfMs * 3) {
                             candles = cached;
                             needsFullFetch = false;
-                            logger.debug(`[${id}] Using cache (${cached.length} bars)`);
-                        } else if (deltaMs < tfMs * strategy.lookback * 1.8) {
-                            const gapCount = Math.ceil(deltaMs / tfMs) + 5;
-                            logger.info(`[${id}] Patching ~${gapCount} candles for ${sym}`);
+                            cacheHits += 1;
+                            log.debug(`[${id}] Using cache (${cached.length} bars)`);
+                        } else if (gapBars <= cachePolicy.maxGapBarsForPatch) {
+                            const gapCount = Math.min(cachePolicy.maxPatchBars, Math.max(5, gapBars + 5));
+                            log.info(`[${id}] Patching ~${gapCount} candles for ${sym}`);
 
                             const patch = await broker.fetchHistory({
                                 symbol: sym,
@@ -437,26 +575,28 @@ class CoreXEngine {
                                 outputsize: gapCount
                             });
 
-                            const patchRows = Array.isArray(patch) ? patch : [];
-                            const afterLast = patchRows.filter(c => c.time > lastTs);
-                            candles = [...cached, ...afterLast];
+                            const patchRows = this._normalizeCachedBars(Array.isArray(patch) ? patch : [], tfMs)
+                                .filter(c => c.time > lastTs);
+                            candles = this._mergeBarsByTime(cached, patchRows, cachePolicy.maxWriteBars);
                             needsFullFetch = false;
+                            cachePatched += 1;
                         }
                     }
                 } catch (e) {
-                    logger.warn(`[${id}] Cache corrupt for ${sym} → full fetch`);
+                    log.warn(`[${id}] Cache corrupt for ${sym} -> full fetch`);
                 }
             }
 
             // 2. Full fetch fallback
             if (needsFullFetch) {
-                logger.info(`[${id}] Fetching ${strategy.lookback} bars for ${sym}`);
+                cacheMiss += 1;
+                log.info(`[${id}] Fetching ${strategy.lookback} bars for ${sym}`);
                 candles = await broker.fetchHistory({
                     symbol: sym,
                     interval: strategy.timeframe,
                     outputsize: strategy.lookback
                 }).catch(err => {
-                    logger.error(`[${id}] History fetch failed for ${sym}: ${err.message}`);
+                    log.error(`[${id}] History fetch failed for ${sym}: ${err.message}`);
                     return [];
                 });
             }
@@ -469,17 +609,21 @@ class CoreXEngine {
                 // Do not override strategy.isWarmedUp() method
                 strategy._warmedUp = true;
 
-                try {
-                    fs.writeFileSync(cacheFile, JSON.stringify(trimmed, null, 2));
-                } catch (e) {
-                    logger.warn(`[${id}] Cannot write cache for ${sym}`);
+                if (cachePolicy.enabled) {
+                    try {
+                        const toWrite = candles.slice(-Math.min(cachePolicy.maxWriteBars, Math.max(strategy.lookback, 1)));
+                        this._writeWarmupCache(cacheFile, toWrite);
+                    } catch (e) {
+                        log.warn(`[${id}] Cannot write cache for ${sym}`);
+                    }
                 }
             } else {
-                logger.warn(`[${id}] No data for ${sym} → warmup incomplete`);
+                log.warn(`[${id}] No data for ${sym} -> warmup incomplete`);
                 success = false;
             }
         }
 
+        log.info(`[${id}] Warmup cache stats: hits=${cacheHits}, patched=${cachePatched}, miss=${cacheMiss}`);
         return success;
     }
 
@@ -516,11 +660,11 @@ class CoreXEngine {
         broker.updateSymbols(Array.from(this.activeSymbols));
         this.strategyQueues.delete(strategyId);
         this._droppedStrategyTicks.delete(strategyId);
-        logger.info(`🗑️ [${strategyId}] Unregistered`);
+        log.info(`[${strategyId}] Unregistered`);
     }
 
     stop() {
-        logger.info("\x1b[35m Shutting down CoreX Engine \x1b[0m");
+        log.info("Shutting down CoreX Engine");
         this.status = "STOPPING";
 
         broker.cleanup();
@@ -539,7 +683,7 @@ class CoreXEngine {
         this.strategyStats.clear();
 
         this.status = "IDLE";
-        logger.info("🏁 Shutdown complete");
+        log.info("Shutdown complete");
         console.clear();
     }
 

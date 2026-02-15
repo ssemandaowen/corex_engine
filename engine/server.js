@@ -5,12 +5,15 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const logger = require("@utils/logger");
+const configService = require("@core/services/configService");
 
 // 1. Core Domain Routes
 const strategyRoutes = require("@core/routes/strategyController");
 const executionRoutes = require("@core/routes/executionController");
 const backtestRoutes = require("@core/routes/backtestController");
 const systemRoutes = require("@core/routes/systemController");
+const bridgeRoutes = require("@core/routes/bridgeController");
+const mt5Routes = require("@core/routes/mt5Controller");
 const authRoutes = require("@core/routes/authController");
 const authGuard = require("@core/middleware/authGuard");
 
@@ -21,32 +24,54 @@ const mt5Bridge = require("@core/services/mt5Bridge");
 const app = express();
 const server = http.createServer(app);
 
-// Middleware
-app.use(cors({
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-    allowedHeaders: ["Content-Type", "x-admin-key", "Authorization"]
-}));
+let runtimeConfigured = false;
+let routesConfigured = false;
 
-const JSON_LIMIT = process.env.JSON_LIMIT || "1mb";
-app.use(express.json({ limit: JSON_LIMIT }));
+function applyRuntimeConfig() {
+    if (runtimeConfigured) return;
+    const get = typeof configService.getSync === "function" ? configService.getSync : () => undefined;
+    const corsOrigin = get("server.corsOrigin", process.env.CORS_ORIGIN || "http://localhost:5173") || "http://localhost:5173";
+    app.use(cors({
+        origin: corsOrigin,
+        methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+        allowedHeaders: ["Content-Type", "x-admin-key", "Authorization"]
+    }));
 
-app.use("/api/auth", authRoutes);
+    const JSON_LIMIT = get("server.jsonLimit", process.env.JSON_LIMIT || "1mb") || "1mb";
+    app.use(express.json({ limit: JSON_LIMIT }));
 
-// Domain Routing
-app.use("/api/strategies", authGuard, strategyRoutes);
-app.use("/api/run", authGuard, executionRoutes);
-app.use("/api/backtest", authGuard, backtestRoutes);
-app.use("/api/system", authGuard, systemRoutes);
+    runtimeConfigured = true;
+}
 
-// Health check (Public)
-app.get("/ping", (req, res) => res.send("PONG"));
+function registerRoutes() {
+    if (routesConfigured) return;
+    app.use("/api/auth", authRoutes);
 
-const PORT = process.env.PORT || 3000;
+    // Domain Routing
+    app.use("/api/strategies", authGuard, strategyRoutes);
+    app.use("/api/run", authGuard, executionRoutes);
+    app.use("/api/backtest", authGuard, backtestRoutes);
+    app.use("/api/system", authGuard, systemRoutes);
+    app.use("/api/bridge", bridgeRoutes);
+    app.use("/api/mt5", mt5Routes);
+
+    // Health check (Public)
+    app.get("/ping", (req, res) => res.send("PONG"));
+    routesConfigured = true;
+}
+
+const getPort = () => {
+    const get = typeof configService.getSync === "function" ? configService.getSync : () => undefined;
+    const raw = get("server.port", process.env.PORT || 3000);
+    const num = Number(raw);
+    return Number.isFinite(num) ? num : 3000;
+};
 
 function start() {
     return new Promise((resolve, reject) => {
         if (server.listening) return resolve(server);
+        applyRuntimeConfig();
+        registerRoutes();
         // Traffic controller for WebSocket upgrades
         server.on("upgrade", (request, socket, head) => {
             try {
@@ -71,8 +96,9 @@ function start() {
             }
         });
         server.once("error", reject);
-        server.listen(PORT, () => {
-            logger.info(`CoreX Hub READY on port ${PORT}`);
+        const port = getPort();
+        server.listen(port, () => {
+            logger.info(`CoreX Hub READY on port ${port}`);
 
             broadcaster.initServer(server);
             mt5Bridge.initServer(server);

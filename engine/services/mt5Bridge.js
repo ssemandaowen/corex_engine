@@ -3,6 +3,7 @@
 const WebSocket = require("ws");
 const logger = require("@utils/logger");
 const { bus, EVENTS } = require("@events/bus");
+const db = require("@core/services/postgres");
 
 class MT5Bridge {
     constructor() {
@@ -74,6 +75,9 @@ class MT5Bridge {
         const type = msg?.type;
         if (!type) return;
 
+        const orderId = msg?.payload?.orderId || msg?.payload?.order_id || msg?.orderId || null;
+        this._audit("IN", msg, orderId);
+
         if (type === "handshake") {
             this._handleHandshake(ws, msg?.payload || {});
             return;
@@ -100,7 +104,7 @@ class MT5Bridge {
         if (type === "positions") {
             this.positions = Array.isArray(msg.payload) ? msg.payload : [];
             this.lastHeartbeat = Date.now();
-            bus.emit(EVENTS.MT5.POSITIONS_SYNC, { ts: this.lastHeartbeat, count: this.positions.length });
+            bus.emit(EVENTS.MT5.POSITIONS_SYNC, { ts: this.lastHeartbeat, count: this.positions.length, payload: this.positions });
             return;
         }
 
@@ -131,11 +135,13 @@ class MT5Bridge {
         const meta = this.clientMeta.get(ws) || {};
 
         if (!expectedToken) {
-            ws.send(JSON.stringify({
+            const ack = {
                 type: "handshake_ack",
                 ok: false,
                 error: "MT5_BRIDGE_TOKEN_NOT_CONFIGURED"
-            }));
+            };
+            ws.send(JSON.stringify(ack));
+            this._audit("OUT", ack);
             try { ws.close(4001, "Missing bridge token"); } catch { /* ignore */ }
             return;
         }
@@ -146,11 +152,13 @@ class MT5Bridge {
                 ip: meta?.ip || null,
                 receiverId: receiverId || null
             });
-            ws.send(JSON.stringify({
+            const ack = {
                 type: "handshake_ack",
                 ok: false,
                 error: "UNAUTHORIZED_RECEIVER"
-            }));
+            };
+            ws.send(JSON.stringify(ack));
+            this._audit("OUT", ack);
             try { ws.close(4003, "Unauthorized"); } catch { /* ignore */ }
             return;
         }
@@ -163,7 +171,7 @@ class MT5Bridge {
             accountId
         };
         this.clientMeta.set(ws, nextMeta);
-        ws.send(JSON.stringify({
+        const ack = {
             type: "handshake_ack",
             ok: true,
             payload: {
@@ -173,7 +181,9 @@ class MT5Bridge {
                 accountId,
                 serverTs: Date.now()
             }
-        }));
+        };
+        ws.send(JSON.stringify(ack));
+        this._audit("OUT", ack);
         logger.info(`[MT5] Receiver authorized: ${receiverId} (${terminal})`);
         bus.emit(EVENTS.MT5.AUTHORIZED, {
             receiverId,
@@ -254,6 +264,7 @@ class MT5Bridge {
             payload: { action, ...payload }
         };
         bus.emit(EVENTS.MT5.ORDER_REQUEST, { requestId, action, payload: msg.payload });
+        this._audit("OUT", msg, payload?.orderId || payload?.order_id || null);
 
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
@@ -294,6 +305,21 @@ class MT5Bridge {
         this.accountSnapshot = null;
         this.positions = [];
         logger.info("[MT5] Bridge stopped");
+    }
+
+    _audit(direction, payload, orderId = null) {
+        if (!db.hasDbConfig()) return;
+        const dir = String(direction || "").toUpperCase();
+        if (!dir) return;
+        const order = orderId ? String(orderId) : null;
+        const rawPayload = payload && typeof payload === "object" ? payload : { value: payload };
+        db.query(
+            `INSERT INTO mt5_messages (order_id, direction, raw_payload, timestamp)
+             VALUES ($1, $2, $3::jsonb, NOW())`,
+            [order, dir, JSON.stringify(rawPayload)]
+        ).catch((err) => {
+            logger.warn(`[MT5] Audit log failed: ${err.message}`);
+        });
     }
 }
 

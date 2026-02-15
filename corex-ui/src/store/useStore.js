@@ -27,10 +27,14 @@ export const useStore = create((set, get) => ({
     systemSettings: null,
     persistedSettings: null,
     settingsLoading: false,
+    realtimeMode: (typeof window !== "undefined" && window.localStorage?.getItem("corex.realtimeMode")) || "ws",
+    mt5Account: null,
+    mt5Positions: [],
+    mt5Status: null,
+    accountSnapshots: { paper: null, live: null },
 
     // --- Internal Refs ---
     _ws: null,
-    _timers: {},
     _apiDownUntil: 0,
     _wsAttempts: 0,
     _wsManualClose: false,
@@ -51,11 +55,50 @@ export const useStore = create((set, get) => ({
         }
     },
 
-    _managePolling: (key, fn, interval = 5000) => {
-        const { _timers } = get();
-        if (_timers[key]) clearInterval(_timers[key]);
-        fn();
-        set({ _timers: { ..._timers, [key]: setInterval(fn, interval) } });
+    _ingestWsEvent: (msg) => {
+        if (!msg || !msg.type) return;
+        switch (msg.type) {
+            case "STATUS_UPDATE":
+                if (msg.payload?.systemStatus) set({ systemStatus: msg.payload.systemStatus });
+                if (msg.payload?.pulse) set({ pulse: msg.payload.pulse });
+                if (Array.isArray(msg.payload?.strategies)) set({ strategiesLive: msg.payload.strategies });
+                if (msg.payload?.accounts) set({ accountSnapshots: msg.payload.accounts });
+                break;
+            case "FEED_METRICS":
+                if (msg.payload) set({ feedMetrics: msg.payload });
+                break;
+            case "STRATEGY_STATE":
+            case "STRATEGY_START":
+            case "STRATEGY_STOP":
+            case "STRATEGY_LOADED":
+            case "STRATEGY_UNLOADED":
+                get().fetchLiveStrategies();
+                break;
+            case "PARAM_UPDATE":
+                get().fetchSystemSettings();
+                break;
+            case "MT5_ACCOUNT_SYNC":
+                if (msg.payload?.payload) set({ mt5Account: msg.payload.payload });
+                else if (msg.payload) set({ mt5Account: msg.payload });
+                break;
+            case "MT5_POSITIONS_SYNC":
+                if (Array.isArray(msg.payload?.payload)) set({ mt5Positions: msg.payload.payload });
+                break;
+            case "MT5_BRIDGE_STATUS":
+                if (msg.payload?.account) set({ mt5Account: msg.payload.account });
+                if (Array.isArray(msg.payload?.positions)) set({ mt5Positions: msg.payload.positions });
+                set({ mt5Status: msg.payload || null });
+                break;
+            case "MT5_CONNECTED":
+            case "MT5_DISCONNECTED":
+            case "MT5_AUTHORIZED":
+            case "MT5_AUTH_FAILED":
+            case "MT5_HEARTBEAT":
+                get().fetchSystemStatus();
+                break;
+            default:
+                break;
+        }
     },
 
     // --- Actions ---
@@ -78,6 +121,13 @@ export const useStore = create((set, get) => ({
         set({ settingsLoading: true });
         const payload = await get()._request('/system/settings');
         set({ systemSettings: payload?.runtime, persistedSettings: payload?.persisted, settingsLoading: false });
+        const persistedMode = payload?.persisted?.payload?.ui?.realtimeMode;
+        if (persistedMode) {
+            if (typeof window !== "undefined" && window.localStorage) {
+                window.localStorage.setItem("corex.realtimeMode", persistedMode);
+            }
+            set({ realtimeMode: persistedMode });
+        }
     },
 
     updateSystemSettings: async (settings, persist = true) => {
@@ -92,17 +142,37 @@ export const useStore = create((set, get) => ({
         set({ feedMetrics: payload });
     },
 
-    // --- Polling Controllers ---
-    startFeedMetrics: () => get()._managePolling('feed', get().fetchFeedMetrics),
-    stopFeedMetrics: () => { clearInterval(get()._timers.feed); },
+    fetchMt5Status: async () => {
+        const payload = await get()._request('/system/mt5/status');
+        if (!payload) return;
+        set({
+            mt5Status: payload,
+            mt5Account: payload.account || null,
+            mt5Positions: Array.isArray(payload.positions) ? payload.positions : []
+        });
+    },
 
-    startPulse: () => get()._managePolling('pulse', get().fetchPulse),
-    stopPulse: () => { clearInterval(get()._timers.pulse); },
+    // --- Reactive Controllers (One-shot on demand) ---
+    startFeedMetrics: () => get().fetchFeedMetrics(),
+    stopFeedMetrics: () => {},
 
-    startLiveStrategies: () => get()._managePolling('live', get().fetchLiveStrategies),
-    stopLiveStrategies: () => { clearInterval(get()._timers.live); },
+    startPulse: () => get().fetchPulse(),
+    stopPulse: () => {},
+
+    startLiveStrategies: () => get().fetchLiveStrategies(),
+    stopLiveStrategies: () => {},
 
     setFeedMode: (mode) => set({ feedMode: mode }),
+    setRealtimeMode: (mode) => {
+        const next = mode === "polling" ? "polling" : "ws";
+        if (typeof window !== "undefined" && window.localStorage) {
+            window.localStorage.setItem("corex.realtimeMode", next);
+        }
+        set({ realtimeMode: next });
+        if (next === "polling") get().disconnectWebSocket();
+        if (next === "ws") get().connectWebSocket();
+        get().updateSystemSettings({ ui: { realtimeMode: next } }, true);
+    },
 
     // --- Strategy Management ---
     fetchStrategies: async () => {
@@ -145,7 +215,8 @@ export const useStore = create((set, get) => ({
 
     // --- WebSocket ---
     connectWebSocket: () => {
-        if (get()._apiCooldownActive() || (get()._ws?.readyState <= 1)) return;
+        if (get().realtimeMode !== "ws") return;
+        if (get()._ws?.readyState <= 1) return;
 
         const url = new URL(import.meta.env.VITE_API_URL || 'http://localhost:3000/api');
         url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -154,10 +225,24 @@ export const useStore = create((set, get) => ({
         const ws = new WebSocket(url.toString());
         set({ _ws: ws, wsStatus: "CONNECTING", _wsManualClose: false });
 
-        ws.onopen = () => set({ wsStatus: "CONNECTED", _wsAttempts: 0 });
+        ws.onopen = () => {
+            set({ wsStatus: "CONNECTED", _wsAttempts: 0 });
+            get().fetchSystemStatus();
+            get().fetchFeedMetrics();
+            get().fetchLiveStrategies();
+            get().fetchMt5Status();
+        };
         ws.onmessage = (e) => {
-            const msg = JSON.parse(e.data);
-            set(s => ({ wsLastEvent: msg, wsEvents: [msg, ...s.wsEvents].slice(0, 100) }));
+            try {
+                const msg = JSON.parse(e.data);
+                set(s => ({ wsLastEvent: msg, wsEvents: [msg, ...s.wsEvents].slice(0, 100) }));
+                get()._ingestWsEvent(msg);
+            } catch {
+                // ignore malformed ws payload
+            }
+        };
+        ws.onerror = () => {
+            set({ wsStatus: "ERROR" });
         };
         ws.onclose = () => {
             set({ wsStatus: "DISCONNECTED", _ws: null });

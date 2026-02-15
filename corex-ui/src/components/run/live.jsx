@@ -1,14 +1,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import client from '../../api/client';
+import useStore from '../../store/useStore';
 
 const Live = () => {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
+  const [approving, setApproving] = useState('');
+  const { connectWebSocket, realtimeMode, mt5Status, fetchMt5Status } = useStore();
+  const [execEnabled, setExecEnabled] = useState(false);
 
   const fetchStatus = useCallback(async () => {
     try {
       const res = await client.get('/system/mt5/status');
-      setStatus(res?.payload || null);
+      const next = res?.payload || null;
+      setStatus(next);
+      setExecEnabled(!!next?.executionEnabled);
       setError('');
     } catch (err) {
       setError('Unable to load MT5 bridge status');
@@ -16,20 +22,45 @@ const Live = () => {
   }, []);
 
   useEffect(() => {
+    if (realtimeMode === 'ws') {
+      connectWebSocket();
+      fetchMt5Status();
+      return () => {};
+    }
     fetchStatus();
     const t = setInterval(fetchStatus, 3000);
     return () => clearInterval(t);
-  }, [fetchStatus]);
+  }, [fetchStatus, realtimeMode, connectWebSocket, fetchMt5Status]);
+
+  useEffect(() => {
+    if (realtimeMode !== 'ws') return;
+    if (!mt5Status) return;
+    setStatus(mt5Status);
+    if (typeof mt5Status?.executionEnabled === 'boolean') {
+      setExecEnabled(mt5Status.executionEnabled);
+    }
+  }, [realtimeMode, mt5Status]);
 
   const bridgeState = useMemo(() => {
-    if (!status?.connected) return 'DISCONNECTED';
-    if (status?.authorized) return 'CONNECTED';
-    return 'PENDING_AUTH';
+    return status?.bridgeStatus || 'DISCONNECTED';
   }, [status]);
 
   const rows = Array.isArray(status?.positions) ? status.positions : [];
   const account = status?.account || {};
-  const receivers = Array.isArray(status?.receivers) ? status.receivers : [];
+  const pending = Array.isArray(status?.pending) ? status.pending : [];
+
+  const approve = async (terminalId) => {
+    if (!terminalId || approving) return;
+    setApproving(terminalId);
+    try {
+      await client.post('/bridge/authorize', { terminal_id: terminalId });
+      await fetchStatus();
+    } catch (err) {
+      setError('Approval failed');
+    } finally {
+      setApproving('');
+    }
+  };
 
   return (
     <div className="ui-panel border border-slate-800 rounded-xl p-5 space-y-5 bg-slate-900/20">
@@ -55,40 +86,64 @@ const Live = () => {
         </div>
       )}
 
+      {pending.length > 0 && (
+        <div className="text-[10px] font-bold text-amber-300 bg-amber-950/20 border border-amber-500/20 px-3 py-2 rounded flex items-center justify-between">
+          <span>New Connection Request from MT5 #{pending[0]?.account_id || pending[0]?.terminal_id || 'UNKNOWN'}</span>
+          <button
+            className="px-2 py-1 text-[10px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded"
+            onClick={() => approve(pending[0]?.terminal_id)}
+            disabled={approving === pending[0]?.terminal_id}
+          >
+            {approving === pending[0]?.terminal_id ? 'APPROVING' : 'APPROVE'}
+          </button>
+        </div>
+      )}
+      {pending.length > 1 && (
+        <div className="text-[10px] text-slate-400 border border-slate-800 rounded px-3 py-2 bg-black/20">
+          <div className="uppercase tracking-widest text-slate-500 font-bold mb-1">Pending Terminals</div>
+          <div className="flex flex-wrap gap-2">
+            {pending.slice(0, 5).map((p) => (
+              <span key={p.terminal_id} className="px-2 py-1 rounded border border-slate-700 text-slate-300 font-mono">
+                {p.account_id || p.terminal_id}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 border border-slate-800 rounded px-3 py-2 bg-black/20">
+        <span>Enable MT5 Execution</span>
+        <button
+          className={`px-2 py-1 rounded border ${execEnabled
+            ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10'
+            : 'text-rose-300 border-rose-500/40 bg-rose-500/10'}`}
+          onClick={async () => {
+            const next = !execEnabled;
+            setExecEnabled(next);
+            try {
+              await client.post('/system/mt5/execution', { enabled: next });
+            } catch (err) {
+              setExecEnabled(!next);
+              setError('Failed to update execution flag');
+            }
+          }}
+        >
+          {execEnabled ? 'ON' : 'OFF'}
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Metric label="Socket Clients" value={status?.clients || 0} />
-        <Metric label="Authorized Receivers" value={status?.authorizedClients || 0} />
-        <Metric label="Pending Orders" value={status?.pending || 0} />
-        <Metric label="Last Heartbeat" value={status?.lastHeartbeat ? new Date(status.lastHeartbeat).toLocaleTimeString() : '--'} />
+        <Metric label="Authorized Terminals" value={status?.heartbeat?.status === 'AUTHORIZED' ? 1 : 0} />
+        <Metric label="Pending Orders" value={pending.length} />
+        <Metric label="Last Heartbeat" value={status?.heartbeat?.last_seen ? new Date(status.heartbeat.last_seen).toLocaleTimeString() : '--'} />
       </div>
 
       <section className="space-y-2">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Receivers</p>
-        <div className="border border-slate-800 rounded overflow-hidden">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900/70 text-[10px] uppercase text-slate-500">
-              <tr>
-                <th className="px-3 py-2">Receiver</th>
-                <th className="px-3 py-2">Terminal</th>
-                <th className="px-3 py-2">Account</th>
-                <th className="px-3 py-2">IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              {receivers.length ? receivers.map((r) => (
-                <tr key={`${r.receiverId}_${r.ip}`} className="border-t border-slate-800/60">
-                  <td className="px-3 py-2 font-mono text-slate-200">{r.receiverId || '--'}</td>
-                  <td className="px-3 py-2 text-slate-300">{r.terminal || '--'}</td>
-                  <td className="px-3 py-2 text-slate-300">{r.accountId || '--'}</td>
-                  <td className="px-3 py-2 text-slate-500 font-mono">{r.ip || '--'}</td>
-                </tr>
-              )) : (
-                <tr>
-                  <td colSpan={4} className="px-3 py-4 text-center text-slate-600">No authorized receivers</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Terminal</p>
+        <div className="border border-slate-800 rounded px-3 py-2 bg-black/20 text-xs text-slate-300">
+          {status?.heartbeat?.status === 'AUTHORIZED'
+            ? (status?.heartbeat?.account_id || status?.heartbeat?.terminal_id || '--')
+            : 'None'}
         </div>
       </section>
 

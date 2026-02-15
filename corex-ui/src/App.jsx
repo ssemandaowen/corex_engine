@@ -22,13 +22,19 @@ function App() {
   const {
     connectWebSocket, disconnectWebSocket,
     startPulse, stopPulse,
-    startLiveStrategies, stopLiveStrategies
+    startLiveStrategies, stopLiveStrategies,
+    realtimeMode, wsStatus, fetchSystemSettings
   } = useStore();
+
+  useEffect(() => {
+    if (!authToken) return;
+    fetchSystemSettings();
+  }, [authToken, fetchSystemSettings]);
 
   // Unified System Handshake
   useEffect(() => {
     if (!authToken) return;
-    connectWebSocket();
+    if (realtimeMode === 'ws') connectWebSocket();
     startPulse();
     startLiveStrategies();
 
@@ -37,7 +43,15 @@ function App() {
       stopPulse();
       stopLiveStrategies();
     };
-  }, [authToken]); // Logic remains stable across renders
+  }, [authToken, realtimeMode]); // Logic remains stable across renders
+
+  useEffect(() => {
+    if (!authToken) return;
+    if (realtimeMode !== 'ws') return;
+    if (wsStatus !== 'CONNECTED') {
+      connectWebSocket();
+    }
+  }, [authToken, realtimeMode, wsStatus, connectWebSocket]);
 
   // Sync Sidebar State
   useEffect(() => {

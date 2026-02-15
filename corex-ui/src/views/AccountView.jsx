@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import client from '../api/client';
 import { Settings, RotateCcw, DollarSign, Activity, PieChart, ShieldCheck, Save, X } from 'lucide-react';
+import { useStore } from '../store/useStore';
 
 const AccountView = () => {
   const [account, setAccount] = useState(null);
@@ -9,6 +10,7 @@ const AccountView = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { realtimeMode, mt5Account, mt5Positions, wsStatus, accountSnapshots } = useStore();
 
   const [config, setConfig] = useState({
     commissionPerShare: '',
@@ -58,10 +60,28 @@ const AccountView = () => {
 
   useEffect(() => { fetchModes(); }, [fetchModes]);
   useEffect(() => {
+    if (realtimeMode === 'ws' && wsStatus === 'CONNECTED') {
+      if (mode === 'live' || mode === 'mt5') {
+        if (mt5Account) {
+          const payload = { ...(mt5Account || {}) };
+          payload.positions = Array.isArray(mt5Positions) ? mt5Positions : [];
+          syncFromPayload(payload);
+          setLoading(false);
+        }
+      } else {
+        const paper = accountSnapshots?.paper;
+        if (paper) {
+          syncFromPayload(paper);
+          setLoading(false);
+        }
+      }
+      return () => {};
+    }
+
     fetchAccount();
     const interval = setInterval(fetchAccount, 5000);
     return () => clearInterval(interval);
-  }, [fetchAccount]);
+  }, [fetchAccount, mode, realtimeMode, wsStatus, mt5Account, mt5Positions, accountSnapshots, syncFromPayload]);
 
   const handleUpdateConfig = async () => {
     setError(null);
