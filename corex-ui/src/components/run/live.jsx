@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import client from '../../api/client';
 import useStore from '../../store/useStore';
+import OhlcChart from './OhlcChart';
 
 const Live = () => {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
   const [approving, setApproving] = useState('');
-  const { connectWebSocket, realtimeMode, mt5Status, fetchMt5Status } = useStore();
+  const { connectWebSocket, realtimeMode, mt5Status, fetchMt5Status, liveCandles, tradeTape, latestTicks, runConfig } = useStore();
   const [execEnabled, setExecEnabled] = useState(false);
+  const [activeSymbol, setActiveSymbol] = useState('');
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -45,9 +47,46 @@ const Live = () => {
     return status?.bridgeStatus || 'DISCONNECTED';
   }, [status]);
 
+  const symbols = useMemo(() => {
+    const fromCandles = Object.keys(liveCandles || {});
+    const fromTicks = Object.keys(latestTicks || {});
+    return Array.from(new Set([...fromCandles, ...fromTicks])).slice(0, 20);
+  }, [liveCandles, latestTicks]);
+
+  useEffect(() => {
+    if (!activeSymbol && symbols.length > 0) setActiveSymbol(symbols[0]);
+    if (activeSymbol && symbols.length > 0 && !symbols.includes(activeSymbol)) setActiveSymbol(symbols[0]);
+  }, [symbols, activeSymbol]);
+
   const rows = Array.isArray(status?.positions) ? status.positions : [];
   const account = status?.account || {};
   const pending = Array.isArray(status?.pending) ? status.pending : [];
+  const provider = status?.activeBridgeProvider || runConfig?.activeBridgeProvider || 'python_receiver';
+  const providerOptions = Array.isArray(runConfig?.bridgeProviders) && runConfig.bridgeProviders.length > 0
+    ? runConfig.bridgeProviders
+    : ['python_receiver', 'mql5_receiver', 'metaapi'];
+  const candles = useMemo(() => {
+    const base = activeSymbol ? (liveCandles?.[activeSymbol] || []) : [];
+    return base.slice(-120).map((c) => ({
+      time: Number(c.time),
+      open: Number(c.open),
+      high: Number(c.high),
+      low: Number(c.low),
+      close: Number(c.close),
+      volume: Number(c.volume || 0)
+    })).filter((c) => Number.isFinite(c.time) && [c.open, c.high, c.low, c.close].every(Number.isFinite));
+  }, [activeSymbol, liveCandles]);
+  const tradeMarkers = useMemo(() => {
+    const windowStart = candles[0]?.time || 0;
+    return (tradeTape || [])
+      .filter((t) => Number(t.ts) >= windowStart)
+      .slice(0, 80)
+      .map((t) => ({
+        time: Number(t.ts),
+        label: t.type,
+        value: Number(t.payload?.price || t.payload?.close || latestTicks?.[activeSymbol]?.price || 0)
+      }));
+  }, [tradeTape, candles, latestTicks, activeSymbol]);
 
   const approve = async (terminalId) => {
     if (!terminalId || approving) return;
@@ -63,34 +102,34 @@ const Live = () => {
   };
 
   return (
-    <div className="ui-panel border border-slate-800 rounded-xl p-5 space-y-5 bg-slate-900/20">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div className="ui-panel border border-[var(--ui-border)] rounded-xl p-5 space-y-5">
+      <div className="flex items-center justify-between border-b border-[var(--ui-border)] pb-3">
         <div>
-          <h2 className="text-sm font-black tracking-widest uppercase text-slate-100">MT5/MT4 Live Bridge</h2>
-          <p className="text-[10px] font-mono text-slate-500">Receiver authorization + signal transport</p>
+          <h2 className="text-sm font-black tracking-widest uppercase text-[var(--ui-text)]">MT5/MT4 Live Bridge</h2>
+          <p className="text-[10px] font-mono text-[var(--ui-muted)]">Receiver authorization + signal transport</p>
         </div>
         <span className={`text-[10px] px-2 py-1 rounded border font-bold tracking-wider ${
           bridgeState === 'CONNECTED'
-            ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+            ? 'text-[var(--ui-positive)] border-[var(--ui-border-strong)] bg-[var(--ui-row-hover)]'
             : bridgeState === 'PENDING_AUTH'
-              ? 'text-amber-400 border-amber-500/30 bg-amber-500/10'
-              : 'text-rose-400 border-rose-500/30 bg-rose-500/10'
+              ? 'text-[var(--ui-warning)] border-[var(--ui-border-strong)] bg-[var(--ui-row-hover)]'
+              : 'text-[var(--ui-negative)] border-[var(--ui-border-strong)] bg-[var(--ui-row-hover)]'
         }`}>
           {bridgeState}
         </span>
       </div>
 
       {error && (
-        <div className="text-[10px] font-bold text-rose-400 bg-rose-950/20 border border-rose-500/20 px-3 py-2 rounded">
+        <div className="text-[10px] font-bold text-[var(--ui-negative)] border px-3 py-2 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--ui-negative) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--ui-negative) 35%, transparent)' }}>
           {error}
         </div>
       )}
 
       {pending.length > 0 && (
-        <div className="text-[10px] font-bold text-amber-300 bg-amber-950/20 border border-amber-500/20 px-3 py-2 rounded flex items-center justify-between">
+        <div className="text-[10px] font-bold text-[var(--ui-warning)] border px-3 py-2 rounded flex items-center justify-between" style={{ backgroundColor: 'color-mix(in srgb, var(--ui-warning) 12%, transparent)', borderColor: 'color-mix(in srgb, var(--ui-warning) 35%, transparent)' }}>
           <span>New Connection Request from MT5 #{pending[0]?.account_id || pending[0]?.terminal_id || 'UNKNOWN'}</span>
           <button
-            className="px-2 py-1 text-[10px] bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 rounded"
+            className="px-2 py-1 text-[10px] rounded border ui-button ui-button-secondary"
             onClick={() => approve(pending[0]?.terminal_id)}
             disabled={approving === pending[0]?.terminal_id}
           >
@@ -99,11 +138,11 @@ const Live = () => {
         </div>
       )}
       {pending.length > 1 && (
-        <div className="text-[10px] text-slate-400 border border-slate-800 rounded px-3 py-2 bg-black/20">
-          <div className="uppercase tracking-widest text-slate-500 font-bold mb-1">Pending Terminals</div>
+        <div className="text-[10px] text-[var(--ui-muted)] border border-[var(--ui-border)] rounded px-3 py-2 bg-[var(--ui-panel)]">
+          <div className="uppercase tracking-widest text-[var(--ui-muted)] font-bold mb-1">Pending Terminals</div>
           <div className="flex flex-wrap gap-2">
             {pending.slice(0, 5).map((p) => (
-              <span key={p.terminal_id} className="px-2 py-1 rounded border border-slate-700 text-slate-300 font-mono">
+              <span key={p.terminal_id} className="px-2 py-1 rounded border border-[var(--ui-border)] text-[var(--ui-text)] font-mono">
                 {p.account_id || p.terminal_id}
               </span>
             ))}
@@ -111,36 +150,58 @@ const Live = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-[10px] font-bold text-slate-400 border border-slate-800 rounded px-3 py-2 bg-black/20">
+      <div className="flex items-center justify-between text-[10px] font-bold text-[var(--ui-muted)] border border-[var(--ui-border)] rounded px-3 py-2 bg-[var(--ui-panel)]">
         <span>Enable MT5 Execution</span>
-        <button
-          className={`px-2 py-1 rounded border ${execEnabled
-            ? 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10'
-            : 'text-rose-300 border-rose-500/40 bg-rose-500/10'}`}
-          onClick={async () => {
-            const next = !execEnabled;
-            setExecEnabled(next);
-            try {
-              await client.post('/system/mt5/execution', { enabled: next });
-            } catch (err) {
-              setExecEnabled(!next);
-              setError('Failed to update execution flag');
-            }
-          }}
-        >
-          {execEnabled ? 'ON' : 'OFF'}
-        </button>
+        <div className="flex items-center gap-2">
+          <span className={`text-[10px] mono ${execEnabled ? 'text-[var(--ui-positive)]' : 'text-[var(--ui-negative)]'}`}>{execEnabled ? 'ON' : 'OFF'}</span>
+          <button
+            className={`ui-switch ${execEnabled ? 'ui-switch-on' : ''}`}
+            onClick={async () => {
+              const next = !execEnabled;
+              setExecEnabled(next);
+              try {
+                await client.post('/system/mt5/execution', { enabled: next });
+              } catch (err) {
+                setExecEnabled(!next);
+                setError('Failed to update execution flag');
+              }
+            }}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
         <Metric label="Authorized Terminals" value={status?.heartbeat?.status === 'AUTHORIZED' ? 1 : 0} />
         <Metric label="Pending Orders" value={pending.length} />
         <Metric label="Last Heartbeat" value={status?.heartbeat?.last_seen ? new Date(status.heartbeat.last_seen).toLocaleTimeString() : '--'} />
+        <Metric label="Bridge Provider" value={String(provider).toUpperCase()} />
+      </div>
+
+      <div className="flex items-center justify-between text-[10px] font-bold text-[var(--ui-muted)] border border-[var(--ui-border)] rounded px-3 py-2 bg-[var(--ui-panel)]">
+        <span>Bridge Integration</span>
+        <select
+          className="px-2 py-1 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] text-[var(--ui-text)]"
+          value={provider}
+          onChange={async (e) => {
+            const next = e.target.value;
+            try {
+              await client.patch('/system/run/settings', {
+                settings: { activeBridgeProvider: next, bridgeProviders: providerOptions },
+                persist: true
+              });
+              await fetchStatus();
+            } catch {
+              setError('Failed to persist bridge provider');
+            }
+          }}
+        >
+          {providerOptions.map((p) => <option key={p} value={p}>{String(p).toUpperCase()}</option>)}
+        </select>
       </div>
 
       <section className="space-y-2">
-        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Authorized Terminal</p>
-        <div className="border border-slate-800 rounded px-3 py-2 bg-black/20 text-xs text-slate-300">
+        <p className="text-[10px] font-bold text-[var(--ui-muted)] uppercase tracking-widest">Authorized Terminal</p>
+        <div className="border border-[var(--ui-border)] rounded px-3 py-2 bg-[var(--ui-panel)] text-xs text-[var(--ui-text)]">
           {status?.heartbeat?.status === 'AUTHORIZED'
             ? (status?.heartbeat?.account_id || status?.heartbeat?.terminal_id || '--')
             : 'None'}
@@ -148,34 +209,60 @@ const Live = () => {
       </section>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <section className="border border-slate-800 rounded p-3 bg-black/20">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Live Account Snapshot</p>
+        <section className="border border-[var(--ui-border)] rounded p-3 bg-[var(--ui-panel)]">
+          <p className="text-[10px] font-bold text-[var(--ui-muted)] uppercase tracking-widest mb-2">Live Account Snapshot</p>
           <div className="space-y-1 text-xs">
             <Row label="Mode" value={account.mode || 'LIVE'} />
             <Row label="Balance" value={fmtMoney(account.balance)} />
             <Row label="Equity" value={fmtMoney(account.equity)} />
           </div>
         </section>
-        <section className="border border-slate-800 rounded p-3 bg-black/20">
-          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">Open Positions</p>
-          <p className="text-2xl text-blue-400 font-mono">{rows.length}</p>
+        <section className="border border-[var(--ui-border)] rounded p-3 bg-[var(--ui-panel)]">
+          <p className="text-[10px] font-bold text-[var(--ui-muted)] uppercase tracking-widest mb-2">Open Positions</p>
+          <p className="text-2xl text-[var(--ui-accent)] font-mono">{rows.length}</p>
         </section>
       </div>
+
+      <section className="border border-[var(--ui-border)] rounded p-3 bg-[var(--ui-panel)] space-y-3">
+        <div className="flex items-center justify-between">
+          <p className="text-[10px] font-bold text-[var(--ui-muted)] uppercase tracking-widest">Live Market Candles + Trade Actions</p>
+          <div className="flex items-center gap-2">
+            <select
+              className="px-2 py-1 text-[10px] border border-[var(--ui-border)] rounded bg-[var(--ui-panel)] text-[var(--ui-text)]"
+              value={activeSymbol}
+              onChange={(e) => setActiveSymbol(e.target.value)}
+            >
+              {symbols.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="h-[320px] w-full">
+          <OhlcChart candles={candles} markers={tradeMarkers} />
+        </div>
+        <div className="max-h-24 overflow-y-auto space-y-1">
+          {tradeTape.slice(0, 8).map((t, i) => (
+            <div key={`${t.ts}_${i}`} className="text-[10px] font-mono text-[var(--ui-muted)] flex items-center justify-between border-b border-[var(--ui-border)] pb-1">
+              <span>{new Date(t.ts).toLocaleTimeString()} [{t.type}]</span>
+              <span>{t.payload?.symbol || t.payload?.strategyId || '--'}</span>
+            </div>
+          ))}
+        </div>
+      </section>
     </div>
   );
 };
 
 const fmtMoney = (n) => (typeof n === 'number' ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '--');
 const Metric = ({ label, value }) => (
-  <div className="border border-slate-800 rounded p-3 bg-black/20">
-    <p className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">{label}</p>
-    <p className="text-lg font-mono text-slate-100">{value}</p>
+  <div className="border border-[var(--ui-border)] rounded p-3 bg-[var(--ui-panel)]">
+    <p className="text-[10px] uppercase text-[var(--ui-muted)] font-bold tracking-widest">{label}</p>
+    <p className="text-lg font-mono text-[var(--ui-text)]">{value}</p>
   </div>
 );
 const Row = ({ label, value }) => (
   <div className="flex items-center justify-between">
-    <span className="text-slate-500">{label}</span>
-    <span className="text-slate-200 font-mono">{value}</span>
+    <span className="text-[var(--ui-muted)]">{label}</span>
+    <span className="text-[var(--ui-text)] font-mono">{value}</span>
   </div>
 );
 

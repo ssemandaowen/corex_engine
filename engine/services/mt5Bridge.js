@@ -15,6 +15,13 @@ class MT5Bridge {
         this.positions = [];
         this.lastHeartbeat = 0;
         this.lastAuthFailure = 0;
+        this.runtimeConfig = {
+            bridgeToken: process.env.MT5_BRIDGE_TOKEN || "",
+            httpToken: process.env.COREX_MT5_HTTP_TOKEN || "",
+            host: process.env.COREX_MT5_BRIDGE_HOST || "",
+            port: process.env.COREX_MT5_BRIDGE_PORT || "",
+            heartbeatMs: Number(process.env.COREX_MT5_HEARTBEAT_MS || 0) || 0
+        };
     }
 
     initServer(server) {
@@ -127,7 +134,7 @@ class MT5Bridge {
     }
 
     _handleHandshake(ws, payload) {
-        const expectedToken = String(process.env.MT5_BRIDGE_TOKEN || process.env.ADMIN_SECRET || "");
+        const expectedToken = String(this.runtimeConfig.bridgeToken || process.env.MT5_BRIDGE_TOKEN || process.env.ADMIN_SECRET || "");
         const token = String(payload?.token || "");
         const receiverId = String(payload?.receiverId || "");
         const terminal = String(payload?.terminal || "MT5").toUpperCase();
@@ -236,7 +243,16 @@ class MT5Bridge {
                     connectedAt: meta?.connectedAt || 0
                 };
             }),
-            pending: this.pending.size
+            pending: this.pending.size,
+            runtime: { ...this.runtimeConfig }
+        };
+    }
+
+    applyRuntimeConfig(next = {}) {
+        if (!next || typeof next !== "object") return;
+        this.runtimeConfig = {
+            ...this.runtimeConfig,
+            ...next
         };
     }
 

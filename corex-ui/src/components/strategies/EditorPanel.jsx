@@ -1,9 +1,10 @@
 import React, { useCallback } from 'react';
 import Editor from '@monaco-editor/react';
-import { FileCode, Loader2, Zap } from 'lucide-react';
 import baseStrategyDts from '../../monaco/BaseStrategy.d.ts?raw';
+import { useStore } from '../../store/useStore';
 
 const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
+  const { editorPrefs, uiTheme } = useStore();
   const handleMount = useCallback((editor, monaco) => {
     // 1. Pro Theme Configuration
     monaco.editor.defineTheme('corex-dark', {
@@ -74,7 +75,38 @@ const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
         'editorRuler.foreground': '#1f2937'
       }
     });
-    monaco.editor.setTheme('corex-dark');
+    monaco.editor.defineTheme('corex-light', {
+      base: 'vs',
+      inherit: true,
+      rules: [
+        { token: 'comment', foreground: '64748b', fontStyle: 'italic' },
+        { token: 'keyword', foreground: '1d4ed8', fontStyle: 'bold' },
+        { token: 'string', foreground: '047857' },
+        { token: 'number', foreground: 'b45309' },
+        { token: 'identifier', foreground: '0f172a' },
+        { token: 'operator', foreground: 'be185d' },
+        { token: 'function', foreground: '0369a1' },
+        { token: 'class', foreground: 'c2410c', fontStyle: 'bold' }
+      ],
+      colors: {
+        'editor.background': '#f8fafc',
+        'editor.lineHighlightBackground': '#e2e8f080',
+        'editorLineNumber.foreground': '#94a3b8',
+        'editorLineNumber.activeForeground': '#1d4ed8',
+        'editorWidget.background': '#ffffff',
+        'editorSuggestWidget.background': '#ffffff',
+        'editorSuggestWidget.border': '#cbd5e1',
+        'editor.selectionBackground': '#bfdbfe',
+        'editor.inactiveSelectionBackground': '#dbeafe80',
+        'editorCursor.foreground': '#1e3a8a',
+        'editorBracketMatch.background': '#cbd5e180',
+        'editorBracketMatch.border': '#2563eb',
+        'editorWhitespace.foreground': '#cbd5e1',
+        'editorIndentGuide.background': '#e2e8f0',
+        'editorIndentGuide.activeBackground': '#94a3b8',
+        'editorRuler.foreground': '#e2e8f0'
+      }
+    });
 
     // 2. Strict Compiler Options for Strategy Development
     monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
@@ -96,24 +128,165 @@ const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
       noSemanticValidation: true,
       noSyntaxValidation: false,
     });
+
+    if (!monaco.__corexStrategyDocs) {
+      monaco.__corexStrategyDocs = true;
+      const methodDocs = [
+        {
+          label: 'resolveSymbol',
+          detail: 'Resolve active symbol',
+          documentation: 'Resolves symbol from explicit input, packet, or strategy defaults.'
+        },
+        {
+          label: 'hasBars',
+          detail: 'Check history depth',
+          documentation: 'Returns true if at least N bars are available for a symbol.'
+        },
+        {
+          label: 'requireBars',
+          detail: 'Guard for bar count',
+          documentation: 'Returns false and logs a guard if insufficient bars are available.'
+        },
+        {
+          label: 'safeSeries',
+          detail: 'Safe series access',
+          documentation: 'Returns a series without throwing if missing; use for defensive access.'
+        },
+        {
+          label: 'oncePerBar',
+          detail: 'One-shot bar gate',
+          documentation: 'Returns true once per bar/key to avoid duplicate actions.'
+        },
+        {
+          label: 'safeRule',
+          detail: 'Protect logic block',
+          documentation: 'Executes a block and returns fallback if it throws.'
+        },
+        {
+          label: 'describe',
+          detail: 'Strategy metadata',
+          documentation: 'Returns lightweight metadata for UI/telemetry.'
+        },
+        {
+          label: 'logDecision',
+          detail: 'Decision log',
+          documentation: 'Structured decision log with optional metadata.'
+        },
+        {
+          label: 'logSignal',
+          detail: 'Signal log',
+          documentation: 'Structured signal log with stage and metadata.'
+        },
+        {
+          label: 'logGuard',
+          detail: 'Guard log',
+          documentation: 'Structured guard pass/fail log.'
+        },
+        {
+          label: 'entryLong',
+          detail: 'Emit long entry',
+          documentation: 'Creates a normalized long entry signal.'
+        },
+        {
+          label: 'entryShort',
+          detail: 'Emit short entry',
+          documentation: 'Creates a normalized short entry signal.'
+        },
+        {
+          label: 'exitLong',
+          detail: 'Exit long',
+          documentation: 'Creates a normalized long exit signal.'
+        },
+        {
+          label: 'exitShort',
+          detail: 'Exit short',
+          documentation: 'Creates a normalized short exit signal.'
+        },
+        {
+          label: 'exitAll',
+          detail: 'Exit all',
+          documentation: 'Closes any active exposure regardless of side.'
+        },
+        {
+          label: 'flipToLong',
+          detail: 'Flip short to long',
+          documentation: 'Closes short and enters long on next bar.'
+        },
+        {
+          label: 'flipToShort',
+          detail: 'Flip long to short',
+          documentation: 'Closes long and enters short on next bar.'
+        },
+        {
+          label: 'rule',
+          detail: 'RuleChain builder',
+          documentation: 'Fluent rule chain for guarded signal emission.'
+        },
+        {
+          label: 'series',
+          detail: 'Series accessor',
+          documentation: 'Returns a numeric series for a symbol/field.'
+        },
+        {
+          label: 'pos',
+          detail: 'Position state check',
+          documentation: 'Returns true if current position state matches.'
+        }
+      ];
+
+      monaco.languages.registerHoverProvider('javascript', {
+        provideHover: (model, position) => {
+          const word = model.getWordAtPosition(position);
+          if (!word) return null;
+          const match = methodDocs.find((d) => d.label === word.word);
+          if (!match) return null;
+          return {
+            range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+            contents: [
+              { value: `**${match.label}**` },
+              { value: match.detail },
+              { value: match.documentation }
+            ]
+          };
+        }
+      });
+
+      monaco.languages.registerCompletionItemProvider('javascript', {
+        triggerCharacters: ['.'],
+        provideCompletionItems: () => {
+          const suggestions = methodDocs.map((doc) => ({
+            label: doc.label,
+            kind: monaco.languages.CompletionItemKind.Method,
+            detail: doc.detail,
+            documentation: doc.documentation,
+            insertText: doc.label,
+          }));
+          return { suggestions };
+        }
+      });
+    }
   }, []);
 
+  const resolvedTheme = editorPrefs?.theme
+    || (uiTheme === 'light' ? 'corex-light' : 'corex-dark');
+
   return (
-    <div className="flex flex-col h-full bg-[#020617] font-sans border-l border-white/5">
+    <div className="flex flex-col h-full bg-[var(--ui-panel)] font-sans border-l border-[var(--ui-border)]">
 
       {/* Monaco Container */}
       <div className="flex-1 overflow-hidden relative">
         <Editor
           height="100%"
           defaultLanguage="javascript"
+          theme={resolvedTheme}
           value={code}
           onChange={(val) => setCode(val || "")}
           onMount={handleMount}
           options={{
-          fontSize: 13,
-          lineHeight: 20,
-          fontFamily: 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-            minimap: { enabled: false },
+          fontSize: Number(editorPrefs?.fontSize || 13),
+          lineHeight: Number(editorPrefs?.lineHeight || 20),
+          fontFamily: editorPrefs?.fontFamily || 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
+            minimap: { enabled: editorPrefs?.minimap === true },
             padding: { top: 24, bottom: 24 },
             smoothScrolling: true,
             cursorBlinking: 'expand',
@@ -130,12 +303,12 @@ const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
             lineNumbersMinChars: 5,
             folding: true,
             bracketPairColorization: { enabled: true },
-            wordWrap: 'on'
+            wordWrap: editorPrefs?.wordWrap === 'off' ? 'off' : 'on'
           }}
         />
         
         {/* Subtle Glass Overlay on bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[#020617] to-transparent pointer-events-none" />
+        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[var(--ui-panel)] to-transparent pointer-events-none" />
       </div>
     </div>
   );

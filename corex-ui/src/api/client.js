@@ -37,6 +37,8 @@ client.interceptors.response.use(
         }
         return Promise.reject({
             success: false,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
             message: error.response?.data?.error || 'NETWORK_ERROR',
             details: error.message
         });

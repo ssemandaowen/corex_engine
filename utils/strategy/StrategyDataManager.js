@@ -1,5 +1,11 @@
 "use strict";
 
+const { DEFAULT_STRATEGY_CONFIG } = require("@config/constants");
+
+/**
+ * Optimized CircularBuffer: Uses a fixed-size array to prevent 
+ * V8 re-indexing and avoids unnecessary allocations.
+ */
 class CircularBuffer {
     constructor(capacity) {
         this.capacity = capacity;
@@ -14,15 +20,22 @@ class CircularBuffer {
         if (this.size < this.capacity) this.size++;
     }
 
+    // Returns the element at index i (0 = oldest, size-1 = newest)
+    get(i) {
+        if (i < 0 || i >= this.size) return null;
+        const idx = (this.writeIndex - this.size + i + this.capacity) % this.capacity;
+        return this.buffer[idx];
+    }
+
+    // Returns the N most recent items without creating a full array copy
     last(n = 1) {
-        if (this.size === 0) return [];
-        if (n === 1) {
-            return [this.buffer[(this.writeIndex - 1 + this.capacity) % this.capacity]];
-        }
         const count = Math.min(n, this.size);
-        const result = [];
+        if (count <= 0) return [];
+        
+        const result = new Array(count);
         for (let i = 0; i < count; i++) {
-            result.push(this.buffer[(this.writeIndex - count + i + this.capacity) % this.capacity]);
+            const idx = (this.writeIndex - count + i + this.capacity) % this.capacity;
+            result[i] = this.buffer[idx];
         }
         return result;
     }
@@ -32,71 +45,83 @@ class CircularBuffer {
     }
 }
 
+
+
 class StrategyDataManager {
-    constructor({ symbols = [], maxHistory = 5000 } = {}) {
+    constructor({ symbols = [], maxHistory = DEFAULT_STRATEGY_CONFIG.MAX_DATA_HISTORY } = {}) {
         this.maxHistory = maxHistory;
         this.data = new Map();
-        symbols.forEach((symbol) => {
-            this.data.set(symbol, {
-                candles: new CircularBuffer(this.maxHistory),
-                activeCandle: null
-            });
-        });
+        symbols.forEach(s => this.ensureSymbol(s));
     }
 
     ensureSymbol(symbol) {
-        if (!this.data.has(symbol)) {
-            this.data.set(symbol, {
+        let store = this.data.get(symbol);
+        if (!store) {
+            store = {
                 candles: new CircularBuffer(this.maxHistory),
                 activeCandle: null
-            });
+            };
+            this.data.set(symbol, store);
         }
-        return this.data.get(symbol);
+        return store;
     }
 
+    /**
+     * updateTick: Optimized to update active candle by reference.
+     * No object spreading used here to keep GC low.
+     */
     updateTick({ symbol, time, price, volume = 0 }, tfMs) {
         const store = this.ensureSymbol(symbol);
         const candleStart = Math.floor(time / tfMs) * tfMs;
 
         if (!store.activeCandle || store.activeCandle.time !== candleStart) {
+            // Push the completed candle (no spread, we trust the previous ref is finished)
             if (store.activeCandle) {
-                store.candles.push({ ...store.activeCandle });
+                store.candles.push(store.activeCandle);
             }
+            // Create new candle object
             store.activeCandle = {
                 time: candleStart,
-                open: price,
-                high: price,
-                low: price,
-                close: price,
+                open: price, high: price, low: price, close: price,
                 volume
             };
             return { closed: true };
         }
 
-        store.activeCandle.high = Math.max(store.activeCandle.high, price);
-        store.activeCandle.low = Math.min(store.activeCandle.low, price);
-        store.activeCandle.close = price;
-        store.activeCandle.volume += volume;
+        const c = store.activeCandle;
+        if (price > c.high) c.high = price;
+        if (price < c.low) c.low = price;
+        c.close = price;
+        c.volume += volume;
+
         return { closed: false };
     }
 
+    /**
+     * Direct ingestion of completed bars (e.g., from History API)
+     */
     ingestBar(bar) {
         const store = this.ensureSymbol(bar.symbol);
-        store.candles.push({ ...bar });
+        // Ensure we don't hold a reference to the source object if it might change
+        store.candles.push({ ...bar }); 
         store.activeCandle = null;
     }
 
-    getLookbackWindow(symbol) {
+    getLookbackWindow(symbol, n) {
         const store = this.data.get(symbol);
-        if (!store || !store.candles) return [];
-        const history = store.candles.toArray();
-        return Array.isArray(history) ? history : [];
+        if (!store) return [];
+        return n ? store.candles.last(n) : store.candles.toArray();
     }
 
     isWarmedUp(symbol, lookback) {
         const store = this.data.get(symbol);
-        if (!store) return false;
-        return store.candles.size >= lookback;
+        return store ? store.candles.size >= lookback : false;
+    }
+
+    // Quick access to the most recent completed candle
+    getLatest(symbol) {
+        const store = this.data.get(symbol);
+        return store ? store.candles.get(store.candles.size - 1) : null;
     }
 }
 

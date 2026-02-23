@@ -4,5 +4,11 @@ module.exports = {
     Position: require("./Position"),
     StrategyDataManager: require("./StrategyDataManager"),
     StrategyPositionManager: require("./StrategyPositionManager"),
-    StrategySignalUtils: require("./StrategySignalUtils")
+    StrategySignalUtils: require("./StrategySignalUtils"),
+    StrategyDevHelpers: require("./StrategyDevHelpers"),
+    signalCore: require("./signalCore"),
+    StrategyParamUtils: require("./StrategyParamUtils"),
+    StrategyRuntimeUtils: require("./StrategyRuntimeUtils"),
+    RuleChain: require("./RuleChain"),
+    StrategyIntrospection: require("./StrategyIntrospection")
 };

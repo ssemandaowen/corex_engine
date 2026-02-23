@@ -22,7 +22,10 @@
     "mt5:receiver:env": "set DOTENV_CONFIG_PATH=.env.receiver && python engine/managers/mt5Receiver.py",
     "db:start": "pg_ctl start -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -w",
     "db:stop": "pg_ctl stop -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -m fast",
-    "db:status": "pg_ctl status -D \"%USERPROFILE%/scoop/persist/postgresql/data\""
+    "db:status": "pg_ctl status -D \"%USERPROFILE%/scoop/persist/postgresql/data\"",
+    "bench:engine": "node scripts/bench/engine-micro-bench.js",
+    "maintenance:prune": "node scripts/maintenance/prune-runtime-artifacts.js",
+    "maintenance:prune:apply": "node scripts/maintenance/prune-runtime-artifacts.js --apply"
   },
   "_moduleAliases": {
     "@root": ".",
@@ -64,6 +67,15 @@
   "jest": {
     "testMatch": [
       "**/test/**/*.test.js"
-    ]
+    ],
+    "moduleNameMapper": {
+      "^@root/(.*)$": "<rootDir>/$1",
+      "^@core/(.*)$": "<rootDir>/engine/$1",
+      "^@strategies/(.*)$": "<rootDir>/strategies/$1",
+      "^@utils/(.*)$": "<rootDir>/utils/$1",
+      "^@broker/(.*)$": "<rootDir>/broker/$1",
+      "^@events/(.*)$": "<rootDir>/events/$1",
+      "^@config/(.*)$": "<rootDir>/config/$1"
+    }
   }
 }

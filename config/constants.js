@@ -15,6 +15,12 @@ const MODES = {
   BACKTEST: 'BACKTEST'
 };
 
+const BRIDGE_INTEGRATIONS = {
+  MQL5_RECEIVER: "mql5_receiver",
+  PYTHON_RECEIVER: "python_receiver",
+  METAAPI: "metaapi"
+};
+
 // ────────────────────────────────────────────────
 // STRATEGY SIGNALS & POSITION STATES
 // ────────────────────────────────────────────────
@@ -43,6 +49,7 @@ const EVENTS = {
     STRATEGY_STOP: 'system:strategy:stop',
     STATE_CHANGED: 'system:strategy:state_changed',
     ERROR: 'system:error',
+    LOG: 'system:log',
     SETTINGS_UPDATED: 'system:settings:updated',
     CONFIG_REFRESH: 'system:config:refresh'
   },
@@ -94,6 +101,7 @@ const WS_EVENT_TYPES = {
   STRATEGY_STOP: "STRATEGY_STOP",
   STRATEGY_STATE: "STRATEGY_STATE",
   SYSTEM_ERROR: "SYSTEM_ERROR",
+  SYSTEM_LOG: "SYSTEM_LOG",
   PARAM_UPDATE: "PARAM_UPDATE",
   STATUS_UPDATE: "STATUS_UPDATE",
   FEED_METRICS: "FEED_METRICS",
@@ -125,6 +133,7 @@ const BUS_EVENT_TO_WS = [
   { event: EVENTS.SYSTEM.STRATEGY_STOP, type: WS_EVENT_TYPES.STRATEGY_STOP, category: "system" },
   { event: EVENTS.SYSTEM.STATE_CHANGED, type: WS_EVENT_TYPES.STRATEGY_STATE, category: "system" },
   { event: EVENTS.SYSTEM.ERROR, type: WS_EVENT_TYPES.SYSTEM_ERROR, category: "system" },
+  { event: EVENTS.SYSTEM.LOG, type: WS_EVENT_TYPES.SYSTEM_LOG, category: "system" },
   { event: EVENTS.SYSTEM.SETTINGS_UPDATED, type: WS_EVENT_TYPES.PARAM_UPDATE, category: "system" },
   { event: EVENTS.MT5.CONNECTED, type: WS_EVENT_TYPES.MT5_CONNECTED, category: "mt5" },
   { event: EVENTS.MT5.DISCONNECTED, type: WS_EVENT_TYPES.MT5_DISCONNECTED, category: "mt5" },
@@ -231,12 +240,27 @@ const PERFORMANCE = {
   FS_WATCH_DEBOUNCE_MS: 100   // File system watch debounce time
 };
 
+const ENGINE_TUNING = {
+  TICK_QUEUE_MAX: 5000,
+  TICK_FLUSH_MAX: 10000,
+  STRAT_QUEUE_MAX: 1000,
+  STRAT_SLICE_MS: 5,
+  WARMUP_LOOKBACK: 300,
+  WARMUP_CACHE_MAX_PATCH_BARS: 5000,
+  WARMUP_CACHE_MAX_WRITE_BARS: 2000
+};
+
+const BACKTEST = {
+  DB_REQUIRED: true
+};
+
 // ────────────────────────────────────────────────
 // EXPORT ALL CONSTANTS
 // ────────────────────────────────────────────────
 
 module.exports = {
   MODES,
+  BRIDGE_INTEGRATIONS,
   INTENTS,
   SIDES,
   EVENTS,
@@ -249,5 +273,7 @@ module.exports = {
   API_RESPONSES,
   LOG_PREFIXES,
   TIME,
-  PERFORMANCE
+  PERFORMANCE,
+  ENGINE_TUNING,
+  BACKTEST
 };

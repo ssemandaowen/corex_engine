@@ -25,6 +25,7 @@ class TwelveDataBroker {
             restBase: null,
             wsBase: null,
             apiKey: process.env.TWELVE_DATA_KEY,
+            websocketEnabled: true,
             heartbeatMs: 0,
             reconnectLimit: 0
         };
@@ -63,13 +64,45 @@ class TwelveDataBroker {
         const flushDelayMs = Number(get("broker.twelvedata.flushDelayMs", 120));
         const httpTimeoutMs = Number(get("broker.twelvedata.httpTimeoutMs", 15000));
 
+        const persistedApiKey = get("ui.integrations.marketData.twelveDataApiKey", null);
+        const persistedWsEnabled = get("ui.integrations.marketData.websocketEnabled", null);
+
         this.config.restBase = restBase;
         this.config.wsBase = wsBase;
         this.config.heartbeatMs = heartbeatMs;
         this.config.reconnectLimit = reconnectLimit;
+        this.config.apiKey = persistedApiKey != null ? String(persistedApiKey) : (process.env.TWELVE_DATA_KEY || this.config.apiKey);
+        this.config.websocketEnabled = persistedWsEnabled == null
+            ? !["0", "false", "no", "off"].includes(String(process.env.COREX_MARKET_WS_ENABLED || "true").toLowerCase())
+            : !!persistedWsEnabled;
 
         this.httpClient.defaults.timeout = httpTimeoutMs;
         this._flushDelayMs = flushDelayMs;
+    }
+
+    applyRuntimeConfig(next = {}) {
+        const prevApiKey = this.config.apiKey;
+        const prevWsEnabled = this.config.websocketEnabled;
+
+        if (next.apiKey != null) {
+            this.config.apiKey = String(next.apiKey || "");
+        }
+        if (next.websocketEnabled != null) {
+            this.config.websocketEnabled = !!next.websocketEnabled;
+        }
+
+        if (!this.config.websocketEnabled && this.stream) {
+            this._disposeSocket();
+            logger.info("TwelveData WS disabled by runtime config.");
+            return;
+        }
+
+        const keyChanged = prevApiKey !== this.config.apiKey;
+        const wsEnabledChanged = prevWsEnabled !== this.config.websocketEnabled;
+        if ((keyChanged || wsEnabledChanged) && this.config.websocketEnabled && this.symbols.size > 0) {
+            this._disposeSocket();
+            this.connect();
+        }
     }
 
     /**
@@ -217,6 +250,10 @@ class TwelveDataBroker {
      */
     connect() {
         this._loadConfig();
+        if (!this.config.websocketEnabled) {
+            logger.info("TwelveData WS disabled. Running REST-only mode.");
+            return;
+        }
         if (!this.config.apiKey) {
             logger.error("TWELVE_DATA_KEY missing. Broker cannot connect.");
             return;
@@ -265,6 +302,7 @@ class TwelveDataBroker {
 
     _handleReconnection() {
         this._stopHeartbeat();
+        if (!this.config.websocketEnabled) return;
         if (this.reconnectAttempts < this.config.reconnectLimit) {
             this.reconnectAttempts++;
             const baseDelay = Math.pow(2, this.reconnectAttempts) * 1000;
@@ -292,6 +330,13 @@ class TwelveDataBroker {
     }
 
     cleanup() {
+        this._disposeSocket();
+        this.symbols.clear();
+        this.isConnected = false;
+        logger.info("TwelveData Broker: Cleaned and Purged.");
+    }
+
+    _disposeSocket() {
         this._stopHeartbeat();
         if (this._flushTimer) {
             clearTimeout(this._flushTimer);
@@ -304,9 +349,7 @@ class TwelveDataBroker {
             this.stream.terminate();
             this.stream = null;
         }
-        this.symbols.clear();
         this.isConnected = false;
-        logger.info("TwelveData Broker: Cleaned and Purged.");
     }
 }
 

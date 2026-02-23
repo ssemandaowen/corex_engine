@@ -12,12 +12,15 @@ const logger = require("@utils/logger");
 const dbMigrator = require("./db/migrate");
 const db = require("@core/services/postgres");
 const configService = require("@core/services/configService");
+const integrationRuntime = require("@core/services/integrationRuntime");
 
 async function bootstrap() {
     try {
         await dbMigrator.run();
         configService.init();
         await configService.load();
+        integrationRuntime.init();
+        await integrationRuntime.refresh();
         await engine.start();
         await server.start();
         logger.info(`CoreX Ready to use...`);

@@ -3,6 +3,7 @@ import { FileCode, Plus, X, Box, Save, Play } from 'lucide-react';
 import client from '../api/client';
 import StrategyList from '../components/strategies/StrategyList';
 import EditorPanel from '../components/strategies/EditorPanel';
+import { corexSwal } from '../utils/swal';
 
 const StrategyView = ({ onNavigate }) => {
   const [strategies, setStrategies] = useState([]);
@@ -169,21 +170,33 @@ const StrategyView = ({ onNavigate }) => {
       setShowCreate(false);
       setNewName('');
       addToast({ type: 'success', message: `Created ${createdId}` });
+      await corexSwal({
+        icon: 'success',
+        title: 'Strategy Created',
+        text: `${createdId} is ready in the registry.`,
+        confirmButtonText: 'OK'
+      });
     } catch (err) {
       addToast({ type: 'error', message: err?.message || 'Create failed' });
+      await corexSwal({
+        icon: 'error',
+        title: 'Create Failed',
+        text: err?.message || 'Create failed.',
+        confirmButtonText: 'OK'
+      });
     } finally {
       setCreating(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-[#0b0e14] overflow-hidden">
+    <div className="flex h-full overflow-hidden bg-transparent">
       
       {/* SIDEBAR: LOGIC REGISTRY */}
-      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r border-slate-800 bg-[#0d1117] flex flex-col overflow-hidden`}>
-        <div className="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Logic Registry</span>
-          <button onClick={() => setShowCreate(true)} className="p-1 hover:bg-slate-800 rounded text-blue-400">
+      <div className={`${sidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 border-r border-[var(--ui-border)] bg-[var(--ui-panel-strong)] flex flex-col overflow-hidden`}>
+        <div className="p-4 border-b border-[var(--ui-border)] flex justify-between items-center shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ui-muted)]">Logic Registry</span>
+          <button onClick={() => setShowCreate(true)} className="p-1 hover:bg-white/5 rounded text-blue-400">
             <Plus size={16} />
           </button>
         </div>
@@ -201,10 +214,10 @@ const StrategyView = ({ onNavigate }) => {
       <div className="flex-1 flex flex-col min-w-0 relative">
         
         {/* VS TABS BAR */}
-        <div className="h-10 bg-[#0d1117] border-b border-slate-800 flex items-center overflow-x-auto no-scrollbar">
+        <div className="h-10 bg-[var(--ui-panel-strong)] border-b border-[var(--ui-border)] flex items-center overflow-x-auto no-scrollbar">
           <button 
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="px-3 h-full border-r border-slate-800 hover:bg-slate-800 text-slate-500"
+            className="px-3 h-full border-r border-[var(--ui-border)] hover:bg-white/5 text-[var(--ui-muted)]"
           >
             <Box size={14} />
           </button>
@@ -213,24 +226,24 @@ const StrategyView = ({ onNavigate }) => {
             <div 
               key={tabId}
               onClick={() => setSelectedId(tabId)}
-              className={`flex items-center h-full px-4 gap-3 border-r border-slate-800 cursor-pointer transition-colors min-w-[120px] max-w-[200px]
-                ${selectedId === tabId ? 'bg-[#1e2227] text-blue-400 border-b border-b-blue-500' : 'text-slate-500 hover:bg-slate-800/50'}`}
+              className={`flex items-center h-full px-4 gap-3 border-r border-[var(--ui-border)] cursor-pointer transition-colors min-w-[120px] max-w-[200px]
+                ${selectedId === tabId ? 'bg-blue-500/10 text-blue-300 border-b border-b-blue-500' : 'text-[var(--ui-muted)] hover:bg-white/5'}`}
             >
               <FileCode size={12} />
               <span className="text-[11px] font-medium truncate flex-1">{tabId}</span>
-              <X size={12} className="hover:text-white" onClick={(e) => closeTab(e, tabId)} />
+              <X size={12} className="hover:text-[var(--ui-text)]" onClick={(e) => closeTab(e, tabId)} />
             </div>
           ))}
         </div>
 
         {/* EDITOR AREA */}
-        <div className="flex-1 bg-[#12151a]">
+        <div className="flex-1 bg-[var(--ui-panel)]">
           {selectedId ? (
             <div className="h-full flex flex-col">
               {/* Toolbar */}
-              <div className="px-4 py-2 border-b border-slate-800 flex justify-between items-center bg-[#0d1117]/50">
+              <div className="px-4 py-2 border-b border-[var(--ui-border)] flex justify-between items-center bg-[rgba(15,23,42,0.3)]">
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-mono text-slate-500 uppercase">Working on:</span>
+                  <span className="text-[10px] font-mono text-[var(--ui-muted)] uppercase">Working on:</span>
                   <span className="text-[10px] font-mono text-blue-400">{selectedId}.js</span>
                 </div>
                 <div className="flex gap-2">
@@ -255,10 +268,10 @@ const StrategyView = ({ onNavigate }) => {
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-              <div className="w-16 h-16 rounded-xl border-2 border-dashed border-slate-700 flex items-center justify-center mb-4">
-                <FileCode size={32} className="text-slate-700" />
+              <div className="w-16 h-16 rounded-xl border-2 border-dashed border-[var(--ui-border)] flex items-center justify-center mb-4">
+                <FileCode size={32} className="text-[var(--ui-muted)]" />
               </div>
-              <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-slate-500">
+              <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-[var(--ui-muted)]">
                 System Awaiting Logic Selection
               </p>
             </div>
@@ -269,12 +282,12 @@ const StrategyView = ({ onNavigate }) => {
       {/* CREATE MODAL */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="w-full max-w-sm bg-[#161b22] border border-slate-800 rounded-lg shadow-2xl p-6">
-            <h3 className="text-sm font-bold text-white mb-1 uppercase tracking-wider">Initialize Strategy</h3>
-            <p className="text-[11px] text-slate-500 mb-4">Assign a unique identifier for the logic registry.</p>
+          <div className="w-full max-w-sm ui-modal-card p-6">
+            <h3 className="text-sm font-bold text-[var(--ui-text)] mb-1 uppercase tracking-wider">Initialize Strategy</h3>
+            <p className="text-[11px] text-[var(--ui-muted)] mb-4">Assign a unique identifier for the logic registry.</p>
             <input 
               autoFocus
-              className="w-full bg-[#0d1117] border border-slate-700 rounded p-2 text-sm text-white focus:border-blue-500 outline-none mb-4"
+              className="ui-input mb-4"
               placeholder="e.g. scalp_v1"
               value={newName}
               onChange={e => setNewName(e.target.value)}
@@ -283,7 +296,7 @@ const StrategyView = ({ onNavigate }) => {
               }}
             />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[10px] font-bold text-slate-400 hover:text-white uppercase">Cancel</button>
+              <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-[10px] font-bold text-[var(--ui-muted)] hover:text-[var(--ui-text)] uppercase">Cancel</button>
               <button onClick={handleCreate} disabled={creating} className="px-4 py-2 bg-blue-600 text-white rounded text-[10px] font-bold uppercase disabled:opacity-50">
                 {creating ? 'Creating...' : 'Create'}
               </button>

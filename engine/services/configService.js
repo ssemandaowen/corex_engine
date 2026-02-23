@@ -5,15 +5,11 @@ const pgStore = require("@core/services/pgStore");
 const db = require("@core/services/postgres");
 const logger = require("@utils/logger");
 
-const MODULE = "CONFIG";
 const TTL = 60 * 1000; // 60s cache TTL
 
-const log = {
-  info: (message, meta) => logger.info(`[${MODULE}][INFO] ${message}`, meta),
-  warn: (message, meta) => logger.warn(`[${MODULE}][WARN] ${message}`, meta),
-  error: (message, meta) => logger.error(`[${MODULE}][ERROR] ${message}`, meta),
-  debug: (message, meta) => logger.debug(`[${MODULE}][DEBUG] ${message}`, meta)
-};
+const log = logger.createModuleLogger("CONFIG", {
+  category: "system"
+});
 
 let cache = {
   data: {},

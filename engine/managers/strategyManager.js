@@ -9,13 +9,11 @@ const { verifyStrategyFile } = require('@core/services/hashVerifier');
 const db = require('@core/services/postgres');
 const { compile } = require("@core/services/strategyCompiler");
 
-const MODULE = "STRATEGY_LOADER";
-const log = {
-    info: (message, meta) => logger.info(`[${MODULE}][INFO] ${message}`, meta),
-    warn: (message, meta) => logger.warn(`[${MODULE}][WARN] ${message}`, meta),
-    error: (message, meta) => logger.error(`[${MODULE}][ERROR] ${message}`, meta),
-    debug: (message, meta) => logger.debug(`[${MODULE}][DEBUG] ${message}`, meta)
-};
+const log = logger.createModuleLogger("STRATEGY_LOADER", {
+    category: "strategy",
+    ui: true,
+    uiLevels: ["info", "warn", "error"]
+});
 
 /**
  * Manages loading, reloading, starting, and stopping trading strategies.
@@ -464,7 +462,16 @@ class StrategyLoader {
 
         // Apply Runtime Configuration
         entry.instance.mode = (options.mode || entry.instance.mode || 'PAPER').toUpperCase();
-        entry.instance.timeframe = options.timeframe || entry.instance.timeframe || '1m';
+        const normalizedTf = this.engine?._normalizeTimeframe?.(options.timeframe || entry.instance.timeframe || "1m");
+        if (!normalizedTf) {
+            log.error(`startStrategy: Invalid timeframe for [${id}] -> ${options.timeframe || entry.instance.timeframe}`);
+            stateManager.commit(id, 'ERROR', { reason: 'Invalid timeframe' });
+            return entry;
+        }
+        entry.instance.timeframe = normalizedTf;
+        if (options.strategyParams && typeof options.strategyParams === "object") {
+            entry.instance.updateParams?.(options.strategyParams);
+        }
         entry.instance.enabled = true;
         entry.instance.startTime = Date.now(); // Record start time for uptime calculation
 
@@ -554,7 +561,10 @@ class StrategyLoader {
             mode: e.instance.mode || null,
             uptime: e.instance.startTime ? Date.now() - e.instance.startTime : 0,
             lookback: e.instance.lookback || null,
+            maxDataHistory: e.instance.max_data_history || null,
             dataPoints: this._countDataPoints(e.instance),
+            historyPoints: this._countHistoricalPoints(e.instance),
+            lookbackCoveragePct: this._calcLookbackCoverage(e.instance),
             params: e.instance.params || {}, // Expose current parameters
             schema: (e.instance.schema && Object.keys(e.instance.schema).length > 0)
                 ? e.instance.schema
@@ -572,6 +582,28 @@ class StrategyLoader {
             if (store?.activeCandle) total += 1;
         });
         return total;
+    }
+
+    _countHistoricalPoints(instance) {
+        if (!instance) return 0;
+        const dm = instance.dataManager;
+        if (!dm || !dm.data || typeof dm.data.forEach !== 'function') return 0;
+        let total = 0;
+        dm.data.forEach((store) => {
+            if (store?.candles?.size != null) total += store.candles.size;
+        });
+        return total;
+    }
+
+    _calcLookbackCoverage(instance) {
+        const lookback = Number(instance?.lookback || 0);
+        if (!Number.isFinite(lookback) || lookback <= 0) return 0;
+        const historyPoints = this._countHistoricalPoints(instance);
+        const symbols = Array.isArray(instance?.symbols) ? instance.symbols.length : 0;
+        if (!symbols) return 0;
+        const target = lookback * symbols;
+        if (target <= 0) return 0;
+        return Math.min(100, (historyPoints / target) * 100);
     }
 
     _inferSchemaFromParams(params) {

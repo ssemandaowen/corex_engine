@@ -6,16 +6,15 @@ const mt5Bridge = require("@core/services/mt5Bridge");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 
-const MODULE = "HEALTH";
 const CHECK_INTERVAL = 15000; // 15s
 const TIMEOUT_MS = 4000;
 const MT5_MAX_HEARTBEAT_AGE = 20000; // 20s
 
-const log = {
-  info: (m, meta) => logger.info(`[${MODULE}][INFO] ${m}`, meta),
-  warn: (m, meta) => logger.warn(`[${MODULE}][WARN] ${m}`, meta),
-  error: (m, meta) => logger.error(`[${MODULE}][ERROR] ${m}`, meta)
-};
+const log = logger.createModuleLogger("HEALTH", {
+  category: "system",
+  ui: true,
+  uiLevels: ["warn", "error"]
+});
 
 let state = {
   status: "unknown", // healthy | degraded | critical

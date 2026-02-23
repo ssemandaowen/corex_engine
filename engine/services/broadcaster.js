@@ -127,7 +127,9 @@ class Broadcaster {
                     }
                 },
                 pulse: null,
-                strategies: loader.listStrategies(),
+                strategies: typeof loader.listStrategies === "function"
+                    ? loader.listStrategies()
+                    : [],
                 accounts: {
                     paper: getPaperBroker()?.getAccountSnapshot?.() || null,
                     live: mt5Bridge.getAccountSnapshot() || null

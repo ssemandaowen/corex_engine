@@ -11,9 +11,12 @@ const mt5Bridge = require("@core/services/mt5Bridge");
 const broadcaster = require("@core/services/broadcaster");
 const db = require("@core/services/postgres");
 const pgStore = require("@core/services/pgStore");
+const configService = require("@core/services/configService");
+const integrationRuntime = require("@core/services/integrationRuntime");
 const engine = require("@core/core/engine");
 const { runHealthCheck } = require("@core/services/healthCheck");
 const logger = require('@utils/logger');
+const { BRIDGE_INTEGRATIONS, MODES, TIME } = require("@config/constants");
 
 /**
  * SYSTEM & ACCOUNT DOMAIN
@@ -246,6 +249,29 @@ router.post('/settings/update', (req, res) => {
     res.json({ success: true, message: "Global settings updated." });
 });
 
+router.get('/account/:mode/settings', async (req, res) => {
+    try {
+        const mode = String(req.params.mode || "").toLowerCase();
+        const broker = getBrokerByMode(mode);
+        if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
+
+        const snapshot = broker.getAccountSnapshot?.() || {};
+        const persisted = await pgStore.getBrokerSettings(mode);
+        res.json({
+            success: true,
+            payload: {
+                mode: mode.toUpperCase(),
+                cash: Number(snapshot.cash ?? persisted?.cash ?? 0),
+                initialCash: Number(snapshot.initialCash ?? persisted?.initialCash ?? 0),
+                config: snapshot.config || persisted?.config || {},
+                persisted
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "SETTINGS_READ_FAILED", message: err.message });
+    }
+});
+
 router.get('/settings', async (req, res) => {
     try {
         const runtime = engine.getSettings();
@@ -279,10 +305,65 @@ router.patch('/settings', async (req, res) => {
             }
             await pgStore.upsertSystemSettings(nextPayload);
         }
+        await configService.refresh();
+        await integrationRuntime.refresh();
         bus.emit(EVENTS.SYSTEM.CONFIG_REFRESH, { source: "api", updated });
         res.json({ success: true, payload: updated });
     } catch (err) {
         res.status(500).json({ success: false, error: "SETTINGS_UPDATE_FAILED", message: err.message });
+    }
+});
+
+const getDefaultRunSettings = () => ({
+    modes: [MODES.PAPER, MODES.LIVE],
+    defaultMode: MODES.PAPER,
+    timeframes: TIME.DEFAULT_TIMEFRAMES,
+    defaultTimeframe: TIME.DEFAULT_TIMEFRAMES[0],
+    bridgeProviders: [BRIDGE_INTEGRATIONS.PYTHON_RECEIVER, BRIDGE_INTEGRATIONS.MQL5_RECEIVER, BRIDGE_INTEGRATIONS.METAAPI],
+    activeBridgeProvider: BRIDGE_INTEGRATIONS.PYTHON_RECEIVER
+});
+
+router.get('/run/settings', async (req, res) => {
+    try {
+        const persisted = await pgStore.getSystemSettings();
+        const payload = persisted?.payload || {};
+        const run = payload.run && typeof payload.run === "object" ? payload.run : {};
+        const defaults = getDefaultRunSettings();
+        const merged = {
+            modes: Array.isArray(run.modes) && run.modes.length > 0 ? run.modes.map((m) => String(m).toUpperCase()) : defaults.modes,
+            defaultMode: String(run.defaultMode || defaults.defaultMode).toUpperCase(),
+            timeframes: Array.isArray(run.timeframes) && run.timeframes.length > 0 ? run.timeframes : defaults.timeframes,
+            defaultTimeframe: String(run.defaultTimeframe || defaults.defaultTimeframe),
+            bridgeProviders: Array.isArray(run.bridgeProviders) && run.bridgeProviders.length > 0 ? run.bridgeProviders : defaults.bridgeProviders,
+            activeBridgeProvider: String(run.activeBridgeProvider || defaults.activeBridgeProvider)
+        };
+
+        if (!merged.modes.includes(merged.defaultMode)) merged.defaultMode = merged.modes[0];
+        if (!merged.timeframes.includes(merged.defaultTimeframe)) merged.defaultTimeframe = merged.timeframes[0];
+        if (!merged.bridgeProviders.includes(merged.activeBridgeProvider)) merged.activeBridgeProvider = merged.bridgeProviders[0];
+
+        res.json({ success: true, payload: merged });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "RUN_SETTINGS_READ_FAILED", message: err.message });
+    }
+});
+
+router.patch('/run/settings', async (req, res) => {
+    try {
+        const run = req.body?.settings && typeof req.body.settings === "object" ? req.body.settings : {};
+        const persist = req.body?.persist !== false;
+        const existing = await pgStore.getSystemSettings();
+        const payload = existing?.payload && typeof existing.payload === "object" ? existing.payload : {};
+        const defaults = getDefaultRunSettings();
+        const nextRun = { ...(payload.run || defaults), ...run };
+        const nextPayload = { ...payload, run: nextRun };
+        if (persist) await pgStore.upsertSystemSettings(nextPayload);
+        await configService.refresh();
+        await integrationRuntime.refresh();
+        bus.emit(EVENTS.SYSTEM.CONFIG_REFRESH, { source: "api.run.settings", updated: nextRun });
+        res.json({ success: true, payload: nextRun });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "RUN_SETTINGS_UPDATE_FAILED", message: err.message });
     }
 });
 
@@ -307,12 +388,16 @@ router.get('/mt5/status', (req, res) => {
          FROM bridge_status
          ORDER BY last_seen DESC`
         ),
-        db.query(`SELECT execution_enabled FROM execution_control WHERE id = 1`)
-    ]).then(([bridgeRes, execRes]) => {
+        db.query(`SELECT execution_enabled FROM execution_control WHERE id = 1`),
+        pgStore.getSystemSettings().catch(() => null)
+    ]).then(([bridgeRes, execRes, systemSettings]) => {
         const rows = bridgeRes.rows || [];
         const heartbeat = rows[0] || null;
         const pending = rows.filter((r) => r.status === "PENDING_APPROVAL");
         const executionEnabled = execRes.rows?.[0]?.execution_enabled ?? true;
+        const runSettings = systemSettings?.payload?.run && typeof systemSettings.payload.run === "object"
+            ? systemSettings.payload.run
+            : {};
 
         let bridgeStatus = "DISCONNECTED";
         if (heartbeat?.last_seen) {
@@ -322,6 +407,11 @@ router.get('/mt5/status', (req, res) => {
             }
         }
 
+        const providers = Array.isArray(runSettings.bridgeProviders) && runSettings.bridgeProviders.length > 0
+            ? runSettings.bridgeProviders
+            : [BRIDGE_INTEGRATIONS.PYTHON_RECEIVER, BRIDGE_INTEGRATIONS.MQL5_RECEIVER, BRIDGE_INTEGRATIONS.METAAPI];
+        const activeBridgeProvider = String(runSettings.activeBridgeProvider || process.env.COREX_BRIDGE_PROVIDER || providers[0]);
+
         res.json({
             success: true,
             payload: {
@@ -330,7 +420,9 @@ router.get('/mt5/status', (req, res) => {
                 positions: mt5Bridge.getPositions(),
                 heartbeat,
                 pending,
-                executionEnabled
+                executionEnabled,
+                providers,
+                activeBridgeProvider
             }
         });
     }).catch(() => {
@@ -342,7 +434,9 @@ router.get('/mt5/status', (req, res) => {
                 positions: mt5Bridge.getPositions(),
                 heartbeat: null,
                 pending: [],
-                executionEnabled: false
+                executionEnabled: false,
+                providers: [BRIDGE_INTEGRATIONS.PYTHON_RECEIVER, BRIDGE_INTEGRATIONS.MQL5_RECEIVER, BRIDGE_INTEGRATIONS.METAAPI],
+                activeBridgeProvider: BRIDGE_INTEGRATIONS.PYTHON_RECEIVER
             }
         });
     });

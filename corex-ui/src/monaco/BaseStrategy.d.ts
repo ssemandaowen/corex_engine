@@ -76,6 +76,22 @@ declare module "@utils/BaseStrategy" {
     };
   }
 
+  export interface RuleChain {
+    when(condition: boolean): RuleChain;
+    whenPos(state: Side | string, symbol: string): RuleChain;
+    whenCrossUp(a: number[] | number, b: number[] | number, key?: string): RuleChain;
+    whenCrossDown(a: number[] | number, b: number[] | number, key?: string): RuleChain;
+    enterLong(params?: Record<string, any>): StrategySignal | null;
+    enterShort(params?: Record<string, any>): StrategySignal | null;
+    exitLong(params?: Record<string, any>): StrategySignal | null;
+    exitShort(params?: Record<string, any>): StrategySignal | null;
+    exitAll(params?: Record<string, any>): StrategySignal | null;
+    flipToLong(params?: Record<string, any>): StrategySignal | null;
+    flipToShort(params?: Record<string, any>): StrategySignal | null;
+    value(): StrategySignal | null;
+    end(): StrategySignal | null;
+  }
+
   export class BaseStrategy {
     public id: string;
     public name: string;
@@ -219,5 +235,70 @@ declare module "@utils/BaseStrategy" {
      * Prevents indicators from crashing on empty or small arrays.
      */
     isWarmedUp(symbol: string): boolean;
+
+    /**
+     * Returns a numeric series for a given symbol and field.
+     */
+    series(symbol: string, field?: "open" | "high" | "low" | "close" | "volume"): number[];
+
+    /**
+     * Returns true if the strategy is currently in the given position state.
+     */
+    pos(state: Side | string, symbol: string): boolean;
+
+    /**
+     * Fluent RuleChain helper for guarded signal emission.
+     */
+    rule(packet?: Record<string, any>): RuleChain;
+
+    /**
+     * Resolve a symbol from explicit input, packet data, or strategy defaults.
+     */
+    resolveSymbol(input?: { symbol?: string; packet?: Record<string, any> }): string;
+
+    /**
+     * Returns true if at least N bars are available for the symbol.
+     */
+    hasBars(symbol: string, n?: number): boolean;
+
+    /**
+     * Guard helper for bar availability with optional context logging.
+     */
+    requireBars(symbol: string, n?: number, context?: string): boolean;
+
+    /**
+     * Safe series read that avoids throw-based failures.
+     */
+    safeSeries(symbol: string, field?: "open" | "high" | "low" | "close" | "volume", fallback?: number[]): number[];
+
+    /**
+     * Returns true once per bar+key to prevent duplicate actions.
+     */
+    oncePerBar(key: string, barTime?: number): boolean;
+
+    /**
+     * Returns metadata for UI/telemetry.
+     */
+    describe(features?: Record<string, any>): Record<string, any>;
+
+    /**
+     * Defensive execution wrapper for complex logic blocks.
+     */
+    safeRule<T>(fn: () => T, fallback?: T): T;
+
+    /**
+     * Structured decision log helper.
+     */
+    logDecision(message: string, meta?: Record<string, any>, level?: "info" | "warn" | "error" | "debug"): void;
+
+    /**
+     * Structured signal log helper.
+     */
+    logSignal(signal: StrategySignal | null, stage?: string, level?: "info" | "warn" | "error" | "debug"): void;
+
+    /**
+     * Structured guard pass/fail log helper.
+     */
+    logGuard(name: string, passed: boolean, details?: Record<string, any>): void;
   }
 }

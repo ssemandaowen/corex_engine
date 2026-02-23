@@ -15,18 +15,37 @@ const Sidebar = ({ activeTab, setActiveTab, collapsed, onToggleCollapse }) => {
     <aside className={`ui-sidebar flex flex-col ${collapsed ? 'collapsed' : ''}`}>
       <div className="p-6">
         <div className="flex items-center justify-between relative">
-          <h1 className="text-xl font-semibold tracking-tight text-white brand-text">
-            CORE<span className="text-blue-400">X</span>
-          </h1>
-          <button
-            onClick={onToggleCollapse}
-            className="ui-sidebar-toggle"
-            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-          </button>
+          {collapsed ? (
+            <button
+              onClick={onToggleCollapse}
+              className="ui-sidebar-toggle ui-sidebar-toggle-logo"
+              aria-label="Expand sidebar"
+            >
+              <img src="/corex.svg" alt="CoreX" className="h-6 w-6" />
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="sidebar-logo-button flex items-center gap-2"
+                aria-label="CoreX"
+              >
+                <img src="/corex.svg" alt="CoreX" className="h-6 w-6" />
+                <h1 className="text-xl font-semibold tracking-tight text-[var(--ui-text)] brand-text">
+                  CORE<span className="text-[var(--ui-accent)]">X</span>
+                </h1>
+              </button>
+              <button
+                onClick={onToggleCollapse}
+                className="ui-sidebar-toggle"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft size={16} />
+              </button>
+            </>
+          )}
         </div>
-        <div className="mt-3 text-[11px] text-slate-500 brand-text">Strategy engine console</div>
+        <div className="mt-3 text-[11px] text-[var(--ui-muted)] brand-text">Strategy engine console</div>
       </div>
       <nav className="flex-1 px-4 space-y-1">
         {menu.map((item) => (
@@ -35,8 +54,8 @@ const Sidebar = ({ activeTab, setActiveTab, collapsed, onToggleCollapse }) => {
             onClick={() => setActiveTab(item.id)}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm transition-all ${
               activeTab === item.id 
-                ? 'bg-blue-500/15 text-blue-300 font-semibold shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
-                : 'text-slate-500 hover:bg-slate-800/50 hover:text-slate-300'
+                ? 'bg-[var(--ui-row-hover)] text-[var(--ui-accent)] font-semibold shadow-[0_0_20px_rgba(59,130,246,0.15)]' 
+                : 'text-[var(--ui-muted)] hover:bg-[var(--ui-row-hover)] hover:text-[var(--ui-text)]'
             }`}
           >
             <item.icon size={18} />

@@ -7,18 +7,52 @@ const loader = require("@core/strategyLoader");
 const { bus, EVENTS } = require("@events/bus");
 const path = require("path");
 const fs = require("fs");
+const zlib = require("zlib");
+const { promises: fsp } = fs;
+const { promisify } = require("util");
+const { TIME, ENGINE_TUNING } = require("@config/constants");
 const logger = require("@utils/logger");
 const stateManager = require("@utils/stateController");
-const { clampCache, setConfig: setStorageConfig, getConfig: getStorageConfig } = require("@utils/storageManager");
+const { clampCacheAsync, setConfig: setStorageConfig, getConfig: getStorageConfig } = require("@utils/storageManager");
+const engineSettings = require("./EngineSettings");
+const { ComponentLifecycle, STATES } = require("@core/core/lifecycle/ComponentLifecycle");
+const { SignalGenerationEngine, SignalProcessingEngine, SignalExecutionEngine } = require("@core/core/pipeline");
+
+const gzipAsync = promisify(zlib.gzip);
+const gunzipAsync = promisify(zlib.gunzip);
 
 const BANNER_PATH = path.join(__dirname, "banner.txt");
-const MODULE = "ENGINE";
-const log = {
-    info: (message, meta) => logger.info(`[${MODULE}][INFO] ${message}`, meta),
-    warn: (message, meta) => logger.warn(`[${MODULE}][WARN] ${message}`, meta),
-    error: (message, meta) => logger.error(`[${MODULE}][ERROR] ${message}`, meta),
-    debug: (message, meta) => logger.debug(`[${MODULE}][DEBUG] ${message}`, meta)
-};
+const log = logger.createModuleLogger("ENGINE", {
+    category: "system",
+    ui: true,
+    uiLevels: ["info", "warn", "error"]
+});
+
+class FastQueue {
+    constructor() {
+        this.items = [];
+        this.head = 0;
+    }
+
+    get length() {
+        return this.items.length - this.head;
+    }
+
+    push(value) {
+        this.items.push(value);
+    }
+
+    shift() {
+        if (this.length <= 0) return undefined;
+        const value = this.items[this.head];
+        this.head += 1;
+        if (this.head > 1024 && this.head * 2 >= this.items.length) {
+            this.items = this.items.slice(this.head);
+            this.head = 0;
+        }
+        return value;
+    }
+}
 
 
 
@@ -40,10 +74,10 @@ class CoreXEngine {
         this.startTime = null;
         this.activeSymbols = new Set();
         // Tick distribution backpressure
-        this.tickQueues = new Map();              // symbol -> Array<tick>
+        this.tickQueues = new Map();              // symbol -> FastQueue
         this.flushScheduled = false;
-        this.maxQueueSize = Number(process.env.TICK_QUEUE_MAX || 5000);
-        this.maxFlushCount = Number(process.env.TICK_FLUSH_MAX || 10000);
+        this.maxQueueSize = Number(process.env.TICK_QUEUE_MAX || ENGINE_TUNING.TICK_QUEUE_MAX);
+        this.maxFlushCount = Number(process.env.TICK_FLUSH_MAX || ENGINE_TUNING.TICK_FLUSH_MAX);
         this._droppedTicks = new Map();           // symbol -> count
         this.feedStats = {
             startedAt: Date.now(),
@@ -55,16 +89,26 @@ class CoreXEngine {
         this.subscriptions = new Map();           // symbol → Set<strategy>
         this.executionContexts = new Map();       // mode → {adapter, broker}
         // Per-strategy scheduling queues
-        this.strategyQueues = new Map();          // id -> { queue: [], running: false }
-        this.maxStrategyQueueSize = Number(process.env.STRAT_QUEUE_MAX || 1000);
-        this.strategySliceMs = Number(process.env.STRAT_SLICE_MS || 5);
+        this.strategyQueues = new Map();          // id -> { queue: FastQueue, running: false }
+        this.maxStrategyQueueSize = Number(process.env.STRAT_QUEUE_MAX || ENGINE_TUNING.STRAT_QUEUE_MAX);
+        this.strategySliceMs = Number(process.env.STRAT_SLICE_MS || ENGINE_TUNING.STRAT_SLICE_MS);
         this._droppedStrategyTicks = new Map();   // id -> count
         this.strategyStats = new Map();           // id -> { processedTicks, totalProcessMs, lastProcessMs, lastProcessedAt, dropped }
+        this.lifecycle = new ComponentLifecycle("ENGINE", { category: "system" });
+        this.signalPipeline = {
+            generation: new SignalGenerationEngine(),
+            processing: new SignalProcessingEngine(),
+            execution: new SignalExecutionEngine({
+                concurrency: Number(process.env.SIGNAL_EXEC_CONCURRENCY || 8),
+                maxQueue: Number(process.env.SIGNAL_EXEC_MAX_QUEUE || 20000)
+            })
+        };
     }
 
     async start() {
         if (this.status !== "IDLE") return;
         this.status = "INITIALIZING";
+        this.lifecycle.transition(STATES.INITIALIZING, { reason: "start" });
         this.startTime = Date.now();
         this.feedStats.startedAt = this.startTime;
         this.feedStats.totalTicks = 0;
@@ -77,8 +121,8 @@ class CoreXEngine {
 
         try {
             const cacheDir = path.join(process.cwd(), "data", "cache");
-            this._sanitizeCacheDirectory(cacheDir);
-            clampCache(cacheDir);
+            await this._sanitizeCacheDirectory(cacheDir);
+            await clampCacheAsync(cacheDir);
         } catch (e) {
             log.warn(`Cache clamp failed: ${e.message}`);
         }
@@ -88,40 +132,55 @@ class CoreXEngine {
         bus.on(EVENTS.MARKET.TICK, (data) => this._enqueueTick(data));
 
         this.status = "RUNNING";
+        this.lifecycle.transition(STATES.RUNNING, { reason: "engine_active" });
         log.info("CoreX Engine Active");
     }
 
-    _sanitizeCacheDirectory(cacheDir) {
-        if (!fs.existsSync(cacheDir)) return;
-        const files = fs.readdirSync(cacheDir).filter((f) => f.startsWith("candles_") && f.endsWith(".json"));
+    async _sanitizeCacheDirectory(cacheDir) {
+        let files = [];
+        try {
+            files = await fsp.readdir(cacheDir);
+        } catch {
+            return;
+        }
+        files = files.filter((f) => f.startsWith("candles_") && (f.endsWith(".json") || f.endsWith(".json.gz")));
         if (!files.length) return;
 
-        const maxWriteBars = Number(process.env.WARMUP_CACHE_MAX_WRITE_BARS || 2000);
+        const maxWriteBars = Number(process.env.WARMUP_CACHE_MAX_WRITE_BARS || ENGINE_TUNING.WARMUP_CACHE_MAX_WRITE_BARS);
         let fixed = 0;
         let removed = 0;
 
         for (const name of files) {
             const p = path.join(cacheDir, name);
             try {
-                // filename format: candles_<symbol>_<tf>.json
-                const stem = name.replace(/^candles_/, "").replace(/\.json$/i, "");
+                // filename format: candles_<symbol>_<tf>.json(.gz)
+                const stem = name
+                    .replace(/^candles_/, "")
+                    .replace(/\.json\.gz$/i, "")
+                    .replace(/\.json$/i, "");
                 const parts = stem.split("_");
                 const tf = parts.length > 1 ? parts[parts.length - 1] : "1m";
                 const tfMs = this._timeframeToMs(tf);
-                const raw = JSON.parse(fs.readFileSync(p, "utf8"));
-                const normalized = this._normalizeCachedBars(raw, tfMs)
-                    .slice(-Math.max(1, maxWriteBars));
-                if (!normalized.length) {
-                    fs.unlinkSync(p);
+                if (!Number.isFinite(tfMs)) {
+                    await fsp.unlink(p);
                     removed += 1;
                     continue;
                 }
-                const tmp = `${p}.tmp`;
-                fs.writeFileSync(tmp, JSON.stringify(normalized, null, 2));
-                fs.renameSync(tmp, p);
+                const basePath = p.replace(/\.gz$/i, "");
+                const normalized = (await this._readWarmupCacheAsync(basePath, tfMs, maxWriteBars))
+                    .slice(-Math.max(1, maxWriteBars));
+                if (!normalized.length) {
+                    await fsp.unlink(p);
+                    removed += 1;
+                    continue;
+                }
+                await this._writeWarmupCacheAsync(basePath, normalized, {
+                    compress: name.endsWith(".gz"),
+                    compressMinBytes: 0
+                });
                 fixed += 1;
             } catch {
-                try { fs.unlinkSync(p); } catch { /* ignore */ }
+                try { await fsp.unlink(p); } catch { /* ignore */ }
                 removed += 1;
             }
         }
@@ -140,6 +199,13 @@ class CoreXEngine {
             stateManager.commit(id, "ERROR", { reason: "Missing symbols" });
             return false;
         }
+        const normalizedTf = this._normalizeTimeframe(strategy.timeframe || "");
+        if (!normalizedTf) {
+            log.error(`[${id}] Invalid timeframe: ${strategy.timeframe}`);
+            stateManager.commit(id, "ERROR", { reason: "Invalid timeframe" });
+            return false;
+        }
+        strategy.timeframe = normalizedTf;
 
         // 2. State Transition
         const canProceed = stateManager.commit(id, "WARMING_UP", { reason: "Registration sequence initiated" });
@@ -231,7 +297,7 @@ class CoreXEngine {
 
         let queue = this.tickQueues.get(data.symbol);
         if (!queue) {
-            queue = [];
+            queue = new FastQueue();
             this.tickQueues.set(data.symbol, queue);
         }
 
@@ -263,6 +329,7 @@ class CoreXEngine {
         for (const [symbol, queue] of this.tickQueues) {
             while (queue.length > 0) {
                 const tick = queue.shift();
+                if (!tick) continue;
                 this._deliverTick(tick);
                 processed++;
                 if (processed >= this.maxFlushCount) {
@@ -291,7 +358,7 @@ class CoreXEngine {
         const id = strat.id || strat.name;
         let entry = this.strategyQueues.get(id);
         if (!entry) {
-            entry = { queue: [], running: false };
+            entry = { queue: new FastQueue(), running: false };
             this.strategyQueues.set(id, entry);
         }
 
@@ -322,6 +389,7 @@ class CoreXEngine {
         let processedInBatch = 0;
         while (entry.queue.length > 0) {
             const tick = entry.queue.shift();
+            if (!tick) continue;
             const liveEntry = loader.registry.get(id);
             const strat = liveEntry?.instance;
             if (!strat) continue;
@@ -330,17 +398,30 @@ class CoreXEngine {
             try {
                 const currentState = stateManager.getStatus(id);
                 if (currentState === "ACTIVE" && strat.enabled !== false) {
-                    const signal = strat.onTick(tick, false);
+                    const signal = this.signalPipeline.generation.generate({
+                        strategy: strat,
+                        packet: tick,
+                        context: { isWarmup: false, symbol: tick?.symbol, strategyId: id, source: "tick" }
+                    });
+                    const processed = this.signalPipeline.processing.process(signal, {
+                        strategyId: id,
+                        symbol: tick?.symbol
+                    });
                     const adapter = strat.executionContext?.adapter;
-                    if (signal && adapter) {
-                        Promise.resolve(adapter.handle(signal)).catch(err => {
-                            log.error(`[ADAPTER] ${strat.name} signal failed: ${err.message}`);
-                        });
+                    if (processed.accepted && processed.signal && adapter) {
+                        const enqueued = this.signalPipeline.execution.enqueue(
+                            () => adapter.handle(processed.signal),
+                            { strategyId: id, symbol: tick?.symbol }
+                        );
+                        if (!enqueued) {
+                            log.warn(`[PIPELINE] Execution queue full: dropped signal for ${id}:${tick?.symbol}`);
+                        }
                     }
                 }
             } catch (err) {
                 log.error(`[CRASH] [${strat?.name || id}] ${err.message}`);
                 stateManager.commit(id, "ERROR", { error: err.message, at: new Date().toISOString() });
+                this.lifecycle.fail(err, { strategyId: strat?.name || id, phase: "process_tick" });
                 bus.emit(EVENTS.SYSTEM.ERROR, {
                     source: "strategy",
                     strategyId: strat?.name || id,
@@ -436,96 +517,106 @@ class CoreXEngine {
 
         return {
             status: this.status,
+            lifecycle: this.lifecycle.snapshot(),
             startedAt: this.feedStats.startedAt,
             uptimeMs: this.startTime ? (now - this.startTime) : 0,
             totalTicks: this.feedStats.totalTicks,
             droppedTicks: this.feedStats.droppedTicks,
             lastTickAt: this.feedStats.lastTickAt,
             symbols: payload,
-            strategies
+            strategies,
+            signalExecution: this.signalPipeline.execution.getMetrics()
         };
     }
 
     _getWarmupCachePolicy(strategy) {
         const storage = getStorageConfig();
         const storageCache = storage?.cache || {};
-        const lookback = Number(strategy?.lookback || 300);
-        const cacheEnabledRaw = String(process.env.WARMUP_CACHE_ENABLED || "true").toLowerCase();
-        const cacheEnabled = !["0", "false", "no", "off"].includes(cacheEnabledRaw);
-        const maxPatchBars = Number(process.env.WARMUP_CACHE_MAX_PATCH_BARS || 5000);
-        const maxWriteBars = Number(process.env.WARMUP_CACHE_MAX_WRITE_BARS || Math.max(lookback * 2, 1000));
-        const maxGapBarsForPatch = Number(process.env.WARMUP_CACHE_MAX_GAP_BARS || lookback * 2);
-        const clampMaxSizeMb = Number(storageCache.maxSizeMb || process.env.CACHE_MAX_SIZE_MB || 500);
-        const clampMaxAgeDays = Number(storageCache.maxAgeDays || process.env.CACHE_MAX_AGE_DAYS || 30);
-
-        return {
-            enabled: cacheEnabled,
-            maxPatchBars: Number.isFinite(maxPatchBars) && maxPatchBars > 0 ? maxPatchBars : 5000,
-            maxWriteBars: Number.isFinite(maxWriteBars) && maxWriteBars > 0 ? maxWriteBars : Math.max(lookback * 2, 1000),
-            maxGapBarsForPatch: Number.isFinite(maxGapBarsForPatch) && maxGapBarsForPatch > 0 ? maxGapBarsForPatch : lookback * 2,
-            clampMaxSizeMb: Number.isFinite(clampMaxSizeMb) && clampMaxSizeMb > 0 ? clampMaxSizeMb : 500,
-            clampMaxAgeDays: Number.isFinite(clampMaxAgeDays) && clampMaxAgeDays > 0 ? clampMaxAgeDays : 30
-        };
+        return engineSettings.resolveWarmupCache(strategy, storageCache);
     }
 
-    _normalizeCachedBars(rows = [], tfMs = 60000) {
-        if (!Array.isArray(rows)) return [];
-        const out = [];
-        let prevTs = 0;
-        for (const row of rows) {
-            const ts = Number(row?.time);
-            if (!Number.isFinite(ts) || ts <= 0) continue;
-            const open = Number(row?.open);
-            const high = Number(row?.high);
-            const low = Number(row?.low);
-            const close = Number(row?.close);
-            const volume = Number(row?.volume || 0);
-            if (![open, high, low, close].every(Number.isFinite)) continue;
-            const aligned = Math.floor(ts / tfMs) * tfMs;
-            if (aligned <= prevTs) continue;
-            prevTs = aligned;
-            out.push({
-                time: aligned,
-                open,
-                high,
-                low,
-                close,
-                volume: Number.isFinite(volume) ? volume : 0
-            });
-        }
-        return out;
-    }
+    _normalizeCachedBars(input, tfMs = TIME.MS.MINUTE) {
+        const rows = Array.isArray(input) ? input : (input?.values || input?.data || []);
+        if (!rows.length) return [];
 
-    _readWarmupCache(cacheFile, tfMs, maxBars) {
-        if (!fs.existsSync(cacheFile)) return [];
-        const raw = fs.readFileSync(cacheFile, "utf-8");
-        const parsed = JSON.parse(raw);
-        const normalized = this._normalizeCachedBars(parsed, tfMs);
-        if (!normalized.length) return [];
-        return normalized.slice(-Math.max(1, Number(maxBars) || normalized.length));
+        return rows
+            .map((row) => {
+                const rawTs = row?.time ?? row?.timestamp;
+                const ts = Number(rawTs);
+                let normalizedTs = Number.isFinite(ts) ? ts : Date.parse(rawTs);
+                if (Number.isFinite(normalizedTs) && normalizedTs > 0 && normalizedTs < 1e12) {
+                    normalizedTs *= 1000;
+                }
+                return {
+                    time: Math.floor(Number(normalizedTs) / tfMs) * tfMs,
+                    open: Number(row?.open),
+                    high: Number(row?.high),
+                    low: Number(row?.low),
+                    close: Number(row?.close),
+                    volume: Number(row?.volume || 0)
+                };
+            })
+            .filter((c) => Number.isFinite(c.time) && Number.isFinite(c.close) && Number.isFinite(c.open) && Number.isFinite(c.high) && Number.isFinite(c.low))
+            .sort((a, b) => a.time - b.time)
+            .reduce((acc, curr) => {
+                if (acc.length === 0 || acc[acc.length - 1].time !== curr.time) {
+                    acc.push(curr);
+                } else {
+                    acc[acc.length - 1] = curr;
+                }
+                return acc;
+            }, []);
     }
 
     _mergeBarsByTime(base = [], patch = [], maxBars = 2000) {
-        const byTs = new Map();
-        for (const bar of base) byTs.set(Number(bar.time), bar);
-        for (const bar of patch) byTs.set(Number(bar.time), bar);
-        const merged = Array.from(byTs.values())
-            .sort((a, b) => Number(a.time) - Number(b.time));
-        return merged.slice(-Math.max(1, Number(maxBars) || merged.length));
-    }
+        const limit = Math.max(1, Number(maxBars) || Math.max(base.length, patch.length));
+        if (!base.length) return patch.slice(-limit);
+        if (!patch.length) return base.slice(-limit);
 
-    _writeWarmupCache(cacheFile, rows = []) {
-        const tmp = `${cacheFile}.tmp`;
-        fs.writeFileSync(tmp, JSON.stringify(rows, null, 2));
-        fs.renameSync(tmp, cacheFile);
+        const merged = [];
+        let i = 0;
+        let j = 0;
+
+        while (i < base.length && j < patch.length) {
+            const b = base[i];
+            const p = patch[j];
+            const bTs = Number(b.time);
+            const pTs = Number(p.time);
+
+            if (bTs < pTs) {
+                merged.push(b);
+                i += 1;
+                continue;
+            }
+            if (pTs < bTs) {
+                merged.push(p);
+                j += 1;
+                continue;
+            }
+            merged.push(p);
+            i += 1;
+            j += 1;
+        }
+        while (i < base.length) merged.push(base[i++]);
+        while (j < patch.length) merged.push(patch[j++]);
+
+        return merged.length > limit ? merged.slice(-limit) : merged;
     }
 
     async warmupStrategy(strategy) {
-        const cacheDir = path.resolve(__dirname, '../../data/cache');
-        fs.mkdirSync(cacheDir, { recursive: true });
+        const id = strategy.id || strategy.name;
+        const cacheDir = path.resolve(__dirname, "../../data/cache");
+        await fsp.mkdir(cacheDir, { recursive: true });
         const cachePolicy = this._getWarmupCachePolicy(strategy);
+        const lookback = Math.max(1, Number(strategy.lookback || ENGINE_TUNING.WARMUP_LOOKBACK));
+        const tfMs = this._timeframeToMs(strategy.timeframe);
+        if (!Number.isFinite(tfMs) || tfMs <= 0) {
+            log.error(`[${id}] Warmup aborted: invalid timeframe (${strategy.timeframe})`);
+            return false;
+        }
+
         try {
-            clampCache(cacheDir, {
+            await clampCacheAsync(cacheDir, {
                 maxSizeMb: cachePolicy.clampMaxSizeMb,
                 maxAgeDays: cachePolicy.clampMaxAgeDays
             });
@@ -533,107 +624,152 @@ class CoreXEngine {
             log.warn(`Warmup cache clamp failed: ${err.message}`);
         }
 
-        const id = strategy.id || strategy.name;
         let success = true;
-        let cacheHits = 0;
-        let cachePatched = 0;
-        let cacheMiss = 0;
+        const stats = { hits: 0, patched: 0, miss: 0 };
 
-        // Cap lookback
-        const maxLookback = strategy.max_data_history || 5000;
-        strategy.lookback = Math.min(strategy.lookback || 300, maxLookback);
+        const maxLookback = Number(strategy.max_data_history || cachePolicy.maxWriteBars || lookback);
+        strategy.lookback = Math.min(lookback, Math.max(1, maxLookback));
 
         for (const sym of strategy.symbols || []) {
             const safeSym = sym.replace(/[^a-zA-Z0-9-]/g, "-");
             const cacheFile = path.join(cacheDir, `candles_${safeSym}_${strategy.timeframe}.json`);
-            const tfMs = this._timeframeToMs(strategy.timeframe);
 
             let candles = [];
             let needsFullFetch = true;
 
-            // 1. Try cache + patch
-            if (cachePolicy.enabled && fs.existsSync(cacheFile)) {
+            if (cachePolicy.enabled) {
                 try {
-                    const cached = this._readWarmupCache(cacheFile, tfMs, cachePolicy.maxWriteBars);
-                    if (Array.isArray(cached) && cached.length > 0) {
+                    const cached = await this._readWarmupCacheAsync(cacheFile, tfMs, cachePolicy.maxWriteBars);
+                    if (cached.length > 0) {
                         const lastTs = cached[cached.length - 1].time;
-                        const deltaMs = Date.now() - lastTs;
-                        const gapBars = Math.ceil(deltaMs / tfMs);
+                        const gapMs = Date.now() - lastTs;
+                        const gapBars = Math.floor(gapMs / tfMs);
 
-                        if (deltaMs < tfMs * 3) {
+                        if (gapBars <= 1) {
                             candles = cached;
                             needsFullFetch = false;
-                            cacheHits += 1;
-                            log.debug(`[${id}] Using cache (${cached.length} bars)`);
+                            stats.hits += 1;
                         } else if (gapBars <= cachePolicy.maxGapBarsForPatch) {
-                            const gapCount = Math.min(cachePolicy.maxPatchBars, Math.max(5, gapBars + 5));
-                            log.info(`[${id}] Patching ~${gapCount} candles for ${sym}`);
-
+                            const patchLimit = Math.min(gapBars + 5, cachePolicy.maxPatchBars);
                             const patch = await broker.fetchHistory({
                                 symbol: sym,
                                 interval: strategy.timeframe,
-                                outputsize: gapCount
+                                outputsize: patchLimit
                             });
 
-                            const patchRows = this._normalizeCachedBars(Array.isArray(patch) ? patch : [], tfMs)
-                                .filter(c => c.time > lastTs);
+                            const patchRows = this._normalizeCachedBars(patch, tfMs)
+                                .filter((c) => c.time > lastTs);
+
                             candles = this._mergeBarsByTime(cached, patchRows, cachePolicy.maxWriteBars);
                             needsFullFetch = false;
-                            cachePatched += 1;
+                            stats.patched += 1;
                         }
                     }
                 } catch (e) {
-                    log.warn(`[${id}] Cache corrupt for ${sym} -> full fetch`);
+                    log.debug(`[${id}] Cache skip for ${sym}: ${e.message}`);
                 }
             }
 
-            // 2. Full fetch fallback
-            if (needsFullFetch) {
-                cacheMiss += 1;
-                log.info(`[${id}] Fetching ${strategy.lookback} bars for ${sym}`);
-                candles = await broker.fetchHistory({
+            if (!needsFullFetch && candles.length < strategy.lookback) {
+                log.info(`[${id}] Warm cache depth too small for ${sym} (${candles.length}/${strategy.lookback})`);
+                needsFullFetch = true;
+            }
+
+            if (needsFullFetch || candles.length < strategy.lookback) {
+                stats.miss += 1;
+                log.info(`[${id}] Syncing ${strategy.lookback} bars for ${sym} (full fetch)`);
+                const fetched = await broker.fetchHistory({
                     symbol: sym,
                     interval: strategy.timeframe,
                     outputsize: strategy.lookback
                 }).catch(err => {
                     log.error(`[${id}] History fetch failed for ${sym}: ${err.message}`);
-                    return [];
+                    return null;
                 });
+                candles = this._normalizeCachedBars(fetched, tfMs).slice(-strategy.lookback);
             }
 
-            // 3. Process & save
-            if (!Array.isArray(candles)) candles = [];
-            if (candles.length > 0) {
-                const trimmed = candles.slice(-strategy.lookback);
-                trimmed.forEach(candle => strategy.onTick(candle, true));
-                // Do not override strategy.isWarmedUp() method
+            if (candles.length >= Math.min(strategy.lookback, 10)) {
+                const startIdx = Math.max(0, candles.length - strategy.lookback);
+                for (let i = startIdx; i < candles.length; i++) {
+                    if (typeof strategy.onBar === "function") strategy.onBar({ ...candles[i], symbol: sym });
+                    else if (typeof strategy.onTick === "function") strategy.onTick({ ...candles[i], symbol: sym }, true);
+                }
                 strategy._warmedUp = true;
 
                 if (cachePolicy.enabled) {
-                    try {
-                        const toWrite = candles.slice(-Math.min(cachePolicy.maxWriteBars, Math.max(strategy.lookback, 1)));
-                        this._writeWarmupCache(cacheFile, toWrite);
-                    } catch (e) {
-                        log.warn(`[${id}] Cannot write cache for ${sym}`);
-                    }
+                    const writeLimit = Math.max(1, cachePolicy.maxWriteBars);
+                    const cacheRows = candles.slice(-writeLimit);
+                    this._writeWarmupCacheAsync(cacheFile, cacheRows, cachePolicy).catch((e) => {
+                        log.debug(`[${id}] Cache write skipped for ${sym}: ${e.message}`);
+                    });
                 }
             } else {
-                log.warn(`[${id}] No data for ${sym} -> warmup incomplete`);
+                log.error(`[${id}] Warmup failed for ${sym}: insufficient data (${candles.length}/${strategy.lookback})`);
                 success = false;
             }
         }
 
-        log.info(`[${id}] Warmup cache stats: hits=${cacheHits}, patched=${cachePatched}, miss=${cacheMiss}`);
+        log.info(`[${id}] Warmup complete: Hits:${stats.hits} Patched:${stats.patched} Miss:${stats.miss}`);
         return success;
     }
 
-    _timeframeToMs(tf) {
-        if (!tf || typeof tf !== "string") return 60_000;
-        const num = parseInt(tf, 10) || 1;
-        const unit = tf.replace(num.toString(), "").toLowerCase();
+    async _readWarmupCacheAsync(cacheFile, tfMs, maxBars) {
+        const variants = [cacheFile, `${cacheFile}.gz`];
+        for (const filePath of variants) {
+            try {
+                const raw = await fsp.readFile(filePath);
+                const decoded = filePath.endsWith(".gz")
+                    ? (await gunzipAsync(raw)).toString("utf8")
+                    : raw.toString("utf8");
+                const parsed = JSON.parse(decoded);
+                const normalized = this._normalizeCachedBars(parsed, tfMs);
+                if (!normalized.length) continue;
+                return normalized.slice(-Math.max(1, Number(maxBars) || normalized.length));
+            } catch {
+                // try next variant
+            }
+        }
+        return [];
+    }
 
-        const map = { m: 60_000, h: 3_600_000, d: 86_400_000 };
-        return num * (map[unit] || 60_000);
+    async _writeWarmupCacheAsync(cacheFile, rows = [], cachePolicy = {}) {
+        const body = JSON.stringify(rows);
+        const shouldCompress = !!cachePolicy.compress && Buffer.byteLength(body, "utf8") >= (Number(cachePolicy.compressMinBytes) || 0);
+        const targetPath = shouldCompress ? `${cacheFile}.gz` : cacheFile;
+        const tmp = `${targetPath}.tmp`;
+        const payload = shouldCompress ? await gzipAsync(Buffer.from(body, "utf8")) : body;
+        await fsp.writeFile(tmp, payload);
+        await fsp.rename(tmp, targetPath);
+
+        const stalePath = shouldCompress ? cacheFile : `${cacheFile}.gz`;
+        try { await fsp.unlink(stalePath); } catch { /* ignore */ }
+    }
+
+    _normalizeTimeframe(tf) {
+        if (typeof tf !== "string") return null;
+        const value = tf.trim().toLowerCase();
+        const m = value.match(/^(\d+)\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days)$/i);
+        if (!m) return null;
+        const num = Number(m[1]);
+        if (!Number.isFinite(num) || num <= 0) return null;
+        const rawUnit = m[2].toLowerCase();
+        const unit = rawUnit.startsWith("s") ? "s"
+            : rawUnit.startsWith("m") ? "m"
+                : rawUnit.startsWith("h") ? "h"
+                    : "d";
+        return `${num}${unit}`;
+    }
+
+    _timeframeToMs(tf) {
+        const normalized = this._normalizeTimeframe(tf);
+        if (!normalized) return NaN;
+        const num = parseInt(normalized, 10);
+        const unit = normalized.slice(String(num).length);
+        const map = { s: TIME.MS.SECOND, m: TIME.MS.MINUTE, h: TIME.MS.HOUR, d: TIME.MS.DAY };
+        const unitMs = map[unit];
+        if (!unitMs) return NaN;
+        return num * unitMs;
     }
 
     unregisterStrategy(strategyId) {
@@ -666,6 +802,7 @@ class CoreXEngine {
     stop() {
         log.info("Shutting down CoreX Engine");
         this.status = "STOPPING";
+        this.lifecycle.transition(STATES.STOPPING, { reason: "shutdown" });
 
         broker.cleanup();
         bus.removeAllListeners(EVENTS.MARKET.TICK);
@@ -683,6 +820,7 @@ class CoreXEngine {
         this.strategyStats.clear();
 
         this.status = "IDLE";
+        this.lifecycle.transition(STATES.STOPPED, { reason: "stopped" });
         log.info("Shutdown complete");
         console.clear();
     }

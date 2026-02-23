@@ -1,4 +1,5 @@
 "use strict";
+const { extractCrossInputs, evaluateCross } = require("./signalCore");
 
 const StrategySignalUtils = {
     crossover(a, b, opts = {}) {
@@ -13,27 +14,11 @@ const StrategySignalUtils = {
     },
 
     _evaluateCross(a, b, opts, direction) {
-        let pA, nA, pB, nB;
-        if (Array.isArray(a) && Array.isArray(b)) {
-            if (a.length < 2 || b.length < 2) return false;
-            pA = a[a.length - 2];
-            nA = a[a.length - 1];
-            pB = b[b.length - 2];
-            nB = b[b.length - 1];
-        } else {
-            // Handle direct value passing: pA, nA, pB, nB, opts
-            pA = arguments[0]; nA = arguments[1];
-            pB = arguments[2]; nB = arguments[3];
-            opts = arguments[4] || {};
-        }
-
-        // Validate numbers
-        if ([pA, nA, pB, nB].some(v => v == null || typeof v !== 'number')) return false;
-
-        // Core logic
-        const isCrossed = direction === 'up'
-            ? (pA <= pB && nA > nB)
-            : (pA >= pB && nA < nB);
+        const parsed = extractCrossInputs(a, b, arguments);
+        if (!parsed) return false;
+        let { pA, nA, pB, nB } = parsed;
+        opts = parsed.opts || opts || {};
+        const isCrossed = evaluateCross(pA, nA, pB, nB, direction);
             
         if (!isCrossed) return false;
 

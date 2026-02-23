@@ -1,14 +1,15 @@
 const dataForge = require("data-forge");
-const { backtest, analyze, computeEquityCurve } = require("grademark");
+const { backtest, analyze } = require("grademark");
 const fs = require("fs");
 const path = require("path");
 const readline = require("readline");
-const { v4: uuidv4 } = require("uuid");
+const crypto = require("crypto");
 
 const logger = require("@utils/logger");
 const broker = require("@broker/twelvedata");
 const db = require("@core/services/postgres");
 const { compile } = require("@core/services/strategyCompiler");
+const { BACKTEST } = require("@config/constants");
 
 /**
  * @class BacktestManager
@@ -34,7 +35,7 @@ class BacktestManager {
      * Execute a complete backtest run
      */
     async run(strategy, options = {}) {
-        const runtimeId = uuidv4().slice(0, 8);
+        const runtimeId = crypto.randomUUID().slice(0, 8);
         const startMs = Date.now();
 
         const compiled = compile(strategy);
@@ -110,7 +111,12 @@ class BacktestManager {
         } else {
             throw new Error("Missing data source: provide 'file' or 'symbol/interval'");
         }
-        return this._normalizeBars(rawRows);
+        const bars = this._normalizeBars(rawRows);
+        const ranged = this._applyRange(bars, options);
+        if (!Array.isArray(ranged) || ranged.length === 0) {
+            throw new Error("No bars in selected range.");
+        }
+        return ranged;
     }
 
     async _readCsv(filePath) {
@@ -176,8 +182,8 @@ class BacktestManager {
     async _fetchFromBroker(options) {
         return await broker.fetchHistory({
             symbol: options.symbol,
-            interval: options.interval || "1min",
-            outputsize: options.outputsize || 1500
+            interval: options.interval || "1m",
+            outputsize: options.outputsize || 5000
         });
     }
 
@@ -208,6 +214,28 @@ class BacktestManager {
             })
             .filter(Boolean)
             .sort((a, b) => a.time - b.time);
+    }
+
+    _applyRange(bars = [], options = {}) {
+        if (!Array.isArray(bars) || bars.length === 0) return bars;
+        const mode = String(options.rangeMode || "points").toLowerCase();
+        if (mode === "dates") {
+            const start = Number(options.rangeStart);
+            const end = Number(options.rangeEnd);
+            const hasStart = Number.isFinite(start);
+            const hasEnd = Number.isFinite(end);
+            if (!hasStart && !hasEnd) return bars;
+            const minTs = hasStart ? start : -Infinity;
+            const maxTs = hasEnd ? end : Infinity;
+            const [lo, hi] = minTs <= maxTs ? [minTs, maxTs] : [maxTs, minTs];
+            return bars.filter((b) => Number(b.time) >= lo && Number(b.time) <= hi);
+        }
+
+        const points = Number(options.rangePoints || options.outputsize || 0);
+        if (Number.isFinite(points) && points > 0) {
+            return bars.slice(-Math.floor(points));
+        }
+        return bars;
     }
 
     /**
@@ -304,6 +332,77 @@ class BacktestManager {
         }, df);
     }
 
+    _buildEquityAnalytics(initialCapital, trades = [], fallbackTime = Date.now()) {
+        const points = [{
+            time: Number(fallbackTime),
+            equity: Number(initialCapital)
+        }];
+
+        const sorted = [...trades]
+            .map((t) => ({
+                ...t,
+                profit: Number(t?.profit || 0),
+                exitTs: Number(t?.exitTime || t?.entryTime || fallbackTime)
+            }))
+            .filter((t) => Number.isFinite(t.exitTs))
+            .sort((a, b) => a.exitTs - b.exitTs);
+
+        let equity = Number(initialCapital);
+        for (const t of sorted) {
+            equity += Number.isFinite(t.profit) ? t.profit : 0;
+            points.push({ time: t.exitTs, equity: Number(equity) });
+        }
+
+        let peak = points[0]?.equity || Number(initialCapital);
+        const drawdownCurve = points.map((p) => {
+            if (p.equity > peak) peak = p.equity;
+            const drawdown = peak > 0 ? ((p.equity / peak) - 1) * 100 : 0;
+            return { time: p.time, drawdown };
+        });
+
+        const returns = [];
+        for (let i = 1; i < points.length; i += 1) {
+            const prev = Number(points[i - 1].equity || 0);
+            const cur = Number(points[i].equity || 0);
+            if (prev !== 0) {
+                returns.push({ time: points[i].time, value: (cur / prev) - 1 });
+            }
+        }
+
+        const rollingWindow = 20;
+        const rollingSharpe = [];
+        // Dynamic-programming style rolling moments: O(n) instead of O(n*window).
+        let sum = 0;
+        let sumSq = 0;
+        for (let i = 0; i < returns.length; i += 1) {
+            const r = Number(returns[i].value || 0);
+            sum += r;
+            sumSq += r * r;
+
+            if (i >= rollingWindow) {
+                const old = Number(returns[i - rollingWindow].value || 0);
+                sum -= old;
+                sumSq -= old * old;
+            }
+
+            if (i >= rollingWindow - 1) {
+                const n = rollingWindow;
+                const mean = sum / n;
+                const variance = Math.max(0, (sumSq / n) - (mean * mean));
+                const std = Math.sqrt(variance);
+                const sharpe = std === 0 ? 0 : (mean / std) * Math.sqrt(n);
+                rollingSharpe.push({ time: returns[i].time, sharpe });
+            }
+        }
+
+        return {
+            equityCurve: points,
+            drawdownCurve,
+            returns,
+            rollingSharpe
+        };
+    }
+
     _buildReport({ runtimeId, strategy, startMs, initialCapital, trades, stats, df, options }) {
         const duration = ((Date.now() - startMs) / 1000).toFixed(2);
         const safeTrades = Array.isArray(trades) ? trades : [];
@@ -317,37 +416,12 @@ class BacktestManager {
         const avgLoss = losses > 0 ? (grossLoss / losses) : 0;
         const expectancy = (winRate * avgWin) - ((1 - winRate) * avgLoss);
 
-        // Compute equity curve (time + equity points)
-        let equityCurve = [];
-        if (safeTrades.length > 0 && df) {
-            try {
-                const curvePoints = computeEquityCurve(initialCapital, safeTrades);
-
-                equityCurve = curvePoints.map((point, idx) => {
-                    if (idx === 0) {
-                        return {
-                            time: Number(df.first().time),
-                            equity: Number(point.equity)
-                        };
-                    }
-
-                    const trade = safeTrades[idx - 1];
-                    return {
-                        time: Number(trade?.exitTime || df.last().time),
-                        equity: Number(point.equity)
-                    };
-                });
-            } catch (err) {
-                logger.warn(`Equity curve computation failed: ${err.message}`);
-            }
-        }
-
-        if (equityCurve.length === 0) {
-            equityCurve = [{
-                time: Number(df?.first()?.time || Date.now()),
-                equity: Number(initialCapital)
-            }];
-        }
+        const analytics = this._buildEquityAnalytics(
+            Number(initialCapital),
+            safeTrades,
+            Number(df?.first()?.time || Date.now())
+        );
+        const equityCurve = analytics.equityCurve;
 
         return {
             meta: {
@@ -390,19 +464,29 @@ class BacktestManager {
                 expectancy: Number(expectancy || 0)
             },
             trades: options.includeTrades ? safeTrades : [],
-            equityCurve
+            equityCurve,
+            analytics: {
+                drawdownCurve: analytics.drawdownCurve,
+                returns: analytics.returns,
+                rollingSharpe: analytics.rollingSharpe
+            }
         };
     }
 
     async _saveReport(report) {
-        const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
-        try {
-            fs.writeFileSync(filepath, JSON.stringify(report, null, 2));
-        } catch (err) {
-            logger.warn(`Backtest file save failed: ${err.message}`);
+        if (!BACKTEST.DB_REQUIRED) {
+            const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
+            try {
+                fs.writeFileSync(filepath, JSON.stringify(report));
+            } catch (err) {
+                logger.warn(`Backtest file save failed: ${err.message}`);
+            }
         }
 
-        if (!db.hasDbConfig()) return;
+        if (!db.hasDbConfig()) {
+            if (BACKTEST.DB_REQUIRED) throw new Error("BACKTEST_DB_REQUIRED");
+            return;
+        }
         try {
             const meta = report.meta || {};
             const performance = report.performance || {};

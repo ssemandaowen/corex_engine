@@ -1,110 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import client from "../api/client";
-import { 
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, 
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
   BarChart, Bar, Cell, AreaChart, Area
 } from 'recharts';
-
-const fmtMoney = (v) => {
-  const n = Number(v || 0);
-  return `$${n.toFixed(2)}`;
-};
-
-const calcDrawdownSeries = (equityCurve) => {
-  let peak = -Infinity;
-  return equityCurve.map((p) => {
-    const equity = Number(p.equity || 0);
-    if (equity > peak) peak = equity;
-    const dd = peak > 0 ? ((equity / peak) - 1) * 100 : 0;
-    return { time: Number(p.time), drawdown: dd };
-  });
-};
-
-const calcReturns = (equityCurve) => {
-  const returns = [];
-  for (let i = 1; i < equityCurve.length; i += 1) {
-    const prev = Number(equityCurve[i - 1]?.equity || 0);
-    const cur = Number(equityCurve[i]?.equity || 0);
-    if (!prev) continue;
-    returns.push({ time: Number(equityCurve[i].time), r: (cur / prev) - 1 });
-  }
-  return returns;
-};
-
-const calcRollingSharpe = (returns, window = 20) => {
-  const out = [];
-  for (let i = window - 1; i < returns.length; i += 1) {
-    const slice = returns.slice(i - window + 1, i + 1).map(r => r.r);
-    const mean = slice.reduce((s, v) => s + v, 0) / slice.length;
-    const variance = slice.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / slice.length;
-    const std = Math.sqrt(variance);
-    const sharpe = std === 0 ? 0 : (mean / std) * Math.sqrt(window);
-    out.push({ time: returns[i].time, sharpe });
-  }
-  return out;
-};
-
-const calcHistogram = (returns, bins = 20) => {
-  if (returns.length === 0) return [];
-  const values = returns.map(r => r.r);
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  if (min === max) {
-    return [{ label: min.toFixed(3), count: returns.length, mid: min }];
-  }
-  const width = (max - min) / bins;
-  const buckets = Array.from({ length: bins }, (_, i) => ({
-    min: min + i * width,
-    max: min + (i + 1) * width,
-    count: 0
-  }));
-  values.forEach((v) => {
-    const idx = Math.min(buckets.length - 1, Math.floor((v - min) / width));
-    buckets[idx].count += 1;
-  });
-  return buckets.map(b => ({
-    label: `${(b.min * 100).toFixed(1)}%`,
-    count: b.count,
-    mid: (b.min + b.max) / 2
-  }));
-};
-
-const calcExpectancy = (trades) => {
-  const wins = trades.filter(t => Number(t.profit || 0) > 0);
-  const losses = trades.filter(t => Number(t.profit || 0) < 0);
-  const winRate = trades.length > 0 ? wins.length / trades.length : 0;
-  const avgWin = wins.length ? wins.reduce((s, t) => s + Number(t.profit || 0), 0) / wins.length : 0;
-  const avgLoss = losses.length ? Math.abs(losses.reduce((s, t) => s + Number(t.profit || 0), 0)) / losses.length : 0;
-  const expectancy = (winRate * avgWin) - ((1 - winRate) * avgLoss);
-  return { winRate, avgWin, avgLoss, expectancy };
-};
-
-const isoWeek = (date) => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
-};
-
-const calcHeatmap = (trades, mode = 'month') => {
-  const map = new Map();
-  trades.forEach((t) => {
-    const ts = t.exitTime || t.entryTime;
-    if (!ts) return;
-    const d = new Date(ts);
-    const key = mode === 'week'
-      ? isoWeek(d)
-      : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const prev = map.get(key) || 0;
-    map.set(key, prev + Number(t.profit || 0));
-  });
-  return Array.from(map.entries())
-    .map(([key, value]) => ({ key, value }))
-    .sort((a, b) => a.key.localeCompare(b.key));
-};
+import {
+  fmtMoney,
+  calcDrawdownSeries,
+  calcReturns,
+  calcRollingSharpe,
+  calcHistogram,
+  calcExpectancy,
+  calcHeatmap
+} from '../utils/backtestAnalytics';
 
 const DataView = () => {
   const [reports, setReports] = useState([]);
@@ -113,23 +22,36 @@ const DataView = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const fetchList = useCallback(async () => {
+    try {
+      const res = await client.get('/backtest');
+      if (res.success) {
+        setReports(
+          [...(res.payload || [])].sort((a, b) =>
+            new Date(b.timestamp) - new Date(a.timestamp)
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Load reports failed", err);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchList = async () => {
-      try {
-        const res = await client.get('/backtest');
-        if (res.success) {
-          setReports(
-            [...(res.payload || [])].sort((a, b) => 
-              new Date(b.timestamp) - new Date(a.timestamp)
-            )
-          );
-        }
-      } catch (err) {
-        console.error("Load reports failed", err);
+    fetchList();
+  }, [fetchList]);
+
+  useEffect(() => {
+    const onBacktestCreated = (event) => {
+      fetchList();
+      const createdId = event?.detail?.id;
+      if (createdId) {
+        setSelectedId(createdId);
       }
     };
-    fetchList();
-  }, []);
+    window.addEventListener('corex:backtest:created', onBacktestCreated);
+    return () => window.removeEventListener('corex:backtest:created', onBacktestCreated);
+  }, [fetchList]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -163,117 +85,117 @@ const DataView = () => {
 
   return (
     <div className="ui-page ui-page-scroll">
-    <div className="flex min-h-[640px] overflow-hidden ui-panel-soft">
-      {/* Sidebar */}
-      <aside 
-        className={`
-          w-72 bg-slate-900 border-r border-slate-800 flex-shrink-0 
+      <div className="flex min-h-[640px] overflow-hidden ui-panel-soft">
+        {/* Sidebar */}
+        <aside
+          className={`
+          w-72 bg-[var(--ui-panel-strong)] border-r border-[var(--ui-border)] flex-shrink-0 
           overflow-y-auto transition-all duration-300
           ${!selectedId ? 'shadow-2xl' : ''}
         `}
-      >
-        <div className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800 px-5 py-4">
-          <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">
-            Backtest Reports
-          </h3>
-        </div>
+        >
+          <div className="sticky top-0 z-10 bg-[var(--ui-panel-strong)] border-b border-[var(--ui-border)] px-5 py-4">
+            <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ui-muted)]">
+              Backtest Reports
+            </h3>
+          </div>
 
-        {reports.length === 0 ? (
-          <div className="p-8 text-center text-slate-500 text-sm">
-            No reports yet
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-800/60">
-            {Object.entries(
-              reports.reduce((acc, r) => {
-                const key = r.strategyName || r.strategyId || 'Unassigned';
-                acc[key] = acc[key] || [];
-                acc[key].push(r);
-                return acc;
-              }, {})
-            ).map(([group, items]) => (
-              <div key={group}>
-                <div className="px-5 py-2 text-[10px] uppercase tracking-widest text-slate-500 bg-slate-900/70 border-b border-slate-800">
-                  {group}
-                </div>
-                {items.map(r => (
-                  <div
-                    key={r.id}
-                    className={`
-                      px-5 py-4 text-left transition-all border-l-4
-                      ${selectedId === r.id ? 'bg-slate-800/80 border-l-indigo-500' : 'border-l-transparent hover:bg-slate-800/60'}
-                    `}
-                  >
-                    <button
-                      onClick={() => setSelectedId(r.id)}
-                      className="w-full text-left focus:outline-none"
-                    >
-                      <div className="font-medium text-slate-100 truncate text-sm">
-                        {r.id}
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-1">
-                        {r.symbol || '--'} • {r.timeframe || '--'}
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        {new Date(r.timestamp).toLocaleString('en-US', {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
-                        })}
-                      </div>
-                    </button>
-                    <button
-                      onClick={async (e) => {
-                        e.stopPropagation();
-                        await client.delete(`/backtest/${r.id}`);
-                        setReports((prev) => prev.filter(p => p.id !== r.id));
-                        if (selectedId === r.id) setSelectedId(null);
-                      }}
-                      className="mt-2 text-[10px] uppercase tracking-widest text-rose-400 hover:text-rose-300"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
-        )}
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 overflow-y-auto p-6">
-        {!selectedId ? (
-          <div className="h-full flex flex-col items-center justify-center text-slate-500">
-            <svg className="w-24 h-24 mb-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <h2 className="text-2xl font-semibold text-slate-200 mb-3">
-              Select a backtest
-            </h2>
-            <p className="text-slate-500 max-w-md text-center">
-              Click any report on the left to view performance metrics, equity curve and trade list.
-            </p>
-          </div>
-        ) : loading ? (
-          <div className="h-full flex items-center justify-center">
-            <div className="flex items-center gap-3 text-slate-400">
-              <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" className="opacity-25" />
-                <path fill="currentColor" d="M4 12a8 8 0 018-8v8z" className="opacity-75" />
-              </svg>
-              <span className="text-lg">Loading report...</span>
+          {reports.length === 0 ? (
+            <div className="p-8 text-center text-[var(--ui-muted)] text-sm">
+              No reports yet
             </div>
-          </div>
-        ) : error ? (
-          <div className="h-full flex flex-col items-center justify-center text-rose-400">
-            <div className="text-2xl font-medium mb-3">Error</div>
-            <div className="text-slate-400">{error}</div>
-          </div>
-        ) : reportData ? (
-          <ReportView report={reportData} />
-        ) : null}
-      </main>
-    </div>
+          ) : (
+            <div className="divide-y divide-[var(--ui-border)]">
+              {Object.entries(
+                reports.reduce((acc, r) => {
+                  const key = r.strategyName || r.strategyId || 'Unassigned';
+                  acc[key] = acc[key] || [];
+                  acc[key].push(r);
+                  return acc;
+                }, {})
+              ).map(([group, items]) => (
+                <div key={group}>
+                  <div className="px-5 py-2 text-[10px] uppercase tracking-widest text-[var(--ui-muted)] bg-[rgba(15,23,42,0.45)] border-b border-[var(--ui-border)]">
+                    {group}
+                  </div>
+                  {items.map(r => (
+                    <div
+                      key={r.id}
+                      className={`
+                      px-5 py-4 text-left transition-all border-l-4
+                      ${selectedId === r.id ? 'bg-blue-500/10 border-l-indigo-500' : 'border-l-transparent hover:bg-white/5'}
+                    `}
+                    >
+                      <button
+                        onClick={() => setSelectedId(r.id)}
+                        className="w-full text-left focus:outline-none"
+                      >
+                        <div className="font-medium text-[var(--ui-text)] truncate text-sm">
+                          {r.id}
+                        </div>
+                        <div className="text-[11px] text-[var(--ui-muted)] mt-1">
+                          {r.symbol || '--'} | {r.timeframe || '--'}
+                        </div>
+                        <div className="text-xs text-[var(--ui-muted)] mt-1">
+                          {new Date(r.timestamp).toLocaleString('en-US', {
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                          })}
+                        </div>
+                      </button>
+                      <button
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          await client.delete(`/backtest/${r.id}`);
+                          setReports((prev) => prev.filter(p => p.id !== r.id));
+                          if (selectedId === r.id) setSelectedId(null);
+                        }}
+                        className="mt-2 text-[10px] uppercase tracking-widest text-rose-400 hover:text-rose-300"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
+
+        {/* Main Content */}
+        <main className="flex-1 overflow-y-auto p-6">
+          {!selectedId ? (
+            <div className="h-full flex flex-col items-center justify-center text-[var(--ui-muted)]">
+              <svg className="w-24 h-24 mb-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <h2 className="text-2xl font-semibold text-[var(--ui-text)] mb-3">
+                Select a backtest
+              </h2>
+              <p className="text-[var(--ui-muted)] max-w-md text-center">
+                Click any report on the left to view performance metrics, equity curve and trade list.
+              </p>
+            </div>
+          ) : loading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="flex items-center gap-3 text-[var(--ui-muted)]">
+                <svg className="animate-spin h-6 w-6" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" className="opacity-25" />
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8v8z" className="opacity-75" />
+                </svg>
+                <span className="text-lg">Loading report...</span>
+              </div>
+            </div>
+          ) : error ? (
+            <div className="h-full flex flex-col items-center justify-center text-rose-400">
+              <div className="text-2xl font-medium mb-3">Error</div>
+              <div className="text-[var(--ui-muted)]">{error}</div>
+            </div>
+          ) : reportData ? (
+            <ReportView report={reportData} />
+          ) : null}
+        </main>
+      </div>
     </div>
   );
 };
@@ -315,15 +237,15 @@ function ReportView({ report }) {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-5">
-        <Stat label="Net Profit" 
+        <Stat label="Net Profit"
           value={`$${Number(performance?.netProfit || 0).toFixed(2)}`}
           trend={Number(performance?.netProfit) >= 0 ? 'positive' : 'negative'}
         />
         <Stat label="ROI" value={`${Number(performance?.roiPercent || 0).toFixed(1)}%`} />
         <Stat label="Win Rate" value={`${Number(performance?.winRate || 0).toFixed(1)}%`} />
         <Stat label="Trades" value={performance?.totalTrades ?? 0} />
-        <Stat label="Max Drawdown" 
-          value={`${Number(performance?.maxDrawdownPercent || 0).toFixed(2)}%`} 
+        <Stat label="Max Drawdown"
+          value={`${Number(performance?.maxDrawdownPercent || 0).toFixed(2)}%`}
           trend="negative"
         />
         <Stat label="Sharpe" value={performance?.sharpeRatio ?? '--'} />
@@ -348,36 +270,36 @@ function ReportView({ report }) {
           <ResponsiveContainer>
             <LineChart data={hasEquity ? equityCurve : [{ time: Date.now(), equity: 10000 }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
-              <XAxis 
-                dataKey="time" 
-                type="number" 
-                scale="time" 
+              <XAxis
+                dataKey="time"
+                type="number"
+                scale="time"
                 domain={['dataMin', 'dataMax']}
-                tickFormatter={v => new Date(v).toLocaleDateString('en-US', { hour: '2-digit', minute: '2-digit'})}
+                tickFormatter={v => new Date(v).toLocaleDateString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 stroke="#475569"
                 tick={{ fill: '#94a3b8', fontSize: 12 }}
               />
-              <YAxis 
+              <YAxis
                 tickFormatter={v => `$${Math.round(v).toLocaleString()}`}
                 stroke="#475569"
                 tick={{ fill: '#94a3b8', fontSize: 12 }}
               />
-              <Tooltip 
-                contentStyle={{ 
-                  background: '#0f172a', 
-                  border: '1px solid #334155', 
-                  borderRadius: '8px', 
-                  color: '#e2e8f0' 
+              <Tooltip
+                contentStyle={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  color: '#e2e8f0'
                 }}
                 labelFormatter={v => new Date(v).toLocaleString()}
               />
-              <Line 
-                type="monotone" 
-                dataKey="equity" 
-                stroke="#6366f1" 
-                strokeWidth={2.5} 
-                dot={false} 
-                activeDot={{ r: 6, strokeWidth: 3 }} 
+              <Line
+                type="monotone"
+                dataKey="equity"
+                stroke="#6366f1"
+                strokeWidth={2.5}
+                dot={false}
+                activeDot={{ r: 6, strokeWidth: 3 }}
               />
             </LineChart>
           </ResponsiveContainer>
@@ -392,7 +314,7 @@ function ReportView({ report }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
               <XAxis dataKey="time" hide />
               <YAxis tickFormatter={v => `${v.toFixed(1)}%`} stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
                 labelFormatter={v => new Date(v).toLocaleString()}
               />
@@ -410,7 +332,7 @@ function ReportView({ report }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
               <XAxis dataKey="label" stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
               <YAxis stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
               />
               <Bar dataKey="count" fill="#6366f1" />
@@ -427,7 +349,7 @@ function ReportView({ report }) {
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
               <XAxis dataKey="time" hide />
               <YAxis stroke="#475569" tick={{ fill: '#94a3b8', fontSize: 12 }} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', color: '#e2e8f0' }}
                 labelFormatter={v => new Date(v).toLocaleString()}
               />
@@ -444,17 +366,17 @@ function ReportView({ report }) {
             <BarChart data={hasPnL ? pnlSeries : [{ index: 0, profit: 0 }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
               <XAxis dataKey="index" hide />
-              <YAxis 
+              <YAxis
                 tickFormatter={v => `$${Math.round(v).toLocaleString()}`}
                 stroke="#475569"
                 tick={{ fill: '#94a3b8', fontSize: 12 }}
               />
-              <Tooltip 
-                contentStyle={{ 
-                  background: '#0f172a', 
-                  border: '1px solid #334155', 
-                  borderRadius: '8px', 
-                  color: '#e2e8f0' 
+              <Tooltip
+                contentStyle={{
+                  background: '#0f172a',
+                  border: '1px solid #334155',
+                  borderRadius: '8px',
+                  color: '#e2e8f0'
                 }}
                 labelFormatter={v => `Trade ${v}`}
               />
@@ -526,7 +448,7 @@ function ReportView({ report }) {
 
       {/* Trades */}
       {trades.length > 0 && (
-        <div>
+        <div className="ui-panel">
           <h3 className="text-lg font-semibold text-slate-200 mb-4">
             Trades <span className="text-slate-500 font-normal">({trades.length})</span>
           </h3>
@@ -543,38 +465,43 @@ function ReportView({ report }) {
                 </tr>
               </thead>
               <tbody>
-                {trades.map((t, i) => (
-                  <tr key={i}>
-                    <td className="whitespace-nowrap text-slate-300">
-                      {new Date(t.entryTime).toLocaleString()}
-                    </td>
-                    <td>
-                      <span className={
-                        t.direction === 'long' 
-                          ? 'text-emerald-400 font-medium' 
-                          : 'text-rose-400 font-medium'
-                      }>
-                        {t.direction?.toUpperCase() || '?'}
-                      </span>
-                    </td>
-                    <td className="text-right text-slate-300">
-                      {t.entryPrice?.toFixed(2) ?? '--'}
-                    </td>
-                    <td className="text-right text-slate-300">
-                      {t.exitPrice?.toFixed(2) ?? '--'}
-                    </td>
-                    <td className={`text-right font-medium ${
-                      Number(t.profit) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                    }`}>
-                      ${Number(t.profit || 0).toFixed(2)}
-                    </td>
-                    <td className={`text-right ${
-                      Number(t.profitPct) >= 0 ? 'text-emerald-400' : 'text-rose-400'
-                    }`}>
-                      {Number(t.profitPct || 0).toFixed(2)}%
-                    </td>
-                  </tr>
-                ))}
+                {trades.map((t, i) => {
+                  const profit = Number(t.profit || 0);
+                  const profitPct = Number(t.profitPct || 0);
+                  const dirRaw = String(t.direction || '').toLowerCase();
+                  const isLong = dirRaw.includes('long') || dirRaw === 'buy';
+                  return (
+                    <tr
+                      key={i}
+                      className={`
+                      hover:bg-white/[0.03] transition-colors border-l-4
+                      ${profit >= 0 ? 'border-emerald-500' : 'border-rose-500'}
+                    `}
+                      style={{ backgroundColor: profit >= 0 ? 'rgba(16, 185, 129, 0.06)' : 'rgba(244, 63, 94, 0.06)' }}
+                    >
+                      <td className="whitespace-nowrap text-slate-300">
+                        {new Date(t.entryTime).toLocaleString()}
+                      </td>
+                      <td>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isLong ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                          {isLong ? 'LONG' : (dirRaw ? dirRaw.toUpperCase() : '?')}
+                        </span>
+                      </td>
+                      <td className="text-right text-slate-300 font-mono">
+                        {(Number(t.entryPrice) || 0).toFixed(4)}
+                      </td>
+                      <td className="text-right text-slate-300 font-mono">
+                        {(Number(t.exitPrice) || 0).toFixed(4)}
+                      </td>
+                      <td className={`p-4 text-[11px] text-right font-bold ${Number(t.profit) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {Number(t.profit) >= 0 ? '+' : ''}{Number(t.profit || 0).toFixed(2)}
+                      </td>
+                      <td className={`p-4 text-[11px] text-right font-bold ${Number(profitPct) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {Number(profitPct).toFixed(2)}%
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
@@ -586,13 +513,13 @@ function ReportView({ report }) {
 
 function Stat({ label, value, trend = 'neutral' }) {
   const color = trend === 'positive' ? 'text-emerald-400' :
-                trend === 'negative' ? 'text-rose-400' : 
-                'text-slate-100';
-  
+    trend === 'negative' ? 'text-rose-400' :
+      'text-[var(--ui-text)]';
+
   return (
-    <div className="ui-card">
-      <div className="ui-panel-title mb-2">{label}</div>
-      <div className={`text-2xl font-semibold ${color}`}>{value}</div>
+    <div className="bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] rounded-xl p-4">
+      <div className="text-[10px] uppercase tracking-widest text-[var(--ui-muted)] mb-2">{label}</div>
+      <div className={`text-xl font-semibold ${color}`}>{value}</div>
     </div>
   );
 }

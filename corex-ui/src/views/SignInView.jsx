@@ -27,32 +27,32 @@ const SignInView = ({ onSignedIn }) => {
   };
 
   return (
-    <div className="h-screen w-screen bg-[#0b0e14] text-slate-200 grid place-items-center p-6">
-      <div className="w-full max-w-md border border-slate-800 bg-[#0d1117]/80 rounded-2xl p-6">
+    <div className="h-screen w-screen text-[var(--ui-text)] grid place-items-center p-6">
+      <div className="w-full max-w-md border border-[var(--ui-border)] bg-[rgba(15,23,42,0.45)] rounded-2xl p-6">
         <p className="text-[10px] font-black tracking-[0.35em] text-blue-400 uppercase mb-2">CoreX Access</p>
         <h1 className="text-xl font-black uppercase tracking-wide">Sign In</h1>
-        <p className="text-xs text-slate-500 mt-1">Authenticate to access strategy, broker, and MT5 bridge controls.</p>
+        <p className="text-xs text-[var(--ui-muted)] mt-1">Authenticate to access strategy, broker, and MT5 bridge controls.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Email</label>
+            <label className="text-[10px] uppercase tracking-widest text-[var(--ui-muted)] font-bold">Email</label>
             <input
               type="email"
               autoComplete="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full h-10 rounded-md border border-slate-700 bg-black/30 px-3 text-sm outline-none focus:border-blue-500"
+              className="ui-input h-10"
               placeholder="admin@corex.local"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Password</label>
+            <label className="text-[10px] uppercase tracking-widest text-[var(--ui-muted)] font-bold">Password</label>
             <input
               type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full h-10 rounded-md border border-slate-700 bg-black/30 px-3 text-sm outline-none focus:border-blue-500"
+              className="ui-input h-10"
               placeholder="Your password"
             />
           </div>
