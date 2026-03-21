@@ -9,7 +9,7 @@ import SettingsView from "./views/SettingsView";
 import SignInView from "./views/SignInView";
 import SignOutView from "./views/SignOutView";
 import { useStore } from "./store/useStore";
-import client, { getSessionToken, setSessionToken } from "./api/client";
+import client, { getSessionToken, setSessionAuthKey, setSessionToken } from "./api/client";
 import UserAvatar from "./components/common/UserAvatar";
 import { ChevronDown, Lock, Monitor, Radio, ShieldCheck, UserCircle2, Wallet, Wifi } from "lucide-react";
 
@@ -32,13 +32,19 @@ function App() {
   });
   const profileRef = useRef(null);
 
-  // Simplified Store Access
-  const {
-    connectWebSocket, disconnectWebSocket,
-    startPulse, stopPulse,
-    startLiveStrategies, stopLiveStrategies,
-    realtimeMode, wsStatus, fetchSystemSettings, uiTheme, activeAccountMode
-  } = useStore();
+  const connectWebSocket = useStore((s) => s.connectWebSocket);
+  const disconnectWebSocket = useStore((s) => s.disconnectWebSocket);
+  const startPulse = useStore((s) => s.startPulse);
+  const stopPulse = useStore((s) => s.stopPulse);
+  const startLiveStrategies = useStore((s) => s.startLiveStrategies);
+  const stopLiveStrategies = useStore((s) => s.stopLiveStrategies);
+  const realtimeMode = useStore((s) => s.realtimeMode);
+  const wsStatus = useStore((s) => s.wsStatus);
+  const fetchSystemSettings = useStore((s) => s.fetchSystemSettings);
+  const uiTheme = useStore((s) => s.uiTheme);
+  const activeAccountMode = useStore((s) => s.activeAccountMode);
+  const setBrowserOnline = useStore((s) => s.setBrowserOnline);
+  const setWsProfile = useStore((s) => s.setWsProfile);
 
   useEffect(() => {
     if (!authToken) return;
@@ -71,6 +77,18 @@ function App() {
     }
   }, [authToken, realtimeMode, wsStatus, connectWebSocket]);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const applyOnlineState = () => setBrowserOnline(window.navigator.onLine !== false);
+    applyOnlineState();
+    window.addEventListener("online", applyOnlineState);
+    window.addEventListener("offline", applyOnlineState);
+    return () => {
+      window.removeEventListener("online", applyOnlineState);
+      window.removeEventListener("offline", applyOnlineState);
+    };
+  }, [setBrowserOnline]);
+
   // Sync Sidebar State
   useEffect(() => {
     localStorage.setItem("corex.sidebar", sidebarCollapsed ? "collapsed" : "expanded");
@@ -101,6 +119,7 @@ function App() {
       setAuthToken("");
       setAuthUser(null);
       setShowSignOutView(false);
+      setSessionAuthKey("");
     };
     window.addEventListener("corex:auth:expired", handleExpired);
     return () => window.removeEventListener("corex:auth:expired", handleExpired);
@@ -108,6 +127,7 @@ function App() {
 
   const handleSignOutConfirmed = () => {
     setSessionToken("");
+    setSessionAuthKey("");
     setAuthToken("");
     setAuthUser(null);
     setShowSignOutView(false);
@@ -122,6 +142,13 @@ function App() {
     account: <AccountView />,
     settings: <SettingsView />,
   }), []);
+
+  // WS subscription profile follows the active view to reduce overhead.
+  useEffect(() => {
+    if (!authToken) return;
+    if (realtimeMode !== "ws") return;
+    setWsProfile(activeTab);
+  }, [authToken, realtimeMode, activeTab, setWsProfile]);
 
   if (!authToken) {
     return (
@@ -144,11 +171,10 @@ function App() {
         onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
-      {/* THE FIX: flex-1 and overflow-hidden ensures the main area doesn't grow 
+      {/* THE FIX: flex-1 and overflow-hidden ensures the main area doesn't grow
          beyond the viewport, forcing children to handle their own scrolling.
       */}
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative">
-
         {/* HEADER: Sharp & Fixed */}
         <header className="h-14 shrink-0 border-b border-[var(--ui-border)] flex items-center justify-between px-6 bg-[var(--ui-header-glass)] backdrop-blur-md z-20">
           <div className="flex items-center gap-4">
@@ -161,8 +187,10 @@ function App() {
             <span className="text-[10px] text-[var(--ui-muted)] font-mono hidden md:block">
               {authUser?.email || "Authenticated"}
             </span>
-            <div className="hidden lg:flex items-center gap-2">
+            <div className="flex items-center gap-2">
               <span className="ui-chip"><Wallet size={11} /> {String(activeAccountMode || "paper").toUpperCase()}</span>
+            </div>
+            <div className="hidden lg:flex items-center gap-2">
               <span className="ui-chip"><Radio size={11} /> {String(realtimeMode || "ws").toUpperCase()}</span>
               <span className="ui-chip"><Monitor size={11} /> {String(uiTheme || "dark").toUpperCase()}</span>
             </div>
@@ -238,7 +266,7 @@ function App() {
         </header>
 
         {/* THE CONTENT: Use h-full and w-full with relative positioning.
-           Removed extra padding here so individual Views can manage their 
+           Removed extra padding here so individual Views can manage their
            own layout (e.g., StrategyView needs to be edge-to-edge).
         */}
         <div className="flex-1 relative overflow-hidden">
@@ -250,15 +278,19 @@ function App() {
             />
           ) : (
             <>
-              {Object.entries(views).map(([key, view]) => (
-                <div
-                  key={key}
-                  className={`absolute inset-0 w-full h-full transition-opacity duration-200 ${activeTab === key ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
-                    }`}
-                >
-                  {view}
+              <div className="absolute inset-0 w-full h-full flex flex-col overflow-hidden">
+                <div className="flex-1 min-h-0 relative overflow-hidden">
+                  {Object.entries(views).map(([key, view]) => (
+                    <div
+                      key={key}
+                      className={`absolute inset-0 w-full h-full transition-opacity duration-200 ${activeTab === key ? 'opacity-100 z-10' : 'opacity-0 z-0 pointer-events-none'
+                        }`}
+                    >
+                      {view}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </>
           )}
         </div>

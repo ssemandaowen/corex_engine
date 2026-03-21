@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import client from "../api/client";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -16,11 +16,33 @@ import {
 } from '../utils/backtestAnalytics';
 
 const DataView = () => {
+  const [source, setSource] = useState('BACKTEST');
   const [reports, setReports] = useState([]);
+  const [snapshots, setSnapshots] = useState([]);
+  const [allSnapshots, setAllSnapshots] = useState([]);
+  const [selectedSnapshotId, setSelectedSnapshotId] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
   const [reportData, setReportData] = useState(null);
+  const [historyFilters, setHistoryFilters] = useState({
+    strategyId: '',
+    symbol: '',
+    from: '',
+    to: '',
+    limit: 2000
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const historyStrategyOptions = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    (allSnapshots || []).forEach((s) => {
+      const id = String(s?.strategyId || "").trim();
+      if (!id || seen.has(id)) return;
+      seen.add(id);
+      out.push(id);
+    });
+    return out.sort((a, b) => a.localeCompare(b));
+  }, [allSnapshots]);
 
   const fetchList = useCallback(async () => {
     try {
@@ -38,10 +60,12 @@ const DataView = () => {
   }, []);
 
   useEffect(() => {
+    if (source !== 'BACKTEST') return;
     fetchList();
-  }, [fetchList]);
+  }, [source, fetchList]);
 
   useEffect(() => {
+    if (source !== 'BACKTEST') return;
     const onBacktestCreated = (event) => {
       fetchList();
       const createdId = event?.detail?.id;
@@ -51,9 +75,83 @@ const DataView = () => {
     };
     window.addEventListener('corex:backtest:created', onBacktestCreated);
     return () => window.removeEventListener('corex:backtest:created', onBacktestCreated);
-  }, [fetchList]);
+  }, [source, fetchList]);
+
+  const fetchHistoryReport = useCallback(async (envOverride = null, overrideFilters = null) => {
+    const environment = (envOverride || source).toUpperCase();
+    const f = overrideFilters || historyFilters;
+    const params = new URLSearchParams();
+    params.set('environment', environment);
+    if (f.strategyId) params.set('strategyId', f.strategyId);
+    if (f.symbol) params.set('symbol', f.symbol);
+    if (f.from) params.set('from', f.from);
+    if (f.to) params.set('to', f.to);
+    if (f.limit) params.set('limit', String(f.limit));
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await client.get(`/run/history?${params.toString()}`);
+      if (res?.success) {
+        const payload = res.payload || {};
+        setReportData({
+          meta: payload.meta || {},
+          performance: payload.performance || {},
+          trades: Array.isArray(payload.trades) ? payload.trades : [],
+          equityCurve: Array.isArray(payload.equityCurve) ? payload.equityCurve : [],
+          analytics: payload.analytics || {}
+        });
+      } else {
+        setReportData(null);
+        setError('No history available');
+      }
+    } catch {
+      setReportData(null);
+      setError('Failed to load execution history');
+    } finally {
+      setLoading(false);
+    }
+  }, [source, historyFilters]);
+
+  const fetchHistorySnapshots = useCallback(async (envOverride = null, overrideFilters = null) => {
+    const environment = (envOverride || source).toUpperCase();
+    const f = overrideFilters || historyFilters;
+    const params = new URLSearchParams();
+    params.set('environment', environment);
+    if (f.strategyId) params.set('strategyId', f.strategyId);
+    if (f.symbol) params.set('symbol', f.symbol);
+    params.set('limit', '200');
+    try {
+      const res = await client.get(`/run/history/snapshots?${params.toString()}`);
+      setSnapshots(Array.isArray(res?.payload) ? res.payload : []);
+    } catch {
+      setSnapshots([]);
+    }
+  }, [source, historyFilters]);
+
+  const fetchAllHistorySnapshots = useCallback(async (envOverride = null) => {
+    const environment = (envOverride || source).toUpperCase();
+    const params = new URLSearchParams();
+    params.set('environment', environment);
+    params.set('limit', '500');
+    try {
+      const res = await client.get(`/run/history/snapshots?${params.toString()}`);
+      setAllSnapshots(Array.isArray(res?.payload) ? res.payload : []);
+    } catch {
+      setAllSnapshots([]);
+    }
+  }, [source]);
 
   useEffect(() => {
+    if (source === 'BACKTEST') return;
+    setSelectedId(null);
+    setSelectedSnapshotId(null);
+    fetchHistoryReport(source);
+    fetchHistorySnapshots(source);
+    fetchAllHistorySnapshots(source);
+  }, [source, fetchHistoryReport, fetchHistorySnapshots, fetchAllHistorySnapshots]);
+
+  useEffect(() => {
+    if (source !== 'BACKTEST') return;
     if (!selectedId) {
       setReportData(null);
       setError(null);
@@ -81,10 +179,21 @@ const DataView = () => {
     })();
 
     return () => { canceled = true; };
-  }, [selectedId]);
+  }, [source, selectedId]);
 
   return (
     <div className="ui-page ui-page-scroll">
+      <div className="mb-3 flex items-center gap-2">
+        {['BACKTEST', 'PAPER', 'LIVE'].map((s) => (
+          <button
+            key={s}
+            className={`px-3 py-1 rounded border text-[11px] font-bold tracking-wider ${source === s ? 'bg-blue-500/15 text-blue-300 border-blue-500/40' : 'border-[var(--ui-border)] text-[var(--ui-muted)]'}`}
+            onClick={() => setSource(s)}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
       <div className="flex min-h-[640px] overflow-hidden ui-panel-soft">
         {/* Sidebar */}
         <aside
@@ -96,15 +205,15 @@ const DataView = () => {
         >
           <div className="sticky top-0 z-10 bg-[var(--ui-panel-strong)] border-b border-[var(--ui-border)] px-5 py-4">
             <h3 className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--ui-muted)]">
-              Backtest Reports
+              {source === 'BACKTEST' ? 'Backtest Reports' : `${source} History`}
             </h3>
           </div>
 
-          {reports.length === 0 ? (
+          {source === 'BACKTEST' && reports.length === 0 ? (
             <div className="p-8 text-center text-[var(--ui-muted)] text-sm">
               No reports yet
             </div>
-          ) : (
+          ) : source === 'BACKTEST' ? (
             <div className="divide-y divide-[var(--ui-border)]">
               {Object.entries(
                 reports.reduce((acc, r) => {
@@ -158,12 +267,100 @@ const DataView = () => {
                 </div>
               ))}
             </div>
+          ) : (
+            <div className="p-4 space-y-3">
+              <label className="block text-[10px] uppercase tracking-widest text-[var(--ui-muted)]">Strategy</label>
+              <select
+                className="ui-select w-full"
+                value={historyFilters.strategyId}
+                onChange={(e) => setHistoryFilters((p) => ({ ...p, strategyId: e.target.value }))}
+              >
+                <option value="">All</option>
+                {historyStrategyOptions.map((sid) => (
+                  <option key={sid} value={sid}>{sid}</option>
+                ))}
+              </select>
+              {historyStrategyOptions.length === 0 && (
+                <div className="text-[11px] text-[var(--ui-muted)]">No strategy run history found for {source}.</div>
+              )}
+
+              <label className="block text-[10px] uppercase tracking-widest text-[var(--ui-muted)]">Symbol</label>
+              <input
+                className="ui-input w-full"
+                placeholder="e.g. EURUSD"
+                value={historyFilters.symbol}
+                onChange={(e) => setHistoryFilters((p) => ({ ...p, symbol: e.target.value.toUpperCase() }))}
+              />
+
+              <label className="block text-[10px] uppercase tracking-widest text-[var(--ui-muted)]">Limit</label>
+              <input
+                type="number"
+                min={100}
+                max={10000}
+                className="ui-input w-full"
+                value={historyFilters.limit}
+                onChange={(e) => setHistoryFilters((p) => ({ ...p, limit: Number(e.target.value || 2000) }))}
+              />
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  className="ui-button ui-button-primary flex-1"
+                  onClick={async () => {
+                    await fetchHistoryReport(source);
+                    await fetchHistorySnapshots(source);
+                    await fetchAllHistorySnapshots(source);
+                  }}
+                >
+                  Refresh
+                </button>
+                <button
+                  className="ui-button ui-button-danger flex-1"
+                  onClick={async () => {
+                    await client.delete(`/run/history?environment=${source}${historyFilters.strategyId ? `&strategyId=${encodeURIComponent(historyFilters.strategyId)}` : ''}${historyFilters.symbol ? `&symbol=${encodeURIComponent(historyFilters.symbol)}` : ''}${historyFilters.from ? `&from=${encodeURIComponent(historyFilters.from)}` : ''}${historyFilters.to ? `&to=${encodeURIComponent(historyFilters.to)}` : ''}`);
+                    await fetchHistoryReport(source);
+                    await fetchHistorySnapshots(source);
+                    await fetchAllHistorySnapshots(source);
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+
+              <div className="pt-2 border-t border-[var(--ui-border)]">
+                <div className="text-[10px] uppercase tracking-widest text-[var(--ui-muted)] mb-2">History Snapshots</div>
+                <div className="max-h-[340px] overflow-y-auto space-y-1">
+                  {snapshots.length === 0 ? (
+                    <div className="text-[11px] text-[var(--ui-muted)]">No snapshots found.</div>
+                  ) : snapshots.map((snap) => (
+                    <button
+                      key={snap.id}
+                      onClick={async () => {
+                        setSelectedSnapshotId(snap.id);
+                        const nextFilters = {
+                          ...historyFilters,
+                          strategyId: snap.strategyId || '',
+                          symbol: snap.symbol || '',
+                          from: snap.from || '',
+                          to: snap.to || ''
+                        };
+                        setHistoryFilters(nextFilters);
+                        await fetchHistoryReport(source, nextFilters);
+                      }}
+                      className={`w-full text-left rounded border px-2 py-2 transition ${selectedSnapshotId === snap.id ? 'border-blue-500/50 bg-blue-500/10' : 'border-[var(--ui-border)] hover:bg-white/5'}`}
+                    >
+                      <div className="text-[11px] font-semibold text-[var(--ui-text)] truncate">{snap.strategyId || 'UNKNOWN'} | {snap.symbol || '--'}</div>
+                      <div className="text-[10px] text-[var(--ui-muted)]">{snap.day} | fills: {snap.fillsCount}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           )}
         </aside>
 
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto p-6">
-          {!selectedId ? (
+          {source === 'BACKTEST' && !selectedId ? (
             <div className="h-full flex flex-col items-center justify-center text-[var(--ui-muted)]">
               <svg className="w-24 h-24 mb-8 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
@@ -191,6 +388,13 @@ const DataView = () => {
               <div className="text-2xl font-medium mb-3">Error</div>
               <div className="text-[var(--ui-muted)]">{error}</div>
             </div>
+          ) : source !== 'BACKTEST' && historyFilters.strategyId && (!reportData || (Array.isArray(reportData?.trades) && reportData.trades.length === 0)) ? (
+            <div className="h-full flex flex-col items-center justify-center text-[var(--ui-muted)]">
+              <h2 className="text-xl font-semibold text-[var(--ui-text)] mb-2">No Data For Strategy</h2>
+              <p className="text-[var(--ui-muted)] max-w-md text-center">
+                {historyFilters.strategyId} has no {source} trade history in the selected filters.
+              </p>
+            </div>
           ) : reportData ? (
             <ReportView report={reportData} />
           ) : null}
@@ -212,10 +416,16 @@ function ReportView({ report }) {
     .filter((p) => Number.isFinite(p.profit));
   const pnlSeries = pnlSeriesRaw.length > 200 ? pnlSeriesRaw.slice(-200) : pnlSeriesRaw;
   const hasPnL = pnlSeries.length > 0;
-  const drawdownSeries = calcDrawdownSeries(equityCurve);
-  const returns = calcReturns(equityCurve);
+  const drawdownSeries = Array.isArray(report?.analytics?.drawdownCurve) && report.analytics.drawdownCurve.length > 0
+    ? report.analytics.drawdownCurve
+    : calcDrawdownSeries(equityCurve);
+  const returns = Array.isArray(report?.analytics?.returns) && report.analytics.returns.length > 0
+    ? report.analytics.returns.map((r) => ({ time: Number(r.time), r: Number(r.value || r.r || 0) }))
+    : calcReturns(equityCurve);
   const hist = calcHistogram(returns);
-  const sharpeSeries = calcRollingSharpe(returns, 20);
+  const sharpeSeries = Array.isArray(report?.analytics?.rollingSharpe) && report.analytics.rollingSharpe.length > 0
+    ? report.analytics.rollingSharpe
+    : calcRollingSharpe(returns, 20);
   const monthly = calcHeatmap(trades, 'month');
   const weekly = calcHeatmap(trades, 'week');
   const maxHeat = Math.max(1, ...monthly.map(m => Math.abs(m.value)), ...weekly.map(w => Math.abs(w.value)));
@@ -232,6 +442,7 @@ function ReportView({ report }) {
           <div>{new Date(meta?.timestamp).toLocaleString()}</div>
           <div>ID: <span className="text-slate-300">{meta?.id}</span></div>
           <div>Duration: <span className="text-slate-300">{meta?.executionTime}</span></div>
+          {meta?.environment ? <div>Env: <span className="text-slate-300">{meta.environment}</span></div> : null}
         </div>
       </div>
 

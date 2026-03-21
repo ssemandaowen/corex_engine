@@ -57,7 +57,7 @@ describe("SignalProcessingEngine", () => {
         expect(result.signal.symbol).toBe("BTC/USD");
         expect(result.signal.intent).toBe("ENTER");
         expect(result.signal.quantity).toBe(2);
-        expect(result.signal.side).toBe("buy");
+        expect(result.signal.side).toBe("long");
     });
 
     test("rejects invalid signal", () => {
@@ -120,4 +120,3 @@ describe("SignalExecutionEngine", () => {
         expect(drained).toBe(true);
     });
 });
-

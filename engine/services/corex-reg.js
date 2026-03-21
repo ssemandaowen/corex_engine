@@ -1,13 +1,14 @@
 "use strict";
 
 require("module-alias/register");
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const db = require("@core/services/postgres");
 const logger = require("@utils/logger");
+const { validateStrategyCode } = require("@utils/security");
 
 function sha256(buffer) {
     return crypto.createHash("sha256").update(buffer).digest("hex");
@@ -16,57 +17,42 @@ function sha256(buffer) {
 function usage() {
     return [
         "Usage:",
-        "  node engine/services/corex-reg.js <StrategyName> <FilePath> <VersionTag>",
+        "  node engine/services/corex-reg.js <StrategyName> <FilePath>",
         "",
         "Example:",
-        "  node engine/services/corex-reg.js TrendFollower ./strategies/trend_follower.js v1.0.2"
+        "  node engine/services/corex-reg.js TrendFollower ./strategies/trend_follower.js"
     ].join("\n");
 }
 
-async function upsertStrategy(name) {
+async function upsertStrategy({ name, code, hash }) {
     const { rows } = await db.query(
-        `INSERT INTO strategies (name)
-         VALUES ($1)
-         ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
+        `INSERT INTO strategies (name, script_body, script_hash, updated_at)
+         VALUES ($1, $2, $3, NOW())
+         ON CONFLICT (name) DO UPDATE
+         SET script_body = EXCLUDED.script_body,
+             script_hash = EXCLUDED.script_hash,
+             updated_at = NOW()
          RETURNING id`,
-        [name]
+        [name, code, hash]
     );
     return rows[0]?.id || null;
 }
 
-async function upsertStrategyVersion({ strategyId, versionTag, sourceHash, filePath }) {
-    const { rows: existing } = await db.query(
-        `SELECT id FROM strategy_versions
-         WHERE strategy_id = $1 AND version_tag = $2
-         LIMIT 1`,
-        [strategyId, versionTag]
-    );
-
-    if (existing[0]?.id) {
-        await db.query(
-            `UPDATE strategy_versions
-             SET source_hash = $1, file_path = $2, created_at = NOW()
-             WHERE id = $3`,
-            [sourceHash, filePath, existing[0].id]
-        );
-        return { id: existing[0].id, action: "updated" };
-    }
-
-    const { rows } = await db.query(
-        `INSERT INTO strategy_versions (strategy_id, version_tag, source_hash, file_path)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id`,
-        [strategyId, versionTag, sourceHash, filePath]
-    );
-    return { id: rows[0]?.id || null, action: "inserted" };
-}
-
-async function registerStrategy(name, filePath, versionTag) {
+/**
+ * Reads a strategy file, hashes its content, and upserts it into the
+ * `strategies` table, including the full script body and its hash.
+ * This is the canonical way to get strategy code into the database for
+ * the DB-centric loading workflow.
+ *
+ * @param {string} name - The unique name for the strategy.
+ * @param {string} filePath - The path to the strategy's .js file.
+ * @returns {Promise<object>}
+ */
+async function registerStrategy(name, filePath) {
     const strategyName = String(name || "").trim();
-    const version = String(versionTag || "").trim();
     const resolvedPath = path.resolve(String(filePath || "").trim());
 
-    if (!strategyName || !version || !resolvedPath) {
+    if (!strategyName || !resolvedPath) {
         throw new Error("INVALID_ARGS");
     }
 
@@ -74,42 +60,44 @@ async function registerStrategy(name, filePath, versionTag) {
         throw new Error(`FILE_NOT_FOUND: ${resolvedPath}`);
     }
 
-    const buffer = fs.readFileSync(resolvedPath);
-    const hash = sha256(buffer);
+    const code = fs.readFileSync(resolvedPath, "utf8");
 
-    const strategyId = await upsertStrategy(strategyName);
+    // Perform static analysis to block globals/dangerous patterns before DB insertion
+    if (!validateStrategyCode(code)) {
+        throw new Error("SECURITY_VALIDATION_FAILED: Code contains forbidden patterns (globals, requires, etc.)");
+    }
+
+    const hash = sha256(Buffer.from(code));
+
+    const strategyId = await upsertStrategy({
+        name: strategyName,
+        code: code,
+        hash: hash
+    });
+
     if (!strategyId) {
         throw new Error("STRATEGY_UPSERT_FAILED");
     }
 
-    const versionResult = await upsertStrategyVersion({
-        strategyId,
-        versionTag: version,
-        sourceHash: hash,
-        filePath: resolvedPath
-    });
-
     return {
         strategyId,
-        versionId: versionResult.id,
-        versionAction: versionResult.action,
         hash,
         filePath: resolvedPath
     };
 }
 
 async function main() {
-    const [, , name, filePath, versionTag] = process.argv;
+    const [, , name, filePath] = process.argv;
 
-    if (!name || !filePath || !versionTag) {
+    if (!name || !filePath) {
         console.error(usage());
         process.exit(1);
     }
 
     try {
-        const result = await registerStrategy(name, filePath, versionTag);
+        const result = await registerStrategy(name, filePath);
         console.log(
-            `Strategy ${name} (${versionTag}) ${result.versionAction}. ` +
+            `Strategy '${name}' registered/updated in DB. ` +
             `hash=${result.hash} path=${result.filePath}`
         );
         await db.close();

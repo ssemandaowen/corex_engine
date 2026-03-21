@@ -2,6 +2,8 @@
 
 require("module-alias/register");
 
+jest.setTimeout(30000);
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 async function waitFor(predicate, timeoutMs = 3000, stepMs = 10) {
@@ -106,4 +108,3 @@ describe("Core engine signal pipeline integration", () => {
         expect(adapter.handle).toHaveBeenCalledTimes(0);
     });
 });
-

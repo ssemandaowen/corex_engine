@@ -4,6 +4,7 @@ const { bus, EVENTS } = require("@events/bus");
 const pgStore = require("@core/services/pgStore");
 const db = require("@core/services/postgres");
 const logger = require("@utils/logger");
+const secretsVault = require("@core/services/secretsVault");
 
 const TTL = 60 * 1000; // 60s cache TTL
 
@@ -91,6 +92,10 @@ async function load() {
           )
         }
       };
+
+      // Decrypt secrets at the edge of persistence so downstream modules can read config normally.
+      // If COREX_SECRETS_KEY is not configured, this is a no-op.
+      secretsVault.decryptObjectSecrets(merged);
 
       cache = {
         data: deepFreeze(merged),

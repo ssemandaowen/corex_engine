@@ -1,6 +1,7 @@
 "use strict";
 
-const StateLedger = require("@utils/LinkedList");
+// Use the correct filename casing for production on Linux.
+const StateLedger = require("@utils/linkedList");
 const logger = require("@utils/logger");
 const { bus, EVENTS } = require("@events/bus");
 
@@ -10,13 +11,14 @@ class StateController {
 
         // SERVER CONTROL RULES: Define legal logic flow
         this.rules = {
-            "OFFLINE": ["STAGED", "WARMING_UP"],
-            "STAGED": ["WARMING_UP", "OFFLINE"],
-            "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE"],
-            "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE"],
+            "OFFLINE": ["STAGED", "WARMING_UP", "STOPPING"],
+            "STAGED": ["WARMING_UP", "OFFLINE", "STOPPING"],
+            "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE", "DISABLED"],
+            "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE", "DISABLED"],
             "PAUSED": ["ACTIVE", "STOPPING", "OFFLINE"],
             "STOPPING": ["OFFLINE"],
-            "ERROR": ["STAGED", "OFFLINE", "WARMING_UP", "STOPPING"] // Allow stopping from error
+            "ERROR": ["STAGED", "OFFLINE", "WARMING_UP", "STOPPING", "DISABLED"], // Allow stopping from error
+            "DISABLED": ["STAGED"]
         };
     }
 
@@ -38,20 +40,27 @@ class StateController {
         // Validation Logic
         const allowed = this.rules[current] || [];
         if (!allowed.includes(target)) {
-            logger.error(`🚫 [STATE COLLISION] Cannot move ${id} from ${current} to ${target}`);
+            // Shutdown/start races can legitimately issue redundant STOPPING while already OFFLINE.
+            if (current === "OFFLINE" && target === "STOPPING") {
+                logger.warn(`[STATE_SYNC] Redundant transition ignored for ${id}: ${current} -> ${target}`);
+                return true;
+            }
+            logger.error(`[STATE_COLLISION] Cannot move ${id} from ${current} to ${target}`);
             return false;
         }
 
         ledger.push(target, meta);
-        logger.info(`🔄 [${id}] ${current} -> ${target}`);
+        logger.info(`[STATE] [${id}] ${current} -> ${target}`);
         try {
+            // Extract userId from strategyId if available
+            const userId = String(id || "").split("::")[0] || null;
             bus.emit(EVENTS.SYSTEM.STATE_CHANGED, {
                 id,
                 from: current,
                 to: target,
                 meta,
                 at: new Date().toISOString()
-            });
+            }, { userId });
         } catch {
             // ignore bus errors
         }

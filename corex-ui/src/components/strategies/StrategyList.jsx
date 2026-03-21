@@ -27,9 +27,6 @@ const StrategyItem = ({ item, isActive, onSelect, onAction }) => {
         <span className={`text-[11px] font-mono font-bold truncate ${isActive ? 'text-blue-400' : 'text-[var(--ui-text)]'}`}>
           {item.name}.js
         </span>
-        <span className="text-[9px] text-[var(--ui-muted)] uppercase font-black tracking-widest">
-          Strategy
-        </span>
       </div>
       <div className="relative">
         <button

@@ -1,0 +1,8 @@
+{
+  "theme": "auto",
+  "fontSize": 13,
+  "lineHeight": 20,
+  "fontFamily": "JetBrains Mono, Menlo, Monaco, Courier New, monospace",
+  "minimap": false,
+  "wordWrap": "on"
+}

@@ -116,6 +116,9 @@ class MT5Bridge {
         }
 
         if (type === "order_result") {
+            this._persistOrderResult(msg).catch((err) => {
+                logger.warn(`[MT5] order_result persistence failed: ${err.message}`);
+            });
             const requestId = msg.requestId;
             const pending = this.pending.get(requestId);
             if (!pending) return;
@@ -131,6 +134,71 @@ class MT5Bridge {
             });
             return;
         }
+    }
+
+    _normalizeOrderResultStatus(msg = {}) {
+        const payloadStatus = String(msg?.payload?.status || "").trim().toUpperCase();
+        if (payloadStatus) return payloadStatus;
+        return msg?.ok ? "FILLED" : "REJECTED";
+    }
+
+    async _persistOrderResult(msg = {}) {
+        if (!db.hasDbConfig()) return;
+        const payload = msg?.payload && typeof msg.payload === "object" ? msg.payload : {};
+        const orderId = String(payload.orderId || payload.order_id || payload.id || "").trim();
+        if (!orderId) return;
+
+        const status = this._normalizeOrderResultStatus(msg);
+        if (!msg?.ok) {
+            await db.query("UPDATE orders SET status = $2 WHERE id = $1", [orderId, status]);
+            return;
+        }
+
+        await db.withTransaction(async (tx) => {
+            const lockRes = await tx.query(
+                "SELECT id, quantity FROM orders WHERE id = $1 FOR UPDATE",
+                [orderId]
+            );
+            const row = lockRes.rows?.[0];
+            if (!row) return;
+
+            await tx.query(
+                "UPDATE orders SET status = $2 WHERE id = $1",
+                [orderId, status]
+            );
+
+            const fillPrice = Number(payload.fillPrice ?? payload.fill_price ?? payload.price ?? 0);
+            const fillQtyRaw = Number(
+                payload.fillQuantity ??
+                payload.fill_quantity ??
+                payload.quantity ??
+                payload.volume ??
+                payload.lot ??
+                row.quantity
+            );
+            const fillQty = Number.isFinite(fillQtyRaw) && fillQtyRaw > 0
+                ? fillQtyRaw
+                : Number(row.quantity || 0);
+            const commission = Number(payload.commission ?? payload.fee ?? 0);
+            const dealId = String(payload.dealId || payload.deal_id || payload.ticket || "").trim() || null;
+            if (!Number.isFinite(fillPrice) || fillPrice <= 0 || !Number.isFinite(fillQty) || fillQty <= 0) return;
+
+            if (dealId) {
+                const existing = await tx.query(
+                    `SELECT id FROM order_fills
+                     WHERE order_id = $1 AND external_deal_id = $2
+                     LIMIT 1`,
+                    [orderId, dealId]
+                );
+                if (existing.rows?.[0]?.id) return;
+            }
+
+            await tx.query(
+                `INSERT INTO order_fills (order_id, external_deal_id, fill_price, fill_quantity, commission, filled_at)
+                 VALUES ($1, $2, $3, $4, $5, NOW())`,
+                [orderId, dealId, fillPrice, fillQty, Number.isFinite(commission) ? commission : 0]
+            );
+        });
     }
 
     _handleHandshake(ws, payload) {

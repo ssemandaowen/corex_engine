@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import client from '../../api/client';
 import { corexSwal } from '../../utils/swal';
+import { useStore } from '../../store/useStore';
 import {
     Upload,
     Play,
@@ -139,13 +140,35 @@ const MetricCard = ({ label, value, color = 'text-[var(--ui-positive)]', trend =
     </div>
 );
 
+const getBacktestProgressState = (elapsedMs = 0) => {
+    const seconds = Math.floor(Math.max(0, Number(elapsedMs || 0)) / 1000);
+    if (seconds < 3) return { label: 'Initializing backtest job...', pct: 10 };
+    if (seconds < 8) return { label: 'Loading and normalizing dataset...', pct: 25 };
+    if (seconds < 16) return { label: 'Building dataframe and indicators...', pct: 45 };
+    if (seconds < 32) return { label: 'Simulating strategy over bars...', pct: 68 };
+    if (seconds < 48) return { label: 'Analyzing trade/performance outputs...', pct: 84 };
+    return { label: 'Finalizing report and writing artifacts...', pct: 94 };
+};
+
+const createClientJobId = () => {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID().slice(0, 8);
+    }
+    return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`.slice(0, 8);
+};
+
 const Backtest = () => {
+    const backtestProgressByJob = useStore((s) => s.backtestProgressByJob);
     const [strategies, setStrategies] = useState([]);
     const [selectedStrategy, setSelectedStrategy] = useState('');
     const [loading, setLoading] = useState(false);
     const [results, setResults] = useState(null);
     const [error, setError] = useState(null);
     const [warnings, setWarnings] = useState([]);
+    const [loadingElapsedMs, setLoadingElapsedMs] = useState(0);
+    const [progressJobId, setProgressJobId] = useState("");
+    const [progressPayload, setProgressPayload] = useState(null);
+    const [lastWsProgressKey, setLastWsProgressKey] = useState("");
 
     // Form state
     const [file, setFile] = useState(null);
@@ -175,6 +198,107 @@ const Backtest = () => {
         includeTrades: true,
         range: true
     });
+
+    useEffect(() => {
+        if (!loading) {
+            setLoadingElapsedMs(0);
+            return undefined;
+        }
+        const startedAt = Date.now();
+        setLoadingElapsedMs(0);
+        const t = setInterval(() => {
+            setLoadingElapsedMs(Date.now() - startedAt);
+        }, 400);
+        return () => clearInterval(t);
+    }, [loading]);
+
+    useEffect(() => {
+        if (!loading || !progressJobId) return undefined;
+        let canceled = false;
+        const fetchProgress = async () => {
+            try {
+                const res = await client.get(`/backtest/progress/${progressJobId}`);
+                if (!canceled && res?.payload) {
+                    const p = res.payload;
+                    setProgressPayload(p);
+
+                    if (String(p?.status || "").toUpperCase() === "DONE" && p?.resultMeta?.id) {
+                        try {
+                            const reportRes = await client.get(`/backtest/${p.resultMeta.id}`);
+                            if (!canceled) {
+                                setResults(reportRes?.payload || null);
+                                setLoading(false);
+                            }
+                        } catch (e) {
+                            if (!canceled) {
+                                setError(e?.message || 'Failed to fetch backtest report.');
+                                setLoading(false);
+                            }
+                        }
+                    }
+
+                    if (String(p?.status || "").toUpperCase() === "ERROR") {
+                        if (!canceled) {
+                            setError(p?.error || 'Backtest failed.');
+                            setLoading(false);
+                        }
+                    }
+                }
+            } catch {
+                // best effort polling; no-op until backend entry appears
+            }
+        };
+        fetchProgress();
+        const t = setInterval(fetchProgress, 700);
+        return () => {
+            canceled = true;
+            clearInterval(t);
+        };
+    }, [loading, progressJobId]);
+
+    useEffect(() => {
+        if (!loading || !progressJobId) return;
+        const evt = backtestProgressByJob && typeof backtestProgressByJob === "object"
+            ? backtestProgressByJob[progressJobId]
+            : null;
+        if (!evt) return;
+
+        const key = `${progressJobId}:${evt.ts || 0}:${evt.status || ""}:${evt.progress?.stage || ""}`;
+        if (key === lastWsProgressKey) return;
+        setLastWsProgressKey(key);
+
+        const stage = String(evt?.progress?.stage || "").toUpperCase();
+        const status = String(evt?.status || "").toUpperCase();
+        const normalized = {
+            id: progressJobId,
+            status: stage || status || "RUNNING",
+            pct: Number.isFinite(Number(evt?.progress?.pct)) ? Number(evt.progress.pct) : null,
+            stage: stage || status || "RUNNING",
+            message: String(evt?.progress?.message || evt?.error || ""),
+            ts: Number(evt?.progress?.ts || evt?.ts || Date.now()),
+            resultMeta: evt?.resultMeta || null,
+            error: evt?.error || null
+        };
+        setProgressPayload(normalized);
+
+        if ((stage === "DONE" || status === "SUCCEEDED") && normalized?.resultMeta?.id) {
+            client.get(`/backtest/${normalized.resultMeta.id}`)
+                .then((reportRes) => {
+                    setResults(reportRes?.payload || null);
+                    setLoading(false);
+                })
+                .catch((e) => {
+                    setError(e?.message || 'Failed to fetch backtest report.');
+                    setLoading(false);
+                });
+            return;
+        }
+
+        if (stage === "FAILED" || status === "FAILED") {
+            setError(normalized.error || normalized.message || 'Backtest failed.');
+            setLoading(false);
+        }
+    }, [backtestProgressByJob, loading, progressJobId, lastWsProgressKey]);
 
     useEffect(() => {
         const fetchBacktestSettings = async () => {
@@ -363,33 +487,53 @@ const Backtest = () => {
         setResults(null);
         setError(null);
         setWarnings([]);
+        const clientJobId = createClientJobId();
+        setProgressJobId("");
+        setProgressPayload({
+            jobId: "",
+            status: "RUNNING",
+            currentStage: "QUEUED",
+            currentMessage: "Backtest queued...",
+            pct: 0,
+            steps: []
+        });
 
         const formData = buildBacktestFormData();
+        formData.append('clientJobId', clientJobId);
 
         try {
             const res = await client.post(`/backtest/${selectedStrategy}`, formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data'
-                }
+                },
+                // Backtests can legitimately run for tens of seconds on large datasets.
+                timeout: 0
             });
-            setResults(res.payload);
             setWarnings(Array.isArray(res?.meta?.warnings) ? res.meta.warnings : []);
+            const serverJobId = res?.payload?.jobId || res?.meta?.progressJobId || "";
+            if (!serverJobId) {
+                setError('Backtest queueing failed: missing job id.');
+                setLoading(false);
+                return;
+            }
+            setProgressJobId(serverJobId);
+            setProgressPayload((prev) => ({ ...(prev || {}), jobId: serverJobId }));
             if (typeof window !== 'undefined') {
                 window.dispatchEvent(new CustomEvent('corex:backtest:created', {
-                    detail: { id: res?.payload?.meta?.id || null, ts: Date.now() }
+                    detail: { id: serverJobId, ts: Date.now(), queued: true }
                 }));
             }
         } catch (err) {
             console.error('Backtest failed', err);
             setError(err.message || 'Backtest failed. Check the console for details.');
+            setLoading(false);
+            setProgressJobId("");
             await corexSwal({
                 icon: 'error',
                 title: 'Backtest Failed',
                 text: err?.message || 'Backtest failed. Check the console for details.',
                 confirmButtonText: 'OK'
             });
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -423,6 +567,13 @@ const Backtest = () => {
     const wins = trades.filter((t) => Number(t.profit || 0) > 0).length;
     const losses = trades.filter((t) => Number(t.profit || 0) < 0).length;
     const header = results?.meta || null;
+    const progressState = progressPayload
+        ? {
+            label: progressPayload.currentMessage || 'Running...',
+            pct: Number.isFinite(Number(progressPayload.pct)) ? Number(progressPayload.pct) : 0
+        }
+        : getBacktestProgressState(loadingElapsedMs);
+    const progressSteps = Array.isArray(progressPayload?.steps) ? progressPayload.steps : [];
 
     return (
         <div className="flex flex-col xl:flex-row h-full bg-transparent overflow-hidden">
@@ -645,7 +796,7 @@ const Backtest = () => {
                     </div>
                 </form>
 
-                <div className="p-4 bg-[rgba(15,23,42,0.45)] border-t border-[var(--ui-border)]">
+                <div className="p-4 bg-[var(--ui-panel)] border-t border-[var(--ui-border)]">
                     <button
                         type="submit"
                         form="backtest-form"
@@ -671,9 +822,47 @@ const Backtest = () => {
 
                 <div className="flex-1 overflow-y-auto p-0 scrollbar-thin">
                     {loading && (
-                        <div className="h-full flex flex-col items-center justify-center opacity-40">
-                            <Loader size={48} className="animate-spin text-[var(--ui-accent)] mb-4" />
-                            <p className="text-xs font-black uppercase tracking-[0.5em]">Processing Dataset</p>
+                        <div className="h-full flex flex-col items-center justify-center px-6">
+                            <Loader size={36} className="animate-spin text-[var(--ui-accent)] mb-4" />
+                            <div className="w-full max-w-xl">
+                                <div className="h-2 rounded-full bg-[var(--ui-row-hover)] border border-[var(--ui-border)] overflow-hidden">
+                                    <div
+                                        className="h-full bg-[var(--ui-accent)] transition-[width] duration-500 ease-out"
+                                        style={{ width: `${progressState.pct}%` }}
+                                    />
+                                </div>
+                                <p className="mt-3 text-xs font-bold uppercase tracking-[0.18em] text-[var(--ui-text)] text-center">
+                                    {progressState.label}
+                                </p>
+                                <p className="mt-1 text-[11px] text-[var(--ui-muted)] text-center">
+                                    Elapsed: {(loadingElapsedMs / 1000).toFixed(1)}s
+                                </p>
+                                {progressJobId && (
+                                    <p className="mt-1 text-[10px] text-[var(--ui-subtle)] text-center font-mono">
+                                        Job: {progressJobId}
+                                    </p>
+                                )}
+                                {progressSteps.length > 0 && (
+                                    <div className="mt-4 border border-[var(--ui-border)] rounded-lg bg-[var(--ui-panel)] max-h-48 overflow-auto">
+                                        <div className="px-3 py-2 border-b border-[var(--ui-border)] text-[10px] uppercase tracking-widest text-[var(--ui-muted)] font-bold">
+                                            Stage Timeline
+                                        </div>
+                                        <div className="p-2 space-y-1">
+                                            {progressSteps.slice(-10).map((step, idx) => (
+                                                <div key={`${step.stage || "STEP"}_${step.ts || idx}_${idx}`} className="text-[11px] font-mono text-[var(--ui-text)]">
+                                                    <span className="text-[var(--ui-muted)]">
+                                                        {step?.ts ? new Date(step.ts).toLocaleTimeString([], { hour12: false }) : '--:--:--'}
+                                                    </span>
+                                                    {'  '}
+                                                    <span className="text-[var(--ui-accent)]">[{step.stage || 'RUNNING'}]</span>
+                                                    {'  '}
+                                                    <span>{step.message || ''}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -936,7 +1125,6 @@ const Backtest = () => {
 };
 
 export default Backtest;
-
 
 
 

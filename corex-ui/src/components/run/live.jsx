@@ -7,7 +7,14 @@ const Live = () => {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
   const [approving, setApproving] = useState('');
-  const { connectWebSocket, realtimeMode, mt5Status, fetchMt5Status, liveCandles, tradeTape, latestTicks, runConfig } = useStore();
+  const connectWebSocket = useStore((s) => s.connectWebSocket);
+  const realtimeMode = useStore((s) => s.realtimeMode);
+  const mt5Status = useStore((s) => s.mt5Status);
+  const fetchMt5Status = useStore((s) => s.fetchMt5Status);
+  const liveCandles = useStore((s) => s.liveCandles);
+  const tradeTape = useStore((s) => s.tradeTape);
+  const latestTicks = useStore((s) => s.latestTicks);
+  const runConfig = useStore((s) => s.runConfig);
   const [execEnabled, setExecEnabled] = useState(false);
   const [activeSymbol, setActiveSymbol] = useState('');
 
@@ -18,7 +25,7 @@ const Live = () => {
       setStatus(next);
       setExecEnabled(!!next?.executionEnabled);
       setError('');
-    } catch (err) {
+    } catch {
       setError('Unable to load MT5 bridge status');
     }
   }, []);
@@ -78,15 +85,46 @@ const Live = () => {
   }, [activeSymbol, liveCandles]);
   const tradeMarkers = useMemo(() => {
     const windowStart = candles[0]?.time || 0;
+    const sym = String(activeSymbol || "").trim().toUpperCase();
     return (tradeTape || [])
       .filter((t) => Number(t.ts) >= windowStart)
+      .filter((t) => {
+        if (!sym) return true;
+        const tsym = String(t?.payload?.symbol || "").trim().toUpperCase();
+        return !tsym || tsym === sym;
+      })
       .slice(0, 80)
-      .map((t) => ({
-        time: Number(t.ts),
-        label: t.type,
-        value: Number(t.payload?.price || t.payload?.close || latestTicks?.[activeSymbol]?.price || 0)
-      }));
+      .map((t) => {
+        const type = String(t?.type || "").toUpperCase();
+        const side = String(t?.payload?.side || "").toUpperCase();
+        const direction = side === "BUY" || side === "LONG" ? "buy" : (side === "SELL" || side === "SHORT" ? "sell" : "signal");
+        const value = Number(
+          t?.payload?.fill_price ??
+          t?.payload?.fillPrice ??
+          t?.payload?.price ??
+          t?.payload?.close ??
+          latestTicks?.[activeSymbol]?.price ??
+          0
+        );
+        return {
+          time: Number(t.ts),
+          label: type === "STRATEGY_SIGNAL" ? `SIG ${side || ""}`.trim() : `${type} ${side || ""}`.trim(),
+          kind: type === "ORDER_FILLED" ? direction : (type === "STRATEGY_SIGNAL" ? "signal" : direction),
+          value: Number.isFinite(value) ? value : 0
+        };
+      });
   }, [tradeTape, candles, latestTicks, activeSymbol]);
+
+  const recentTape = useMemo(() => {
+    const sym = String(activeSymbol || "").trim().toUpperCase();
+    return (tradeTape || [])
+      .filter((t) => {
+        if (!sym) return true;
+        const tsym = String(t?.payload?.symbol || "").trim().toUpperCase();
+        return !tsym || tsym === sym;
+      })
+      .slice(0, 8);
+  }, [tradeTape, activeSymbol]);
 
   const approve = async (terminalId) => {
     if (!terminalId || approving) return;
@@ -94,7 +132,7 @@ const Live = () => {
     try {
       await client.post('/bridge/authorize', { terminal_id: terminalId });
       await fetchStatus();
-    } catch (err) {
+    } catch {
       setError('Approval failed');
     } finally {
       setApproving('');
@@ -161,7 +199,7 @@ const Live = () => {
               setExecEnabled(next);
               try {
                 await client.post('/system/mt5/execution', { enabled: next });
-              } catch (err) {
+              } catch {
                 setExecEnabled(!next);
                 setError('Failed to update execution flag');
               }
@@ -240,7 +278,7 @@ const Live = () => {
           <OhlcChart candles={candles} markers={tradeMarkers} />
         </div>
         <div className="max-h-24 overflow-y-auto space-y-1">
-          {tradeTape.slice(0, 8).map((t, i) => (
+          {recentTape.map((t, i) => (
             <div key={`${t.ts}_${i}`} className="text-[10px] font-mono text-[var(--ui-muted)] flex items-center justify-between border-b border-[var(--ui-border)] pb-1">
               <span>{new Date(t.ts).toLocaleTimeString()} [{t.type}]</span>
               <span>{t.payload?.symbol || t.payload?.strategyId || '--'}</span>

@@ -3,7 +3,13 @@
 const StrategyParamUtils = {
     _applyDefaults() {
         for (const [key, spec] of Object.entries(this.schema || {})) {
-            this.params[key] = spec.default !== undefined ? spec.default : null;
+            const def = spec && Object.prototype.hasOwnProperty.call(spec, "default") ? spec.default : null;
+            // Avoid shared object references between strategy instances.
+            if (def && typeof def === "object") {
+                try { this.params[key] = JSON.parse(JSON.stringify(def)); } catch { this.params[key] = def; }
+            } else {
+                this.params[key] = def;
+            }
         }
     },
 
@@ -22,6 +28,7 @@ const StrategyParamUtils = {
             let val = raw;
             let valid = true;
             const specType = String(spec.type || "string").toLowerCase();
+            const enumValues = Array.isArray(spec.enum) ? spec.enum : null;
 
             switch (specType) {
                 case "boolean":
@@ -38,12 +45,37 @@ const StrategyParamUtils = {
                     if (val === null) valid = false;
                     break;
                 default:
+                    if (raw == null) val = raw;
+                    else val = String(raw);
                     break;
+            }
+
+            if (valid && enumValues) {
+                const ok = enumValues.some((v) => v === val);
+                if (!ok) valid = false;
             }
 
             if (valid && ["number", "float", "integer"].includes(specType)) {
                 if (typeof spec.min === "number" && val < spec.min) valid = false;
                 if (typeof spec.max === "number" && val > spec.max) valid = false;
+                if (valid && typeof spec.step === "number" && Number.isFinite(spec.step) && spec.step > 0) {
+                    const step = Number(spec.step);
+                    const snapped = Math.round(Number(val) / step) * step;
+                    val = specType === "integer" ? Math.trunc(snapped) : snapped;
+                }
+            }
+
+            if (valid && specType === "string") {
+                if (typeof spec.minLength === "number" && String(val || "").length < spec.minLength) valid = false;
+                if (typeof spec.maxLength === "number" && String(val || "").length > spec.maxLength) valid = false;
+                if (spec.pattern) {
+                    try {
+                        const re = spec.pattern instanceof RegExp ? spec.pattern : new RegExp(String(spec.pattern));
+                        if (!re.test(String(val || ""))) valid = false;
+                    } catch {
+                        // Ignore invalid patterns (schema bug), don't reject user input for it.
+                    }
+                }
             }
 
             if (!valid) continue;
@@ -71,4 +103,3 @@ const StrategyParamUtils = {
 };
 
 module.exports = StrategyParamUtils;
-

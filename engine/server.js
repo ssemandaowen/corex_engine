@@ -1,11 +1,13 @@
 "use strict";
 
-require("dotenv").config(); // Ensure env vars are loaded first
+require("dotenv").config({ quiet: true }); // Ensure env vars are loaded first
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
 const logger = require("@utils/logger");
 const configService = require("@core/services/configService");
+const pgStore = require("@core/services/pgStore");
+const { verifyToken } = require("@core/services/authService");
 
 // 1. Core Domain Routes
 const strategyRoutes = require("@core/routes/strategyController");
@@ -16,6 +18,7 @@ const bridgeRoutes = require("@core/routes/bridgeController");
 const mt5Routes = require("@core/routes/mt5Controller");
 const authRoutes = require("@core/routes/authController");
 const authGuard = require("@core/middleware/authGuard");
+const rateLimit = require("@core/middleware/rateLimit");
 
 // 2. Services
 const broadcaster = require("@core/services/broadcaster");
@@ -34,7 +37,7 @@ function applyRuntimeConfig() {
     app.use(cors({
         origin: corsOrigin,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "x-admin-key", "Authorization"]
+        allowedHeaders: ["Content-Type", "x-admin-key", "x-auth-key", "Authorization"]
     }));
 
     const JSON_LIMIT = get("server.jsonLimit", process.env.JSON_LIMIT || "1mb") || "1mb";
@@ -45,13 +48,21 @@ function applyRuntimeConfig() {
 
 function registerRoutes() {
     if (routesConfigured) return;
-    app.use("/api/auth", authRoutes);
+    app.use("/api/auth", rateLimit({
+        keyFn: (req) => String(req.ip || "anon"),
+        max: Math.max(10, Number(process.env.COREX_AUTH_RATE_LIMIT_MAX || 120))
+    }), authRoutes);
 
     // Domain Routing
-    app.use("/api/strategies", authGuard, strategyRoutes);
-    app.use("/api/run", authGuard, executionRoutes);
-    app.use("/api/backtest", authGuard, backtestRoutes);
-    app.use("/api/system", authGuard, systemRoutes);
+    const userLimiter = rateLimit({
+        keyFn: (req) => String(req.user?.sub || req.ip || "anon"),
+        max: Math.max(50, Number(process.env.COREX_API_RATE_LIMIT_MAX || 600))
+    });
+
+    app.use("/api/strategies", authGuard, userLimiter, strategyRoutes);
+    app.use("/api/run", authGuard, userLimiter, executionRoutes);
+    app.use("/api/backtest", authGuard, userLimiter, backtestRoutes);
+    app.use("/api/system", authGuard, userLimiter, systemRoutes);
     app.use("/api/bridge", bridgeRoutes);
     app.use("/api/mt5", mt5Routes);
 
@@ -72,11 +83,44 @@ function start() {
         if (server.listening) return resolve(server);
         applyRuntimeConfig();
         registerRoutes();
+        const authenticateUpgrade = async (request) => {
+            const url = new URL(request.url, `http://${request.headers.host}`);
+            const authHeader = String(request.headers.authorization || "");
+            const [scheme, token] = authHeader.split(" ");
+            const bearer = (scheme === "Bearer" && token) ? token : String(url.searchParams.get("token") || "").trim();
+            if (bearer) {
+                try {
+                    return verifyToken(bearer);
+                } catch {
+                    // Try API key fallback below
+                }
+            }
+
+            const apiKey = String(request.headers["x-auth-key"] || url.searchParams.get("authKey") || "").trim();
+            if (apiKey) {
+                const resolved = await pgStore.resolveUserByApiKey(apiKey);
+                if (resolved?.user?.id) {
+                    pgStore.touchApiKeyUsage(resolved.keyId).catch(() => {});
+                    return {
+                        sub: resolved.user.id,
+                        role: resolved.user.role,
+                        email: resolved.user.email,
+                        name: resolved.user.name,
+                        authType: "api_key"
+                    };
+                }
+            }
+            return null;
+        };
+
         // Traffic controller for WebSocket upgrades
-        server.on("upgrade", (request, socket, head) => {
+        server.on("upgrade", async (request, socket, head) => {
             try {
                 const { pathname } = new URL(request.url, `http://${request.headers.host}`);
                 if (pathname === "/ws") {
+                    const user = await authenticateUpgrade(request);
+                    if (!user) return socket.destroy();
+                    request.user = user;
                     if (!broadcaster.wss) return socket.destroy();
                     broadcaster.wss.handleUpgrade(request, socket, head, (ws) => {
                         broadcaster.wss.emit("connection", ws, request);

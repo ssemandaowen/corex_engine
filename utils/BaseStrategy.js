@@ -1,6 +1,6 @@
 "use strict";
 
-const logger = require('@utils/logger');
+const rootLogger = require('@utils/logger');
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
 const math = require('mathjs');
 const indicators = require('technicalindicators');
@@ -19,54 +19,68 @@ const SignalHelpers = {
     entryLong(params = {}) {
         const signal = this._createSignal(this.INTENT.ENTER, this.SIDE.LONG, params);
         if (signal) {
-            const qty = Number.isFinite(params.quantity)
-                ? params.quantity
-                : this.sizePosition({
-                    symbol: signal.symbol,
-                    price: signal.price,
-                    riskPct: this.params?.riskPct ?? 1,
-                    minQty: this.params?.minQty ?? 0,
-                    maxQty: this.params?.maxQty,
-                    step: this.params?.qtyStep,
-                    fallbackQty: 1
-                });
+            const qty = this._resolveOrderQuantity({ signal, params });
+            if (!Number.isFinite(qty) || qty <= 0) {
+                this.log?.warn?.(`[${this.id}] entryLong rejected: invalid quantity`);
+                return null;
+            }
             this.positions.open(signal.symbol, "long", qty, signal.price);
             signal.quantity = qty;
+            const protection = this._resolveProtectionLevels({
+                side: this.SIDE.LONG,
+                price: signal.price,
+                params
+            });
+            if (protection.sl > 0) signal.sl = protection.sl;
+            if (protection.tp > 0) signal.tp = protection.tp;
         }
         return signal;
     },
     entryShort(params = {}) {
         const signal = this._createSignal(this.INTENT.ENTER, this.SIDE.SHORT, params);
         if (signal) {
-            const qty = Number.isFinite(params.quantity)
-                ? params.quantity
-                : this.sizePosition({
-                    symbol: signal.symbol,
-                    price: signal.price,
-                    riskPct: this.params?.riskPct ?? 1,
-                    minQty: this.params?.minQty ?? 0,
-                    maxQty: this.params?.maxQty,
-                    step: this.params?.qtyStep,
-                    fallbackQty: 1
-                });
+            const qty = this._resolveOrderQuantity({ signal, params });
+            if (!Number.isFinite(qty) || qty <= 0) {
+                this.log?.warn?.(`[${this.id}] entryShort rejected: invalid quantity`);
+                return null;
+            }
             this.positions.open(signal.symbol, "short", qty, signal.price);
             signal.quantity = qty;
+            const protection = this._resolveProtectionLevels({
+                side: this.SIDE.SHORT,
+                price: signal.price,
+                params
+            });
+            if (protection.sl > 0) signal.sl = protection.sl;
+            if (protection.tp > 0) signal.tp = protection.tp;
         }
         return signal;
     },
     exitLong(params = {}) {
         const signal = this._createSignal(this.INTENT.EXIT, this.SIDE.LONG, params);
-        if (signal) this.positions.close(signal.symbol, signal.price);
+        if (signal) {
+            const qty = this._resolveExitQuantity(signal.symbol, params.quantity);
+            if (Number.isFinite(qty) && qty > 0) signal.quantity = qty;
+            this.positions.close(signal.symbol, signal.price);
+        }
         return signal;
     },
     exitShort(params = {}) {
         const signal = this._createSignal(this.INTENT.EXIT, this.SIDE.SHORT, params);
-        if (signal) this.positions.close(signal.symbol, signal.price);
+        if (signal) {
+            const qty = this._resolveExitQuantity(signal.symbol, params.quantity);
+            if (Number.isFinite(qty) && qty > 0) signal.quantity = qty;
+            this.positions.close(signal.symbol, signal.price);
+        }
         return signal;
     },
     exitAll(params = {}) {
         const signal = this._createSignal(this.INTENT.EXIT, this.SIDE.FLAT, params);
-        if (signal) this.positions.close(signal.symbol, signal.price);
+        if (signal) {
+            const qty = this._resolveExitQuantity(signal.symbol, params.quantity);
+            if (Number.isFinite(qty) && qty > 0) signal.quantity = qty;
+            this.positions.close(signal.symbol, signal.price);
+        }
         return signal;
     },
 
@@ -88,13 +102,9 @@ const SignalHelpers = {
         if (!this._flipNext) return null;
         const next = this._flipNext;
         this._flipNext = null;
-        const signal = next.side === this.SIDE.LONG
+        return next.side === this.SIDE.LONG
             ? this.entryLong({ symbol, ...next.params })
             : this.entryShort({ symbol, ...next.params });
-        if (signal) {
-            this.positions.open(symbol, next.side === this.SIDE.LONG ? "long" : "short", next.params?.quantity || 1, signal.price);
-        }
-        return signal;
     }
 };
 
@@ -128,7 +138,11 @@ class BaseStrategy {
         // Expose enums & dependencies
         this.INTENT = INTENTS;
         this.SIDE = SIDES;
-        this.log = logger;
+        this.log = rootLogger.createModuleLogger(`STRATEGY:${this.id}`, {
+            category: "strategy",
+            ui: true,
+            uiLevels: ["debug", "info", "warn", "error"]
+        });
         this.math = math;
         this.indicators = indicators;
 
@@ -226,6 +240,10 @@ class BaseStrategy {
         return new RuleChain(this, ctx);
     }
 
+    chain(bar) {
+        return this.rule(bar);
+    }
+
     /**
      * Position helper. If set=true, update position state.
      */
@@ -240,6 +258,49 @@ class BaseStrategy {
             return true;
         }
         return this.positions.is(sym, state);
+    }
+
+    _resolveOrderQuantity({ signal, params = {} } = {}) {
+        const minQty = params.minQty ?? this.params?.minQty ?? 0;
+        const maxQty = params.maxQty ?? this.params?.maxQty;
+        const step = params.step ?? this.params?.qtyStep;
+
+        const explicit = this._normalizeQuantity(params.quantity, {
+            fallbackQty: 0,
+            minQty,
+            maxQty,
+            step
+        });
+        if (explicit > 0) return explicit;
+
+        const sized = this.sizePosition({
+            symbol: signal?.symbol,
+            price: signal?.price,
+            riskPct: this.params?.riskPct ?? 1,
+            minQty,
+            maxQty,
+            step,
+            fallbackQty: 1
+        });
+
+        return this._normalizeQuantity(sized, {
+            fallbackQty: 0,
+            minQty,
+            maxQty,
+            step
+        });
+    }
+
+    _resolveExitQuantity(symbol, requestedQty) {
+        const openQty = Number(this.positions?.get?.(symbol)?.quantity || 0);
+        const normalizedRequested = this._normalizeQuantity(requestedQty, {
+            fallbackQty: 0,
+            minQty: 0
+        });
+        if (normalizedRequested > 0 && openQty > 0) return Math.min(normalizedRequested, openQty);
+        if (normalizedRequested > 0) return normalizedRequested;
+        if (openQty > 0) return openQty;
+        return 0;
     }
 }
 Object.assign(BaseStrategy.prototype, SignalHelpers);

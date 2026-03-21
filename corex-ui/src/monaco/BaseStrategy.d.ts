@@ -11,6 +11,10 @@ declare module "@utils/BaseStrategy" {
    * Maps to the 'technicalindicators' package structure
    */
   export interface IndicatorProvider {
+    [indicatorName: string]:
+      | ((input: any) => any)
+      | { calculate?: (input: any) => any; nextValue?: (input: any) => any; getResult?: () => any; [k: string]: any };
+
     // Oscillators
     RSI: { calculate(input: { values: number[]; period: number }): number[] };
     MACD: { calculate(input: { values: number[]; fastPeriod: number; slowPeriod: number; signalPeriod: number; SimpleMAOscillator?: boolean; SimpleMASignal?: boolean }): { MACD?: number; signal?: number; histogram?: number }[] };
@@ -42,14 +46,12 @@ declare module "@utils/BaseStrategy" {
     ADL: { calculate(input: { high: number[]; low: number[]; close: number[]; volume: number[] }): number[] };
     ForceIndex: { calculate(input: { close: number[]; volume: number[]; period: number }): number[] };
 
-    // Candlestick Patterns (Boolean results)
-    AbandonedBaby: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
-    Doji: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
-    BearishEngulfingPattern: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
-    BullishEngulfingPattern: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
-    HammerPattern: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
-    MorningStar: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
-    EveningStar: { check(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean };
+    // Common candlestick helpers are exported as lowercase functions in technicalindicators.
+    doji(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean;
+    bullishengulfingpattern(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean;
+    bearishengulfingpattern(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean;
+    morningstar(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean;
+    eveningstar(input: { open: number[]; high: number[]; low: number[]; close: number[] }): boolean;
   }
 
   export interface StrategySignal {
@@ -195,6 +197,7 @@ declare module "@utils/BaseStrategy" {
         open: number; 
         high: number; 
         low: number; 
+
         close: number; 
         volume?: number; 
     }, isWarmedUp: boolean): StrategySignal | null;
@@ -300,5 +303,41 @@ declare module "@utils/BaseStrategy" {
      * Structured guard pass/fail log helper.
      */
     logGuard(name: string, passed: boolean, details?: Record<string, any>): void;
+
+    /**
+     * Signal helper aliases and normalized emitters.
+     */
+    entryLong(params?: Record<string, any>): StrategySignal | null;
+    entryShort(params?: Record<string, any>): StrategySignal | null;
+    exitLong(params?: Record<string, any>): StrategySignal | null;
+    exitShort(params?: Record<string, any>): StrategySignal | null;
+    exitAll(params?: Record<string, any>): StrategySignal | null;
+    flipToLong(params?: Record<string, any>): StrategySignal | null;
+    flipToShort(params?: Record<string, any>): StrategySignal | null;
+
+    /**
+     * Signal math helpers.
+     */
+    crossover(a: number[] | number, b: number[] | number, opts?: Record<string, any>): boolean;
+    crossunder(a: number[] | number, b: number[] | number, opts?: Record<string, any>): boolean;
+    above(a: number[] | number, b: number[] | number): boolean;
+    below(a: number[] | number, b: number[] | number): boolean;
+    rising(series: number[]): boolean;
+    falling(series: number[]): boolean;
+    between(val: number[] | number, min: number, max: number, inclusive?: boolean): boolean;
+    pctChange(series: number[]): number;
+
+    /**
+     * Quantity/risk helper.
+     */
+    sizePosition(opts?: {
+      price?: number;
+      symbol?: string;
+      riskPct?: number;
+      minQty?: number;
+      maxQty?: number;
+      step?: number;
+      fallbackQty?: number;
+    }): number;
   }
 }

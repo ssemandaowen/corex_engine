@@ -26,6 +26,10 @@ const db = require('@core/services/postgres');
 const { StrategyCompiler } = require("@core/services/strategyCompiler");
 const { ComponentLifecycle, STATES } = require("@core/core/lifecycle/ComponentLifecycle");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { validateStrategyInterface } = require("@utils/strategy/StrategyValidator");
+const RuleChain = require("@utils/strategy/RuleChain");
+const strategyRuntime = require("@core/modules/strategyRuntime");
+const { parseScopedId } = require("@core/services/userScope");
 
 const log = logger.createModuleLogger("STRATEGY_BOOTLOADER", {
     category: "strategy",
@@ -56,6 +60,7 @@ class StrategyBootloader {
         
         // Strategy registry: id -> BootedStrategy
         this.registry = new Map();
+        this._startInFlight = new Set();
         
         // Compiler instance
         this.compiler = new StrategyCompiler();
@@ -81,6 +86,26 @@ class StrategyBootloader {
         bus.on(EVENTS.SYSTEM.SETTINGS_UPDATED, e => {
             log.debug(`EVENT: SETTINGS_UPDATED for ${e.id}`);
             this._handleRuntimeUpdate(e.id, e.params);
+        });
+
+        // Listen for logs forwarded from the sandboxed strategy runtime worker.
+        // This provides crucial visibility into the execution of isolated strategy code.
+        // NOTE: Using a string literal here because `constants.js` is not in context.
+        // Ideally, this would be `EVENTS.STRATEGY.REMOTE_LOG`.
+        bus.on('strategy:remote_log', ({ strategyId, level, message, meta } = {}) => {
+            if (!strategyId || !level || typeof message === 'undefined') return;
+
+            // Re-constitute a logger with the correct module name to ensure logs are
+            // properly tagged and routed to the console and UI.
+            const remoteLogger = logger.createModuleLogger(`STRATEGY:${strategyId}`, {
+                category: "strategy",
+                ui: true
+            });
+            if (typeof remoteLogger[level] === 'function') {
+                // Correctly call the logger function with the message and meta.
+                // The original code had a typo here.
+                remoteLogger[level](message, meta);
+            }
         });
     }
 
@@ -112,11 +137,19 @@ class StrategyBootloader {
         this.engine = engine;
         log.info('StrategyBootloader init starting');
         this.lifecycle.transition(STATES.INITIALIZING, { reason: "init" });
+
+        if (strategyRuntime.isEnabled()) {
+            await strategyRuntime.start();
+            log.info("Strategy runtime worker enabled.");
+        } else {
+            log.warn("Strategy runtime worker disabled; strategies will run in-process (not safe for untrusted code).");
+        }
         
         const bootStart = process.hrtime.bigint();
         
         // Boot all strategies from database
-        await this._bootAll();
+        await this._discoverAll();
+        await this._restoreDesiredRuntimeStates();
         
         const bootEnd = process.hrtime.bigint();
         const bootTimeMs = Number(bootEnd - bootStart) / 1e6;
@@ -138,13 +171,13 @@ class StrategyBootloader {
      * Boot all strategies from database
      * @private
      */
-    async _bootAll() {
+    async _discoverAll() {
         const discoveryStart = Date.now();
         
         let strategies = [];
         try {
             const res = await db.query(
-                `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_updated_at
+                `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_state, runtime_updated_at
                  FROM strategies
                  WHERE script_body IS NOT NULL
                  ORDER BY name ASC`
@@ -154,16 +187,27 @@ class StrategyBootloader {
             log.error(`[DISCOVERY] Failed to read strategies from database: ${err.message}`);
             return;
         }
-        
+
         const discoveryEnd = Date.now();
         log.info(`[DISCOVERY] Found ${strategies.length} strategies in ${discoveryEnd - discoveryStart}ms`);
-        
-        // Boot each strategy through the pipeline
+
+        // Just register placeholders for on-demand booting
         for (const strategyRecord of strategies) {
-            await this.bootStrategy(strategyRecord);
+            const id = strategyRecord.name;
+            if (!this.registry.has(id)) {
+                this.registry.set(id, {
+                    id,
+                    instance: null,
+                    bootedAt: null,
+                    status: 'DISCOVERED',
+                    record: strategyRecord,
+                });
+            }
         }
-        
-        log.info(`Boot complete: ${this.bootStats.successfulBoots}/${strategies.length} strategies booted successfully`);
+
+        if (strategies.length > 0) {
+            log.info(`Discovered ${strategies.length} strategies, which will be compiled and booted on-demand.`);
+        }
     }
 
     /**
@@ -171,7 +215,7 @@ class StrategyBootloader {
      * @param {object} record - Strategy record from database
      * @returns {Promise<BootedStrategy|null>}
      */
-    async bootStrategy(record) {
+    async bootStrategy(record, options = {}) {
         const bootStart = process.hrtime.bigint();
         const id = String(record?.name || '').trim();
         
@@ -185,7 +229,7 @@ class StrategyBootloader {
         
         // Check if this is a reboot
         const existing = this.registry.get(id);
-        const isReboot = !!existing;
+        const isReboot = !!existing?.instance;
         if (isReboot) {
             this.bootStats.reboots++;
             log.info(`[BOOT] Rebooting strategy: ${id}`);
@@ -203,7 +247,8 @@ class StrategyBootloader {
             phaseResults: new Map(),
             instance: null,
             compiledStrategy: null,
-            error: null
+            error: null,
+            preBootStatus: stateManager.getStatus(id)
         };
         
         // Execute boot pipeline
@@ -241,6 +286,12 @@ class StrategyBootloader {
                 }
                 
                 log.debug(`[${phase}] Completed for ${id} in ${phaseTimeMs.toFixed(2)}ms`);
+
+                // Discovery can short-circuit when strategy source is unchanged.
+                if (phase === BOOT_PHASES.DISCOVERY && result?.data?.skipBoot) {
+                    log.debug(`[BOOT] Strategy ${id} unchanged. Keeping existing runtime instance.`);
+                    return existing || this.registry.get(id) || null;
+                }
                 
             } catch (err) {
                 log.error(`[${phase}] Exception for strategy ${id}: ${err.message}`);
@@ -267,16 +318,21 @@ class StrategyBootloader {
         this.lifecycle.transition(STATES.RUNNING, { strategyId: id, bootTimeMs: Number(bootTimeMs.toFixed(2)) });
         
         // Emit boot event
-        bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, { 
+        bus.emit(EVENTS.SYSTEM.STRATEGY_LOADED, {
             id,
             bootTimeMs,
-            isReboot 
+            isReboot
+        }, {
+            userId: parseScopedId(id).userId || null
         });
         
         // Auto-restart if it was ACTIVE before reboot
-        const currentStatus = stateManager.getStatus(id);
-        if (isReboot && currentStatus === 'ACTIVE' && this.engine) {
-            log.info(`[BOOT] Strategy ${id} was ACTIVE, attempting auto-restart`);
+        const shouldAutoRestart =
+            !options.skipAutoRestart &&
+            isReboot &&
+            (bootContext.preBootStatus === "ACTIVE" || bootContext.record?.runtime_state === "RUNNING");
+        if (shouldAutoRestart && this.engine) {
+            log.info(`[BOOT] Strategy ${id} should be running, attempting auto-restart`);
             this.startStrategy(id);
         } else if (!isReboot) {
             stateManager.commit(id, 'STAGED', { reason: 'booted' });
@@ -309,8 +365,16 @@ class StrategyBootloader {
         if (context.existing && context.existing.updatedAt >= updatedAt) {
             log.debug(`[DISCOVERY] Strategy ${id} unchanged, skipping reboot`);
             return { 
-                success: false, 
-                error: 'Strategy unchanged, no reboot needed' 
+                success: true,
+                data: {
+                    code: record.script_body,
+                    updatedAt,
+                    runtimeMode: record.runtime_mode,
+                    runtimeParams: record.runtime_params,
+                    runtimeState: record.runtime_state || "STOPPED",
+                    runtimeUpdatedAt: record.runtime_updated_at ? new Date(record.runtime_updated_at).getTime() : 0,
+                    skipBoot: true
+                }
             };
         }
         
@@ -321,6 +385,7 @@ class StrategyBootloader {
                 updatedAt,
                 runtimeMode: record.runtime_mode,
                 runtimeParams: record.runtime_params,
+                runtimeState: record.runtime_state || "STOPPED",
                 runtimeUpdatedAt: record.runtime_updated_at ? new Date(record.runtime_updated_at).getTime() : 0
             } 
         };
@@ -369,24 +434,37 @@ class StrategyBootloader {
     async _phaseCompilation(context) {
         const { id } = context;
         const { code } = context.phaseResults.get(BOOT_PHASES.DISCOVERY).data;
-        
-        // Compile strategy using the enhanced compiler
-        const compilationResult = await this.compiler.compile(code, id);
-        
-        if (!compilationResult.success) {
-            return { 
-                success: false, 
-                error: compilationResult.error 
+
+        if (strategyRuntime.isEnabled()) {
+            const discovery = context.phaseResults.get(BOOT_PHASES.DISCOVERY).data || {};
+            const runtimeParams = discovery.runtimeParams && typeof discovery.runtimeParams === "object" ? discovery.runtimeParams : null;
+            const loaded = await strategyRuntime.loadStrategy({ strategyId: id, code, runtimeParams });
+            const meta = loaded?.meta || {};
+            const stub = {
+                __remote: true,
+                id,
+                name: id,
+                symbols: Array.isArray(meta.symbols) ? meta.symbols : [],
+                timeframe: meta.timeframe || "1m",
+                lookback: Number(meta.lookback || 0),
+                max_data_history: Number(meta.max_data_history || 0),
+                schema: meta.schema || {},
+                params: meta.params || {},
+                enabled: true
             };
+            context.instance = stub;
+            context.compiledStrategy = { success: true, metadata: meta };
+            return { success: true, data: { remote: true, meta } };
         }
-        
+
+        // Fallback: compile strategy in-process (not safe for untrusted code).
+        const compilationResult = await this.compiler.compile(code, id);
+        if (!compilationResult.success) {
+            return { success: false, error: compilationResult.error };
+        }
         context.instance = compilationResult.instance;
         context.compiledStrategy = compilationResult;
-        
-        return { 
-            success: true, 
-            data: compilationResult 
-        };
+        return { success: true, data: compilationResult };
     }
 
     /**
@@ -401,6 +479,27 @@ class StrategyBootloader {
                 success: false, 
                 error: 'No instance available for linking' 
             };
+        }
+
+        if (instance.__remote) {
+            // For remote strategies, the `generateSignal` method on the stub
+            // becomes the dispatcher to the worker process. This allows the engine
+            // to treat remote and in-process strategies identically in its dispatch loop.
+            instance.generateSignal = (packet, meta) => {
+                strategyRuntime.dispatchMarketData(id, packet, meta);
+                // Remote signals are handled asynchronously via the event bus, so we return null here.
+                return null;
+            };
+
+            // Remote strategies run in a separate worker process. Only attach execution context in the main process.
+            if (this.engine && typeof this.engine._setupExecutionContext === "function") {
+                try {
+                    this.engine._setupExecutionContext(instance);
+                } catch (err) {
+                    log.warn(`[LINKING] Failed to setup execution context for ${id}: ${err.message}`);
+                }
+            }
+            return { success: true, data: { linked: true, remote: true } };
         }
         
         // Ensure instance has required properties
@@ -440,13 +539,18 @@ class StrategyBootloader {
         // Apply runtime parameters
         if (discoveryData.runtimeParams && typeof discoveryData.runtimeParams === 'object') {
             const params = discoveryData.runtimeParams;
-            if (Object.keys(params).length > 0 && typeof instance.updateParams === 'function') {
-                instance.updateParams(params);
+            if (Object.keys(params).length > 0) {
+                if (instance.__remote) {
+                    await strategyRuntime.updateParams({ strategyId: id, params }).catch(() => {});
+                    instance.params = { ...(instance.params || {}), ...(params || {}) };
+                } else if (typeof instance.updateParams === 'function') {
+                    instance.updateParams(params);
+                }
             }
         }
         
         // Apply internal defaults
-        if (typeof instance._applyDefaults === 'function') {
+        if (!instance.__remote && typeof instance._applyDefaults === 'function') {
             instance._applyDefaults();
         }
         
@@ -466,9 +570,14 @@ class StrategyBootloader {
         const compilationData = context.phaseResults.get(BOOT_PHASES.COMPILATION).data;
         
         // Prepare for reboot if needed
-        if (isReboot && existing && this.engine) {
+        if (isReboot && existing?.instance && this.engine) {
             log.debug(`[REGISTRATION] Unregistering existing instance for ${id}`);
             this.engine.unregisterStrategy(id);
+            // For remote runtimes, the new worker is already loaded in COMPILATION.
+            // Unloading here would kill the fresh worker and break warmup/start.
+            if (strategyRuntime.isEnabled() && !compilationData?.remote) {
+                strategyRuntime.unloadStrategy({ strategyId: id }).catch(() => {});
+            }
         }
         
         // Create booted strategy entry
@@ -487,6 +596,14 @@ class StrategyBootloader {
                 timeMs: result.timeMs
             }))
         };
+        
+        // Validate strategy interface
+        const interfaceVerify = StrategyContract.validate(instance);
+        if (!interfaceVerify.ok) {
+            log.error(`[REGISTRATION] Interface validation failed: ${interfaceVerify.reason}`);
+            bootedStrategy.interfaceError = interfaceVerify.reason;
+            this.lifecycle.transition(STATES.ERROR, { strategyId: id, phase: 'REGISTRATION', reason: interfaceVerify.reason });
+        }
         
         // Register in bootloader registry
         this.registry.set(id, bootedStrategy);
@@ -508,6 +625,18 @@ class StrategyBootloader {
     _standardizeInterface(instance) {
         if (!instance || instance.__corexStandardized) return;
         StrategyContract.adapt(instance);
+
+        if (typeof instance.rule !== "function") {
+            instance.rule = function rule(packet) {
+                const ctx = packet && packet.time ? { barTime: packet.time } : {};
+                return new RuleChain(this, ctx);
+            };
+        }
+        if (typeof instance.chain !== "function") {
+            instance.chain = function chain(packet) {
+                return this.rule(packet);
+            };
+        }
         
         const hasProcess = typeof instance._processData === 'function';
         if (!hasProcess) {
@@ -526,6 +655,21 @@ class StrategyBootloader {
             instance.onTick = (packet) => instance._processData(packet, { source: "tick" });
             instance.onBar = (packet) => instance._processData(packet, { source: "bar" });
         }
+
+        // Lightweight error boundary to isolate strategy runtime exceptions.
+        if (typeof instance._processData === "function" && !instance.__corexProcessWrapped) {
+            const original = instance._processData.bind(instance);
+            instance._processData = (packet, meta = {}) => {
+                try {
+                    return original(packet, meta);
+                } catch (err) {
+                    const sid = instance.id || instance.name || "unknown";
+                    log.warn(`[RUNTIME_GUARD] _processData failed for ${sid}: ${err.message}`);
+                    return null;
+                }
+            };
+            instance.__corexProcessWrapped = true;
+        }
         
         instance.__corexStandardized = true;
     }
@@ -540,46 +684,114 @@ class StrategyBootloader {
      * @param {object} options - Runtime options
      * @returns {object|null} Booted strategy entry or null
      */
-    startStrategy(id, options = {}) {
+    async startStrategy(id, options = {}) {
         log.info(`[START] Starting strategy ${id} with options=${JSON.stringify(options)}`);
-        
-        const booted = this.registry.get(id);
-        if (!booted) {
-            log.warn(`[START] Strategy ${id} not found in registry`);
-            return null;
+        if (this._startInFlight.has(id)) {
+            log.warn(`[START] Strategy ${id} start already in progress. Ignoring duplicate request.`);
+            return this.registry.get(id) || null;
         }
+        this._startInFlight.add(id);
         
-        if (!this.engine) {
-            log.error(`[START] No engine available to start strategy ${id}`);
-            return null;
-        }
-        
-        const { instance } = booted;
-        
-        // Apply runtime options
-        if (options.mode) {
-            instance.mode = String(options.mode).toUpperCase();
-            this._updateRuntimeStateInDb(id, { mode: instance.mode }).catch(err => {
-                log.warn(`[START] Failed to update runtime mode in DB: ${err.message}`);
+        try {
+            let booted = this.registry.get(id);
+            if (!booted || !booted.instance) {
+                log.info(`[START] Strategy ${id} is not booted. Attempting to boot now...`);
+                const record = booted ? booted.record : null;
+                if (!record) {
+                    // If not even discovered, try to load its record from DB
+                    const { rows } = await db.query('SELECT * FROM strategies WHERE name = $1 LIMIT 1', [id]);
+                    if (!rows || !rows.length) {
+                        log.error(`[START] Strategy ${id} not found in registry or database.`);
+                        return null;
+                    }
+                    booted = await this.bootStrategy(rows[0], { skipAutoRestart: true });
+                } else {
+                    booted = await this.bootStrategy(record, { skipAutoRestart: true });
+                }
+
+                if (!booted || !booted.instance) {
+                    log.error(`[START] Failed to boot strategy ${id}. Cannot start.`);
+                    return null;
+                }
+            }
+            
+            if (!this.engine) {
+                log.error(`[START] No engine available to start strategy ${id}`);
+                return null;
+            }
+            
+            const { instance } = booted;
+            const currentStatus = stateManager.getStatus(id);
+            const transitionableStates = new Set(["STAGED", "PAUSED", "ERROR", "OFFLINE"]);
+
+            if (currentStatus === "ACTIVE") {
+                if (this._isStrategyRegisteredInEngine(instance)) {
+                    log.info(`[START] Strategy ${id} already ACTIVE in engine. No action taken.`);
+                    return booted;
+                }
+                stateManager.commit(id, "STOPPING", { reason: "Reset stale ACTIVE state before restart" });
+                stateManager.commit(id, "OFFLINE", { reason: "Reset stale ACTIVE state before restart" });
+            } else if (currentStatus === "DISABLED") {
+                stateManager.commit(id, "STAGED", { reason: "Manual restart from DISABLED" });
+            } else if (!transitionableStates.has(currentStatus)) {
+                log.warn(`[START] Strategy ${id} currently ${currentStatus}. Ignoring start request.`);
+                return booted;
+            }
+            
+            // Apply runtime options
+            if (options.mode) {
+                instance.mode = String(options.mode).toUpperCase();
+            }
+
+            if (options.timeframe) {
+                const normalizedTf = this.engine._normalizeTimeframe?.(options.timeframe);
+                if (!normalizedTf) {
+                    log.error(`[START] Invalid timeframe for ${id}: ${options.timeframe}`);
+                    stateManager.commit(id, "ERROR", { reason: "Invalid timeframe" });
+                    return booted;
+                }
+                instance.timeframe = normalizedTf;
+            }
+
+            if (options.strategyParams && typeof options.strategyParams === "object") {
+                if (typeof instance.updateParams === "function") instance.updateParams(options.strategyParams);
+                else instance.params = { ...(instance.params || {}), ...options.strategyParams };
+            }
+
+            instance.enabled = true;
+            instance.startTime = Date.now();
+            
+            // Setup execution context
+            if (typeof this.engine._setupExecutionContext === 'function') {
+                this.engine._setupExecutionContext(instance);
+            }
+
+            this._updateRuntimeStateInDb(id, {
+                mode: instance.mode || "PAPER",
+                params: instance.params || {},
+                state: "RUNNING"
+            }).catch((err) => {
+                log.warn(`[START] Failed to persist runtime state for ${id}: ${err.message}`);
             });
+            
+            // Register with engine
+            Promise.resolve(this.engine.registerStrategy(instance))
+                .then((ok) => {
+                    if (!ok) {
+                        stateManager.commit(id, 'ERROR', { reason: 'Engine registration failed' });
+                    }
+                })
+                .catch((err) => {
+                    stateManager.commit(id, 'ERROR', { reason: `Engine registration exception: ${err.message}` });
+                    log.error(`[START] Engine registration failed for ${id}: ${err.message}`);
+                });
+
+            log.info(`[START] Strategy ${id} started successfully`);
+            
+            return booted;
+        } finally {
+            this._startInFlight.delete(id);
         }
-        
-        if (options.timeframe) {
-            instance.timeframe = options.timeframe;
-        }
-        
-        // Setup execution context
-        if (typeof this.engine._setupExecutionContext === 'function') {
-            this.engine._setupExecutionContext(instance);
-        }
-        
-        // Register with engine
-        this.engine.registerStrategy(instance);
-        
-        stateManager.commit(id, 'ACTIVE', { startedAt: new Date().toISOString() });
-        log.info(`[START] Strategy ${id} started successfully`);
-        
-        return booted;
     }
 
     /**
@@ -603,9 +815,22 @@ class StrategyBootloader {
         
         this.engine.unregisterStrategy(id);
         stateManager.commit(id, 'STAGED', { stoppedAt: new Date().toISOString() });
+        this._updateRuntimeStateInDb(id, { state: "STOPPED" }).catch((err) => {
+            log.warn(`[STOP] Failed to persist runtime state for ${id}: ${err.message}`);
+        });
         
         log.info(`[STOP] Strategy ${id} stopped successfully`);
         return true;
+    }
+
+    _isStrategyRegisteredInEngine(instance) {
+        if (!instance || !this.engine || !(this.engine.subscriptions instanceof Map)) return false;
+        const symbols = Array.isArray(instance.symbols) ? instance.symbols : [];
+        for (const symbol of symbols) {
+            const subs = this.engine.subscriptions.get(symbol);
+            if (subs && subs.has(instance)) return true;
+        }
+        return false;
     }
 
     /**
@@ -621,7 +846,7 @@ class StrategyBootloader {
         
         try {
             const { rows } = await db.query(
-                `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_updated_at
+                `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_state, runtime_updated_at
                  FROM strategies
                  WHERE name = $1
                  LIMIT 1`,
@@ -733,7 +958,7 @@ class StrategyBootloader {
         
         try {
             const { rows } = await db.query(
-                `SELECT runtime_mode, runtime_params, runtime_updated_at
+                `SELECT runtime_mode, runtime_params, runtime_state, runtime_updated_at
                  FROM strategies
                  WHERE name = $1
                  LIMIT 1`,
@@ -756,8 +981,13 @@ class StrategyBootloader {
             
             // Update runtime params
             const params = row.runtime_params && typeof row.runtime_params === 'object' ? row.runtime_params : null;
-            if (params && Object.keys(params).length > 0 && typeof booted.instance.updateParams === 'function') {
-                booted.instance.updateParams(params);
+            if (params && Object.keys(params).length > 0) {
+                if (booted.instance?.__remote) {
+                    await strategyRuntime.updateParams({ strategyId: id, params }).catch(() => {});
+                    booted.instance.params = { ...(booted.instance.params || {}), ...(params || {}) };
+                } else if (typeof booted.instance.updateParams === 'function') {
+                    booted.instance.updateParams(params);
+                }
             }
             
             booted.runtimeUpdatedAt = updatedAt || Date.now();
@@ -778,6 +1008,14 @@ class StrategyBootloader {
             log.debug(`[RUNTIME] Invalid params for ${id}, skipping update`);
             return;
         }
+
+        const booted = this.registry.get(String(id || "").trim());
+        if (booted?.instance?.__remote) {
+            await strategyRuntime.updateParams({ strategyId: id, params }).catch(() => {});
+            booted.instance.params = { ...(booted.instance.params || {}), ...(params || {}) };
+        } else if (booted?.instance && typeof booted.instance.updateParams === "function") {
+            try { booted.instance.updateParams(params); } catch { /* ignore */ }
+        }
         
         await this._updateRuntimeStateInDb(id, { params }).catch(err => {
             log.warn(`[RUNTIME] DB param save failed for ${id}: ${err.message}`);
@@ -788,7 +1026,7 @@ class StrategyBootloader {
      * Update runtime state in database
      * @private
      */
-    async _updateRuntimeStateInDb(id, { mode, params } = {}) {
+    async _updateRuntimeStateInDb(id, { mode, params, state } = {}) {
         if (!db.hasDbConfig()) return false;
         
         const name = String(id || "").trim();
@@ -796,19 +1034,43 @@ class StrategyBootloader {
         
         const m = mode ? String(mode).toUpperCase() : null;
         const p = params && typeof params === "object" ? params : null;
+        const s = state ? String(state).toUpperCase() : null;
         
         const sql = `
             UPDATE strategies
             SET runtime_mode = COALESCE($2, runtime_mode),
                 runtime_params = CASE WHEN $3::jsonb IS NULL THEN runtime_params ELSE $3::jsonb END,
+                runtime_state = COALESCE($4, runtime_state),
                 runtime_updated_at = NOW()
             WHERE name = $1
         `;
         
         const payload = p ? JSON.stringify(p) : null;
-        await db.query(sql, [name, m, payload]);
+        await db.query(sql, [name, m, payload, s]);
         
         return true;
+    }
+
+    async _restoreDesiredRuntimeStates() {
+        if (!db.hasDbConfig()) return;
+        try {
+            const { rows } = await db.query(
+                `SELECT name
+                 FROM strategies
+                 WHERE runtime_state = 'RUNNING'
+                 ORDER BY name ASC`
+            );
+            for (const row of rows || []) {
+                const id = String(row?.name || "").trim();
+                if (!id || !this.registry.has(id)) continue;
+                await this.startStrategy(id);
+            }
+            if ((rows || []).length > 0) {
+                log.info(`[RESTORE] Requested resume for ${(rows || []).length} strategies marked RUNNING`);
+            }
+        } catch (err) {
+            log.warn(`[RESTORE] Failed to restore runtime states: ${err.message}`);
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -839,8 +1101,10 @@ class StrategyBootloader {
     getActiveSymbols() {
         const symbols = new Set();
         for (const [, booted] of this.registry) {
-            const strategySymbols = booted.instance.symbols || [];
-            strategySymbols.forEach(s => symbols.add(s));
+            if (booted.instance) {
+                const strategySymbols = booted.instance.symbols || [];
+                strategySymbols.forEach(s => symbols.add(s));
+            }
         }
         return Array.from(symbols);
     }

@@ -1,10 +1,12 @@
 "use strict";
 
+const FastQueue = require('../../../utils/data/fastQueue');
+
 class SignalExecutionEngine {
     constructor(options = {}) {
         this.concurrency = Math.max(1, Number(options.concurrency || process.env.SIGNAL_EXEC_CONCURRENCY || 8));
         this.maxQueue = Math.max(100, Number(options.maxQueue || process.env.SIGNAL_EXEC_MAX_QUEUE || 20000));
-        this.queue = [];
+        this.queue = new FastQueue();
         this.inFlight = 0;
         this.metrics = {
             enqueued: 0,
@@ -57,7 +59,25 @@ class SignalExecutionEngine {
             maxQueue: this.maxQueue
         };
     }
+
+    updateSettings(next = {}) {
+        const toNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : null;
+        };
+
+        const concurrency = toNum(next.concurrency);
+        if (concurrency && concurrency > 0) {
+            this.concurrency = Math.max(1, Math.floor(concurrency));
+        }
+
+        const maxQueue = toNum(next.maxQueue);
+        if (maxQueue && maxQueue > 0) {
+            this.maxQueue = Math.max(100, Math.floor(maxQueue));
+        }
+
+        return this.getMetrics();
+    }
 }
 
 module.exports = SignalExecutionEngine;
-

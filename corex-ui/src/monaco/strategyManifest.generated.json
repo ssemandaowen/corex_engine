@@ -1,0 +1,1207 @@
+{
+  "generatedAt": "2026-03-01T19:04:13.393Z",
+  "entrypoints": [
+    "next",
+    "generateSignal",
+    "onMarketData",
+    "onTick",
+    "onBar",
+    "_processData"
+  ],
+  "methods": [
+    {
+      "label": "resolveSymbol",
+      "detail": "Resolve active symbol",
+      "signature": "resolveSymbol({ symbol?, packet? })",
+      "documentation": "Resolves symbol from explicit input, packet data, or strategy defaults.",
+      "category": "helper",
+      "insertText": "resolveSymbol("
+    },
+    {
+      "label": "hasBars",
+      "detail": "Check history depth",
+      "signature": "hasBars(symbol, n = 1)",
+      "documentation": "Returns true when at least n completed bars exist for symbol.",
+      "category": "helper",
+      "insertText": "hasBars("
+    },
+    {
+      "label": "requireBars",
+      "detail": "Guard for bar count",
+      "signature": "requireBars(symbol, n = 1, context = 'requireBars')",
+      "documentation": "Guard helper that returns false when not enough bars are available.",
+      "category": "helper",
+      "insertText": "requireBars("
+    },
+    {
+      "label": "safeSeries",
+      "detail": "Safe series accessor",
+      "signature": "safeSeries(symbol, field = 'close', fallback = [])",
+      "documentation": "Reads a numeric series safely without throwing on missing data.",
+      "category": "helper",
+      "insertText": "safeSeries("
+    },
+    {
+      "label": "oncePerBar",
+      "detail": "One-shot bar gate",
+      "signature": "oncePerBar(key, barTime?)",
+      "documentation": "Returns true once per bar/key pair to prevent duplicate actions.",
+      "category": "helper",
+      "insertText": "oncePerBar("
+    },
+    {
+      "label": "safeRule",
+      "detail": "Defensive execution wrapper",
+      "signature": "safeRule(fn, fallback = null)",
+      "documentation": "Executes fn and returns fallback when logic throws.",
+      "category": "helper",
+      "insertText": "safeRule("
+    },
+    {
+      "label": "describe",
+      "detail": "Strategy metadata block",
+      "signature": "describe(features = {})",
+      "documentation": "Returns lightweight metadata for UI and telemetry.",
+      "category": "helper",
+      "insertText": "describe("
+    },
+    {
+      "label": "logDecision",
+      "detail": "Structured decision log",
+      "signature": "logDecision(message, meta = {}, level = 'info')",
+      "documentation": "Logs decision events with consistent strategy metadata.",
+      "category": "helper",
+      "insertText": "logDecision("
+    },
+    {
+      "label": "logSignal",
+      "detail": "Structured signal log",
+      "signature": "logSignal(signal, stage = 'EMIT', level = 'info')",
+      "documentation": "Logs signal payloads in a normalized format.",
+      "category": "helper",
+      "insertText": "logSignal("
+    },
+    {
+      "label": "logGuard",
+      "detail": "Structured guard log",
+      "signature": "logGuard(name, passed, details = {})",
+      "documentation": "Logs warmup/risk/filter guard pass-fail decisions.",
+      "category": "helper",
+      "insertText": "logGuard("
+    },
+    {
+      "label": "entryLong",
+      "detail": "Emit long entry",
+      "signature": "entryLong(params = {})",
+      "documentation": "Creates normalized ENTER/LONG signal and resolves quantity + SL/TP.",
+      "category": "signal",
+      "insertText": "entryLong("
+    },
+    {
+      "label": "entryShort",
+      "detail": "Emit short entry",
+      "signature": "entryShort(params = {})",
+      "documentation": "Creates normalized ENTER/SHORT signal and resolves quantity + SL/TP.",
+      "category": "signal",
+      "insertText": "entryShort("
+    },
+    {
+      "label": "exitLong",
+      "detail": "Exit long position",
+      "signature": "exitLong(params = {})",
+      "documentation": "Creates normalized EXIT/LONG signal with resolved close quantity.",
+      "category": "signal",
+      "insertText": "exitLong("
+    },
+    {
+      "label": "exitShort",
+      "detail": "Exit short position",
+      "signature": "exitShort(params = {})",
+      "documentation": "Creates normalized EXIT/SHORT signal with resolved close quantity.",
+      "category": "signal",
+      "insertText": "exitShort("
+    },
+    {
+      "label": "exitAll",
+      "detail": "Exit any exposure",
+      "signature": "exitAll(params = {})",
+      "documentation": "Creates normalized EXIT/FLAT signal.",
+      "category": "signal",
+      "insertText": "exitAll("
+    },
+    {
+      "label": "flipToLong",
+      "detail": "Flip short to long",
+      "signature": "flipToLong(params = {})",
+      "documentation": "Queues opposite-side entry on next bar after exit.",
+      "category": "signal",
+      "insertText": "flipToLong("
+    },
+    {
+      "label": "flipToShort",
+      "detail": "Flip long to short",
+      "signature": "flipToShort(params = {})",
+      "documentation": "Queues opposite-side entry on next bar after exit.",
+      "category": "signal",
+      "insertText": "flipToShort("
+    },
+    {
+      "label": "rule",
+      "detail": "RuleChain builder",
+      "signature": "rule(packet?)",
+      "documentation": "Fluent conditional chain for guarded entry/exit/flip emission.",
+      "category": "flow",
+      "insertText": "rule("
+    },
+    {
+      "label": "series",
+      "detail": "Raw series accessor",
+      "signature": "series(symbol, field = 'close')",
+      "documentation": "Returns raw numeric lookback series for indicators.",
+      "category": "data",
+      "insertText": "series("
+    },
+    {
+      "label": "pos",
+      "detail": "Position state checker",
+      "signature": "pos(state, symbol, set = false)",
+      "documentation": "Checks or mutates strategy position state (long/short/flat).",
+      "category": "position",
+      "insertText": "pos("
+    },
+    {
+      "label": "sizePosition",
+      "detail": "Risk-based quantity sizing",
+      "signature": "sizePosition({ price?, symbol?, riskPct = 1, minQty = 0, maxQty?, step?, fallbackQty = 1 })",
+      "documentation": "Sizes quantity from account equity and risk percentage.",
+      "category": "risk",
+      "insertText": "sizePosition("
+    },
+    {
+      "label": "crossover",
+      "detail": "Cross-up detection",
+      "signature": "crossover(a, b, opts = {})",
+      "documentation": "Returns true when series/value A crosses above B.",
+      "category": "signal",
+      "insertText": "crossover("
+    },
+    {
+      "label": "crossunder",
+      "detail": "Cross-down detection",
+      "signature": "crossunder(a, b, opts = {})",
+      "documentation": "Returns true when series/value A crosses below B.",
+      "category": "signal",
+      "insertText": "crossunder("
+    },
+    {
+      "label": "above",
+      "detail": "Above comparison",
+      "signature": "above(a, b)",
+      "documentation": "Returns true when latest A > latest B.",
+      "category": "signal",
+      "insertText": "above("
+    },
+    {
+      "label": "below",
+      "detail": "Below comparison",
+      "signature": "below(a, b)",
+      "documentation": "Returns true when latest A < latest B.",
+      "category": "signal",
+      "insertText": "below("
+    },
+    {
+      "label": "rising",
+      "detail": "Series rising check",
+      "signature": "rising(series)",
+      "documentation": "Returns true when latest value is greater than previous.",
+      "category": "signal",
+      "insertText": "rising("
+    },
+    {
+      "label": "falling",
+      "detail": "Series falling check",
+      "signature": "falling(series)",
+      "documentation": "Returns true when latest value is less than previous.",
+      "category": "signal",
+      "insertText": "falling("
+    },
+    {
+      "label": "between",
+      "detail": "Range check",
+      "signature": "between(val, min, max, inclusive = true)",
+      "documentation": "Returns true when value is inside specified range.",
+      "category": "signal",
+      "insertText": "between("
+    },
+    {
+      "label": "pctChange",
+      "detail": "Percent change",
+      "signature": "pctChange(series)",
+      "documentation": "Returns percent change between latest and previous values.",
+      "category": "signal",
+      "insertText": "pctChange("
+    }
+  ],
+  "indicators": [
+    {
+      "label": "abandonedbaby",
+      "detail": "Technical utility/pattern",
+      "signature": "abandonedbaby(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "abandonedbaby({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "adl",
+      "detail": "Technical utility/pattern",
+      "signature": "adl(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "adl({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ADL",
+      "detail": "Technical indicator",
+      "signature": "ADL.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "ADL.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "adx",
+      "detail": "Technical utility/pattern",
+      "signature": "adx(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "adx({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ADX",
+      "detail": "Average Directional Index",
+      "signature": "ADX.calculate({ high, low, close, period })",
+      "documentation": "Trend strength indicator with +DI/-DI.",
+      "kind": "class.calculate",
+      "insertText": "ADX.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "atr",
+      "detail": "Technical utility/pattern",
+      "signature": "atr(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "atr({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ATR",
+      "detail": "Average True Range",
+      "signature": "ATR.calculate({ high, low, close, period })",
+      "documentation": "Volatility measure based on true range.",
+      "kind": "class.calculate",
+      "insertText": "ATR.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "averagegain",
+      "detail": "Technical utility/pattern",
+      "signature": "averagegain(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "averagegain({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "AverageGain",
+      "detail": "Technical indicator",
+      "signature": "AverageGain.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "AverageGain.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "averageloss",
+      "detail": "Technical utility/pattern",
+      "signature": "averageloss(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "averageloss({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "AverageLoss",
+      "detail": "Technical indicator",
+      "signature": "AverageLoss.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "AverageLoss.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "awesomeoscillator",
+      "detail": "Technical utility/pattern",
+      "signature": "awesomeoscillator(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "awesomeoscillator({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "AwesomeOscillator",
+      "detail": "Technical indicator",
+      "signature": "AwesomeOscillator.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "AwesomeOscillator.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "bearish",
+      "detail": "Technical utility/pattern",
+      "signature": "bearish(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearish({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishengulfingpattern",
+      "detail": "Candlestick pattern",
+      "signature": "bearishengulfingpattern({ open, high, low, close })",
+      "documentation": "Returns true on bearish engulfing detection.",
+      "kind": "function",
+      "insertText": "bearishengulfingpattern({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishhammerstick",
+      "detail": "Technical utility/pattern",
+      "signature": "bearishhammerstick(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearishhammerstick({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishharami",
+      "detail": "Technical utility/pattern",
+      "signature": "bearishharami(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearishharami({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishharamicross",
+      "detail": "Technical utility/pattern",
+      "signature": "bearishharamicross(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearishharamicross({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishinvertedhammerstick",
+      "detail": "Technical utility/pattern",
+      "signature": "bearishinvertedhammerstick(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearishinvertedhammerstick({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishmarubozu",
+      "detail": "Technical utility/pattern",
+      "signature": "bearishmarubozu(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearishmarubozu({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bearishspinningtop",
+      "detail": "Technical utility/pattern",
+      "signature": "bearishspinningtop(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bearishspinningtop({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bollingerbands",
+      "detail": "Technical utility/pattern",
+      "signature": "bollingerbands(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bollingerbands({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "BollingerBands",
+      "detail": "Bollinger Bands",
+      "signature": "BollingerBands.calculate({ values, period, stdDev })",
+      "documentation": "Returns upper, middle, and lower volatility bands.",
+      "kind": "class.calculate",
+      "insertText": "BollingerBands.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "bullish",
+      "detail": "Technical utility/pattern",
+      "signature": "bullish(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullish({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishengulfingpattern",
+      "detail": "Candlestick pattern",
+      "signature": "bullishengulfingpattern({ open, high, low, close })",
+      "documentation": "Returns true on bullish engulfing detection.",
+      "kind": "function",
+      "insertText": "bullishengulfingpattern({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishhammerstick",
+      "detail": "Technical utility/pattern",
+      "signature": "bullishhammerstick(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullishhammerstick({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishharami",
+      "detail": "Technical utility/pattern",
+      "signature": "bullishharami(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullishharami({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishharamicross",
+      "detail": "Technical utility/pattern",
+      "signature": "bullishharamicross(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullishharamicross({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishinvertedhammerstick",
+      "detail": "Technical utility/pattern",
+      "signature": "bullishinvertedhammerstick(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullishinvertedhammerstick({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishmarubozu",
+      "detail": "Technical utility/pattern",
+      "signature": "bullishmarubozu(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullishmarubozu({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "bullishspinningtop",
+      "detail": "Technical utility/pattern",
+      "signature": "bullishspinningtop(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "bullishspinningtop({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "CandleData",
+      "detail": "Technical utility/pattern",
+      "signature": "CandleData(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "CandleData({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "CandleList",
+      "detail": "Technical utility/pattern",
+      "signature": "CandleList(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "CandleList({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "cci",
+      "detail": "Technical utility/pattern",
+      "signature": "cci(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "cci({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "CCI",
+      "detail": "Technical indicator",
+      "signature": "CCI.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "CCI.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "chandelierexit",
+      "detail": "Technical utility/pattern",
+      "signature": "chandelierexit(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "chandelierexit({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ChandelierExit",
+      "detail": "Technical indicator",
+      "signature": "ChandelierExit.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "ChandelierExit.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "ChandelierExitInput",
+      "detail": "Technical utility/pattern",
+      "signature": "ChandelierExitInput(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "ChandelierExitInput({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ChandelierExitOutput",
+      "detail": "Technical utility/pattern",
+      "signature": "ChandelierExitOutput(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "ChandelierExitOutput({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "crossDown",
+      "detail": "Technical utility/pattern",
+      "signature": "crossDown(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "crossDown({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "CrossDown",
+      "detail": "Technical indicator",
+      "signature": "CrossDown.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "CrossDown.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "crossUp",
+      "detail": "Technical utility/pattern",
+      "signature": "crossUp(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "crossUp({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "CrossUp",
+      "detail": "Technical indicator",
+      "signature": "CrossUp.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "CrossUp.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "darkcloudcover",
+      "detail": "Technical utility/pattern",
+      "signature": "darkcloudcover(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "darkcloudcover({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "doji",
+      "detail": "Candlestick pattern",
+      "signature": "doji({ open, high, low, close })",
+      "documentation": "Returns true when doji pattern is detected.",
+      "kind": "function",
+      "insertText": "doji({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "downsidetasukigap",
+      "detail": "Technical utility/pattern",
+      "signature": "downsidetasukigap(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "downsidetasukigap({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "dragonflydoji",
+      "detail": "Technical utility/pattern",
+      "signature": "dragonflydoji(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "dragonflydoji({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ema",
+      "detail": "Technical utility/pattern",
+      "signature": "ema(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "ema({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "EMA",
+      "detail": "Exponential Moving Average",
+      "signature": "EMA.calculate({ values, period })",
+      "documentation": "Exponentially weighted moving average.",
+      "kind": "class.calculate",
+      "insertText": "EMA.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "eveningdojistar",
+      "detail": "Technical utility/pattern",
+      "signature": "eveningdojistar(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "eveningdojistar({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "eveningstar",
+      "detail": "Candlestick pattern",
+      "signature": "eveningstar({ open, high, low, close })",
+      "documentation": "Returns true when evening star pattern is detected.",
+      "kind": "function",
+      "insertText": "eveningstar({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "fibonacciretracement",
+      "detail": "Technical utility/pattern",
+      "signature": "fibonacciretracement(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "fibonacciretracement({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "FixedSizeLinkedList",
+      "detail": "Technical utility/pattern",
+      "signature": "FixedSizeLinkedList(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "FixedSizeLinkedList({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "forceindex",
+      "detail": "Technical utility/pattern",
+      "signature": "forceindex(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "forceindex({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ForceIndex",
+      "detail": "Technical indicator",
+      "signature": "ForceIndex.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "ForceIndex.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "gravestonedoji",
+      "detail": "Technical utility/pattern",
+      "signature": "gravestonedoji(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "gravestonedoji({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "hammerpattern",
+      "detail": "Technical utility/pattern",
+      "signature": "hammerpattern(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "hammerpattern({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "hammerpatternunconfirmed",
+      "detail": "Technical utility/pattern",
+      "signature": "hammerpatternunconfirmed(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "hammerpatternunconfirmed({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "hangingman",
+      "detail": "Technical utility/pattern",
+      "signature": "hangingman(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "hangingman({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "hangingmanunconfirmed",
+      "detail": "Technical utility/pattern",
+      "signature": "hangingmanunconfirmed(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "hangingmanunconfirmed({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "heikinashi",
+      "detail": "Technical utility/pattern",
+      "signature": "heikinashi(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "heikinashi({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "HeikinAshi",
+      "detail": "Technical indicator",
+      "signature": "HeikinAshi.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "HeikinAshi.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "highest",
+      "detail": "Technical utility/pattern",
+      "signature": "highest(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "highest({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "Highest",
+      "detail": "Technical indicator",
+      "signature": "Highest.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "Highest.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "ichimokucloud",
+      "detail": "Technical utility/pattern",
+      "signature": "ichimokucloud(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "ichimokucloud({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "IchimokuCloud",
+      "detail": "Ichimoku Cloud",
+      "signature": "IchimokuCloud.calculate({ high, low, conversionPeriod, basePeriod, spanPeriod, displacement })",
+      "documentation": "Multi-line trend/support-resistance framework.",
+      "kind": "class.calculate",
+      "insertText": "IchimokuCloud.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "keltnerchannels",
+      "detail": "Technical utility/pattern",
+      "signature": "keltnerchannels(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "keltnerchannels({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "KeltnerChannels",
+      "detail": "Keltner Channels",
+      "signature": "KeltnerChannels.calculate({ high, low, close, maPeriod, atrPeriod, multiplier })",
+      "documentation": "EMA and ATR-based volatility envelope.",
+      "kind": "class.calculate",
+      "insertText": "KeltnerChannels.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "KeltnerChannelsInput",
+      "detail": "Technical utility/pattern",
+      "signature": "KeltnerChannelsInput(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "KeltnerChannelsInput({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "KeltnerChannelsOutput",
+      "detail": "Technical utility/pattern",
+      "signature": "KeltnerChannelsOutput(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "KeltnerChannelsOutput({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "kst",
+      "detail": "Technical utility/pattern",
+      "signature": "kst(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "kst({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "KST",
+      "detail": "Technical indicator",
+      "signature": "KST.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "KST.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "lowest",
+      "detail": "Technical utility/pattern",
+      "signature": "lowest(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "lowest({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "Lowest",
+      "detail": "Technical indicator",
+      "signature": "Lowest.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "Lowest.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "macd",
+      "detail": "Technical utility/pattern",
+      "signature": "macd(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "macd({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "MACD",
+      "detail": "MACD oscillator",
+      "signature": "MACD.calculate({ values, fastPeriod, slowPeriod, signalPeriod, SimpleMAOscillator?, SimpleMASignal? })",
+      "documentation": "Returns MACD line, signal line, and histogram.",
+      "kind": "class.calculate",
+      "insertText": "MACD.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "mfi",
+      "detail": "Technical utility/pattern",
+      "signature": "mfi(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "mfi({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "MFI",
+      "detail": "Money Flow Index",
+      "signature": "MFI.calculate({ high, low, close, volume, period })",
+      "documentation": "Volume-weighted oscillator in range 0..100.",
+      "kind": "class.calculate",
+      "insertText": "MFI.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "morningdojistar",
+      "detail": "Technical utility/pattern",
+      "signature": "morningdojistar(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "morningdojistar({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "morningstar",
+      "detail": "Candlestick pattern",
+      "signature": "morningstar({ open, high, low, close })",
+      "documentation": "Returns true when morning star pattern is detected.",
+      "kind": "function",
+      "insertText": "morningstar({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "obv",
+      "detail": "Technical utility/pattern",
+      "signature": "obv(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "obv({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "OBV",
+      "detail": "On-Balance Volume",
+      "signature": "OBV.calculate({ close, volume })",
+      "documentation": "Cumulative volume trend indicator.",
+      "kind": "class.calculate",
+      "insertText": "OBV.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "piercingline",
+      "detail": "Technical utility/pattern",
+      "signature": "piercingline(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "piercingline({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "psar",
+      "detail": "Technical utility/pattern",
+      "signature": "psar(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "psar({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "PSAR",
+      "detail": "Parabolic SAR",
+      "signature": "PSAR.calculate({ high, low, step, max })",
+      "documentation": "Trend-following stop and reversal series.",
+      "kind": "class.calculate",
+      "insertText": "PSAR.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "renko",
+      "detail": "Technical utility/pattern",
+      "signature": "renko(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "renko({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "roc",
+      "detail": "Technical utility/pattern",
+      "signature": "roc(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "roc({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "ROC",
+      "detail": "Technical indicator",
+      "signature": "ROC.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "ROC.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "rsi",
+      "detail": "Technical utility/pattern",
+      "signature": "rsi(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "rsi({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "RSI",
+      "detail": "Relative Strength Index",
+      "signature": "RSI.calculate({ values, period })",
+      "documentation": "Momentum oscillator in range 0..100.",
+      "kind": "class.calculate",
+      "insertText": "RSI.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "sd",
+      "detail": "Technical utility/pattern",
+      "signature": "sd(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "sd({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "SD",
+      "detail": "Technical indicator",
+      "signature": "SD.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "SD.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "shootingstar",
+      "detail": "Technical utility/pattern",
+      "signature": "shootingstar(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "shootingstar({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "shootingstarunconfirmed",
+      "detail": "Technical utility/pattern",
+      "signature": "shootingstarunconfirmed(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "shootingstarunconfirmed({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "sma",
+      "detail": "Technical utility/pattern",
+      "signature": "sma(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "sma({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "SMA",
+      "detail": "Simple Moving Average",
+      "signature": "SMA.calculate({ values, period })",
+      "documentation": "Arithmetic mean over rolling period.",
+      "kind": "class.calculate",
+      "insertText": "SMA.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "stochastic",
+      "detail": "Technical utility/pattern",
+      "signature": "stochastic(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "stochastic({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "Stochastic",
+      "detail": "Stochastic Oscillator",
+      "signature": "Stochastic.calculate({ high, low, close, period, signalPeriod })",
+      "documentation": "Returns %K and %D momentum values.",
+      "kind": "class.calculate",
+      "insertText": "Stochastic.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "stochasticrsi",
+      "detail": "Technical utility/pattern",
+      "signature": "stochasticrsi(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "stochasticrsi({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "StochasticRSI",
+      "detail": "Technical indicator",
+      "signature": "StochasticRSI.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "StochasticRSI.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "sum",
+      "detail": "Technical utility/pattern",
+      "signature": "sum(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "sum({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "Sum",
+      "detail": "Technical indicator",
+      "signature": "Sum.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "Sum.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "threeblackcrows",
+      "detail": "Technical utility/pattern",
+      "signature": "threeblackcrows(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "threeblackcrows({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "threewhitesoldiers",
+      "detail": "Technical utility/pattern",
+      "signature": "threewhitesoldiers(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "threewhitesoldiers({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "trix",
+      "detail": "Technical utility/pattern",
+      "signature": "trix(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "trix({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "TRIX",
+      "detail": "Technical indicator",
+      "signature": "TRIX.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "TRIX.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "truerange",
+      "detail": "Technical utility/pattern",
+      "signature": "truerange(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "truerange({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "TrueRange",
+      "detail": "Technical indicator",
+      "signature": "TrueRange.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "TrueRange.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "tweezerbottom",
+      "detail": "Technical utility/pattern",
+      "signature": "tweezerbottom(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "tweezerbottom({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "tweezertop",
+      "detail": "Technical utility/pattern",
+      "signature": "tweezertop(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "tweezertop({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "volumeprofile",
+      "detail": "Technical utility/pattern",
+      "signature": "volumeprofile(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "volumeprofile({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "VolumeProfile",
+      "detail": "Technical indicator",
+      "signature": "VolumeProfile.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "VolumeProfile.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "vwap",
+      "detail": "Technical utility/pattern",
+      "signature": "vwap(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "vwap({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "VWAP",
+      "detail": "Volume Weighted Average Price",
+      "signature": "VWAP.calculate({ high, low, close, volume })",
+      "documentation": "Volume-weighted average traded price.",
+      "kind": "class.calculate",
+      "insertText": "VWAP.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "wema",
+      "detail": "Technical utility/pattern",
+      "signature": "wema(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "wema({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "WEMA",
+      "detail": "Technical indicator",
+      "signature": "WEMA.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "WEMA.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "williamsr",
+      "detail": "Technical utility/pattern",
+      "signature": "williamsr(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "williamsr({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "WilliamsR",
+      "detail": "Technical indicator",
+      "signature": "WilliamsR.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "WilliamsR.calculate({ values: [], period: 14 })"
+    },
+    {
+      "label": "wma",
+      "detail": "Technical utility/pattern",
+      "signature": "wma(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "function",
+      "insertText": "wma({ open: [], high: [], low: [], close: [] })"
+    },
+    {
+      "label": "WMA",
+      "detail": "Technical indicator",
+      "signature": "WMA.calculate(input)",
+      "documentation": "Technical indicator/utility from technicalindicators package.",
+      "kind": "class.calculate",
+      "insertText": "WMA.calculate({ values: [], period: 14 })"
+    }
+  ]
+}

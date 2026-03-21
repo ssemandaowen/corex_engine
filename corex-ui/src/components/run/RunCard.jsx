@@ -1,192 +1,340 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import client from "../../api/client";
-import { Play, Square, Activity, Cpu, ShieldAlert, Timer, Radio, Settings, Zap } from "lucide-react";
+import { Cpu, ShieldAlert, Settings, Play, Pause, MoreVertical, RotateCw, ShieldX } from "lucide-react";
 import SettingsModal from './SettingsModal';
+import RunActions from './RunActions';
+import DatasetInfo from './DatasetInfo';
+import corexSwal from '../../utils/swal';
 
-const StrategyRuntime = ({ strategy, runConfig, onStatusChange, onNotify }) => {
-  const [loading, setLoading] = useState(false);
+const RunCard = ({ strategy = {}, runConfig, onStatusChange, onNotify }) => {
   const [timeframe, setTimeframe] = useState(strategy.timeframe || '1m');
   const [mode, setMode] = useState((strategy.mode || 'PAPER').toUpperCase());
-  const [runtimeParams, setRuntimeParams] = useState(strategy.params || {});
+  const [runtimeParams, setRuntimeParams] = useState(() => ({ ...(strategy.params || {}) }));
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const hasSchema = strategy?.schema && Object.keys(strategy.schema).length > 0;
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const menuRef = useRef(null);
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isMenuOpen]);
+
+  const hasSchema = Boolean(strategy?.schema && Object.keys(strategy.schema).length > 0);
   const modeOptions = useMemo(() => {
     const list = Array.isArray(runConfig?.modes) && runConfig.modes.length > 0 ? runConfig.modes : ['PAPER', 'LIVE'];
-    return list.map((m) => String(m).toUpperCase());
-  }, [runConfig]);
+    const normalized = list.map((m) => String(m).toUpperCase());
+    return normalized.includes(mode) ? normalized : [...normalized, mode];
+  }, [runConfig, mode]);
   const timeframeOptions = useMemo(() => {
-    return Array.isArray(runConfig?.timeframes) && runConfig.timeframes.length > 0
+    const list = Array.isArray(runConfig?.timeframes) && runConfig.timeframes.length > 0
       ? runConfig.timeframes
       : ['1m', '5m', '15m', '1h', '4h', '1d'];
-  }, [runConfig]);
+    return list.includes(timeframe) ? list : [...list, timeframe];
+  }, [runConfig, timeframe]);
 
   const targetId = strategy.id || strategy.name;
+  const hasTargetId = Boolean(targetId);
   const isRunning = ['ACTIVE', 'WARMING_UP'].includes(strategy.status);
   const isStopping = strategy.status === 'STOPPING';
-
-  useEffect(() => {
-    setTimeframe(strategy.timeframe || '1m');
-    setMode((strategy.mode || 'PAPER').toUpperCase());
-    setRuntimeParams(strategy.params || {});
-  }, [strategy.timeframe, strategy.mode, strategy.params]);
 
   const formatUptime = (ms) => {
     if (!ms) return '00:00:00';
     const sec = Math.floor((ms / 1000) % 60);
     const min = Math.floor((ms / (1000 * 60)) % 60);
-    const hrs = Math.floor((ms / (1000 * 60 * 60)) % 24);
+    const hrs = Math.floor(ms / (1000 * 60 * 60));
     return `${hrs.toString().padStart(2, '0')}:${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
-  const toggleExecution = async () => {
-    setLoading(true);
+  const handleAction = async (actionFn, successMsg, errorMsg) => {
+    setIsLoading(true);
     try {
-      if (isRunning) {
-        await client.post(`/run/stop/${targetId}`);
-        onNotify?.({ type: 'success', message: `SIGTERM sent to ${targetId}` });
-      } else {
-        await client.post(`/run/start/${targetId}`, {
-          mode,
-          timeframe,
-          params: runtimeParams
-        });
-        onNotify?.({ type: 'success', message: `${targetId} lifecycle: START` });
-      }
-    } catch (err) {
-      onNotify?.({ type: 'error', message: `Kernel Fault: ${targetId}` });
-    } finally {
-      setLoading(false);
+      const res = await actionFn();
+      if (onNotify) onNotify({ type: 'success', message: res?.message || successMsg });
       onStatusChange?.();
+    } catch (err) {
+      console.error(err);
+      if (onNotify) onNotify({ type: 'error', message: err?.message || err?.details || errorMsg });
+    } finally {
+      setIsLoading(false);
+      setIsMenuOpen(false);
     }
+  };
+
+  const toggleExecution = async () => {
+    if (!targetId) return;
+    const normalizedMode = String(mode || 'PAPER').toUpperCase();
+    if (!isRunning && normalizedMode === 'LIVE') {
+      const confirmation = await corexSwal({
+        title: 'Deploy Live Strategy?',
+        text: `LIVE MODE: deploy ${targetId} to the live broker?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Deploy Live',
+        cancelButtonText: 'Cancel'
+      });
+      if (!confirmation.isConfirmed) return;
+    }
+    const action = isRunning
+      ? () => client.post(`/run/stop/${targetId}`)
+      : () => client.post(`/run/start/${targetId}`, { mode, timeframe, params: runtimeParams });
+    const success = isRunning ? `Stop signal sent to ${targetId}` : `${targetId} run initiated`;
+    const error = `Kernel Fault: ${targetId}`;
+    handleAction(action, success, error);
+  };
+
+  const restartEngine = () => {
+    if (!targetId) return;
+    handleAction(
+      () => client.post(`/run/restart/${targetId}`),
+      `SIGRST sent to ${targetId}`,
+      `Restart failed for ${targetId}`
+    );
+  };
+
+  const clearFault = () => {
+    handleAction(
+      () => client.post(`/run/stop/${targetId}`),
+      `Fault cleared for ${targetId}`,
+      `Failed to clear fault for ${targetId}`
+    );
+  };
+
+  const actionStrategyProps = {
+      ...strategy,
+      id: targetId,
+      mode,
+      timeframe,
+      params: runtimeParams
   };
 
   return (
     <>
-      <div className={`group relative bg-[var(--ui-panel-strong)] border transition-all duration-300 rounded-xl overflow-hidden ${
-        isRunning ? 'border-[var(--ui-border-strong)] shadow-[0_0_20px_rgba(59,130,246,0.1)]' : 'border-[var(--ui-border)]'
+      <div className={`group relative flex items-center gap-3 bg-[var(--ui-panel)] border transition-all duration-300 rounded-lg px-4 py-3 text-sm ${
+        isRunning 
+          ? 'border-[var(--ui-accent)]/50 shadow-[0_0_15px_rgba(79,140,255,0.08)]'
+          : 'border-[var(--ui-border)] hover:border-[var(--ui-border-strong)]'
       }`}>
         
-        {/* Status Line Indicator */}
-        <div className={`h-0.5 w-full transition-colors duration-500 ${
-          isRunning ? 'bg-[var(--ui-accent)] animate-pulse' : 'bg-[var(--ui-border)]'
-        }`} />
-
-        <div className="p-4">
-          {/* Header Area */}
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg transition-colors ${
-                isRunning ? 'text-[var(--ui-accent)]' : 'bg-white/5 text-[var(--ui-muted)]'
-              }`}>
-                <Cpu size={18} />
-              </div>
-              <div>
-                <h3 className="text-[11px] font-black text-[var(--ui-text)] font-mono tracking-wider uppercase leading-none mb-1">
-                  {targetId}
-                </h3>
-                <div className="flex items-center gap-1.5">
-                  <span className={`relative flex h-1.5 w-1.5`}>
-                    {isRunning && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--ui-positive)] opacity-75"></span>}
-                    <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isRunning ? 'bg-[var(--ui-positive)]' : 'bg-[var(--ui-subtle)]'}`}></span>
-                  </span>
-                  <span className="text-[9px] text-[var(--ui-muted)] font-bold uppercase tracking-widest font-mono">
-                    {strategy.status || 'OFFLINE'}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {hasSchema && (
-              <button 
-                onClick={() => setIsModalOpen(true)}
-                className="p-1.5 text-[var(--ui-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-row-hover)] rounded-md transition-all"
-              >
-                <Settings size={14} />
-              </button>
-            )}
+        {/* Col 1: Status + Name (200px min) */}
+        <div className="flex items-center gap-2.5 min-w-[180px] flex-shrink-0">
+          <div className={`p-1.5 rounded-lg shrink-0 ${
+            isRunning 
+              ? 'bg-[var(--ui-accent)]/15 text-[var(--ui-accent)]'
+              : 'bg-[var(--ui-panel-strong)] text-[var(--ui-muted)]'
+          }`}>
+            <Cpu size={14} strokeWidth={2.5} />
           </div>
-
-          {/* Telemetry Grid */}
-          <div className="grid grid-cols-2 gap-2 mb-4">
-            <div className="bg-[var(--ui-panel)] border border-[var(--ui-border)] p-2 rounded-md">
-              <span className="text-[8px] text-[var(--ui-muted)] font-black uppercase block mb-1 tracking-tighter">Uptime</span>
-              <span className="text-[10px] font-mono text-[var(--ui-text)] tabular-nums">
-                {formatUptime(strategy.uptime)}
+          <div className="min-w-0">
+            <div className="font-bold text-[var(--ui-text)] truncate text-xs font-mono">
+              {targetId || 'UNASSIGNED'}
+            </div>
+            <div className="flex items-center gap-1">
+              <span className={`relative flex h-1 w-1`}>
+                {isRunning && (
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--ui-positive)] opacity-75"></span>
+                )}
+                <span className={`relative inline-flex rounded-full h-1 w-1 ${
+                  isRunning ? 'bg-[var(--ui-positive)]' : 'bg-[var(--ui-subtle)]'
+                }`}></span>
+              </span>
+              <span className={`text-[8px] font-bold uppercase tracking-wide font-mono ${
+                isRunning ? 'text-[var(--ui-positive)]' : 'text-[var(--ui-muted)]'
+              }`}>
+                {strategy.status || 'OFFLINE'}
               </span>
             </div>
-            <div className="bg-[var(--ui-panel)] border border-[var(--ui-border)] p-2 rounded-md">
-              <span className="text-[8px] text-[var(--ui-muted)] font-black uppercase block mb-1 tracking-tighter">Resolution</span>
-              <div className="flex items-center gap-1">
-                <Timer size={10} className="text-[var(--ui-accent)]" />
-                <span className="text-[10px] font-mono text-[var(--ui-text)] uppercase">
-                  {strategy.timeframe || timeframe}
-                </span>
-              </div>
-            </div>
+          </div>
+        </div>
+
+        {/* Col 2: Metrics (Uptime, P&L, Equity, Symbols) */}
+        <div className="flex items-center gap-4 flex-1 min-w-0 px-2">
+          {/* Uptime */}
+          <div className="text-center shrink-0">
+            <div className="text-[8px] text-[var(--ui-muted)] font-bold uppercase mb-0.5">Uptime</div>
+            <span className="text-[11px] font-mono text-[var(--ui-text)] font-semibold">
+              {formatUptime(strategy.uptime)}
+            </span>
           </div>
 
-          {/* Action Row */}
-          <div className="flex gap-2">
-            {!isRunning && (
-              <>
-                <select
-                  value={mode}
-                  onChange={(e) => setMode(e.target.value)}
-                  className="w-20 h-8 bg-[var(--ui-panel)] border border-[var(--ui-border)] text-[var(--ui-text)] text-[10px] font-bold px-1 rounded transition-colors outline-none cursor-pointer font-mono"
-                >
-                  {modeOptions.map((m) => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-                <select 
-                  value={timeframe} 
-                  onChange={(e) => setTimeframe(e.target.value)}
-                  className="w-16 h-8 bg-[var(--ui-panel)] border border-[var(--ui-border)] text-[var(--ui-text)] text-[10px] font-bold px-1 rounded transition-colors outline-none cursor-pointer font-mono"
-                >
-                  {timeframeOptions.map(tf => (
-                    <option key={tf} value={tf}>{tf}</option>
-                  ))}
-                </select>
-              </>
-            )}
+          {/* P&L */}
+          {strategy.pnl !== undefined && (
+            <div className="text-center shrink-0">
+              <div className="text-[8px] text-[var(--ui-muted)] font-bold uppercase mb-0.5">P&L</div>
+              <span className={`text-[11px] font-mono font-semibold ${
+                Number(strategy.pnl) >= 0 ? 'text-[var(--ui-positive)]' : 'text-[var(--ui-negative)]'
+              }`}>
+                {Number(strategy.pnl).toFixed(1)}
+              </span>
+            </div>
+          )}
 
+          {/* Equity */}
+          {strategy.equity !== undefined && (
+            <div className="text-center shrink-0">
+              <div className="text-[8px] text-[var(--ui-muted)] font-bold uppercase mb-0.5">EQ</div>
+              <span className="text-[11px] font-mono text-[var(--ui-text)] font-semibold">
+                ${Number(strategy.equity).toFixed(0)}
+              </span>
+            </div>
+          )}
+
+          {/* Symbols */}
+          <div className="text-center shrink-0">
+            <div className="text-[8px] text-[var(--ui-muted)] font-bold uppercase mb-0.5">SYM</div>
+            <span className="text-[11px] font-mono text-[var(--ui-text)] font-semibold">
+              {(strategy.symbols || []).length}
+            </span>
+          </div>
+        </div>
+
+        {/* Col 3: Mode */}
+        <select
+          value={mode}
+          onChange={(e) => setMode(e.target.value)}
+          disabled={isRunning || !hasTargetId}
+          className="h-7 px-2 bg-[var(--ui-input-bg)] border border-[var(--ui-border)] text-[var(--ui-text)] text-[10px] font-bold rounded transition-all outline-none cursor-pointer font-mono hover:border-[var(--ui-border-strong)] focus:border-[var(--ui-accent)] focus:ring-1 focus:ring-[var(--ui-accent)]/30 disabled:opacity-50 shrink-0"
+        >
+          {modeOptions.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+
+        {/* Col 4: Timeframe */}
+        <select 
+          value={timeframe} 
+          onChange={(e) => setTimeframe(e.target.value)}
+          disabled={isRunning || !hasTargetId}
+          className="h-7 px-2 bg-[var(--ui-input-bg)] border border-[var(--ui-border)] text-[var(--ui-text)] text-[10px] font-bold rounded transition-all outline-none cursor-pointer font-mono hover:border-[var(--ui-border-strong)] focus:border-[var(--ui-accent)] focus:ring-1 focus:ring-[var(--ui-accent)]/30 disabled:opacity-50 shrink-0"
+        >
+          {timeframeOptions.map(tf => (
+            <option key={tf} value={tf}>{tf}</option>
+          ))}
+        </select>
+
+        {/* Col 5: Controls */}
+        <div className="flex items-center gap-2 shrink-0 relative" ref={menuRef}>
+          {/* Play/Pause Icon - Primary Action */}
+          {hasTargetId ? (
             <button
               onClick={toggleExecution}
-              disabled={loading || isStopping}
-              className={`flex-1 h-8 flex items-center justify-center gap-2 rounded font-black text-[10px] tracking-widest transition-all ${
-                isRunning 
-                ? "bg-[color:color-mix(in_srgb,var(--ui-negative)_16%,transparent)] text-[var(--ui-negative)] border border-[color:color-mix(in_srgb,var(--ui-negative)_40%,transparent)] hover:brightness-110" 
-                : "bg-[var(--ui-accent-strong)] text-white hover:brightness-110 shadow-[0_4px_12px_rgba(37,99,235,0.2)]"
-              } disabled:opacity-50`}
+              disabled={isLoading || isStopping}
+              className={`p-1.5 rounded transition-all ${
+                isRunning
+                  ? 'text-[var(--ui-negative)] hover:text-[var(--ui-warning)] hover:bg-[var(--ui-warning)]/10'
+                  : 'text-[var(--ui-muted)] hover:text-[var(--ui-accent)] hover:bg-[var(--ui-accent)]/10'
+              } disabled:opacity-50 disabled:cursor-not-allowed`}
+              title={isRunning ? 'Stop Strategy' : 'Start Strategy'}
             >
-              {loading ? (
-                <Activity size={14} className="animate-spin" />
-              ) : isRunning ? (
-                <><Square size={10} fill="currentColor" /> TERMINATE</>
+              {isRunning ? (
+                <Pause size={14} fill="currentColor" />
               ) : (
-                <><Zap size={10} fill="currentColor" /> DEPLOY</>
+                <Play size={14} fill="currentColor" />
               )}
             </button>
-          </div>
-          <div className="mt-2 text-[9px] text-[var(--ui-muted)] font-mono">
-            params:{Object.keys(strategy.params || {}).length} | symbols:{(strategy.symbols || []).length} | mode:{strategy.mode || mode}
-          </div>
+          ) : (
+            <div className="text-[8px] text-[var(--ui-negative)] font-bold">—</div>
+          )}
+
+          {/* Menu Button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            disabled={isLoading || !hasTargetId}
+            className="p-1 text-[var(--ui-muted)] hover:text-[var(--ui-text)] hover:bg-[var(--ui-row-hover)] rounded transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            title="More Options"
+          >
+            <MoreVertical size={14} />
+          </button>
+
+          {/* Vertical Popup Menu */}
+          {isMenuOpen && hasTargetId && (
+            <div className="absolute right-0 top-full mt-1 bg-[var(--ui-panel)] border border-[var(--ui-border)] rounded-lg shadow-lg z-50 min-w-[160px] overflow-hidden">
+              {/* Settings Option */}
+              {hasSchema && (
+                <button
+                  onClick={() => {
+                    setIsModalOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-[11px] font-semibold text-[var(--ui-text)] hover:bg-[var(--ui-row-hover)] transition-all flex items-center gap-2 border-b border-[var(--ui-border)]"
+                >
+                  <Settings size={12} />
+                  Settings
+                </button>
+              )}
+
+              {/* Start/Stop Option */}
+              <button
+                onClick={toggleExecution}
+                disabled={isLoading || isStopping}
+                className="w-full px-3 py-2 text-left text-[11px] font-semibold hover:bg-[var(--ui-row-hover)] transition-all flex items-center gap-2 border-b border-[var(--ui-border)] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isRunning ? (
+                  <>
+                    <Pause size={12} />
+                    <span className="text-[var(--ui-negative)]">Stop</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={12} />
+                    <span className="text-[var(--ui-accent)]">Start</span>
+                  </>
+                )}
+              </button>
+
+              {/* Restart Option */}
+              {isRunning && (
+                <button
+                  onClick={restartEngine}
+                  disabled={isLoading}
+                  className="w-full px-3 py-2 text-left text-[11px] font-semibold text-[var(--ui-positive)] hover:bg-[var(--ui-row-hover)] transition-all flex items-center gap-2 border-b border-[var(--ui-border)] disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <RotateCw size={12} />
+                  Restart
+                </button>
+              )}
+
+              {/* Clear Fault Option (for error state) */}
+              {strategy.status === 'ERROR' && (
+                <button
+                  onClick={clearFault}
+                  disabled={isLoading}
+                  className="w-full px-3 py-2 text-left text-[11px] font-semibold text-[var(--ui-negative)] hover:bg-[var(--ui-row-hover)] transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ShieldX size={12} />
+                  Clear Fault
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Failure Overlay */}
         {strategy.status === 'ERROR' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center backdrop-blur-md z-10 border" style={{ backgroundColor: 'color-mix(in srgb, var(--ui-negative) 60%, #000)', borderColor: 'color-mix(in srgb, var(--ui-negative) 55%, transparent)' }}>
-            <ShieldAlert size={20} className="text-[var(--ui-negative)] mb-2" />
-            <span className="text-[10px] font-black text-white uppercase tracking-widest">Logic Failure</span>
-            <p className="text-[9px] text-white/90 mt-1 font-mono leading-tight max-w-[80%] uppercase">
-              {strategy.reason || 'SIGABRT: Execution Error'}
-            </p>
-            <button 
-              onClick={() => client.post(`/run/stop/${targetId}`).then(onStatusChange)} 
-              className="mt-4 px-3 py-1 bg-white text-[var(--ui-negative)] text-[9px] font-black rounded hover:brightness-95 transition-colors"
-            >
-              RESET ENGINE
-            </button>
+          <div className="absolute inset-0 flex items-center justify-between px-4 backdrop-blur-lg z-10 bg-[var(--ui-negative)]/95 rounded-lg border-2 border-[var(--ui-negative)]">
+            <div className="flex items-center gap-2">
+              <ShieldAlert size={16} className="text-white shrink-0" />
+              <div className="text-left">
+                <span className="text-[9px] font-black text-white uppercase tracking-widest block">Error</span>
+                <p className="text-[8px] text-white/90 font-mono max-w-[300px] line-clamp-1">
+                  {strategy.reason || 'Execution Error'}
+                </p>
+              </div>
+            </div>
+            <RunActions
+              strategy={actionStrategyProps}
+              runConfig={runConfig}
+              onStatusChange={onStatusChange}
+              onNotify={onNotify}
+            />
           </div>
         )}
       </div>
@@ -196,21 +344,31 @@ const StrategyRuntime = ({ strategy, runConfig, onStatusChange, onNotify }) => {
         onClose={() => setIsModalOpen(false)}
         strategy={{ ...strategy, params: runtimeParams }}
         onSave={async (params) => {
-          setRuntimeParams(params || {});
-          await client.patch(`/run/params/${targetId}`, { params });
+          if (!hasTargetId) {
+            onNotify?.({ type: 'error', message: 'Missing strategy id' });
+            return;
+          }
+          const nextParams = { ...(params || {}) };
+          setRuntimeParams(nextParams);
+          await client.patch(`/run/params/${targetId}`, { params: nextParams });
           onNotify?.({ type: 'success', message: 'Parameters committed' });
           onStatusChange?.();
         }}
         onRestoreDefaults={async () => {
+          if (!hasTargetId) {
+            onNotify?.({ type: 'error', message: 'Missing strategy id' });
+            return {};
+          }
           const res = await client.post(`/run/params/${targetId}/reset`);
-          setRuntimeParams(res.payload || {});
+          const nextParams = { ...(res.payload || {}) };
+          setRuntimeParams(nextParams);
           onNotify?.({ type: 'success', message: 'Environment Reset' });
           onStatusChange?.();
-          return res.payload;
+          return nextParams;
         }}
       />
     </>
   );
 };
 
-export default StrategyRuntime;
+export default RunCard;

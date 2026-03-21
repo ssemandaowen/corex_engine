@@ -1,112 +1,352 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  AlertTriangle,
-  Code2,
-  Cpu,
-  Database,
-  KeyRound,
-  Link2,
-  Monitor,
-  Radio,
-  RefreshCcw,
-  Save,
-  Settings as SettingsIcon,
-  Shield
+  AlertTriangle, Code2, Cpu, Database, KeyRound,
+  Link2, Monitor, Radio, RefreshCcw, Save,
+  Settings as SettingsIcon, Shield, ChevronRight,
+  Check, Wifi, WifiOff
 } from 'lucide-react';
 import client from '../api/client';
 import { useStore } from '../store/useStore';
 import { corexSwal } from '../utils/swal';
 
+/* ─────────────────────────────────────────────────────────────
+   CONSTANTS
+───────────────────────────────────────────────────────────── */
 const DEFAULT_FORM = {
   tickQueueMax: 5000,
   tickFlushMax: 10000,
   stratQueueMax: 1000,
   stratSliceMs: 5,
+  signalExecConcurrency: 8,
+  signalExecMaxQueue: 20000,
   logLevel: 'info',
   storage: {
     backtests: { keepN: 20, halfLifeDays: 14, maxAgeDays: 90 },
-    cache: { maxSizeMb: 500, maxAgeDays: 30 },
-    uploads: { maxSizeMb: 500, maxAgeDays: 30 }
-  }
+    cache:     { maxSizeMb: 500, maxAgeDays: 30 },
+    uploads:   { maxSizeMb: 500, maxAgeDays: 30 },
+  },
 };
 
-const toInt = (value) => {
-  const n = Number.parseInt(value, 10);
-  return Number.isFinite(n) ? n : 0;
-};
+const toInt = (v) => { const n = Number.parseInt(v, 10); return Number.isFinite(n) ? n : 0; };
 
+const TABS = [
+  { id: 'runtime',      label: 'Runtime',      icon: Cpu           },
+  { id: 'storage',      label: 'Storage',       icon: Database      },
+  { id: 'connectivity', label: 'Connectivity',  icon: Link2         },
+  { id: 'ui',           label: 'UI',            icon: Monitor       },
+  { id: 'security',     label: 'Security',      icon: Shield        },
+  { id: 'danger',       label: 'Danger Zone',   icon: AlertTriangle },
+];
+
+const CONN_TABS = [
+  { id: 'market',  label: 'Market Data', icon: Radio    },
+  { id: 'metaapi', label: 'MetaAPI',     icon: KeyRound },
+  { id: 'mt5',     label: 'MT5 Bridge',  icon: Link2    },
+];
+
+/* ─────────────────────────────────────────────────────────────
+   INLINE KEYFRAMES
+───────────────────────────────────────────────────────────── */
+const Keyframes = () => (
+  <style>{`
+    @keyframes sv-fadein { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+    @keyframes sv-pulse  { 0%,100%{opacity:1} 50%{opacity:.35} }
+    .sv-fadein { animation: sv-fadein .22s cubic-bezier(.4,0,.2,1) both }
+    .sv-pulse  { animation: sv-pulse 2s ease-in-out infinite }
+
+    .sv-tab {
+      display: flex; align-items: center; gap: 9px;
+      width: 100%; padding: 10px 14px;
+      background: transparent; border: none;
+      border-radius: 10px;
+      font-size: 12px; font-weight: 600;
+      letter-spacing: .04em;
+      color: var(--ui-muted);
+      cursor: pointer;
+      transition: background .14s ease, color .14s ease;
+      text-align: left; white-space: nowrap;
+    }
+    .sv-tab:hover { background: var(--ui-row-hover); color: var(--ui-text); }
+    .sv-tab.active {
+      background: rgba(79,140,255,.12);
+      color: var(--ui-text);
+      box-shadow: inset 3px 0 0 var(--ui-accent);
+    }
+    .sv-tab.danger { color: var(--ui-negative); }
+    .sv-tab.danger:hover { background: rgba(251,113,133,.08); }
+    .sv-tab.danger.active { background: rgba(251,113,133,.1); box-shadow: inset 3px 0 0 var(--ui-negative); }
+
+    .sv-ctab {
+      display: flex; align-items: center; gap: 7px;
+      padding: 6px 13px;
+      background: transparent; border: none;
+      border-radius: 999px;
+      font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--ui-muted); cursor: pointer;
+      transition: background .12s, color .12s, box-shadow .12s;
+    }
+    .sv-ctab:hover { color: var(--ui-text); background: var(--ui-row-hover); }
+    .sv-ctab.active {
+      background: rgba(79,140,255,.18);
+      color: var(--ui-text);
+      box-shadow: 0 0 0 1px rgba(79,140,255,.4);
+    }
+
+    .sv-input, .sv-select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: var(--ui-radius-xs);
+      border: 1px solid var(--ui-border);
+      background: var(--ui-input-bg);
+      color: var(--ui-text);
+      font-size: 13px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .sv-input.mono, .sv-select.mono {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    }
+    .sv-input:focus, .sv-select:focus {
+      outline: none;
+      border-color: var(--ui-accent);
+      box-shadow: 0 0 0 3px var(--ui-accent-ring);
+    }
+    .sv-input:read-only { color: var(--ui-subtle); cursor: default; }
+
+    .sv-select {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2364748b'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 30px;
+      cursor: pointer;
+    }
+
+    .sv-toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-xs);
+      background: var(--ui-panel);
+    }
+
+    .sv-switch {
+      position: relative; width: 42px; height: 24px;
+      border-radius: 999px; border: 1px solid var(--ui-border);
+      background: var(--ui-panel-strong);
+      cursor: pointer; transition: background .2s, border-color .2s;
+      flex-shrink: 0;
+    }
+    .sv-switch::after {
+      content: ''; position: absolute; top: 2px; left: 2px;
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--ui-muted);
+      transition: left .2s, background .2s;
+    }
+    .sv-switch.on { background: rgba(79,140,255,.22); border-color: var(--ui-border-strong); }
+    .sv-switch.on::after { left: 20px; background: var(--ui-accent); }
+
+    .sv-segmented {
+      display: inline-flex; gap: 3px; padding: 4px;
+      background: var(--ui-tab-strip-bg);
+      border: 1px solid var(--ui-border);
+      border-radius: var(--ui-radius-xs);
+    }
+    .sv-seg-btn {
+      padding: 6px 14px; border-radius: 7px; border: none;
+      background: transparent; color: var(--ui-muted);
+      font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+      cursor: pointer; transition: background .12s, color .12s, box-shadow .12s;
+      white-space: nowrap;
+    }
+    .sv-seg-btn:hover { color: var(--ui-text); background: var(--ui-row-hover); }
+    .sv-seg-btn.active {
+      background: rgba(79,140,255,.2); color: var(--ui-text);
+      box-shadow: 0 0 0 1px rgba(79,140,255,.45);
+    }
+
+    .sv-save-btn {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 8px 18px; border-radius: 999px; border: none;
+      background: linear-gradient(140deg, var(--ui-accent-strong), var(--ui-accent));
+      color: #f8fafc; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      cursor: pointer; box-shadow: var(--ui-glow);
+      transition: filter .15s, opacity .15s;
+    }
+    .sv-save-btn:hover:not(:disabled) { filter: brightness(1.08); }
+    .sv-save-btn:disabled { opacity: .45; cursor: default; }
+    .sv-save-btn.saved {
+      background: rgba(52,211,153,.15);
+      border: 1px solid rgba(52,211,153,.35);
+      color: var(--ui-positive); box-shadow: none;
+    }
+
+    .sv-field-grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+    .sv-field-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+    @media(max-width:720px) {
+      .sv-field-grid-2 { grid-template-columns: 1fr; }
+      .sv-field-grid-3 { grid-template-columns: 1fr; }
+    }
+
+    .sv-section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px; font-weight: 700; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--ui-subtle);
+      padding: 0 0 8px; margin: 0;
+    }
+
+    .sv-status-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: var(--ui-panel-strong);
+      border: 1px solid var(--ui-border);
+      font-size: 11px;
+    }
+    .sv-status-key { color: var(--ui-subtle); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
+    .sv-status-val { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ui-text); }
+
+    .sv-unsaved-banner {
+      display: flex; align-items: center; gap: 8px;
+      padding: 9px 14px; border-radius: var(--ui-radius-xs);
+      background: rgba(245,158,11,.08);
+      border: 1px solid rgba(245,158,11,.28);
+      color: #fbbf24; font-size: 11px; font-weight: 600; letter-spacing: .04em;
+      margin-bottom: 14px;
+    }
+  `}</style>
+);
+
+/* ─────────────────────────────────────────────────────────────
+   SMALL COMPONENTS
+───────────────────────────────────────────────────────────── */
+const Field = ({ label, children, span }) => (
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, gridColumn: span ? `span ${span}` : undefined }}>
+    <label style={{
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 9, fontWeight: 700, letterSpacing: '.2em',
+      textTransform: 'uppercase', color: 'var(--ui-subtle)',
+    }}>
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+const NumInput = ({ value, onChange, ...props }) => (
+  <input
+    type="number"
+    className="sv-input mono"
+    value={value ?? ''}
+    onChange={(e) => onChange(e.target.value)}
+    {...props}
+  />
+);
+
+const SectionCard = ({ icon: Icon, title, accent, children }) => (
+  <div style={{
+    background: 'var(--ui-panel)',
+    border: `1px solid ${accent ? 'rgba(251,113,133,.3)' : 'var(--ui-border)'}`,
+    borderRadius: 'var(--ui-radius)',
+    overflow: 'hidden',
+    boxShadow: 'var(--ui-shadow)',
+  }}>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10,
+      padding: '12px 18px',
+      borderBottom: '1px solid var(--ui-border)',
+      background: 'var(--ui-panel-soft)',
+    }}>
+      <Icon size={14} style={{ color: accent ? 'var(--ui-negative)' : 'var(--ui-accent)', flexShrink: 0 }} />
+      <span style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        fontSize: 9, fontWeight: 700, letterSpacing: '.22em',
+        textTransform: 'uppercase',
+        color: accent ? 'var(--ui-negative)' : 'var(--ui-muted)',
+      }}>
+        {title}
+      </span>
+    </div>
+    <div style={{ padding: '18px 18px 20px' }}>
+      {children}
+    </div>
+  </div>
+);
+
+const SegBtn = ({ active, onClick, children }) => (
+  <button className={`sv-seg-btn${active ? ' active' : ''}`} onClick={onClick}>{children}</button>
+);
+
+const Segmented = ({ options, value, onChange }) => (
+  <div className="sv-segmented">
+    {options.map((o) => (
+      <SegBtn key={o.value ?? o} active={(o.value ?? o) === value} onClick={() => onChange(o.value ?? o)}>
+        {o.label ?? o}
+      </SegBtn>
+    ))}
+  </div>
+);
+
+/* ─────────────────────────────────────────────────────────────
+   MAIN COMPONENT
+───────────────────────────────────────────────────────────── */
 const SettingsView = () => {
   const [adminKey] = useState(import.meta.env.VITE_ADMIN_SECRET || '***************');
   const {
-    systemSettings,
-    settingsLoading,
-    fetchSystemSettings,
-    updateSystemSettings,
-    realtimeMode,
-    setRealtimeMode,
-    uiTheme,
-    setUiTheme,
-    editorPrefs,
-    setEditorPrefs,
-    persistedSettings
+    systemSettings, settingsLoading,
+    fetchSystemSettings, updateSystemSettings,
+    realtimeMode, setRealtimeMode,
+    uiTheme, setUiTheme,
+    editorPrefs, setEditorPrefs,
+    persistedSettings,
   } = useStore();
 
-  const [form, setForm] = useState(DEFAULT_FORM);
-  const [activeTab, setActiveTab] = useState('runtime');
-  const [connectivityTab, setConnectivityTab] = useState('market');
+  const [form,               setForm]               = useState(DEFAULT_FORM);
+  const [formDirty,          setFormDirty]          = useState(false);
+  const [activeTab,          setActiveTab]          = useState('runtime');
+  const [connectivityTab,    setConnectivityTab]    = useState('market');
   const [connectivitySaving, setConnectivitySaving] = useState(false);
-  const [mt5Status, setMt5Status] = useState(null);
-  const [integrationConfig, setIntegrationConfig] = useState({
+  const [connectivityDirty,  setConnectivityDirty]  = useState(false);
+  const [mt5Status,          setMt5Status]          = useState(null);
+  const [integrationConfig,  setIntegrationConfig]  = useState({
     marketData: { twelveDataApiKey: '', websocketEnabled: true },
-    metaApi: { accountId: '', token: '', server: '' },
-    mt5Bridge: {
-      mode: 'local',
-      host: '127.0.0.1',
-      port: '3000',
-      heartbeatMs: 3000,
-      activeBridgeProvider: 'python_receiver',
-      bridgeToken: '',
-      httpToken: ''
-    }
+    metaApi:    { accountId: '', token: '', server: '' },
+    mt5Bridge:  {
+      mode: 'local', host: '127.0.0.1', port: '3000',
+      heartbeatMs: 3000, activeBridgeProvider: 'python_receiver',
+      bridgeToken: '', httpToken: '',
+    },
   });
 
-  useEffect(() => {
-    fetchSystemSettings();
-  }, [fetchSystemSettings]);
+  const isRuntimeTab     = activeTab === 'runtime' || activeTab === 'storage';
+  const isConnectivityTab= activeTab === 'connectivity';
+  const hasUnsaved       = isRuntimeTab ? formDirty : (isConnectivityTab ? connectivityDirty : false);
+  const isSaving         = settingsLoading || connectivitySaving;
+
+  /* ── Effects ── */
+  useEffect(() => { fetchSystemSettings(); }, [fetchSystemSettings]);
 
   useEffect(() => {
-    if (!systemSettings) return;
+    if (!systemSettings || formDirty) return;
     setForm({
-      ...DEFAULT_FORM,
-      ...systemSettings,
+      ...DEFAULT_FORM, ...systemSettings,
       storage: {
-        ...DEFAULT_FORM.storage,
-        ...(systemSettings.storage || {}),
-        backtests: {
-          ...DEFAULT_FORM.storage.backtests,
-          ...(systemSettings.storage?.backtests || {})
-        },
-        cache: {
-          ...DEFAULT_FORM.storage.cache,
-          ...(systemSettings.storage?.cache || {})
-        },
-        uploads: {
-          ...DEFAULT_FORM.storage.uploads,
-          ...(systemSettings.storage?.uploads || {})
-        }
-      }
+        ...DEFAULT_FORM.storage, ...(systemSettings.storage || {}),
+        backtests: { ...DEFAULT_FORM.storage.backtests, ...(systemSettings.storage?.backtests || {}) },
+        cache:     { ...DEFAULT_FORM.storage.cache,     ...(systemSettings.storage?.cache     || {}) },
+        uploads:   { ...DEFAULT_FORM.storage.uploads,   ...(systemSettings.storage?.uploads   || {}) },
+      },
     });
-  }, [systemSettings]);
+  }, [systemSettings, formDirty]);
 
   useEffect(() => {
     const source = persistedSettings?.payload?.ui?.integrations;
-    if (!source || typeof source !== 'object') return;
+    if (!source || typeof source !== 'object' || connectivityDirty) return;
     setIntegrationConfig((prev) => ({
       marketData: { ...prev.marketData, ...(source.marketData || {}) },
-      metaApi: { ...prev.metaApi, ...(source.metaApi || {}) },
-      mt5Bridge: { ...prev.mt5Bridge, ...(source.mt5Bridge || {}) }
+      metaApi:    { ...prev.metaApi,    ...(source.metaApi    || {}) },
+      mt5Bridge:  { ...prev.mt5Bridge,  ...(source.mt5Bridge  || {}) },
     }));
-  }, [persistedSettings]);
+  }, [persistedSettings, connectivityDirty]);
 
   useEffect(() => {
     const onFocus = (ev) => {
@@ -124,105 +364,43 @@ const SettingsView = () => {
       try {
         const res = await client.get('/system/mt5/status');
         if (!canceled) setMt5Status(res?.payload || null);
-      } catch {
-        if (!canceled) setMt5Status(null);
-      }
+      } catch { if (!canceled) setMt5Status(null); }
     };
     load();
     const t = setInterval(load, 3000);
     return () => { canceled = true; clearInterval(t); };
   }, [activeTab]);
 
-  const sections = useMemo(() => ([
-    {
-      title: 'Engine Runtime',
-      icon: Cpu,
-      fields: [
-        { key: 'tickQueueMax', label: 'Tick Queue Max' },
-        { key: 'tickFlushMax', label: 'Tick Flush Max' },
-        { key: 'stratQueueMax', label: 'Strategy Queue Max' },
-        { key: 'stratSliceMs', label: 'Strategy Slice (ms)' }
-      ]
-    }
-  ]), []);
-
-  const setField = (key, value) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
+  /* ── Field setters ── */
+  const setField        = (key, val)           => { setFormDirty(true); setForm((p) => ({ ...p, [key]: val })); };
+  const setStorageField = (sec, key, val)      => {
+    setFormDirty(true);
+    setForm((p) => ({ ...p, storage: { ...p.storage, [sec]: { ...(p.storage?.[sec] || {}), [key]: val } } }));
   };
+  const setConnField    = (updater)            => { setConnectivityDirty(true); setIntegrationConfig(updater); };
+  const setMt5          = (key, val)           => setConnField((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, [key]: val } }));
+  const setMetaApi      = (key, val)           => setConnField((p) => ({ ...p, metaApi:   { ...p.metaApi,   [key]: val } }));
+  const setMarket       = (key, val)           => setConnField((p) => ({ ...p, marketData: { ...p.marketData, [key]: val } }));
 
-  const setStorageField = (section, key, value) => {
-    setForm((prev) => ({
-      ...prev,
-      storage: {
-        ...prev.storage,
-        [section]: {
-          ...(prev.storage?.[section] || {}),
-          [key]: value
-        }
-      }
-    }));
-  };
-
+  /* ── Save handlers ── */
   const handleSave = async () => {
     const payload = {
       ...form,
-      tickQueueMax: toInt(form.tickQueueMax),
-      tickFlushMax: toInt(form.tickFlushMax),
-      stratQueueMax: toInt(form.stratQueueMax),
-      stratSliceMs: toInt(form.stratSliceMs),
+      tickQueueMax: toInt(form.tickQueueMax), tickFlushMax: toInt(form.tickFlushMax),
+      stratQueueMax: toInt(form.stratQueueMax), stratSliceMs: toInt(form.stratSliceMs),
+      signalExecConcurrency: toInt(form.signalExecConcurrency),
+      signalExecMaxQueue: toInt(form.signalExecMaxQueue),
       storage: {
-        backtests: {
-          keepN: toInt(form.storage.backtests.keepN),
-          maxAgeDays: toInt(form.storage.backtests.maxAgeDays),
-          halfLifeDays: toInt(form.storage.backtests.halfLifeDays)
-        },
-        cache: {
-          maxSizeMb: toInt(form.storage.cache.maxSizeMb),
-          maxAgeDays: toInt(form.storage.cache.maxAgeDays)
-        },
-        uploads: {
-          maxSizeMb: toInt(form.storage.uploads.maxSizeMb),
-          maxAgeDays: toInt(form.storage.uploads.maxAgeDays)
-        }
-      }
+        backtests: { keepN: toInt(form.storage.backtests.keepN), maxAgeDays: toInt(form.storage.backtests.maxAgeDays), halfLifeDays: toInt(form.storage.backtests.halfLifeDays) },
+        cache:     { maxSizeMb: toInt(form.storage.cache.maxSizeMb),    maxAgeDays: toInt(form.storage.cache.maxAgeDays)    },
+        uploads:   { maxSizeMb: toInt(form.storage.uploads.maxSizeMb),  maxAgeDays: toInt(form.storage.uploads.maxAgeDays)  },
+      },
     };
-
     const res = await updateSystemSettings(payload, true);
     if (res) {
-      await corexSwal({
-        icon: 'success',
-        title: 'Saved',
-        text: 'System settings saved.',
-        confirmButtonText: 'OK'
-      });
-    }
-  };
-
-  const handleMaintenanceReset = async () => {
-    const confirm = await corexSwal({
-      icon: 'warning',
-      title: 'Confirm Reset',
-      text: 'Force reset all strategy lifecycles?',
-      showCancelButton: true,
-      confirmButtonText: 'Yes, reset',
-      cancelButtonText: 'Cancel'
-    });
-    if (!confirm.isConfirmed) return;
-    try {
-      const res = await client.post('/system/maintenance/reset-states');
-      await corexSwal({
-        icon: 'success',
-        title: 'Reset Complete',
-        text: res.payload?.message || 'Reset complete.',
-        confirmButtonText: 'OK'
-      });
-    } catch {
-      await corexSwal({
-        icon: 'error',
-        title: 'Reset Failed',
-        text: 'Reset failed.',
-        confirmButtonText: 'OK'
-      });
+      setFormDirty(false);
+      await fetchSystemSettings();
+      await corexSwal({ icon: 'success', title: 'Saved', text: 'System settings saved.', confirmButtonText: 'OK' });
     }
   };
 
@@ -231,388 +409,507 @@ const SettingsView = () => {
     try {
       await updateSystemSettings({ ui: { integrations: integrationConfig } }, true);
       await client.patch('/system/run/settings', {
-        settings: {
-          activeBridgeProvider: integrationConfig.mt5Bridge.activeBridgeProvider
-        },
-        persist: true
+        settings: { activeBridgeProvider: integrationConfig.mt5Bridge.activeBridgeProvider },
+        persist: true,
       });
-      await corexSwal({
-        icon: 'success',
-        title: 'Saved',
-        text: 'Connectivity settings saved.',
-        confirmButtonText: 'OK'
-      });
+      setConnectivityDirty(false);
+      await fetchSystemSettings();
+      await corexSwal({ icon: 'success', title: 'Saved', text: 'Connectivity settings saved.', confirmButtonText: 'OK' });
     } catch {
-      await corexSwal({
-        icon: 'error',
-        title: 'Save Failed',
-        text: 'Failed to save connectivity settings.',
-        confirmButtonText: 'OK'
-      });
-    } finally {
-      setConnectivitySaving(false);
+      await corexSwal({ icon: 'error', title: 'Save Failed', text: 'Failed to save connectivity settings.', confirmButtonText: 'OK' });
+    } finally { setConnectivitySaving(false); }
+  };
+
+  const handlePrimarySave = async () => {
+    if (isRuntimeTab)      return handleSave();
+    if (isConnectivityTab) return saveConnectivity();
+    return corexSwal({ icon: 'info', title: 'Auto Saved', text: 'This tab saves changes immediately.', confirmButtonText: 'OK' });
+  };
+
+  const handleMaintenanceReset = async () => {
+    const confirm = await corexSwal({
+      icon: 'warning', title: 'Confirm Reset',
+      text: 'Force reset all strategy lifecycles?',
+      showCancelButton: true, confirmButtonText: 'Yes, reset', cancelButtonText: 'Cancel',
+    });
+    if (!confirm.isConfirmed) return;
+    try {
+      const res = await client.post('/system/maintenance/reset-states');
+      await corexSwal({ icon: 'success', title: 'Reset Complete', text: res.payload?.message || 'Reset complete.', confirmButtonText: 'OK' });
+    } catch {
+      await corexSwal({ icon: 'error', title: 'Reset Failed', text: 'Reset failed.', confirmButtonText: 'OK' });
     }
   };
 
-  const tabs = [
-    { id: 'runtime', label: 'Runtime', icon: Cpu },
-    { id: 'storage', label: 'Storage', icon: Database },
-    { id: 'connectivity', label: 'Connectivity', icon: Link2 },
-    { id: 'ui', label: 'UI', icon: Monitor },
-    { id: 'security', label: 'Security', icon: Shield },
-    { id: 'danger', label: 'Danger', icon: AlertTriangle }
-  ];
+  /* ── Save button label ── */
+  const saveBtnLabel = isSaving
+    ? 'Saving…'
+    : isRuntimeTab
+      ? (formDirty ? 'Save Changes' : 'Saved')
+      : isConnectivityTab
+        ? (connectivityDirty ? 'Save Connectivity' : 'Saved')
+        : 'Auto Saved';
 
+  const saveBtnSaved = !isSaving && !hasUnsaved && (isRuntimeTab || isConnectivityTab);
+
+  /* ── MT5 online status ── */
+  const mt5Online = mt5Status?.bridgeStatus === 'connected';
+
+  /* ─── RENDER ─── */
   return (
-    <div className="ui-page ui-page-scroll p-6">
-      <div className="flex items-center justify-between border-b border-[var(--ui-border)] pb-4">
-        <div className="flex items-center gap-3">
-          <SettingsIcon size={18} className="text-[var(--ui-accent)]" />
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'transparent' }}>
+      <Keyframes />
+
+      {/* Top bar */}
+      <div style={{
+        flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: 12, padding: '11px 22px',
+        borderBottom: '1px solid var(--ui-border)',
+        background: 'var(--ui-header-glass)', backdropFilter: 'blur(12px)', zIndex: 10,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: 'rgba(79,140,255,.12)', border: '1px solid rgba(79,140,255,.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <SettingsIcon size={16} style={{ color: 'var(--ui-accent)' }} />
+          </div>
           <div>
-            <h2 className="ui-title text-base">System Configuration</h2>
-            <p className="ui-subtitle">Runtime params, UI preferences, and retention policies</p>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ui-text)', letterSpacing: '-.01em' }}>
+              System Configuration
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--ui-subtle)', marginTop: 1 }}>
+              Runtime · Storage · Connectivity · UI preferences
+            </div>
           </div>
         </div>
+
         <button
-          onClick={handleSave}
-          disabled={settingsLoading}
-          className="ui-button ui-button-primary disabled:opacity-50"
+          className={`sv-save-btn${saveBtnSaved ? ' saved' : ''}`}
+          onClick={handlePrimarySave}
+          disabled={isSaving || (!hasUnsaved && (isRuntimeTab || isConnectivityTab))}
         >
-          <Save size={14} /> {settingsLoading ? 'Saving' : 'Save Changes'}
+          {saveBtnSaved
+            ? <><Check size={12} /> Saved</>
+            : <><Save size={12} /> {saveBtnLabel}</>
+          }
         </button>
       </div>
 
-      <div className="ui-tabs w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`ui-tab ${activeTab === tab.id ? 'ui-tab-active' : ''}`}
-          >
-            <tab.icon size={12} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      {/* Body: sidebar + content */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-      {activeTab === 'runtime' && (
-        <section className="ui-panel">
-          <div className="ui-panel-header">
-            <div className="flex items-center gap-2">
-              <Cpu size={16} className="text-[var(--ui-accent)]" />
-              <h3 className="ui-panel-title">Engine Runtime</h3>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {sections[0].fields.map((field) => (
-              <InputGroup
-                key={field.key}
-                label={field.label}
-                value={form[field.key]}
-                onChange={(value) => setField(field.key, value)}
-              />
-            ))}
-            <div className="ui-field md:col-span-2">
-              <label className="ui-label">Log Level</label>
-              <select
-                className="ui-select"
-                value={form.logLevel}
-                onChange={(e) => setField('logLevel', e.target.value)}
-              >
-                <option value="error">ERROR</option>
-                <option value="warn">WARN</option>
-                <option value="info">INFO</option>
-                <option value="debug">DEBUG</option>
-              </select>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'storage' && (
-        <section className="ui-panel">
-          <div className="ui-panel-header">
-            <div className="flex items-center gap-2">
-              <Database size={16} className="text-[var(--ui-accent)]" />
-              <h3 className="ui-panel-title">Storage Policies</h3>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <StorageSubSection
-              title="Backtests"
-              fields={[
-                { label: 'Keep Count', val: form.storage.backtests.keepN, fn: (v) => setStorageField('backtests', 'keepN', v) },
-                { label: 'Half-Life (days)', val: form.storage.backtests.halfLifeDays, fn: (v) => setStorageField('backtests', 'halfLifeDays', v) },
-                { label: 'Max Age (days)', val: form.storage.backtests.maxAgeDays, fn: (v) => setStorageField('backtests', 'maxAgeDays', v) }
-              ]}
-            />
-            <StorageSubSection
-              title="Cache"
-              fields={[
-                { label: 'Size (MB)', val: form.storage.cache.maxSizeMb, fn: (v) => setStorageField('cache', 'maxSizeMb', v) },
-                { label: 'Max Age (days)', val: form.storage.cache.maxAgeDays, fn: (v) => setStorageField('cache', 'maxAgeDays', v) }
-              ]}
-            />
-            <StorageSubSection
-              title="Uploads"
-              fields={[
-                { label: 'Size (MB)', val: form.storage.uploads.maxSizeMb, fn: (v) => setStorageField('uploads', 'maxSizeMb', v) },
-                { label: 'Max Age (days)', val: form.storage.uploads.maxAgeDays, fn: (v) => setStorageField('uploads', 'maxAgeDays', v) }
-              ]}
-            />
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'connectivity' && (
-        <section className="ui-panel">
-          <div className="ui-panel-header">
-            <div className="flex items-center gap-2">
-              <Link2 size={16} className="text-[var(--ui-accent)]" />
-              <h3 className="ui-panel-title">API & Connectivity</h3>
-            </div>
-            <button onClick={saveConnectivity} disabled={connectivitySaving} className="ui-button ui-button-primary disabled:opacity-50">
-              <Save size={12} /> {connectivitySaving ? 'Saving' : 'Save Connectivity'}
-            </button>
-          </div>
-
-          <div className="ui-tabs w-fit mb-4">
-            <button onClick={() => setConnectivityTab('market')} className={`ui-tab ${connectivityTab === 'market' ? 'ui-tab-active' : ''}`}><Radio size={12} /> Market Data</button>
-            <button onClick={() => setConnectivityTab('metaapi')} className={`ui-tab ${connectivityTab === 'metaapi' ? 'ui-tab-active' : ''}`}><KeyRound size={12} /> MetaApi</button>
-            <button onClick={() => setConnectivityTab('mt5')} className={`ui-tab ${connectivityTab === 'mt5' ? 'ui-tab-active' : ''}`}><Link2 size={12} /> MT5 Bridge</button>
-          </div>
-
-          {connectivityTab === 'market' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="ui-field md:col-span-2">
-                <label className="ui-label">Twelve Data API Key</label>
-                <input
-                  type="password"
-                  className="ui-input mono"
-                  value={integrationConfig.marketData.twelveDataApiKey}
-                  onChange={(e) => setIntegrationConfig((p) => ({
-                    ...p,
-                    marketData: { ...p.marketData, twelveDataApiKey: e.target.value }
-                  }))}
-                />
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Websocket Feed</label>
-                <div className="flex items-center justify-between border border-[var(--ui-border)] rounded px-3 py-2 bg-[var(--ui-panel)]">
-                  <span className="text-sm text-[var(--ui-text)]">Enable realtime market websocket</span>
-                  <button
-                    className={`ui-switch ${integrationConfig.marketData.websocketEnabled ? 'ui-switch-on' : ''}`}
-                    onClick={() => setIntegrationConfig((p) => ({
-                      ...p,
-                      marketData: { ...p.marketData, websocketEnabled: !p.marketData.websocketEnabled }
-                    }))}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {connectivityTab === 'metaapi' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="ui-field">
-                <label className="ui-label">Account ID</label>
-                <input className="ui-input mono" value={integrationConfig.metaApi.accountId} onChange={(e) => setIntegrationConfig((p) => ({ ...p, metaApi: { ...p.metaApi, accountId: e.target.value } }))} />
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Token</label>
-                <input type="password" className="ui-input mono" value={integrationConfig.metaApi.token} onChange={(e) => setIntegrationConfig((p) => ({ ...p, metaApi: { ...p.metaApi, token: e.target.value } }))} />
-              </div>
-              <div className="ui-field md:col-span-2">
-                <label className="ui-label">Server</label>
-                <input className="ui-input mono" placeholder="e.g. MetaQuotes-Demo" value={integrationConfig.metaApi.server} onChange={(e) => setIntegrationConfig((p) => ({ ...p, metaApi: { ...p.metaApi, server: e.target.value } }))} />
-              </div>
-            </div>
-          )}
-
-          {connectivityTab === 'mt5' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="ui-field">
-                <label className="ui-label">Bridge Mode</label>
-                <select className="ui-select" value={integrationConfig.mt5Bridge.mode} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, mode: e.target.value } }))}>
-                  <option value="local">Local</option>
-                  <option value="remote">Remote</option>
-                </select>
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Bridge Provider</label>
-                <select className="ui-select" value={integrationConfig.mt5Bridge.activeBridgeProvider} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, activeBridgeProvider: e.target.value } }))}>
-                  <option value="python_receiver">PYTHON RECEIVER</option>
-                  <option value="mql5_receiver">MQL5 RECEIVER</option>
-                  <option value="metaapi">METAAPI</option>
-                </select>
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Host</label>
-                <input className="ui-input mono" value={integrationConfig.mt5Bridge.host} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, host: e.target.value } }))} />
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Port</label>
-                <input className="ui-input mono" value={integrationConfig.mt5Bridge.port} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, port: e.target.value } }))} />
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Heartbeat (ms)</label>
-                <input type="number" className="ui-input mono" value={integrationConfig.mt5Bridge.heartbeatMs} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, heartbeatMs: Number(e.target.value || 3000) } }))} />
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Bridge WS Token</label>
-                <input type="password" className="ui-input mono" value={integrationConfig.mt5Bridge.bridgeToken || ''} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, bridgeToken: e.target.value } }))} />
-              </div>
-              <div className="ui-field">
-                <label className="ui-label">Bridge HTTP Token</label>
-                <input type="password" className="ui-input mono" value={integrationConfig.mt5Bridge.httpToken || ''} onChange={(e) => setIntegrationConfig((p) => ({ ...p, mt5Bridge: { ...p.mt5Bridge, httpToken: e.target.value } }))} />
-              </div>
-              <div className="ui-card">
-                <div className="ui-label mb-2">Current Status</div>
-                <div className="text-[12px] text-[var(--ui-text)]">
-                  <div>Bridge: <span className="mono">{mt5Status?.bridgeStatus || '--'}</span></div>
-                  <div>Heartbeat: <span className="mono">{mt5Status?.heartbeat?.last_seen ? new Date(mt5Status.heartbeat.last_seen).toLocaleTimeString() : '--'}</span></div>
-                  <div>Pending: <span className="mono">{Array.isArray(mt5Status?.pending) ? mt5Status.pending.length : 0}</span></div>
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
-      )}
-
-      {activeTab === 'ui' && (
-        <section className="ui-panel">
-          <div className="ui-panel-header">
-            <div className="flex items-center gap-2">
-              <Monitor size={16} className="text-[var(--ui-accent)]" />
-              <h3 className="ui-panel-title">UI Preferences</h3>
-            </div>
-          </div>
-          <div className="ui-form">
-            <div className="ui-field">
-              <label className="ui-label">Theme</label>
-              <div className="ui-tabs">
-                {['dark', 'light', 'system'].map((theme) => (
-                  <button key={theme} onClick={() => setUiTheme(theme)} className={`ui-tab ${uiTheme === theme ? 'ui-tab-active' : ''}`}>{theme}</button>
-                ))}
-              </div>
-            </div>
-            <div className="ui-field">
-              <label className="ui-label">Realtime Transport</label>
-              <div className="ui-tabs">
-                <button onClick={() => setRealtimeMode('ws')} className={`ui-tab ${realtimeMode === 'ws' ? 'ui-tab-active' : ''}`}>WebSocket</button>
-                <button onClick={() => setRealtimeMode('polling')} className={`ui-tab ${realtimeMode === 'polling' ? 'ui-tab-active' : ''}`}>Polling</button>
-              </div>
-            </div>
-            <div className="ui-card">
-              <div className="flex items-center gap-2 mb-3">
-                <Code2 size={14} className="text-[var(--ui-accent)]" />
-                <p className="ui-label m-0">Editor Setup</p>
-              </div>
-              <p className="ui-subtitle mb-3">Adjust Monaco theme, font, and behavior. Changes apply immediately in Strategy Editor.</p>
-              <div className="grid grid-cols-1 gap-3">
-                <div className="ui-field">
-                  <label className="ui-label">Editor Theme</label>
-                  <div className="ui-tabs">
-                    {['corex-dark', 'corex-light', 'vs-dark', 'vs-light'].map((theme) => (
-                      <button key={theme} onClick={() => setEditorPrefs({ theme })} className={`ui-tab ${editorPrefs?.theme === theme ? 'ui-tab-active' : ''}`}>{theme}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="ui-field">
-                    <label className="ui-label">Font Size</label>
-                    <input type="number" className="ui-input mono" value={editorPrefs?.fontSize ?? 13} onChange={(e) => setEditorPrefs({ fontSize: Number(e.target.value || 13) })} />
-                  </div>
-                  <div className="ui-field">
-                    <label className="ui-label">Line Height</label>
-                    <input type="number" className="ui-input mono" value={editorPrefs?.lineHeight ?? 20} onChange={(e) => setEditorPrefs({ lineHeight: Number(e.target.value || 20) })} />
-                  </div>
-                </div>
-                <div className="ui-field">
-                  <label className="ui-label">Font Family</label>
-                  <select className="ui-select" value={editorPrefs?.fontFamily || 'JetBrains Mono, Menlo, Monaco, Courier New, monospace'} onChange={(e) => setEditorPrefs({ fontFamily: e.target.value })}>
-                    <option value="JetBrains Mono, Menlo, Monaco, Courier New, monospace">JetBrains Mono</option>
-                    <option value="Fira Code, Menlo, Monaco, Courier New, monospace">Fira Code</option>
-                    <option value="Source Code Pro, Menlo, Monaco, Courier New, monospace">Source Code Pro</option>
-                  </select>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  <button onClick={() => setEditorPrefs({ minimap: true })} className={`ui-tab ${editorPrefs?.minimap ? 'ui-tab-active' : ''}`}>Minimap On</button>
-                  <button onClick={() => setEditorPrefs({ minimap: false })} className={`ui-tab ${editorPrefs?.minimap === false ? 'ui-tab-active' : ''}`}>Minimap Off</button>
-                  <button onClick={() => setEditorPrefs({ wordWrap: 'on' })} className={`ui-tab ${editorPrefs?.wordWrap === 'on' ? 'ui-tab-active' : ''}`}>Wrap On</button>
-                  <button onClick={() => setEditorPrefs({ wordWrap: 'off' })} className={`ui-tab ${editorPrefs?.wordWrap === 'off' ? 'ui-tab-active' : ''}`}>Wrap Off</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'security' && (
-        <section className="ui-panel">
-          <div className="ui-panel-header">
-            <div className="flex items-center gap-2">
-              <Shield size={16} className="text-[var(--ui-accent)]" />
-              <h3 className="ui-panel-title">Security</h3>
-            </div>
-          </div>
-          <div className="ui-field">
-            <label className="ui-label">Admin Secret Key</label>
-            <input type="text" readOnly value={adminKey} className="ui-input mono" />
-            <p className="ui-subtitle">Handled via server-side environment variables.</p>
-          </div>
-        </section>
-      )}
-
-      {activeTab === 'danger' && (
-        <section className="ui-panel border-[color:color-mix(in_srgb,var(--ui-negative)_40%,transparent)]">
-          <div className="ui-panel-header">
-            <div className="flex items-center gap-2">
-              <AlertTriangle size={16} className="text-[var(--ui-negative)]" />
-              <h3 className="ui-panel-title text-[var(--ui-negative)]">Danger Zone</h3>
-            </div>
-          </div>
-          <p className="text-xs text-[var(--ui-muted)] leading-relaxed mb-4">
-            Emergency reset stops all strategy threads and resets internal state. Use only for deadlock recovery.
+        {/* Sidebar nav */}
+        <div style={{
+          width: 188, flexShrink: 0,
+          borderRight: '1px solid var(--ui-border)',
+          background: 'var(--ui-sidebar-bg)',
+          display: 'flex', flexDirection: 'column',
+          padding: '14px 8px',
+          gap: 2, overflowY: 'auto',
+        }}>
+          <p style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 8, fontWeight: 700, letterSpacing: '.22em',
+            textTransform: 'uppercase', color: 'var(--ui-subtle)',
+            padding: '2px 6px 8px',
+          }}>
+            Config Sections
           </p>
-          <button onClick={handleMaintenanceReset} className="ui-button ui-button-danger w-full">
-            <RefreshCcw size={12} /> Initialize Hard Reset
-          </button>
-        </section>
-      )}
+          {TABS.map((tab) => {
+            const Icon   = tab.icon;
+            const active = activeTab === tab.id;
+            const danger = tab.id === 'danger';
+            return (
+              <button
+                key={tab.id}
+                className={`sv-tab${active ? ' active' : ''}${danger ? ' danger' : ''}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <Icon size={13} style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1 }}>{tab.label}</span>
+                {active && <ChevronRight size={11} style={{ opacity: .5 }} />}
+                {(tab.id === 'runtime' || tab.id === 'storage') && formDirty && (
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: 'var(--ui-warning)', flexShrink: 0,
+                  }} />
+                )}
+                {tab.id === 'connectivity' && connectivityDirty && (
+                  <span style={{
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: 'var(--ui-warning)', flexShrink: 0,
+                  }} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content pane */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 32px' }}>
+
+          {/* Unsaved banner */}
+          {(formDirty || connectivityDirty) && (
+            <div className="sv-unsaved-banner">
+              <AlertTriangle size={13} />
+              Unsaved configuration changes — remember to save.
+            </div>
+          )}
+
+          {/* ── RUNTIME ── */}
+          {activeTab === 'runtime' && (
+            <div className="sv-fadein" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <SectionCard icon={Cpu} title="Engine Runtime Parameters">
+                <div className="sv-field-grid-2">
+                  {[
+                    { key: 'tickQueueMax',           label: 'Tick Queue Max'          },
+                    { key: 'tickFlushMax',            label: 'Tick Flush Max'          },
+                    { key: 'stratQueueMax',           label: 'Strategy Queue Max'      },
+                    { key: 'stratSliceMs',            label: 'Strategy Slice (ms)'     },
+                    { key: 'signalExecConcurrency',   label: 'Signal Exec Concurrency' },
+                    { key: 'signalExecMaxQueue',      label: 'Signal Exec Max Queue'   },
+                  ].map((f) => (
+                    <Field key={f.key} label={f.label}>
+                      <NumInput value={form[f.key]} onChange={(v) => setField(f.key, v)} />
+                    </Field>
+                  ))}
+                  <Field label="Log Level" span={2}>
+                    <select className="sv-select" value={form.logLevel} onChange={(e) => setField('logLevel', e.target.value)}>
+                      {['error','warn','info','debug'].map((l) => (
+                        <option key={l} value={l}>{l.toUpperCase()}</option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ── STORAGE ── */}
+          {activeTab === 'storage' && (
+            <div className="sv-fadein" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <SectionCard icon={Database} title="Storage & Retention Policies">
+                <div className="sv-field-grid-3">
+                  {/* Backtests */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <p className="sv-section-label">Backtests</p>
+                    <Field label="Keep Count">
+                      <NumInput value={form.storage.backtests.keepN}        onChange={(v) => setStorageField('backtests','keepN',v)} />
+                    </Field>
+                    <Field label="Half-Life (days)">
+                      <NumInput value={form.storage.backtests.halfLifeDays} onChange={(v) => setStorageField('backtests','halfLifeDays',v)} />
+                    </Field>
+                    <Field label="Max Age (days)">
+                      <NumInput value={form.storage.backtests.maxAgeDays}   onChange={(v) => setStorageField('backtests','maxAgeDays',v)} />
+                    </Field>
+                  </div>
+                  {/* Cache */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <p className="sv-section-label">Cache</p>
+                    <Field label="Max Size (MB)">
+                      <NumInput value={form.storage.cache.maxSizeMb}  onChange={(v) => setStorageField('cache','maxSizeMb',v)} />
+                    </Field>
+                    <Field label="Max Age (days)">
+                      <NumInput value={form.storage.cache.maxAgeDays} onChange={(v) => setStorageField('cache','maxAgeDays',v)} />
+                    </Field>
+                  </div>
+                  {/* Uploads */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <p className="sv-section-label">Uploads</p>
+                    <Field label="Max Size (MB)">
+                      <NumInput value={form.storage.uploads.maxSizeMb}  onChange={(v) => setStorageField('uploads','maxSizeMb',v)} />
+                    </Field>
+                    <Field label="Max Age (days)">
+                      <NumInput value={form.storage.uploads.maxAgeDays} onChange={(v) => setStorageField('uploads','maxAgeDays',v)} />
+                    </Field>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ── CONNECTIVITY ── */}
+          {activeTab === 'connectivity' && (
+            <div className="sv-fadein" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Sub-tab strip */}
+              <div style={{
+                display: 'flex', gap: 3, padding: 4,
+                background: 'var(--ui-tab-strip-bg)',
+                border: '1px solid var(--ui-border)',
+                borderRadius: 'var(--ui-radius-xs)',
+                width: 'fit-content',
+              }}>
+                {CONN_TABS.map((ct) => {
+                  const Icon = ct.icon;
+                  return (
+                    <button
+                      key={ct.id}
+                      className={`sv-ctab${connectivityTab === ct.id ? ' active' : ''}`}
+                      onClick={() => setConnectivityTab(ct.id)}
+                    >
+                      <Icon size={11} />
+                      {ct.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Market Data */}
+              {connectivityTab === 'market' && (
+                <SectionCard icon={Radio} title="Market Data Provider">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <Field label="Twelve Data API Key">
+                      <input type="password" className="sv-input mono"
+                        value={integrationConfig.marketData.twelveDataApiKey}
+                        onChange={(e) => setMarket('twelveDataApiKey', e.target.value)}
+                        placeholder="••••••••••••••••"
+                      />
+                    </Field>
+                    <div className="sv-toggle-row">
+                      <div>
+                        <div style={{ fontSize: 13, color: 'var(--ui-text)', fontWeight: 600 }}>Realtime Websocket Feed</div>
+                        <div style={{ fontSize: 11, color: 'var(--ui-subtle)', marginTop: 2 }}>Stream live tick data over WebSocket</div>
+                      </div>
+                      <button
+                        className={`sv-switch${integrationConfig.marketData.websocketEnabled ? ' on' : ''}`}
+                        onClick={() => setMarket('websocketEnabled', !integrationConfig.marketData.websocketEnabled)}
+                      />
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* MetaAPI */}
+              {connectivityTab === 'metaapi' && (
+                <SectionCard icon={KeyRound} title="MetaAPI Integration">
+                  <div className="sv-field-grid-2">
+                    <Field label="Account ID">
+                      <input className="sv-input mono" value={integrationConfig.metaApi.accountId}
+                        onChange={(e) => setMetaApi('accountId', e.target.value)} />
+                    </Field>
+                    <Field label="Token">
+                      <input type="password" className="sv-input mono" value={integrationConfig.metaApi.token}
+                        onChange={(e) => setMetaApi('token', e.target.value)} placeholder="••••••••••••••••" />
+                    </Field>
+                    <Field label="Server" span={2}>
+                      <input className="sv-input mono" value={integrationConfig.metaApi.server}
+                        onChange={(e) => setMetaApi('server', e.target.value)}
+                        placeholder="e.g. MetaQuotes-Demo" />
+                    </Field>
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* MT5 Bridge */}
+              {connectivityTab === 'mt5' && (
+                <SectionCard icon={Link2} title="MT5 Bridge Configuration">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {/* Status strip */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 14px',
+                      borderRadius: 'var(--ui-radius-xs)',
+                      background: mt5Online ? 'rgba(52,211,153,.07)' : 'rgba(100,116,139,.06)',
+                      border: `1px solid ${mt5Online ? 'rgba(52,211,153,.25)' : 'var(--ui-border)'}`,
+                    }}>
+                      {mt5Online
+                        ? <Wifi size={14} style={{ color: 'var(--ui-positive)' }} />
+                        : <WifiOff size={14} style={{ color: 'var(--ui-subtle)' }} />
+                      }
+                      <div style={{ flex: 1 }}>
+                        <span style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          fontSize: 10, fontWeight: 700, letterSpacing: '.1em',
+                          color: mt5Online ? 'var(--ui-positive)' : 'var(--ui-subtle)',
+                        }}>
+                          {mt5Status?.bridgeStatus?.toUpperCase() || 'DISCONNECTED'}
+                        </span>
+                      </div>
+                      {mt5Status?.heartbeat?.last_seen && (
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: 'var(--ui-subtle)' }}>
+                          {new Date(mt5Status.heartbeat.last_seen).toLocaleTimeString()}
+                        </span>
+                      )}
+                      {Array.isArray(mt5Status?.pending) && mt5Status.pending.length > 0 && (
+                        <span style={{
+                          padding: '2px 8px', borderRadius: 999, fontSize: 9, fontWeight: 700,
+                          background: 'rgba(245,158,11,.12)', color: 'var(--ui-warning)',
+                          border: '1px solid rgba(245,158,11,.25)',
+                          fontFamily: "'JetBrains Mono', monospace",
+                        }}>
+                          {mt5Status.pending.length} PENDING
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="sv-field-grid-2">
+                      <Field label="Bridge Mode">
+                        <select className="sv-select" value={integrationConfig.mt5Bridge.mode}
+                          onChange={(e) => setMt5('mode', e.target.value)}>
+                          <option value="local">Local</option>
+                          <option value="remote">Remote</option>
+                        </select>
+                      </Field>
+                      <Field label="Bridge Provider">
+                        <select className="sv-select" value={integrationConfig.mt5Bridge.activeBridgeProvider}
+                          onChange={(e) => setMt5('activeBridgeProvider', e.target.value)}>
+                          <option value="python_receiver">Python Receiver</option>
+                          <option value="mql5_receiver">MQL5 Receiver</option>
+                          <option value="metaapi">MetaAPI</option>
+                        </select>
+                      </Field>
+                      <Field label="Host">
+                        <input className="sv-input mono" value={integrationConfig.mt5Bridge.host}
+                          onChange={(e) => setMt5('host', e.target.value)} />
+                      </Field>
+                      <Field label="Port">
+                        <input className="sv-input mono" value={integrationConfig.mt5Bridge.port}
+                          onChange={(e) => setMt5('port', e.target.value)} />
+                      </Field>
+                      <Field label="Heartbeat Interval (ms)" span={2}>
+                        <input type="number" className="sv-input mono" value={integrationConfig.mt5Bridge.heartbeatMs}
+                          onChange={(e) => setMt5('heartbeatMs', Number(e.target.value || 3000))} />
+                      </Field>
+                      <Field label="WS Token">
+                        <input type="password" className="sv-input mono" value={integrationConfig.mt5Bridge.bridgeToken || ''}
+                          onChange={(e) => setMt5('bridgeToken', e.target.value)} placeholder="••••••••" />
+                      </Field>
+                      <Field label="HTTP Token">
+                        <input type="password" className="sv-input mono" value={integrationConfig.mt5Bridge.httpToken || ''}
+                          onChange={(e) => setMt5('httpToken', e.target.value)} placeholder="••••••••" />
+                      </Field>
+                    </div>
+                  </div>
+                </SectionCard>
+              )}
+            </div>
+          )}
+
+          {/* ── UI PREFERENCES ── */}
+          {activeTab === 'ui' && (
+            <div className="sv-fadein" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <SectionCard icon={Monitor} title="Interface Preferences">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                  <Field label="Color Theme">
+                    <Segmented
+                      options={['dark','light','system']}
+                      value={uiTheme}
+                      onChange={setUiTheme}
+                    />
+                  </Field>
+                  <Field label="Realtime Transport">
+                    <Segmented
+                      options={[{value:'ws',label:'WebSocket'},{value:'polling',label:'Polling'}]}
+                      value={realtimeMode}
+                      onChange={setRealtimeMode}
+                    />
+                  </Field>
+                </div>
+              </SectionCard>
+
+              <SectionCard icon={Code2} title="Code Editor">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <Field label="Editor Theme">
+                    <Segmented
+                      options={['auto','corex-dark','corex-light','vs-dark','vs-light']}
+                      value={editorPrefs?.theme ?? 'auto'}
+                      onChange={(v) => setEditorPrefs({ theme: v })}
+                    />
+                  </Field>
+                  <div className="sv-field-grid-2">
+                    <Field label="Font Size">
+                      <input type="number" className="sv-input mono" value={editorPrefs?.fontSize ?? 13}
+                        onChange={(e) => setEditorPrefs({ fontSize: Number(e.target.value || 13) })} />
+                    </Field>
+                    <Field label="Line Height">
+                      <input type="number" className="sv-input mono" value={editorPrefs?.lineHeight ?? 20}
+                        onChange={(e) => setEditorPrefs({ lineHeight: Number(e.target.value || 20) })} />
+                    </Field>
+                  </div>
+                  <Field label="Font Family">
+                    <select className="sv-select" value={editorPrefs?.fontFamily || 'JetBrains Mono, Menlo, Monaco, Courier New, monospace'}
+                      onChange={(e) => setEditorPrefs({ fontFamily: e.target.value })}>
+                      <option value="JetBrains Mono, Menlo, Monaco, Courier New, monospace">JetBrains Mono</option>
+                      <option value="Fira Code, Menlo, Monaco, Courier New, monospace">Fira Code</option>
+                      <option value="Source Code Pro, Menlo, Monaco, Courier New, monospace">Source Code Pro</option>
+                    </select>
+                  </Field>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                    <Field label="Minimap">
+                      <Segmented
+                        options={[{value:true,label:'On'},{value:false,label:'Off'}]}
+                        value={editorPrefs?.minimap ?? true}
+                        onChange={(v) => setEditorPrefs({ minimap: v })}
+                      />
+                    </Field>
+                    <Field label="Word Wrap">
+                      <Segmented
+                        options={[{value:'on',label:'On'},{value:'off',label:'Off'}]}
+                        value={editorPrefs?.wordWrap ?? 'on'}
+                        onChange={(v) => setEditorPrefs({ wordWrap: v })}
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ── SECURITY ── */}
+          {activeTab === 'security' && (
+            <div className="sv-fadein">
+              <SectionCard icon={Shield} title="Security">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <Field label="Admin Secret Key">
+                    <input type="text" readOnly className="sv-input mono" value={adminKey} />
+                  </Field>
+                  <p style={{ fontSize: 11, color: 'var(--ui-subtle)', margin: 0 }}>
+                    Managed via server-side environment variables. Not editable from the UI.
+                  </p>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+          {/* ── DANGER ZONE ── */}
+          {activeTab === 'danger' && (
+            <div className="sv-fadein">
+              <SectionCard icon={AlertTriangle} title="Danger Zone" accent>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <p style={{ fontSize: 12, color: 'var(--ui-muted)', lineHeight: 1.6, margin: 0 }}>
+                    Emergency hard reset terminates all active strategy threads and resets internal runtime state.
+                    Only use this for deadlock recovery — it will interrupt any running strategies.
+                  </p>
+                  <button
+                    onClick={handleMaintenanceReset}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      width: '100%', padding: '10px 16px',
+                      borderRadius: 'var(--ui-radius-xs)',
+                      border: '1px solid rgba(251,113,133,.4)',
+                      background: 'rgba(251,113,133,.08)',
+                      color: '#fda4af',
+                      fontSize: 11, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      transition: 'background .15s, filter .15s',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(251,113,133,.14)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(251,113,133,.08)'}
+                  >
+                    <RefreshCcw size={13} />
+                    Initialize Hard Reset
+                  </button>
+                </div>
+              </SectionCard>
+            </div>
+          )}
+
+        </div>
+      </div>
     </div>
   );
 };
-
-const InputGroup = ({ label, value, onChange }) => (
-  <div className="ui-field">
-    <label className="ui-label">{label}</label>
-    <input
-      type="number"
-      className="ui-input mono"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  </div>
-);
-
-const StorageSubSection = ({ title, fields }) => (
-  <div className="ui-card">
-    <p className="ui-label mb-3">{title}</p>
-    <div className="space-y-3">
-      {fields.map((field, index) => (
-        <div key={`${title}-${index}`} className="ui-field">
-          <label className="text-[11px] text-[var(--ui-muted)]">{field.label}</label>
-          <input
-            type="number"
-            className="ui-input mono"
-            value={field.val ?? ''}
-            onChange={(e) => field.fn(e.target.value)}
-          />
-        </div>
-      ))}
-    </div>
-  </div>
-);
 
 export default SettingsView;

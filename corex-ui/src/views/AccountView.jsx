@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import client, { getSessionToken } from '../api/client';
+import { useUserRole } from '../hooks/useUserRole';
 import {
   Settings,
   RotateCcw,
@@ -8,14 +9,17 @@ import {
   PieChart,
   ShieldCheck,
   Save,
-  X,
   Wallet,
   Shield,
   SlidersHorizontal,
   KeyRound,
-  RefreshCw
+  RefreshCw,
+  Users,
+  UserPlus,
+  Loader2
 } from 'lucide-react';
 import { useStore } from '../store/useStore';
+import corexSwal from '../utils/swal';
 
 const SETTINGS_SECTIONS = [
   {
@@ -80,6 +84,11 @@ const toNumberIfFinite = (value) => {
 };
 
 const toBoolean = (value) => value === true || value === 'true';
+const toNumberOrZero = (value) => {
+  if (value === '' || value == null) return 0;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : 0;
+};
 
 const normalizeConfig = (cfg = {}) => {
   const out = { ...(cfg || {}) };
@@ -94,29 +103,46 @@ const normalizeConfig = (cfg = {}) => {
 };
 
 const AccountView = () => {
+  // User role
+  const { isAdmin, loading: roleLoading } = useUserRole();
+
   const [account, setAccount] = useState(null);
   const [settingsPayload, setSettingsPayload] = useState(null);
   const [mode, setMode] = useState('paper');
   const [modes, setModes] = useState(['paper']);
-  const [showSettings, setShowSettings] = useState(false);
+  const [accountTab, setAccountTab] = useState('overview');
   const [activeSettingsSection, setActiveSettingsSection] = useState('funds');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [savingConfig, setSavingConfig] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [creatingUser, setCreatingUser] = useState(false);
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user',
+    status: 'active'
+  });
   const [authExpired, setAuthExpired] = useState(false);
-  const {
-    realtimeMode,
-    mt5Account,
-    mt5Positions,
-    wsStatus,
-    accountSnapshots,
-    activeAccountMode,
-    setActiveAccountMode
-  } = useStore();
+  const realtimeMode = useStore((s) => s.realtimeMode);
+  const mt5Account = useStore((s) => s.mt5Account);
+  const mt5Positions = useStore((s) => s.mt5Positions);
+  const wsStatus = useStore((s) => s.wsStatus);
+  const accountSnapshots = useStore((s) => s.accountSnapshots);
+  const activeAccountMode = useStore((s) => s.activeAccountMode);
+  const setActiveAccountMode = useStore((s) => s.setActiveAccountMode);
 
   const [config, setConfig] = useState({});
   const [cash, setCash] = useState('');
   const [initialCash, setInitialCash] = useState('');
+  const [configDirty, setConfigDirty] = useState(false);
+  const configDirtyRef = useRef(false);
+
+  useEffect(() => {
+    configDirtyRef.current = !!configDirty;
+  }, [configDirty]);
 
   useEffect(() => {
     setMode(String(activeAccountMode || 'paper').toLowerCase() === 'live' ? 'live' : 'paper');
@@ -141,14 +167,17 @@ const AccountView = () => {
     setAccount(payload);
   }, []);
 
-  const syncFromSettingsPayload = useCallback((payload) => {
+  const syncFromSettingsPayload = useCallback((payload, options = {}) => {
+    const force = Boolean(options?.force);
     setSettingsPayload(payload || null);
+    if (configDirtyRef.current && !force) return;
     setCash(payload?.cash ?? '');
     setInitialCash(payload?.initialCash ?? '');
     setConfig(normalizeConfig(payload?.config || {}));
   }, []);
 
-  const fetchAccount = useCallback(async () => {
+  const fetchAccount = useCallback(async (options = {}) => {
+    const forceSettings = Boolean(options?.forceSettings);
     if (authExpired || !getSessionToken()) {
       setLoading(false);
       return;
@@ -160,7 +189,7 @@ const AccountView = () => {
         client.get(`/system/account/${mode}/settings`)
       ]);
       if (balanceRes?.payload) syncFromBalancePayload(balanceRes.payload);
-      if (settingsRes?.payload) syncFromSettingsPayload(settingsRes.payload);
+      if (settingsRes?.payload) syncFromSettingsPayload(settingsRes.payload, { force: forceSettings });
     } catch (err) {
       if (err?.status === 401) {
         setAuthExpired(true);
@@ -205,8 +234,10 @@ const AccountView = () => {
     }
 
     if (!authExpired) {
+      const shouldPoll = !(realtimeMode === 'ws' && wsStatus === 'CONNECTED');
       fetchAccount();
-      const interval = setInterval(fetchAccount, 5000);
+      if (!shouldPoll) return undefined;
+      const interval = setInterval(fetchAccount, 10000);
       return () => clearInterval(interval);
     }
     return undefined;
@@ -214,8 +245,52 @@ const AccountView = () => {
 
   const handleModeChange = (nextMode) => {
     const normalized = String(nextMode || 'paper').toLowerCase() === 'live' ? 'live' : 'paper';
+    setConfigDirty(false);
     setMode(normalized);
     setActiveAccountMode(normalized);
+  };
+
+  const fetchUsers = useCallback(async () => {
+    setUsersLoading(true);
+    try {
+      const res = await client.get('/system/db/users');
+      setUsers(Array.isArray(res?.payload) ? res.payload : []);
+    } catch (err) {
+      if (err?.status === 403) {
+        setError('Admin role required to manage users.');
+      } else {
+        setError('Failed to load users.');
+      }
+    } finally {
+      setUsersLoading(false);
+    }
+  }, []);
+
+  const handleCreateUser = async () => {
+    const name = String(newUser.name || '').trim();
+    const email = String(newUser.email || '').trim().toLowerCase();
+    const password = String(newUser.password || '');
+    if (!name || !email || !password) {
+      setError('Name, email and password are required.');
+      return;
+    }
+    setCreatingUser(true);
+    setError(null);
+    try {
+      await client.post('/system/db/users', {
+        name,
+        email,
+        password,
+        role: String(newUser.role || 'user').toLowerCase(),
+        status: String(newUser.status || 'active').toLowerCase()
+      });
+      setNewUser((prev) => ({ ...prev, password: '' }));
+      await fetchUsers();
+    } catch (err) {
+      setError(err?.message || 'Failed to create user.');
+    } finally {
+      setCreatingUser(false);
+    }
   };
 
   const handleUpdateConfig = async () => {
@@ -230,18 +305,17 @@ const AccountView = () => {
           payloadConfig[key] = toBoolean(value);
           return;
         }
-        const n = toNumberIfFinite(value);
-        if (n != null) payloadConfig[key] = n;
+        payloadConfig[key] = toNumberOrZero(value);
       });
 
       await client.patch(`/system/account/${mode}/settings`, {
-        cash: toNumberIfFinite(cash),
-        initialCash: toNumberIfFinite(initialCash),
+        cash: toNumberOrZero(cash),
+        initialCash: toNumberOrZero(initialCash),
         config: payloadConfig
       });
 
-      setShowSettings(false);
-      fetchAccount();
+      setConfigDirty(false);
+      fetchAccount({ forceSettings: true });
     } catch {
       setError('Failed to update account settings');
     } finally {
@@ -250,11 +324,24 @@ const AccountView = () => {
   };
 
   const handleReset = async () => {
-    if (!window.confirm('Reset account? All positions will be liquidated.')) return;
+    const liveMode = mode === 'live';
+    const result = await corexSwal({
+      title: liveMode ? 'Reset Live Account?' : 'Reset Account?',
+      text: liveMode
+        ? 'LIVE MODE: this will reset the account and liquidate open positions.'
+        : 'This will reset the account and liquidate open positions.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: liveMode ? 'Yes, Reset Live' : 'Yes, Reset',
+      cancelButtonText: 'Cancel'
+    });
+    if (!result.isConfirmed) return;
+
     try {
       await client.post(`/system/account/${mode}/reset`, {
         initialCash: toNumberIfFinite(initialCash)
       });
+      setConfigDirty(false);
       fetchAccount();
     } catch {
       setError('Failed to reset broker account');
@@ -282,7 +369,7 @@ const AccountView = () => {
             <p className="ui-subtitle mono">{mode.toUpperCase()} account runtime and controls</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap justify-end">
-            <div className="ui-tabs">
+	            <div className="ui-tabs">
               {modes.map((m) => (
                 <button
                   key={m}
@@ -298,11 +385,33 @@ const AccountView = () => {
             <button onClick={handleReset} className="ui-button ui-button-secondary" title="Reset account">
               <RotateCcw size={14} /> Reset
             </button>
-            <button onClick={() => setShowSettings(true)} className="ui-button ui-button-primary">
-              <Settings size={14} /> Account Settings
-            </button>
-          </div>
-        </div>
+            <div className="ui-tabs">
+              <button
+                onClick={() => setAccountTab('overview')}
+                className={`ui-tab ${accountTab === 'overview' ? 'ui-tab-active' : ''}`}
+              >
+                Overview
+              </button>
+	              <button
+	                onClick={() => setAccountTab('settings')}
+	                className={`ui-tab ${accountTab === 'settings' ? 'ui-tab-active' : ''}`}
+	              >
+	                <Settings size={12} /> Settings
+	              </button>
+                {isAdmin && (
+                  <button
+                    onClick={() => {
+                      setAccountTab('users');
+                      if (!usersLoading && users.length === 0) fetchUsers();
+                    }}
+                    className={`ui-tab ${accountTab === 'users' ? 'ui-tab-active' : ''}`}
+                  >
+                    <Users size={12} /> Users
+                  </button>
+                )}
+	            </div>
+	          </div>
+	        </div>
 
         {error && (
           <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 px-3 py-2 text-[11px] text-rose-300 mono">
@@ -310,104 +419,103 @@ const AccountView = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-          <MetricCard label="Net Balance" value={account?.balance ?? account?.cash} icon={<DollarSign size={14} />} color="text-[var(--ui-text)]" />
-          <MetricCard label="Total Equity" value={account?.equity} icon={<Activity size={14} />} color="text-blue-400" />
-          <MetricCard label="Used Margin" value={account?.usedMargin ?? account?.margin} icon={<PieChart size={14} />} color="text-amber-400" subtitle="Locked" />
-          <MetricCard label="Free Margin" value={account?.freeMargin} icon={<ShieldCheck size={14} />} color="text-emerald-400" subtitle="Available" />
-        </div>
+        {accountTab === 'overview' && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+              <MetricCard label="Net Balance" value={account?.balance ?? account?.cash} icon={<DollarSign size={14} />} color="text-[var(--ui-text)]" />
+              <MetricCard label="Total Equity" value={account?.equity} icon={<Activity size={14} />} color="text-blue-400" />
+              <MetricCard label="Used Margin" value={account?.usedMargin ?? account?.margin} icon={<PieChart size={14} />} color="text-amber-400" subtitle="Locked" />
+              <MetricCard label="Free Margin" value={account?.freeMargin} icon={<ShieldCheck size={14} />} color="text-emerald-400" subtitle="Available" />
+            </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-          <div className="ui-card">
-            <p className="ui-label">Mode</p>
-            <p className="mono text-sm text-[var(--ui-text)] mt-1">{String(settingsPayload?.mode || mode).toUpperCase()}</p>
-          </div>
-          <div className="ui-card">
-            <p className="ui-label">Cash</p>
-            <p className="mono text-sm text-[var(--ui-text)] mt-1">${Number(settingsPayload?.cash ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-          </div>
-          <div className="ui-card">
-            <p className="ui-label">Initial Cash</p>
-            <p className="mono text-sm text-[var(--ui-text)] mt-1">${Number(settingsPayload?.initialCash ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
-          </div>
-        </div>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              <div className="ui-card">
+                <p className="ui-label">Mode</p>
+                <p className="mono text-sm text-[var(--ui-text)] mt-1">{String(settingsPayload?.mode || mode).toUpperCase()}</p>
+              </div>
+              <div className="ui-card">
+                <p className="ui-label">Cash</p>
+                <p className="mono text-sm text-[var(--ui-text)] mt-1">${Number(settingsPayload?.cash ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+              </div>
+              <div className="ui-card">
+                <p className="ui-label">Initial Cash</p>
+                <p className="mono text-sm text-[var(--ui-text)] mt-1">${Number(settingsPayload?.initialCash ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</p>
+              </div>
+            </div>
 
-        <div className="ui-panel-soft overflow-hidden">
-          <div className="px-4 py-3 border-b border-[var(--ui-border)] flex justify-between items-center">
-            <h3 className="ui-panel-title">Position Ledger</h3>
-            <span className="ui-chip">{mode} active</span>
-          </div>
-          <div className="max-h-[520px] overflow-auto">
-            <table className="ui-table">
-              <thead className="sticky top-0">
-                <tr>
-                  <th>Asset</th>
-                  <th>Side</th>
-                  <th>Size</th>
-                  <th className="text-right">Entry</th>
-                  <th className="text-right">Unrealized P&L</th>
-                </tr>
-              </thead>
-              <tbody>
-                {positions.length > 0 ? positions.map((pos, i) => (
-                  <tr key={i}>
-                    <td className="mono font-bold">{pos.symbol}</td>
-                    <td className={`text-[10px] font-bold uppercase ${String(pos.side || '').toLowerCase() === 'long' ? 'text-emerald-400' : 'text-rose-400'}`}>{pos.side || '--'}</td>
-                    <td className="mono">{pos.quantity ?? pos.volume ?? '--'}</td>
-                    <td className="mono text-right">${(pos.avgEntryPrice ?? pos.price ?? 0)?.toFixed?.(2) ?? '--'}</td>
-                    <td className={`mono text-right font-bold ${(Number(pos.unrealizedPnL ?? pos.unrealized) || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {typeof (pos.unrealizedPnL ?? pos.unrealized) === 'number'
-                        ? (Number(pos.unrealizedPnL ?? pos.unrealized) >= 0
-                          ? `+${Number(pos.unrealizedPnL ?? pos.unrealized).toFixed(2)}`
-                          : Number(pos.unrealizedPnL ?? pos.unrealized).toFixed(2))
-                        : '--'}
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan="5" className="px-4 py-12 text-center text-[11px] text-[var(--ui-muted)] uppercase font-bold tracking-widest italic">
-                      No active exposure in {mode}
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
+            <div className="ui-panel-soft overflow-hidden">
+              <div className="px-4 py-3 border-b border-[var(--ui-border)] flex justify-between items-center">
+                <h3 className="ui-panel-title">Position Ledger</h3>
+                <span className="ui-chip">{mode} active</span>
+              </div>
+              <div className="max-h-[520px] overflow-auto">
+                <table className="ui-table">
+                  <thead className="sticky top-0">
+                    <tr>
+                      <th>Asset</th>
+                      <th>Side</th>
+                      <th>Size</th>
+                      <th className="text-right">Entry</th>
+                      <th className="text-right">Unrealized P&L</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {positions.length > 0 ? positions.map((pos, i) => (
+                      <tr key={i}>
+                        <td className="mono font-bold">{pos.symbol}</td>
+                        <td className={`text-[10px] font-bold uppercase ${String(pos.side || '').toLowerCase() === 'long' ? 'text-emerald-400' : 'text-rose-400'}`}>{pos.side || '--'}</td>
+                        <td className="mono">{pos.quantity ?? pos.volume ?? '--'}</td>
+                        <td className="mono text-right">${(pos.avgEntryPrice ?? pos.price ?? 0)?.toFixed?.(2) ?? '--'}</td>
+                        <td className={`mono text-right font-bold ${(Number(pos.unrealizedPnL ?? pos.unrealized) || 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                          {typeof (pos.unrealizedPnL ?? pos.unrealized) === 'number'
+                            ? (Number(pos.unrealizedPnL ?? pos.unrealized) >= 0
+                              ? `+${Number(pos.unrealizedPnL ?? pos.unrealized).toFixed(2)}`
+                              : Number(pos.unrealizedPnL ?? pos.unrealized).toFixed(2))
+                            : '--'}
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan="5" className="px-4 py-12 text-center text-[11px] text-[var(--ui-muted)] uppercase font-bold tracking-widest italic">
+                          No active exposure in {mode}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
 
-      {showSettings && (
-        <div className="ui-modal p-4">
-          <div className="ui-modal-card w-full max-w-5xl">
-            <div className="ui-modal-header">
+	        {accountTab === 'settings' && (
+          <div className="ui-panel w-full">
+            <div className="ui-panel-header">
               <div>
                 <p className="ui-panel-title">Account Management Settings</p>
                 <h3 className="text-sm font-semibold text-[var(--ui-text)] mono">{mode.toUpperCase()} environment</h3>
               </div>
-              <button onClick={() => setShowSettings(false)} className="ui-button ui-button-secondary p-2">
-                <X size={16} />
-              </button>
             </div>
 
-            <div className="ui-modal-body max-h-[70vh] overflow-y-auto">
-              <div className="grid grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)] gap-4">
-                <aside className="ui-card p-2 h-fit">
-                  {SETTINGS_SECTIONS.map((section) => (
-                    <button
-                      key={section.id}
-                      onClick={() => setActiveSettingsSection(section.id)}
-                      className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors ${
-                        activeSettingsSection === section.id
-                          ? 'bg-blue-500/15 text-blue-200 border border-blue-500/30'
-                          : 'text-[var(--ui-muted)] hover:bg-white/5'
-                      }`}
-                    >
-                      <section.icon size={14} /> {section.label}
-                    </button>
-                  ))}
-                </aside>
+            <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)] gap-4 min-h-[520px]">
+              <aside className="ui-card p-2 h-fit">
+                {SETTINGS_SECTIONS.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSettingsSection(section.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left text-xs transition-colors ${
+                      activeSettingsSection === section.id
+                        ? 'bg-blue-500/15 text-blue-200 border border-blue-500/30'
+                        : 'text-[var(--ui-muted)] hover:bg-white/5'
+                    }`}
+                  >
+                    <section.icon size={14} /> {section.label}
+                  </button>
+                ))}
+              </aside>
 
-                <section className="ui-card">
+              <section className="ui-card flex flex-col">
+                <div className="flex-1">
                   {SETTINGS_SECTIONS.filter((s) => s.id === activeSettingsSection).map((section) => (
                     <div key={section.id} className="space-y-4">
                       <h4 className="ui-panel-title">{section.label}</h4>
@@ -417,31 +525,144 @@ const AccountView = () => {
                             key={field.key}
                             field={field}
                             config={config}
-                            setConfig={setConfig}
+                            setConfig={(updater) => {
+                              setConfigDirty(true);
+                              setConfig(updater);
+                            }}
                             cash={cash}
-                            setCash={setCash}
+                            setCash={(next) => {
+                              setConfigDirty(true);
+                              setCash(next);
+                            }}
                             initialCash={initialCash}
-                            setInitialCash={setInitialCash}
+                            setInitialCash={(next) => {
+                              setConfigDirty(true);
+                              setInitialCash(next);
+                            }}
                           />
                         ))}
                       </div>
                     </div>
                   ))}
-                </section>
-              </div>
-            </div>
-
-            <div className="ui-modal-footer">
-              <button onClick={() => setShowSettings(false)} className="ui-button ui-button-secondary">Cancel</button>
-              <button onClick={handleUpdateConfig} disabled={savingConfig} className="ui-button ui-button-primary disabled:opacity-50">
-                <Save size={14} /> {savingConfig ? 'Saving...' : 'Save Account Settings'}
-              </button>
+                </div>
+                <div className="pt-4 mt-4 border-t border-[var(--ui-border)] flex justify-end gap-2">
+                  <button onClick={handleUpdateConfig} disabled={savingConfig} className="ui-button ui-button-primary disabled:opacity-50">
+                    <Save size={14} /> {savingConfig ? 'Saving...' : 'Save Account Settings'}
+                  </button>
+                </div>
+              </section>
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  );
+	        )}
+
+        {accountTab === 'users' && isAdmin && (
+          <div className="ui-panel w-full">
+            <div className="ui-panel-header flex items-center justify-between">
+              <div>
+                <p className="ui-panel-title">User Management</p>
+                <h3 className="text-sm font-semibold text-[var(--ui-text)] mono">Create and monitor CoreX users</h3>
+              </div>
+              <button
+                onClick={fetchUsers}
+                className="ui-button ui-button-secondary"
+                disabled={usersLoading}
+              >
+                {usersLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                Refresh
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-[340px_minmax(0,1fr)] gap-4">
+              <section className="ui-card space-y-3">
+                <h4 className="ui-panel-title">Create User</h4>
+                <div className="ui-field">
+                  <label className="ui-label">Name</label>
+                  <input className="ui-input mono" value={newUser.name} onChange={(e) => setNewUser((p) => ({ ...p, name: e.target.value }))} />
+                </div>
+                <div className="ui-field">
+                  <label className="ui-label">Email</label>
+                  <input className="ui-input mono" value={newUser.email} onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))} />
+                </div>
+                <div className="ui-field">
+                  <label className="ui-label">Password</label>
+                  <input type="password" className="ui-input mono" value={newUser.password} onChange={(e) => setNewUser((p) => ({ ...p, password: e.target.value }))} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="ui-field">
+                    <label className="ui-label">Role</label>
+                    <select className="ui-select" value={newUser.role} onChange={(e) => setNewUser((p) => ({ ...p, role: e.target.value }))}>
+                      <option value="user">USER</option>
+                      <option value="admin">ADMIN</option>
+                    </select>
+                  </div>
+                  <div className="ui-field">
+                    <label className="ui-label">Status</label>
+                    <select className="ui-select" value={newUser.status} onChange={(e) => setNewUser((p) => ({ ...p, status: e.target.value }))}>
+                      <option value="active">ACTIVE</option>
+                      <option value="disabled">DISABLED</option>
+                    </select>
+                  </div>
+                </div>
+                <button onClick={handleCreateUser} disabled={creatingUser} className="ui-button ui-button-primary w-full">
+                  {creatingUser ? <Loader2 size={14} className="animate-spin" /> : <UserPlus size={14} />}
+                  {creatingUser ? 'Creating...' : 'Create User'}
+                </button>
+              </section>
+
+              <section className="ui-panel-soft overflow-hidden">
+                <div className="px-4 py-3 border-b border-[var(--ui-border)] flex justify-between items-center">
+                  <h3 className="ui-panel-title">Registered Users</h3>
+                  <span className="ui-chip">{users.length} total</span>
+                </div>
+                <div className="max-h-[560px] overflow-auto">
+                  <table className="ui-table">
+                    <thead className="sticky top-0">
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {!usersLoading && users.length === 0 && (
+                        <tr>
+                          <td colSpan="5" className="px-4 py-12 text-center text-[11px] text-[var(--ui-muted)] uppercase font-bold tracking-widest italic">
+                            No users found
+                          </td>
+                        </tr>
+                      )}
+                      {usersLoading && (
+                        <tr>
+                          <td colSpan="5" className="px-4 py-12 text-center text-[11px] text-[var(--ui-muted)] uppercase font-bold tracking-widest">
+                            Loading users...
+                          </td>
+                        </tr>
+                      )}
+                      {!usersLoading && users.map((u) => (
+                        <tr key={u.id}>
+                          <td className="mono font-bold">{u.name || '--'}</td>
+                          <td className="mono">{u.email || '--'}</td>
+                          <td className="mono uppercase">{u.role || '--'}</td>
+                          <td className={`mono uppercase ${String(u.status).toLowerCase() === 'active' ? 'text-emerald-400' : 'text-amber-300'}`}>
+                            {u.status || '--'}
+                          </td>
+                          <td className="mono">
+                            {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : '--'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
+          </div>
+        )}
+	      </div>
+	    </div>
+	  );
 };
 
 const MetricCard = ({ label, value, color, icon, subtitle }) => (

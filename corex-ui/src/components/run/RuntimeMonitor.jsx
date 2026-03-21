@@ -1,15 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createChart, CandlestickSeries, LineSeries } from "lightweight-charts";
+import { createChart, CandlestickSeries, LineSeries, createSeriesMarkers } from "lightweight-charts";
 import client from "../../api/client";
 import useStore from "../../store/useStore";
 import { Maximize2, RotateCcw, Settings2, WifiOff, X } from "lucide-react";
 
 const RuntimeMonitor = () => {
-  const { strategiesLive, wsStatus, connectWebSocket, realtimeMode } = useStore();
+  const { strategiesLive, wsStatus, connectWebSocket, realtimeMode, uiTheme, activeAccountMode, liveCandles } = useStore();
   const [strategyId, setStrategyId] = useState("");
   const [symbol, setSymbol] = useState("");
   const [telemetry, setTelemetry] = useState(null);
-  const [viewMode] = useState("live");
+  const [historyReport, setHistoryReport] = useState(null);
   const [error, setError] = useState("");
   const [chartWindowBars, setChartWindowBars] = useState(320);
   const [chartOffset, setChartOffset] = useState(0);
@@ -20,6 +20,7 @@ const RuntimeMonitor = () => {
   const chartApiRef = useRef(null);
   const candleSeriesRef = useRef(null);
   const closeSeriesRef = useRef(null);
+  const markerApiRef = useRef(null);
 
   const strategyOptions = useMemo(() => {
     return (Array.isArray(strategiesLive) ? strategiesLive : []).filter((s) => s?.id && s?.status === "ACTIVE");
@@ -29,6 +30,27 @@ const RuntimeMonitor = () => {
     () => strategyOptions.find((s) => s.id === strategyId) || null,
     [strategyOptions, strategyId]
   );
+
+  const symbolOptions = useMemo(() => {
+    const out = [];
+    const seen = new Set();
+    const push = (value) => {
+      const v = String(value || "").trim();
+      if (!v || seen.has(v)) return;
+      seen.add(v);
+      out.push(v);
+    };
+    (telemetry?.dataSymbols || []).forEach(push);
+    (telemetry?.symbols || []).forEach(push);
+    (selectedStrategy?.symbols || []).forEach(push);
+    Object.keys(liveCandles || {}).forEach(push);
+    return out;
+  }, [telemetry, selectedStrategy, liveCandles]);
+
+  const effectiveSymbol = useMemo(() => {
+    if (symbol && symbolOptions.includes(symbol)) return symbol;
+    return symbolOptions[0] || "";
+  }, [symbol, symbolOptions]);
 
   useEffect(() => {
     if (!strategyId && strategyOptions.length > 0) {
@@ -53,17 +75,37 @@ const RuntimeMonitor = () => {
       setTelemetry(payload);
       if (!symbol && payload?.symbol) setSymbol(payload.symbol);
       setError("");
-    } catch (e) {
+    } catch {
       setError("Unable to load strategy telemetry");
+    }
+  };
+
+  const fetchHistory = async (sid, sym) => {
+    if (!sid) return;
+    try {
+      const params = new URLSearchParams();
+      params.set("environment", String(activeAccountMode || "paper").toUpperCase());
+      params.set("strategyId", sid);
+      if (sym) params.set("symbol", sym);
+      params.set("limit", "1000");
+      const res = await client.get(`/run/history?${params.toString()}`);
+      const payload = res?.payload || null;
+      setHistoryReport(payload);
+    } catch {
+      setHistoryReport(null);
     }
   };
 
   useEffect(() => {
     const bars = Math.max(300, Number(selectedStrategy?.lookback || 600));
-    fetchTelemetry(strategyId, symbol, bars);
-    const t = setInterval(() => fetchTelemetry(strategyId, symbol, bars), Math.max(2, Number(refreshSeconds || 4)) * 1000);
+    fetchTelemetry(strategyId, effectiveSymbol, bars);
+    fetchHistory(strategyId, effectiveSymbol);
+    const t = setInterval(() => {
+      fetchTelemetry(strategyId, effectiveSymbol, bars);
+      fetchHistory(strategyId, effectiveSymbol);
+    }, Math.max(2, Number(refreshSeconds || 4)) * 1000);
     return () => clearInterval(t);
-  }, [strategyId, symbol, selectedStrategy, refreshSeconds]);
+  }, [strategyId, effectiveSymbol, selectedStrategy, refreshSeconds, activeAccountMode]);
 
   useEffect(() => {
     if (!chartRef.current) return;
@@ -104,9 +146,11 @@ const RuntimeMonitor = () => {
       lineWidth: 1,
       priceLineVisible: false
     });
+    const markers = createSeriesMarkers(candles, []);
     chartApiRef.current = chart;
     candleSeriesRef.current = candles;
     closeSeriesRef.current = closeLine;
+    markerApiRef.current = markers;
     chart.subscribeCrosshairMove((param) => {
       if (!param || !param.time || !param.point || param.point.x < 0 || param.point.y < 0) {
         setHoverPoint(null);
@@ -133,16 +177,93 @@ const RuntimeMonitor = () => {
     ro.observe(chartRef.current);
     return () => {
       ro.disconnect();
+      try {
+        markerApiRef.current?.detach?.();
+      } catch {
+        // ignore marker detach errors
+      }
       chart.remove();
       chartApiRef.current = null;
       candleSeriesRef.current = null;
       closeSeriesRef.current = null;
+      markerApiRef.current = null;
     };
-  }, []);
+  }, [uiTheme]);
+
+  const tradeMarkers = useMemo(() => {
+    const trades = Array.isArray(historyReport?.trades) ? historyReport.trades : [];
+    if (trades.length === 0) return [];
+    const markers = [];
+    for (let i = 0; i < trades.length; i += 1) {
+      const t = trades[i] || {};
+      const entryTs = Number(t.entryTime || 0);
+      const exitTs = Number(t.exitTime || 0);
+      const direction = String(t.direction || "").toLowerCase();
+      const pnl = Number(t.profit || 0);
+      const entrySec = Number.isFinite(entryTs) && entryTs > 0 ? Math.floor(entryTs / 1000) : null;
+      const exitSec = Number.isFinite(exitTs) && exitTs > 0 ? Math.floor(exitTs / 1000) : null;
+
+      if (entrySec) {
+        markers.push({
+          id: `entry_${i}`,
+          time: entrySec,
+          position: direction === "short" ? "aboveBar" : "belowBar",
+          color: direction === "short" ? "#f59e0b" : "#10b981",
+          shape: direction === "short" ? "arrowDown" : "arrowUp",
+          text: `E ${Number(t.quantity || 0).toFixed(2)}`
+        });
+      }
+      if (exitSec) {
+        markers.push({
+          id: `exit_${i}`,
+          time: exitSec,
+          position: direction === "short" ? "belowBar" : "aboveBar",
+          color: pnl >= 0 ? "#22c55e" : "#ef4444",
+          shape: pnl >= 0 ? "circle" : "square",
+          text: `X ${pnl >= 0 ? "+" : ""}${pnl.toFixed(2)}`
+        });
+      }
+    }
+
+    return markers.sort((a, b) => Number(a.time || 0) - Number(b.time || 0));
+  }, [historyReport]);
+
+  const perfSummary = useMemo(() => {
+    const perf = historyReport?.performance || {};
+    return {
+      netProfit: Number(perf.netProfit || 0),
+      winRate: Number(perf.winRate || 0),
+      totalTrades: Number(perf.totalTrades || 0),
+      maxDrawdown: Number(perf.maxDrawdownPercent || 0),
+      profitFactor: Number(perf.profitFactor || 0)
+    };
+  }, [historyReport]);
+
+  const wsCandles = useMemo(() => {
+    if (!effectiveSymbol) return [];
+    const series = Array.isArray(liveCandles?.[effectiveSymbol]) ? liveCandles[effectiveSymbol] : [];
+    const normalized = series
+      .map((c) => ({
+        time: Math.floor(Number(c?.time || 0) / 1000),
+        open: Number(c?.open),
+        high: Number(c?.high),
+        low: Number(c?.low),
+        close: Number(c?.close)
+      }))
+      .filter((c) => Number.isFinite(c.time) && [c.open, c.high, c.low, c.close].every(Number.isFinite))
+      .sort((a, b) => a.time - b.time);
+    const out = [];
+    for (const c of normalized) {
+      if (!out.length || out[out.length - 1].time !== c.time) out.push(c);
+      else out[out.length - 1] = c;
+    }
+    return out.slice(-1200);
+  }, [liveCandles, effectiveSymbol]);
 
   const mergedCandles = useMemo(() => {
-    const base = Array.isArray(telemetry?.candles) ? telemetry.candles : [];
-    const merged = [...base]
+    const telemetryBase = Array.isArray(telemetry?.candles) ? telemetry.candles : [];
+    const source = telemetryBase.length > 0 ? telemetryBase : wsCandles;
+    const merged = [...source]
       .filter((c) => c && Number.isFinite(Number(c.time)))
       .map((c) => ({
         time: Math.floor(Number(c.time) / 1000),
@@ -159,7 +280,7 @@ const RuntimeMonitor = () => {
       else out[out.length - 1] = c;
     }
     return out.slice(-1200);
-  }, [telemetry]);
+  }, [telemetry, wsCandles]);
 
   useEffect(() => {
     if (!candleSeriesRef.current || !closeSeriesRef.current) return;
@@ -175,34 +296,48 @@ const RuntimeMonitor = () => {
   }, [mergedCandles, chartWindowBars, chartOffset]);
 
   useEffect(() => {
-    chartApiRef.current?.timeScale()?.fitContent?.();
-  }, [strategyId, symbol]);
+    if (!markerApiRef.current) return;
+    markerApiRef.current.setMarkers(tradeMarkers);
+  }, [tradeMarkers]);
 
   useEffect(() => {
-    const options = telemetry?.dataSymbols?.length ? telemetry.dataSymbols : (telemetry?.symbols || []);
-    if (!symbol && options.length > 0) setSymbol(options[0]);
-    if (symbol && options.length > 0 && !options.includes(symbol)) setSymbol(options[0]);
-  }, [telemetry, symbol]);
+    chartApiRef.current?.timeScale()?.fitContent?.();
+  }, [strategyId, effectiveSymbol]);
 
   const availableBars = mergedCandles.length;
   const maxWindow = Math.max(120, availableBars || 120);
   const maxOffset = Math.max(0, availableBars - chartWindowBars);
 
+  if (strategyOptions.length === 0) {
+    return (
+      <div className="h-full overflow-hidden bg-transparent">
+        <div className="h-full border border-[var(--ui-border)] rounded-xl bg-[var(--ui-panel)] p-6 flex items-center justify-center">
+          <div className="max-w-xl text-center space-y-2">
+            <div className="text-[11px] text-[var(--ui-muted)] font-bold uppercase tracking-[0.18em]">
+              Runtime Monitor
+            </div>
+            <div className="text-sm text-[var(--ui-text)] font-semibold">
+              No active strategy to track right now.
+            </div>
+            <div className="text-xs text-[var(--ui-muted)]">
+              Start at least one strategy from the Simulation tab to begin live market tracking.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-hidden bg-transparent">
-      <div className="h-full border border-[var(--ui-border)] rounded-xl bg-[rgba(15,23,42,0.24)] p-3 md:p-4 space-y-3 overflow-hidden relative">
-        {strategyOptions.length === 0 && (
-          <div className="text-xs text-[var(--ui-muted)] border border-[var(--ui-border)] rounded p-3 bg-[var(--ui-panel)]">
-            No instance running. Start a strategy in Simulation to stream runtime candles here.
-          </div>
-        )}
+      <div className="h-full border border-[var(--ui-border)] rounded-xl bg-[var(--ui-panel-soft)] p-3 md:p-4 space-y-3 overflow-hidden relative">
         <div className="flex items-center justify-between gap-3 border border-[var(--ui-border)] rounded-lg p-2 bg-[var(--ui-panel)]">
           <div>
             <div className="text-[10px] text-[var(--ui-muted)] font-bold uppercase tracking-widest">
               Strategy Runtime Monitor
             </div>
             <div className="text-[10px] text-[var(--ui-subtle)] font-mono">
-              {strategyId || "--"} | {symbol || "--"}
+              {strategyId || "--"} | {effectiveSymbol || "--"}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -220,10 +355,10 @@ const RuntimeMonitor = () => {
             </select>
             <select
               className="px-2 py-1 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] text-[var(--ui-text)] text-xs"
-              value={symbol}
+              value={effectiveSymbol}
               onChange={(e) => setSymbol(e.target.value)}
             >
-              {(telemetry?.dataSymbols?.length ? telemetry.dataSymbols : (telemetry?.symbols || [])).map((s) => (
+              {symbolOptions.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
@@ -245,6 +380,11 @@ const RuntimeMonitor = () => {
             No market feed yet for this strategy/symbol. Waiting for candles...
           </div>
         )}
+        {!error && strategyOptions.length > 0 && Number(perfSummary.totalTrades || 0) === 0 && (
+          <div className="text-xs text-[var(--ui-muted)] border border-[var(--ui-border)] rounded p-3 bg-[var(--ui-panel)]">
+            No trade history for this strategy in {String(activeAccountMode || "paper").toUpperCase()} mode.
+          </div>
+        )}
         <div className="relative h-[calc(100%-118px)] min-h-[460px] rounded border border-[var(--ui-border)] overflow-hidden" ref={chartRef}>
           {hoverPoint && (
             <div className="absolute left-3 top-3 z-10 rounded border border-[var(--ui-border)] bg-[var(--ui-panel)] px-3 py-2 text-[10px] font-mono text-[var(--ui-text)] shadow-lg">
@@ -258,8 +398,13 @@ const RuntimeMonitor = () => {
             </div>
           )}
         </div>
-        <div className="text-[10px] text-[var(--ui-muted)] font-mono">
-          ws: {wsStatus} | candles: {mergedCandles.length} | tf: {telemetry?.timeframe || "--"}
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+          <MetricPill label="WS" value={wsStatus} />
+          <MetricPill label="Candles" value={mergedCandles.length} />
+          <MetricPill label="Trades" value={perfSummary.totalTrades} />
+          <MetricPill label="Net PnL" value={perfSummary.netProfit.toFixed(2)} tone={perfSummary.netProfit >= 0 ? "ok" : "danger"} />
+          <MetricPill label="Win Rate" value={`${perfSummary.winRate.toFixed(1)}%`} tone={perfSummary.winRate >= 50 ? "ok" : "warn"} />
+          <MetricPill label="Max DD" value={`${perfSummary.maxDrawdown.toFixed(2)}%`} tone={perfSummary.maxDrawdown >= -5 ? "ok" : "danger"} />
         </div>
 
         <aside
@@ -332,8 +477,8 @@ const RuntimeMonitor = () => {
               </label>
               <label className="ui-field mt-2">
                 <span className="ui-label">Symbol</span>
-                <select className="ui-select" value={symbol} onChange={(e) => setSymbol(e.target.value)}>
-                  {(telemetry?.dataSymbols?.length ? telemetry.dataSymbols : (telemetry?.symbols || [])).map((s) => (
+                <select className="ui-select" value={effectiveSymbol} onChange={(e) => setSymbol(e.target.value)}>
+                  {symbolOptions.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
@@ -349,11 +494,29 @@ const RuntimeMonitor = () => {
                 <div>Lookback: <span className="text-[var(--ui-text)] mono">{telemetry?.lookback ?? "--"}</span></div>
                 <div>History points: <span className="text-[var(--ui-text)] mono">{telemetry?.historyPoints ?? "--"}</span></div>
                 <div>Coverage: <span className="text-[var(--ui-text)] mono">{Number(telemetry?.lookbackCoveragePct || 0).toFixed(1)}%</span></div>
+                <div>Candle Source: <span className="text-[var(--ui-text)] mono">{telemetry?.candleSource || (wsCandles.length ? "ws-live" : "--")}</span></div>
+                <div>Env: <span className="text-[var(--ui-text)] mono">{String(activeAccountMode || "paper").toUpperCase()}</span></div>
+                <div>Profit Factor: <span className="text-[var(--ui-text)] mono">{perfSummary.profitFactor.toFixed(2)}</span></div>
               </div>
             </div>
           </div>
         </aside>
       </div>
+    </div>
+  );
+};
+
+const MetricPill = ({ label, value, tone = "neutral" }) => {
+  const tones = {
+    ok: "border-emerald-500/30 text-emerald-200 bg-emerald-500/10",
+    warn: "border-amber-500/30 text-amber-200 bg-amber-500/10",
+    danger: "border-red-500/30 text-red-200 bg-red-500/10",
+    neutral: "border-[var(--ui-border)] text-[var(--ui-text)] bg-[var(--ui-panel)]"
+  };
+  return (
+    <div className={`px-2 py-1.5 rounded border ${tones[tone] || tones.neutral}`}>
+      <div className="text-[9px] uppercase tracking-widest font-black opacity-80">{label}</div>
+      <div className="text-[11px] font-mono">{value}</div>
     </div>
   );
 };

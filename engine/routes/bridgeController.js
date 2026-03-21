@@ -4,6 +4,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("@core/services/postgres");
 const broadcaster = require("@core/services/broadcaster");
+const authGuard = require("@core/middleware/authGuard");
 
 function isAuthorized(req) {
     const expected = String(process.env.COREX_MT5_HTTP_TOKEN || "").trim();
@@ -45,10 +46,10 @@ router.post("/heartbeat", async (req, res) => {
     }
 });
 
-router.post("/authorize", async (req, res) => {
-    const auth = String(req.headers.authorization || "").trim();
-    if (!auth) {
-        return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+router.post("/authorize", authGuard, async (req, res) => {
+    const role = String(req.user?.role || "").toLowerCase();
+    if (role !== "admin") {
+        return res.status(403).json({ success: false, error: "FORBIDDEN_ADMIN_ONLY" });
     }
     const terminalId = String(req.body?.terminal_id || "").trim();
     if (!terminalId) {

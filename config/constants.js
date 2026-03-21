@@ -48,6 +48,8 @@ const EVENTS = {
     STRATEGY_START: 'system:strategy:start',
     STRATEGY_STOP: 'system:strategy:stop',
     STATE_CHANGED: 'system:strategy:state_changed',
+    WORKER_STATE: 'system:worker:state',
+    JOB_PROGRESS: 'system:job:progress',
     ERROR: 'system:error',
     LOG: 'system:log',
     SETTINGS_UPDATED: 'system:settings:updated',
@@ -100,6 +102,8 @@ const WS_EVENT_TYPES = {
   STRATEGY_START: "STRATEGY_START",
   STRATEGY_STOP: "STRATEGY_STOP",
   STRATEGY_STATE: "STRATEGY_STATE",
+  WORKER_STATE: "WORKER_STATE",
+  BACKTEST_PROGRESS: "BACKTEST_PROGRESS",
   SYSTEM_ERROR: "SYSTEM_ERROR",
   SYSTEM_LOG: "SYSTEM_LOG",
   PARAM_UPDATE: "PARAM_UPDATE",
@@ -132,6 +136,8 @@ const BUS_EVENT_TO_WS = [
   { event: EVENTS.SYSTEM.STRATEGY_START, type: WS_EVENT_TYPES.STRATEGY_START, category: "system" },
   { event: EVENTS.SYSTEM.STRATEGY_STOP, type: WS_EVENT_TYPES.STRATEGY_STOP, category: "system" },
   { event: EVENTS.SYSTEM.STATE_CHANGED, type: WS_EVENT_TYPES.STRATEGY_STATE, category: "system" },
+  { event: EVENTS.SYSTEM.WORKER_STATE, type: WS_EVENT_TYPES.WORKER_STATE, category: "system" },
+  { event: EVENTS.SYSTEM.JOB_PROGRESS, type: WS_EVENT_TYPES.BACKTEST_PROGRESS, category: "execution" },
   { event: EVENTS.SYSTEM.ERROR, type: WS_EVENT_TYPES.SYSTEM_ERROR, category: "system" },
   { event: EVENTS.SYSTEM.LOG, type: WS_EVENT_TYPES.SYSTEM_LOG, category: "system" },
   { event: EVENTS.SYSTEM.SETTINGS_UPDATED, type: WS_EVENT_TYPES.PARAM_UPDATE, category: "system" },
@@ -162,7 +168,11 @@ const PAPER_BROKER_DEFAULTS = {
   COMMISSION_PER_SHARE: 0.005,
   COMMISSION_MIN: 1.00,
   SLIPPAGE_BPS: 5,
-  FILL_PROBABILITY: 0.98
+  SPREAD_BPS: 0,
+  FILL_PROBABILITY: 1.0,
+  LATENCY_MS_MIN: 0,
+  LATENCY_MS_MAX: 0,
+  POSITION_BROADCAST_MIN_MS: 250
 };
 
 const RISK_DEFAULTS = {

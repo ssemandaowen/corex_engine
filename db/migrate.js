@@ -17,6 +17,7 @@ const LEGACY_SETTINGS_DIR = path.join(ROOT, "data", "settings");
 const LEGACY_SYSTEM_SETTINGS = path.join(LEGACY_SETTINGS_DIR, "system_settings.json");
 const LEGACY_PAPER_SETTINGS = path.join(LEGACY_SETTINGS_DIR, "paper_settings.json");
 const LEGACY_LIVE_SETTINGS = path.join(LEGACY_SETTINGS_DIR, "live_settings.json");
+const LEGACY_UPLOADS_INDEX = path.join(ROOT, "data", "uploads", "index.json");
 const newId = () => crypto.randomUUID();
 
 function envTrue(v) {
@@ -185,6 +186,63 @@ async function migrateLegacySettings() {
     await applyBroker("live", LEGACY_LIVE_SETTINGS);
 }
 
+async function migrateLegacyBacktestUploads() {
+    const raw = readJson(LEGACY_UPLOADS_INDEX);
+    const items = Array.isArray(raw) ? raw : [];
+    if (!items.length) return;
+
+    await db.withTransaction(async (tx) => {
+        for (const item of items) {
+            const id = String(item?.id || "").trim();
+            const userId = String(item?.userId || "").trim();
+            const digest = String(item?.digest || "").trim();
+            if (!id || !userId || !digest) continue;
+
+            const symbol = String(item?.symbol || "UNASSIGNED").trim().toUpperCase();
+            const source = String(item?.source || "legacy").trim().toLowerCase() || "legacy";
+            const originalName = String(item?.originalname || item?.originalName || "").trim() || null;
+            const ext = String(item?.ext || "").trim() || null;
+            const dedupPath = item?.dedupPath ? String(item.dedupPath) : null;
+            const symbolPath = item?.symbolPath ? String(item.symbolPath) : null;
+            const sizeBytes = Number(item?.size || 0);
+            const createdAt = Number(item?.createdAt || Date.now());
+
+            await tx.query(
+                `INSERT INTO backtest_uploads
+                    (id, user_id, digest, symbol, source, original_name, ext, dedup_path, symbol_path, size_bytes, created_at, updated_at, last_used_at)
+                 VALUES
+                    ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, to_timestamp($11 / 1000.0), NOW(), NOW())
+                 ON CONFLICT (id) DO UPDATE
+                 SET digest = EXCLUDED.digest,
+                     symbol = EXCLUDED.symbol,
+                     source = EXCLUDED.source,
+                     original_name = EXCLUDED.original_name,
+                     ext = EXCLUDED.ext,
+                     dedup_path = EXCLUDED.dedup_path,
+                     symbol_path = EXCLUDED.symbol_path,
+                     size_bytes = EXCLUDED.size_bytes,
+                     updated_at = NOW(),
+                     last_used_at = NOW()`,
+                [
+                    id,
+                    userId,
+                    digest,
+                    symbol,
+                    source,
+                    originalName,
+                    ext,
+                    dedupPath,
+                    symbolPath,
+                    Number.isFinite(sizeBytes) ? Math.max(0, Math.floor(sizeBytes)) : 0,
+                    Number.isFinite(createdAt) ? createdAt : Date.now()
+                ]
+            );
+        }
+    });
+
+    logger.info(`[DB] Migrated legacy uploads index from ${LEGACY_UPLOADS_INDEX}`);
+}
+
 async function seedDefaultAdminIfEmpty() {
     const { rows } = await db.query("SELECT COUNT(*)::int AS n FROM users");
     if ((rows[0]?.n || 0) > 0) return;
@@ -226,6 +284,7 @@ async function run() {
         await applyMigrations();
         await migrateLegacyUsersAndAccounts();
         await migrateLegacySettings();
+        await migrateLegacyBacktestUploads();
         await seedDefaultAdminIfEmpty();
         return { skipped: false };
     } catch (err) {

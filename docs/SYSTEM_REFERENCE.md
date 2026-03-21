@@ -436,3 +436,10 @@ Current backend tests include:
   - outbound network
   - provider host availability
   - TLS/firewall/proxy environment
+
+### 11.4 `engine.stop() failed: Cannot read properties of undefined (reading 'clear')`
+- **Cause:** A resource with a `clear()` method (likely a tick or strategy queue) is `undefined` when `engine.stop()` is called. This is often due to incorrect shutdown order, where a dependency (like a broker) prematurely cleans up a resource the engine still needs.
+- **Fix:**
+  1. **(Defensive)** Add null-checks in `engine.stop()` before calling `.clear()` on any queue.
+  2. **(Corrective)** Refactor shutdown logic to ensure components only clean up their own resources. The `engine` should manage its queues' lifecycle, and other components should not have the ability to destroy them.
+  3. Check for inconsistent module `require` paths, which can lead to state corruption between components.

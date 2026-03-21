@@ -6,6 +6,10 @@ const { combine, timestamp, printf, colorize, align, label } = winston.format;
 
 const LOG_LABEL = "COREX";
 
+const envFlagOff = (v) => ["0", "false", "no", "off"].includes(String(v || "").trim().toLowerCase());
+const NODE_ENV = String(process.env.NODE_ENV || "").trim().toLowerCase();
+const FILE_LOGS_ENABLED = !envFlagOff(process.env.COREX_FILE_LOGS_ENABLED || "true") && NODE_ENV !== "test";
+
 // Custom log format (console)
 const consoleFormat = printf(({ level, message, timestamp, label }) => {
   return `${timestamp} [${label}] ${level}: ${message}`;
@@ -29,17 +33,20 @@ const logger = winston.createLogger({
         consoleFormat
       )
     }),
-
-    // File transport (clean & audit-safe)
-    new winston.transports.File({
-      filename: "logs/corex.log",
-      format: combine(
-        label({ label: LOG_LABEL }),
-        timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
-        align(),
-        fileFormat
-      )
-    })
+    ...(FILE_LOGS_ENABLED
+      ? [
+        // File transport (clean & audit-safe)
+        new winston.transports.File({
+          filename: "logs/corex.log",
+          format: combine(
+            label({ label: LOG_LABEL }),
+            timestamp({ format: "YYYY-MM-DD HH:mm:ss" }),
+            align(),
+            fileFormat
+          )
+        })
+      ]
+      : [])
   ]
 });
 
@@ -62,6 +69,7 @@ function _toLevelSet(levels) {
 function _emitUiLog(level, moduleName, message, meta, options = {}) {
   try {
     const { bus, EVENTS } = require("@events/bus");
+    const { parseScopedId } = require("@core/services/userScope");
     if (!bus || !EVENTS?.SYSTEM?.LOG) return;
 
     const payload = {
@@ -72,8 +80,19 @@ function _emitUiLog(level, moduleName, message, meta, options = {}) {
       ...(meta && typeof meta === "object" ? { meta } : {})
     };
 
+    const mod = String(moduleName || "");
+    let strategyId = "";
+    if (mod.startsWith("STRATEGY:")) {
+      strategyId = mod.slice("STRATEGY:".length).trim();
+    }
+    const parsed = parseScopedId(strategyId);
+    const userId = parsed.userId || "";
+
     bus.emit(EVENTS.SYSTEM.LOG, payload, {
-      category: options.category || "system"
+      ts: Date.now(),
+      category: options.category || "system",
+      ...(userId ? { userId } : {}),
+      ...(strategyId ? { strategyId } : {})
     });
   } catch (_) {
     // no-op: logger must never fail due to optional UI transport path

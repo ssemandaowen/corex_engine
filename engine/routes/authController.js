@@ -14,6 +14,34 @@ const sanitizeUser = (user) => ({
     lastLoginAt: user.lastLoginAt || user.last_login_at || null
 });
 
+function readBearerToken(req) {
+    const header = String(req.headers.authorization || "").trim();
+    if (!header) return null;
+    const [scheme, token] = header.split(" ");
+    if (scheme !== "Bearer" || !token) return null;
+    return token;
+}
+
+async function requireAuthUser(req, res) {
+    const token = readBearerToken(req);
+    if (!token) {
+        res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        return null;
+    }
+    try {
+        const payload = verifyToken(token);
+        const user = await pgStore.getUserById(payload.sub);
+        if (!user) {
+            res.status(404).json({ success: false, error: "USER_NOT_FOUND" });
+            return null;
+        }
+        return user;
+    } catch (err) {
+        res.status(401).json({ success: false, error: "UNAUTHORIZED", message: err.message });
+        return null;
+    }
+}
+
 router.post("/signin", async (req, res) => {
     try {
         const email = String(req.body?.email || "").trim().toLowerCase();
@@ -39,10 +67,27 @@ router.post("/signin", async (req, res) => {
             email: user.email
         });
 
+        let authKey = null;
+        if (req.body?.issueAuthKey === true) {
+            const ttlDaysRaw = Number(req.body?.authKeyTtlDays ?? 30);
+            const ttlDays = Math.max(1, Math.min(180, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : 30));
+            const expiresAt = new Date(Date.now() + (ttlDays * 24 * 60 * 60 * 1000)).toISOString();
+            const issued = await pgStore.createApiKey(user.id, {
+                label: "web-session",
+                expiresAt
+            });
+            authKey = {
+                key: issued.key,
+                id: issued.id,
+                expiresAt: issued.expiresAt
+            };
+        }
+
         return res.json({
             success: true,
             payload: {
                 token,
+                authKey,
                 user: sanitizeUser(user)
             }
         });
@@ -83,8 +128,7 @@ router.post("/bootstrap", async (req, res) => {
 
 router.get("/me", async (req, res) => {
     try {
-        const header = String(req.headers.authorization || "");
-        const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+        const token = readBearerToken(req);
         if (!token) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
 
         const payload = verifyToken(token);
@@ -93,6 +137,56 @@ router.get("/me", async (req, res) => {
         return res.json({ success: true, payload: sanitizeUser(user) });
     } catch (err) {
         return res.status(401).json({ success: false, error: "UNAUTHORIZED", message: err.message });
+    }
+});
+
+router.get("/apikeys", async (req, res) => {
+    const user = await requireAuthUser(req, res);
+    if (!user) return;
+    try {
+        const keys = await pgStore.listApiKeysForUser(user.id);
+        return res.json({ success: true, payload: keys });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: "API_KEYS_READ_FAILED", message: err.message });
+    }
+});
+
+router.post("/apikeys", async (req, res) => {
+    const user = await requireAuthUser(req, res);
+    if (!user) return;
+    try {
+        const label = String(req.body?.label || "manual").trim() || "manual";
+        const ttlDaysRaw = Number(req.body?.ttlDays ?? 90);
+        const ttlDays = Math.max(1, Math.min(365, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : 90));
+        const expiresAt = req.body?.neverExpires === true
+            ? null
+            : new Date(Date.now() + (ttlDays * 24 * 60 * 60 * 1000)).toISOString();
+        const issued = await pgStore.createApiKey(user.id, { label, expiresAt });
+        return res.json({
+            success: true,
+            payload: {
+                id: issued.id,
+                label: issued.label,
+                status: issued.status,
+                key: issued.key,
+                expiresAt: issued.expiresAt,
+                createdAt: issued.createdAt
+            }
+        });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: "API_KEY_CREATE_FAILED", message: err.message });
+    }
+});
+
+router.delete("/apikeys/:id", async (req, res) => {
+    const user = await requireAuthUser(req, res);
+    if (!user) return;
+    try {
+        const ok = await pgStore.revokeApiKey(user.id, String(req.params.id || ""));
+        if (!ok) return res.status(404).json({ success: false, error: "API_KEY_NOT_FOUND" });
+        return res.json({ success: true });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: "API_KEY_REVOKE_FAILED", message: err.message });
     }
 });
 

@@ -49,17 +49,32 @@ router.get("/next-order", async (req, res) => {
 
     try {
         const result = await db.withTransaction(async (tx) => {
-            const { rows } = await tx.query(
-                `SELECT id, symbol, side, quantity
-                 FROM orders
-                 WHERE status = 'PENDING'
-                   AND environment = 'LIVE'
-                   AND terminal_id = $1
-                 ORDER BY created_at ASC
-                 FOR UPDATE SKIP LOCKED
-                 LIMIT 1`,
-                [terminalId]
-            );
+            let rows;
+            try {
+                ({ rows } = await tx.query(
+                    `SELECT id, symbol, side, quantity, sl, tp
+                     FROM orders
+                     WHERE status = 'PENDING'
+                       AND environment = 'LIVE'
+                       AND terminal_id = $1
+                     ORDER BY created_at ASC
+                     FOR UPDATE SKIP LOCKED
+                     LIMIT 1`,
+                    [terminalId]
+                ));
+            } catch {
+                ({ rows } = await tx.query(
+                    `SELECT id, symbol, side, quantity
+                     FROM orders
+                     WHERE status = 'PENDING'
+                       AND environment = 'LIVE'
+                       AND terminal_id = $1
+                     ORDER BY created_at ASC
+                     FOR UPDATE SKIP LOCKED
+                     LIMIT 1`,
+                    [terminalId]
+                ));
+            }
             if (!rows[0]) return null;
 
             await tx.query(
@@ -75,7 +90,9 @@ router.get("/next-order", async (req, res) => {
             id: result.id,
             symbol: result.symbol,
             side: result.side,
-            quantity: Number(result.quantity)
+            quantity: Number(result.quantity),
+            sl: Number(result.sl || 0),
+            tp: Number(result.tp || 0)
         });
     } catch (err) {
         return res.status(500).json({ success: false, error: "FETCH_FAILED", message: err.message });

@@ -1,11 +1,59 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Editor from '@monaco-editor/react';
 import baseStrategyDts from '../../monaco/BaseStrategy.d.ts?raw';
+import strategyManifest from '../../monaco/strategyManifest.generated.json';
+import editorDefaults from '../../config/editorDefaults.json';
+import client from '../../api/client';
 import { useStore } from '../../store/useStore';
 
-const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
+const EditorPanel = ({ id, code, setCode }) => {
   const { editorPrefs, uiTheme } = useStore();
+  const [docsManifest, setDocsManifest] = useState(strategyManifest);
+  const [editorError, setEditorError] = useState(null);
+  const docsDisposablesRef = useRef([]);
+  const [systemPrefersDark, setSystemPrefersDark] = useState(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return true;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = (e) => setSystemPrefersDark(!!e.matches);
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    }
+    const previous = mql.onchange;
+    mql.onchange = onChange;
+    return () => {
+      mql.onchange = previous || null;
+    };
+  }, []);
+
+  useEffect(() => {
+    let canceled = false;
+    const loadManifest = async () => {
+      try {
+        const res = await client.get('/strategies/manifest');
+        const payload = res?.payload;
+        if (canceled) return;
+        if (payload && Array.isArray(payload.methods) && Array.isArray(payload.indicators)) {
+          setDocsManifest(payload);
+        }
+      } catch {
+        // Keep bundled manifest fallback for offline/editor resilience.
+      }
+    };
+    loadManifest();
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
   const handleMount = useCallback((editor, monaco) => {
+    setEditorError(null);
+    
     // 1. Pro Theme Configuration
     monaco.editor.defineTheme('corex-dark', {
       base: 'vs-dark',
@@ -125,190 +173,160 @@ const EditorPanel = ({ id, code, setCode, onSave, loading }) => {
 
     // 4. Force Validation (Makes red squiggles appear immediately)
     monaco.languages.typescript.javascriptDefaults.setDiagnosticsOptions({
-      noSemanticValidation: true,
+      noSemanticValidation: false,
       noSyntaxValidation: false,
     });
 
-    if (!monaco.__corexStrategyDocs) {
-      monaco.__corexStrategyDocs = true;
-      const methodDocs = [
-        {
-          label: 'resolveSymbol',
-          detail: 'Resolve active symbol',
-          documentation: 'Resolves symbol from explicit input, packet, or strategy defaults.'
-        },
-        {
-          label: 'hasBars',
-          detail: 'Check history depth',
-          documentation: 'Returns true if at least N bars are available for a symbol.'
-        },
-        {
-          label: 'requireBars',
-          detail: 'Guard for bar count',
-          documentation: 'Returns false and logs a guard if insufficient bars are available.'
-        },
-        {
-          label: 'safeSeries',
-          detail: 'Safe series access',
-          documentation: 'Returns a series without throwing if missing; use for defensive access.'
-        },
-        {
-          label: 'oncePerBar',
-          detail: 'One-shot bar gate',
-          documentation: 'Returns true once per bar/key to avoid duplicate actions.'
-        },
-        {
-          label: 'safeRule',
-          detail: 'Protect logic block',
-          documentation: 'Executes a block and returns fallback if it throws.'
-        },
-        {
-          label: 'describe',
-          detail: 'Strategy metadata',
-          documentation: 'Returns lightweight metadata for UI/telemetry.'
-        },
-        {
-          label: 'logDecision',
-          detail: 'Decision log',
-          documentation: 'Structured decision log with optional metadata.'
-        },
-        {
-          label: 'logSignal',
-          detail: 'Signal log',
-          documentation: 'Structured signal log with stage and metadata.'
-        },
-        {
-          label: 'logGuard',
-          detail: 'Guard log',
-          documentation: 'Structured guard pass/fail log.'
-        },
-        {
-          label: 'entryLong',
-          detail: 'Emit long entry',
-          documentation: 'Creates a normalized long entry signal.'
-        },
-        {
-          label: 'entryShort',
-          detail: 'Emit short entry',
-          documentation: 'Creates a normalized short entry signal.'
-        },
-        {
-          label: 'exitLong',
-          detail: 'Exit long',
-          documentation: 'Creates a normalized long exit signal.'
-        },
-        {
-          label: 'exitShort',
-          detail: 'Exit short',
-          documentation: 'Creates a normalized short exit signal.'
-        },
-        {
-          label: 'exitAll',
-          detail: 'Exit all',
-          documentation: 'Closes any active exposure regardless of side.'
-        },
-        {
-          label: 'flipToLong',
-          detail: 'Flip short to long',
-          documentation: 'Closes short and enters long on next bar.'
-        },
-        {
-          label: 'flipToShort',
-          detail: 'Flip long to short',
-          documentation: 'Closes long and enters short on next bar.'
-        },
-        {
-          label: 'rule',
-          detail: 'RuleChain builder',
-          documentation: 'Fluent rule chain for guarded signal emission.'
-        },
-        {
-          label: 'series',
-          detail: 'Series accessor',
-          documentation: 'Returns a numeric series for a symbol/field.'
-        },
-        {
-          label: 'pos',
-          detail: 'Position state check',
-          documentation: 'Returns true if current position state matches.'
-        }
-      ];
+    const previous = Array.isArray(docsDisposablesRef.current)
+      ? docsDisposablesRef.current
+      : [];
+    previous.forEach((d) => {
+      try { d.dispose(); } catch { /* ignore */ }
+    });
 
-      monaco.languages.registerHoverProvider('javascript', {
-        provideHover: (model, position) => {
-          const word = model.getWordAtPosition(position);
-          if (!word) return null;
-          const match = methodDocs.find((d) => d.label === word.word);
-          if (!match) return null;
-          return {
-            range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
-            contents: [
-              { value: `**${match.label}**` },
-              { value: match.detail },
-              { value: match.documentation }
-            ]
-          };
-        }
-      });
+    const methodDocs = Array.isArray(docsManifest?.methods) ? docsManifest.methods : [];
+    const indicatorDocs = Array.isArray(docsManifest?.indicators) ? docsManifest.indicators : [];
+    const documentationItems = [...methodDocs, ...indicatorDocs];
+    const docLookup = new Map(documentationItems.map((item) => [item.label, item]));
 
-      monaco.languages.registerCompletionItemProvider('javascript', {
-        triggerCharacters: ['.'],
-        provideCompletionItems: () => {
-          const suggestions = methodDocs.map((doc) => ({
-            label: doc.label,
-            kind: monaco.languages.CompletionItemKind.Method,
-            detail: doc.detail,
-            documentation: doc.documentation,
-            insertText: doc.label,
-          }));
-          return { suggestions };
-        }
+    const hoverDisposable = monaco.languages.registerHoverProvider('javascript', {
+      provideHover: (model, position) => {
+        const word = model.getWordAtPosition(position);
+        if (!word) return null;
+        const match = docLookup.get(word.word);
+        if (!match) return null;
+        return {
+          range: new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn),
+          contents: [
+            { value: `**${match.label}**` },
+            { value: match.detail || '' },
+            { value: match.signature || '' },
+            { value: match.documentation || '' }
+          ]
+        };
+      }
+    });
+
+    const completionDisposable = monaco.languages.registerCompletionItemProvider('javascript', {
+      triggerCharacters: ['.'],
+      provideCompletionItems: () => {
+        const methodSuggestions = methodDocs.map((doc) => ({
+          label: doc.label,
+          kind: monaco.languages.CompletionItemKind.Method,
+          detail: doc.detail,
+          documentation: doc.signature
+            ? `${doc.signature}\n${doc.documentation || ''}`
+            : (doc.documentation || ''),
+          insertText: doc.insertText || doc.label,
+        }));
+        const indicatorSuggestions = indicatorDocs.map((doc) => ({
+          label: doc.label,
+          kind: monaco.languages.CompletionItemKind.Function,
+          detail: doc.detail,
+          documentation: doc.signature
+            ? `${doc.signature}\n${doc.documentation || ''}`
+            : (doc.documentation || ''),
+          insertText: doc.insertText || doc.label,
+        }));
+        return { suggestions: [...methodSuggestions, ...indicatorSuggestions] };
+      }
+    });
+
+    docsDisposablesRef.current = [hoverDisposable, completionDisposable];
+  }, [docsManifest]);
+
+  useEffect(() => {
+    return () => {
+      const disposables = Array.isArray(docsDisposablesRef.current) ? docsDisposablesRef.current : [];
+      disposables.forEach((d) => {
+        try { d.dispose(); } catch { /* ignore */ }
       });
-    }
+      docsDisposablesRef.current = [];
+    };
   }, []);
 
-  const resolvedTheme = editorPrefs?.theme
-    || (uiTheme === 'light' ? 'corex-light' : 'corex-dark');
+  // Handle Monaco loading error gracefully
+  const handleEditorError = useCallback((error) => {
+    console.error('Monaco Editor failed to load:', error);
+    setEditorError(error);
+  }, []);
+
+  const resolvedUiTheme = uiTheme === 'system'
+    ? (systemPrefersDark ? 'dark' : 'light')
+    : uiTheme;
+  const editorThemePref = String(editorPrefs?.theme || editorDefaults.theme || 'auto').toLowerCase();
+  const resolvedTheme = (editorThemePref === 'auto' || !editorThemePref)
+    ? (resolvedUiTheme === 'light' ? 'corex-light' : 'corex-dark')
+    : editorThemePref;
 
   return (
     <div className="flex flex-col h-full bg-[var(--ui-panel)] font-sans border-l border-[var(--ui-border)]">
 
       {/* Monaco Container */}
       <div className="flex-1 overflow-hidden relative">
-        <Editor
-          height="100%"
-          defaultLanguage="javascript"
-          theme={resolvedTheme}
-          value={code}
-          onChange={(val) => setCode(val || "")}
-          onMount={handleMount}
-          options={{
-          fontSize: Number(editorPrefs?.fontSize || 13),
-          lineHeight: Number(editorPrefs?.lineHeight || 20),
-          fontFamily: editorPrefs?.fontFamily || 'JetBrains Mono, Menlo, Monaco, Courier New, monospace',
-            minimap: { enabled: editorPrefs?.minimap === true },
-            padding: { top: 24, bottom: 24 },
-            smoothScrolling: true,
-            cursorBlinking: 'expand',
-            cursorSmoothCaretAnimation: 'on',
-            contextmenu: true,
-            scrollbar: {
-              vertical: 'visible',
-              horizontal: 'visible',
-              verticalSliderSize: 4,
-              horizontalSliderSize: 4,
-              useShadows: false
-            },
-            renderLineHighlight: 'all',
-            lineNumbersMinChars: 5,
-            folding: true,
-            bracketPairColorization: { enabled: true },
-            wordWrap: editorPrefs?.wordWrap === 'off' ? 'off' : 'on'
-          }}
-        />
-        
-        {/* Subtle Glass Overlay on bottom */}
-        <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[var(--ui-panel)] to-transparent pointer-events-none" />
+        {editorError ? (
+          <div className="flex flex-col items-center justify-center h-full bg-[var(--ui-panel)] p-8 text-center">
+            <div className="text-red-400 text-lg mb-2">Failed to load editor</div>
+            <div className="text-slate-400 text-sm mb-4">
+              {editorError.message || 'Please check your internet connection and refresh'}
+            </div>
+            <button
+              onClick={() => {
+                setEditorError(null);
+                window.location.reload();
+              }}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        ) : (
+          <>
+            <Editor
+              key={`strategy-editor-${docsManifest?.generatedAt || 'local'}`}
+              path={`file:///strategies/${id || 'untitled'}.js`}
+              height="100%"
+              defaultLanguage="javascript"
+              theme={resolvedTheme}
+              value={code}
+              onChange={(val) => setCode(val || "")}
+              onMount={handleMount}
+              onError={handleEditorError}
+              loading={
+                <div className="flex items-center justify-center h-full text-slate-400">
+                  <span className="text-sm">Loading editor...</span>
+                </div>
+              }
+              options={{
+              fontSize: Number(editorPrefs?.fontSize || editorDefaults.fontSize || 13),
+              lineHeight: Number(editorPrefs?.lineHeight || editorDefaults.lineHeight || 20),
+              fontFamily: editorPrefs?.fontFamily || editorDefaults.fontFamily,
+                minimap: { enabled: editorPrefs?.minimap === true || editorDefaults.minimap === true },
+                padding: { top: 24, bottom: 24 },
+                smoothScrolling: true,
+                cursorBlinking: 'expand',
+                cursorSmoothCaretAnimation: 'on',
+                contextmenu: true,
+                scrollbar: {
+                  vertical: 'visible',
+                  horizontal: 'visible',
+                  verticalSliderSize: 4,
+                  horizontalSliderSize: 4,
+                  useShadows: false
+                },
+                renderLineHighlight: 'all',
+                lineNumbersMinChars: 5,
+                folding: true,
+                bracketPairColorization: { enabled: true },
+                wordWrap: String(editorPrefs?.wordWrap || editorDefaults.wordWrap || 'on') === 'off' ? 'off' : 'on',
+                automaticLayout: true
+              }}
+            />
+            
+            {/* Subtle Glass Overlay on bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-[var(--ui-panel)] to-transparent pointer-events-none" />
+          </>
+        )}
       </div>
     </div>
   );

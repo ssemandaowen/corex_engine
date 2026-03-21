@@ -57,8 +57,10 @@ class LiveBroker extends EventEmitter {
         // Track as pending until client confirms
         this.pendingSignals.set(signalId, payload);
         
-        // Broadcast impulse to the transport layer (Webhook/Socket)
-        bus.emit(EVENTS.ORDER.SIGNAL, payload);
+        // Broadcast impulse to the transport layer using the standardized order channel.
+        // Extract userId from strategyId if available
+        const userId = options.strategyId ? String(options.strategyId).split("::")[0] : null;
+        bus.emit(EVENTS.ORDER.CREATE, payload, { userId });
         logger.info(`[LIVE] Signal Dispatched: ${side} ${quantity} ${symbol} (${signalId})`);
         return signalId;
     }
@@ -83,7 +85,10 @@ class LiveBroker extends EventEmitter {
         this.pendingSignals.delete(signalId);
         this._persist();
         
-        bus.emit(EVENTS.BROKER.SYNCED, this.getAccountSnapshot());
+        // Extract userId from strategyId if available in the pending signal
+        const pendingPayload = this.pendingSignals.get(signalId) || clientData;
+        const userId = pendingPayload?.strategyId ? String(pendingPayload.strategyId).split("::")[0] : null;
+        bus.emit(EVENTS.POSITION.PORTFOLIO_UPDATE, this.getAccountSnapshot(), { userId });
         logger.info(`[LIVE] State Synced. Fill: ${symbol} @ ${fillPrice}`);
     }
 
@@ -106,8 +111,10 @@ class LiveBroker extends EventEmitter {
     getAccountSnapshot() {
         return {
             mode: "LIVE",
-            equity: this.getEquity(),
             cash: this.cash,
+            initialCash: this.initialCash,
+            config: { ...this.config },
+            equity: this.getEquity(),
             positions: this.positions.all(),
             pendingCount: this.pendingSignals.size,
             lastUpdated: Date.now()
@@ -135,9 +142,58 @@ class LiveBroker extends EventEmitter {
     async _loadSettings() {
         const data = await pgStore.getBrokerSettings("live");
         if (data) {
-            this.cash = Number(data.cash);
-            this.config = { ...this.config, ...data.config };
+            this.cash = Number.isFinite(Number(data.cash)) ? Number(data.cash) : this.cash;
+            this.initialCash = Number.isFinite(Number(data.initialCash)) ? Number(data.initialCash) : this.initialCash;
+            this.updateConfig(data.config || {}, { persist: false });
         }
+    }
+
+    updateConfig(next = {}, options = {}) {
+        if (!next || typeof next !== "object") return this.config;
+        const merged = { ...this.config };
+        Object.entries(next).forEach(([k, v]) => {
+            if (typeof merged[k] === "boolean") {
+                merged[k] = v === true || v === "true";
+                return;
+            }
+            if (typeof merged[k] === "number") {
+                const n = Number(v);
+                if (Number.isFinite(n)) merged[k] = n;
+                return;
+            }
+            merged[k] = v;
+        });
+        this.config = merged;
+        if (options.persist !== false) this._persist().catch(() => {});
+        return this.config;
+    }
+
+    setCash(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 0) return false;
+        this.cash = n;
+        this._persist().catch(() => {});
+        return true;
+    }
+
+    setInitialCash(value) {
+        const n = Number(value);
+        if (!Number.isFinite(n) || n < 0) return false;
+        this.initialCash = n;
+        this._persist().catch(() => {});
+        return true;
+    }
+
+    resetAccount(initialCash = null) {
+        const seed = Number(initialCash);
+        if (Number.isFinite(seed) && seed > 0) {
+            this.initialCash = seed;
+        }
+        this.cash = this.initialCash;
+        this.positions = new StrategyPositionManager();
+        this.pendingSignals.clear();
+        this._persist().catch(() => {});
+        return this.getAccountSnapshot();
     }
 }
 

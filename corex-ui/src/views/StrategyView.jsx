@@ -1,9 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { FileCode, Plus, X, Box, Save, Play } from 'lucide-react';
+import { FileCode, Plus, X, Box, Save, Play, Terminal } from 'lucide-react';
 import client from '../api/client';
 import StrategyList from '../components/strategies/StrategyList';
 import EditorPanel from '../components/strategies/EditorPanel';
+import StrategyTerminal from '../components/strategies/StrategyTerminal';
 import { corexSwal } from '../utils/swal';
+import { useStore } from '../store/useStore';
+
+const normalizeStrategyKey = (strategyId) => {
+  const raw = String(strategyId || '').trim();
+  if (!raw) return '';
+  const parts = raw.split('::');
+  return parts.length >= 2 ? parts[parts.length - 1] : raw;
+};
 
 const StrategyView = ({ onNavigate }) => {
   const [strategies, setStrategies] = useState([]);
@@ -16,6 +25,13 @@ const StrategyView = ({ onNavigate }) => {
   const [newName, setNewName] = useState('');
   const [creating, setCreating] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const setStrategyTerminalOpen = useStore((s) => s.setStrategyTerminalOpen);
+  const strategyTerminalOpen = useStore((s) => {
+    const key = normalizeStrategyKey(selectedId);
+    if (!key) return false;
+    const map = s.strategyTerminalOpenById || {};
+    return !!map[key];
+  });
 
   // --- Logic Registry & Tabs ---
   
@@ -23,7 +39,7 @@ const StrategyView = ({ onNavigate }) => {
     try {
       const res = await client.get('/strategies');
       setStrategies(Array.isArray(res?.payload) ? res.payload : []);
-    } catch (err) {
+    } catch {
       console.error("Registry sync failed");
     }
   };
@@ -48,15 +64,22 @@ const StrategyView = ({ onNavigate }) => {
 
   useEffect(() => {
     if (!selectedId) return;
+    let cancelled = false;
+    const requestedId = selectedId;
     const fetchCode = async () => {
       setLoading(true);
       try {
-        const res = await client.get(`/strategies/${selectedId}`);
-        setCurrentCode(res.payload.code);
-      } catch (err) { console.error("Fetch failed"); }
-      finally { setLoading(false); }
+        const res = await client.get(`/strategies/${requestedId}`);
+        if (!cancelled && requestedId === selectedId) {
+          setCurrentCode(res?.payload?.code || "");
+        }
+      } catch { console.error("Fetch failed"); }
+      finally {
+        if (!cancelled) setLoading(false);
+      }
     };
     fetchCode();
+    return () => { cancelled = true; };
   }, [selectedId]);
 
   // --- Actions ---
@@ -67,7 +90,7 @@ const StrategyView = ({ onNavigate }) => {
     try {
       await client.put(`/strategies/${selectedId}`, { code: currentCode });
       addToast({ type: 'success', message: `Deployed ${selectedId}` });
-    } catch (err) {
+    } catch {
       addToast({ type: 'error', message: "Push failed" });
     } finally { setLoading(false); }
   };
@@ -237,34 +260,67 @@ const StrategyView = ({ onNavigate }) => {
         </div>
 
         {/* EDITOR AREA */}
-        <div className="flex-1 bg-[var(--ui-panel)]">
+        <div className="flex-1 bg-[var(--ui-panel)] flex flex-col min-h-0">
           {selectedId ? (
-            <div className="h-full flex flex-col">
+            <div className="h-full flex flex-col min-h-0">
               {/* Toolbar */}
               <div className="px-4 py-2 border-b border-[var(--ui-border)] flex justify-between items-center bg-[rgba(15,23,42,0.3)]">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono text-[var(--ui-muted)] uppercase">Working on:</span>
                   <span className="text-[10px] font-mono text-blue-400">{selectedId}.js</span>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={handleSave} disabled={loading} className="flex items-center gap-2 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[10px] font-bold transition-all disabled:opacity-50">
-                    <Save size={12} /> {loading ? 'SAVING...' : 'DEPLOY'}
+                <div className="flex gap-1">
+                  {/* Strategy Logs Button */}
+                  <button
+                    onClick={() => {
+                      if (!selectedId) return;
+                      setStrategyTerminalOpen(selectedId, !strategyTerminalOpen);
+                    }}
+                    className={`p-2 rounded transition-all ${
+                      strategyTerminalOpen
+                        ? "text-[var(--ui-accent)] bg-[var(--ui-row-hover)] border border-[var(--ui-border-strong)]"
+                        : "text-[var(--ui-muted)] hover:text-[var(--ui-accent)] hover:bg-[var(--ui-row-hover)] border border-transparent"
+                    }`}
+                    title={strategyTerminalOpen ? "Hide Strategy Console" : "Show Strategy Console"}
+                  >
+                    <Terminal size={14} />
                   </button>
-                  <button onClick={() => onNavigate('run')} className="flex items-center gap-2 px-3 py-1 bg-emerald-600/20 text-emerald-500 border border-emerald-500/20 hover:bg-emerald-600/30 rounded text-[10px] font-bold">
-                    <Play size={12} /> RUN
+                  <div className="w-px bg-[var(--ui-border)] mx-1" />
+
+                  {/* Save/Deploy Button */}
+                  <button
+                    onClick={handleSave}
+                    disabled={loading}
+                    className="p-2 text-[var(--ui-text)] hover:text-blue-300 hover:bg-blue-500/10 disabled:opacity-50 rounded transition-all disabled:cursor-not-allowed"
+                    title={loading ? 'Saving...' : 'Save & Deploy'}
+                  >
+                    <Save size={14} />
+                  </button>
+
+                  {/* Run Button */}
+                  <button
+                    onClick={() => onNavigate('run')}
+                    className="p-2 text-[var(--ui-muted)] hover:text-emerald-400 hover:bg-emerald-500/10 rounded transition-all"
+                    title="Run Strategy"
+                  >
+                    <Play size={14} />
                   </button>
                 </div>
               </div>
               
-              <div className="flex-1">
+              <div className="flex-1 min-h-0">
                 <EditorPanel
                   id={selectedId}
                   code={currentCode}
                   setCode={setCurrentCode}
-                  onSave={handleSave}
-                  loading={loading}
                 />
               </div>
+
+              {strategyTerminalOpen && (
+                <div className="shrink-0 p-4 border-t border-[var(--ui-border)] bg-[var(--ui-panel-strong)]">
+                  <StrategyTerminal strategyId={selectedId} />
+                </div>
+              )}
             </div>
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-40">

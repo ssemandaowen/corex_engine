@@ -11,6 +11,7 @@
     "dev": "nodemon index.js",
     "test": "jest --passWithNoTests",
     "test:auth": "jest --runInBand test/auth.service.test.js test/auth.integration.test.js",
+    "account:reset": "node scripts/reset-paper-account.js",
     "ui:dev": "npm --prefix corex-ui run dev",
     "ui:build": "npm --prefix corex-ui run build",
     "ui:preview": "npm --prefix corex-ui run preview",
@@ -24,6 +25,8 @@
     "db:stop": "pg_ctl stop -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -m fast",
     "db:status": "pg_ctl status -D \"%USERPROFILE%/scoop/persist/postgresql/data\"",
     "bench:engine": "node scripts/bench/engine-micro-bench.js",
+    "sync:strategy-manifest": "node scripts/sync-strategy-manifest.js",
+    "worker:jobs": "node engine/workers/jobWorker.js",
     "maintenance:prune": "node scripts/maintenance/prune-runtime-artifacts.js",
     "maintenance:prune:apply": "node scripts/maintenance/prune-runtime-artifacts.js --apply"
   },

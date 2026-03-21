@@ -17,7 +17,19 @@ const StrategyRuntimeUtils = {
     },
 
     _createSignal(intent, side, params = {}) {
-        const symbol = params.symbol || this.symbols[0];
+        const symbol = this.resolveSymbol ? this.resolveSymbol({ symbol: params.symbol }) : (params.symbol || this.symbols[0]);
+        const reserved = new Set(["intent", "side", "strategyId", "timestamp", "barTime", "tf", "symbol", "quantity"]);
+        const extras = {};
+        Object.entries(params || {}).forEach(([k, v]) => {
+            if (!reserved.has(k)) extras[k] = v;
+        });
+        const qty = this._normalizeQuantity(params.quantity, {
+            fallbackQty: 0,
+            minQty: params.minQty ?? this.params?.minQty ?? 0,
+            maxQty: params.maxQty ?? this.params?.maxQty,
+            step: params.step ?? this.params?.qtyStep
+        });
+
         return {
             intent,
             side,
@@ -27,8 +39,59 @@ const StrategyRuntimeUtils = {
             timestamp: this.lastTick?.time || this.currentBar?.time || Date.now(),
             barTime: this.currentBar?.time,
             tf: this.timeframe,
-            ...params
+            ...(qty > 0 ? { quantity: qty } : {}),
+            ...extras
         };
+    },
+
+    _resolveProtectionLevels({ side, price, params = {} } = {}) {
+        const px = Number(price);
+        const directSl = Number(params.sl ?? params.stopLoss ?? params.stop_loss ?? 0);
+        const directTp = Number(params.tp ?? params.takeProfit ?? params.take_profit ?? 0);
+        const slPct = Number(params.slPct ?? params.stopLossPct ?? params.stop_loss_pct ?? 0);
+        const tpPct = Number(params.tpPct ?? params.takeProfitPct ?? params.take_profit_pct ?? 0);
+
+        let sl = Number.isFinite(directSl) && directSl > 0 ? directSl : 0;
+        let tp = Number.isFinite(directTp) && directTp > 0 ? directTp : 0;
+
+        if (Number.isFinite(px) && px > 0) {
+            const normalizedSide = String(side || "").toLowerCase();
+            if (!sl && Number.isFinite(slPct) && slPct > 0) {
+                sl = normalizedSide === "short"
+                    ? px * (1 + (slPct / 100))
+                    : px * (1 - (slPct / 100));
+            }
+            if (!tp && Number.isFinite(tpPct) && tpPct > 0) {
+                tp = normalizedSide === "short"
+                    ? px * (1 - (tpPct / 100))
+                    : px * (1 + (tpPct / 100));
+            }
+        }
+
+        return {
+            sl: Number.isFinite(sl) && sl > 0 ? Number(sl.toFixed(8)) : 0,
+            tp: Number.isFinite(tp) && tp > 0 ? Number(tp.toFixed(8)) : 0
+        };
+    },
+
+    _normalizeQuantity(rawQty, { fallbackQty = 0, minQty = 0, maxQty, step } = {}) {
+        let qty = Number(rawQty);
+        if (!Number.isFinite(qty) || qty <= 0) qty = Number(fallbackQty || 0);
+        if (!Number.isFinite(qty) || qty <= 0) return 0;
+
+        const min = Number(minQty);
+        if (Number.isFinite(min) && min > 0) qty = Math.max(min, qty);
+
+        const max = Number(maxQty);
+        if (Number.isFinite(max) && max > 0) qty = Math.min(max, qty);
+
+        const stepSize = Number(step);
+        if (Number.isFinite(stepSize) && stepSize > 0) {
+            qty = Math.floor(qty / stepSize) * stepSize;
+        }
+
+        if (!Number.isFinite(qty) || qty <= 0) return 0;
+        return Number(qty.toFixed(8));
     },
 
     _resolveCurrentPrice(params = {}) {
@@ -75,9 +138,8 @@ const StrategyRuntimeUtils = {
         }
 
         if (!Number.isFinite(qty) || qty <= 0) return fallbackQty;
-        return qty;
+        return this._normalizeQuantity(qty, { fallbackQty, minQty, maxQty, step });
     }
 };
 
 module.exports = StrategyRuntimeUtils;
-

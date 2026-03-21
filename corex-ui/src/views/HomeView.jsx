@@ -1,31 +1,40 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { useStore } from '../store/useStore';
+import ActivityLogger from '../components/home/ActivityLogger';
 import { 
   Activity, 
   Cpu, 
   Database, 
   Globe, 
-  Hash, 
   Terminal, 
   Zap, 
   ChevronUp, 
   ChevronDown, 
-  Wifi, 
   WifiOff 
 } from 'lucide-react';
 
 const HomeView = () => {
-  const { pulse, strategiesLive, wsEvents, wsStatus, apiStatus, latestTicks, tickCount } = useStore();
+  const pulse = useStore((s) => s.pulse);
+  const resourceTrend = useStore((s) => s.resourceTrend);
+  const strategiesLive = useStore((s) => s.strategiesLive);
+  const appTerminal = useStore((s) => s.appTerminal);
+  const execTerminal = useStore((s) => s.execTerminal);
+  const wsStatus = useStore((s) => s.wsStatus);
+  const apiStatus = useStore((s) => s.apiStatus);
+  const latestTicks = useStore((s) => s.latestTicks);
+  const tickCount = useStore((s) => s.tickCount);
+  const activityLoggerOpen = useStore((s) => s.activityLoggerOpen);
+  const toggleActivityLogger = useStore((s) => s.toggleActivityLogger);
 
   // --- Data Processing (Memoized) ---
   const liveStats = useMemo(() => {
     const summary = { ticks: tickCount || 0, orders: 0, paramUpdates: 0 };
-    wsEvents.forEach(evt => {
-      if (evt?.type === 'ORDER_FILLED') summary.orders++;
-      else if (evt?.type === 'PARAM_UPDATE') summary.paramUpdates++;
-    });
+    const exec = Array.isArray(execTerminal) ? execTerminal : [];
+    const app = Array.isArray(appTerminal) ? appTerminal : [];
+    summary.orders = exec.length;
+    summary.paramUpdates = app.filter((e) => String(e?.message || "").toLowerCase().includes("param")).length;
     return summary;
-  }, [wsEvents, tickCount]);
+  }, [appTerminal, execTerminal, tickCount]);
 
   const latestTickBySymbol = useMemo(() => {
     const map = new Map();
@@ -45,22 +54,26 @@ const HomeView = () => {
     });
   }, [strategiesLive]);
 
-  // --- UI State ---
-  const [logOpen, setLogOpen] = useState(true);
-  const [logHeight] = useState(240);
-  const [logCategory, setLogCategory] = useState('all');
-  const [errorsOnly, setErrorsOnly] = useState(false);
+  // Logger state and resize handling
+  const [loggerHeight, setLoggerHeight] = useState(240);
+  const dragRef = useRef({ active: false, startY: 0, startH: 240 });
 
-  const filteredLogs = useMemo(() => {
-    let events = wsEvents || [];
-    if (logCategory !== 'all') {
-      events = events.filter(e => e?.meta?.category === logCategory);
-    }
-    if (errorsOnly) {
-      events = events.filter(e => String(e?.type || '').includes('ERROR') || e?.payload?.error || e?.payload?.reason);
-    }
-    return events;
-  }, [wsEvents, logCategory, errorsOnly]);
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current.active) return;
+      const dy = dragRef.current.startY - e.clientY;
+      const newHeight = Math.max(120, Math.min(600, dragRef.current.startH + dy));
+      setLoggerHeight(newHeight);
+    };
+    const onUp = () => { dragRef.current.active = false; };
+    
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   // Initializing State (Google-style)
   if (!pulse) return <GoogleLoader />;
@@ -79,6 +92,7 @@ const HomeView = () => {
         </div>
         <div className="flex items-center gap-4 text-[11px] font-mono text-[var(--ui-muted)]">
           <span>UPTIME: {pulse?.uptime || '0h 0m'}</span>
+          <MiniResourceChart cpu={resourceTrend?.cpu || []} ram={resourceTrend?.ram || []} />
           <span className="text-[var(--ui-accent)]">v2.4.0-PRO</span>
         </div>
       </div>
@@ -161,51 +175,66 @@ const HomeView = () => {
         </div>
       </div>
 
-      {/* SECTION: CONSOLE */}
-      <div className="shrink-0 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] rounded-t-xl overflow-hidden" style={{ height: logOpen ? logHeight : 42 }}>
-        <div className="h-10 flex items-center justify-between px-4 bg-[var(--ui-header-glass)] border-b border-[var(--ui-border)] cursor-pointer" onClick={() => setLogOpen(!logOpen)}>
-          <div className="flex items-center gap-3">
-            <Terminal size={14} className="text-[var(--ui-muted)]" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ui-muted)]">Hub Event Stream</span>
-          </div>
-          {logOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-        </div>
-        {logOpen && (
-          <div className="p-4 overflow-y-auto font-mono text-[11px] h-full pb-12">
-            <div className="flex items-center gap-2 mb-3 text-[10px] font-bold uppercase tracking-widest text-[var(--ui-muted)]">
-              <button
-                onClick={() => setLogCategory('all')}
-                className={`px-2 py-1 rounded border ${logCategory === 'all' ? 'text-[var(--ui-accent)] border-[var(--ui-border-strong)] bg-[var(--ui-row-hover)]' : 'border-[var(--ui-border)] text-[var(--ui-muted)]'}`}
-              >
-                All
-              </button>
-              {['system', 'strategy', 'execution', 'market', 'mt5'].map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setLogCategory(cat)}
-                  className={`px-2 py-1 rounded border ${logCategory === cat ? 'text-[var(--ui-accent)] border-[var(--ui-border-strong)] bg-[var(--ui-row-hover)]' : 'border-[var(--ui-border)] text-[var(--ui-muted)]'}`}
-                >
-                  {cat}
-                </button>
-              ))}
-              <button
-                onClick={() => setErrorsOnly(!errorsOnly)}
-                className={`ml-auto px-2 py-1 rounded border ${errorsOnly ? 'text-[var(--ui-negative)] border-[var(--ui-border-strong)] bg-[var(--ui-row-hover)]' : 'border-[var(--ui-border)] text-[var(--ui-muted)]'}`}
-              >
-                Errors Only
-              </button>
+      {/* SECTION: SYSTEM ACTIVITY LOGGER - Resizable & Toggleable */}
+      {activityLoggerOpen && (
+        <div 
+          className="shrink-0 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] rounded-t-xl overflow-hidden flex flex-col group"
+          style={{ height: `${loggerHeight}px` }}
+        >
+          {/* Resize Handle (Top) */}
+          <div
+            onMouseDown={(e) => {
+              dragRef.current.active = true;
+              dragRef.current.startY = e.clientY;
+              dragRef.current.startH = loggerHeight;
+            }}
+            className="h-1 bg-[var(--ui-border)] hover:bg-[var(--ui-accent)] cursor-ns-resize transition-colors shrink-0"
+            title="Drag to resize"
+          />
+
+          {/* Header */}
+          <div className="px-6 py-3 border-b border-[var(--ui-border)] flex items-center justify-between bg-[var(--ui-header-glass)] shrink-0">
+            <div className="flex items-center gap-3">
+              <Terminal size={14} className="text-[var(--ui-accent)]" />
+              <h3 className="text-xs font-bold uppercase tracking-widest text-[var(--ui-text)]">System Activity</h3>
+              <span className="text-[10px] text-[var(--ui-muted)] font-mono ml-2">
+                ({(Array.isArray(appTerminal) ? appTerminal.length : 0) + (Array.isArray(execTerminal) ? execTerminal.length : 0)} events)
+              </span>
             </div>
-            {filteredLogs.slice(0, 80).map((evt, idx) => (
-              <div key={idx} className="flex gap-4 mb-1 opacity-80 hover:opacity-100">
-                <span className="text-[var(--ui-subtle)]">[{new Date(evt.meta?.ts).toLocaleTimeString()}]</span>
-                <span className={`w-24 font-bold ${getLogColor(evt.type, evt.meta?.category)}`}>{evt.type}</span>
-                <span className="text-[var(--ui-muted)] uppercase w-20">{evt.meta?.category || 'system'}</span>
-                <span className="text-[var(--ui-text)]">{formatPayload(evt.payload)}</span>
-              </div>
-            ))}
+            <button
+              onClick={() => toggleActivityLogger()}
+              className="p-1 text-[var(--ui-muted)] hover:text-[var(--ui-text)] transition-colors"
+              title="Close logger"
+            >
+              <ChevronDown size={16} />
+            </button>
           </div>
-        )}
-      </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-hidden">
+            <ActivityLogger />
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed Logger Button */}
+      {!activityLoggerOpen && (
+        <div className="shrink-0">
+          <button
+            onClick={() => toggleActivityLogger()}
+            className="w-full px-6 py-3 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] rounded-lg flex items-center justify-between hover:bg-[var(--ui-row-hover)] transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <Terminal size={14} className="text-[var(--ui-accent)]" />
+              <span className="text-xs font-bold uppercase tracking-widest text-[var(--ui-text)]">System Activity</span>
+              <span className="text-[10px] text-[var(--ui-muted)] font-mono">
+                ({(Array.isArray(appTerminal) ? appTerminal.length : 0) + (Array.isArray(execTerminal) ? execTerminal.length : 0)} events)
+              </span>
+            </div>
+            <ChevronUp size={16} className="text-[var(--ui-muted)]" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };
@@ -283,32 +312,36 @@ const StrategyRow = React.memo(({ s, priceInfo }) => (
   </tr>
 ));
 
-const getLogColor = (type, category) => {
-  switch (category) {
-    case 'strategy':
-      return 'text-[var(--ui-accent-strong)]';
-    case 'execution':
-      return 'text-[var(--ui-positive)]';
-    case 'market':
-      return 'text-[var(--ui-accent)]';
-    case 'mt5':
-      return 'text-[var(--ui-warning)]';
-  }
-  if (type === 'ORDER_FILLED') return 'text-[var(--ui-positive)]';
-  if (type === 'PARAM_UPDATE') return 'text-[var(--ui-warning)]';
-  if (type.includes('ERROR')) return 'text-[var(--ui-negative)]';
-  return 'text-[var(--ui-accent)]';
-};
+const MiniResourceChart = React.memo(({ cpu = [], ram = [] }) => {
+  const w = 120;
+  const h = 32;
+  const pointsToPath = (series = []) => {
+    if (!Array.isArray(series) || series.length === 0) return '';
+    const step = series.length > 1 ? w / (series.length - 1) : w;
+    return series
+      .map((v, i) => {
+        const clamped = Math.max(0, Math.min(100, Number(v || 0)));
+        const x = i * step;
+        const y = h - ((clamped / 100) * h);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(2)},${y.toFixed(2)}`;
+      })
+      .join(' ');
+  };
+  const cpuNow = Math.round(Number(cpu[cpu.length - 1] || 0));
+  const ramNow = Math.round(Number(ram[ram.length - 1] || 0));
 
-const formatPayload = (payload) => {
-  if (!payload) return '';
-  if (typeof payload === 'string') return payload;
-  if (payload.message) return payload.message;
-  if (payload.reason) return payload.reason;
-  if (payload.error) return payload.error;
-  if (payload.strategyId) return `strategy=${payload.strategyId}`;
-  if (payload.symbol) return `symbol=${payload.symbol}`;
-  return JSON.stringify(payload).slice(0, 100);
-};
+  return (
+    <div className="hidden xl:flex items-center gap-2 px-2 py-1 rounded-md border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0">
+        <path d={pointsToPath(cpu)} fill="none" stroke="var(--ui-accent)" strokeWidth="1.5" />
+        <path d={pointsToPath(ram)} fill="none" stroke="var(--ui-accent-strong)" strokeWidth="1.5" />
+      </svg>
+      <div className="leading-tight">
+        <div className="text-[9px] uppercase tracking-wide text-[var(--ui-muted)]">CPU {cpuNow}%</div>
+        <div className="text-[9px] uppercase tracking-wide text-[var(--ui-muted)]">RAM {ramNow}%</div>
+      </div>
+    </div>
+  );
+});
 
 export default HomeView;

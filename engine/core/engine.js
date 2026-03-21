@@ -13,13 +13,14 @@ const { promisify } = require("util");
 const { TIME, ENGINE_TUNING } = require("@config/constants");
 const logger = require("@utils/logger");
 const stateManager = require("@utils/stateController");
-const { clampCacheAsync, setConfig: setStorageConfig, getConfig: getStorageConfig } = require("@utils/storageManager");
+const storage = require("@utils/storageManager");
 const engineSettings = require("./EngineSettings");
 const { ComponentLifecycle, STATES } = require("@core/core/lifecycle/ComponentLifecycle");
 const { SignalGenerationEngine, SignalProcessingEngine, SignalExecutionEngine } = require("@core/core/pipeline");
-
-const gzipAsync = promisify(zlib.gzip);
-const gunzipAsync = promisify(zlib.gunzip);
+const strategyRuntime = require("@core/modules/strategyRuntime");
+const FastQueue = require("@utils/data/fastQueue");
+const Metrics = require("@utils/metrics");
+const { parseScopedId } = require("@core/services/userScope");
 
 const BANNER_PATH = path.join(__dirname, "banner.txt");
 const log = logger.createModuleLogger("ENGINE", {
@@ -28,35 +29,13 @@ const log = logger.createModuleLogger("ENGINE", {
     uiLevels: ["info", "warn", "error"]
 });
 
-class FastQueue {
-    constructor() {
-        this.items = [];
-        this.head = 0;
-    }
-
-    get length() {
-        return this.items.length - this.head;
-    }
-
-    push(value) {
-        this.items.push(value);
-    }
-
-    shift() {
-        if (this.length <= 0) return undefined;
-        const value = this.items[this.head];
-        this.head += 1;
-        if (this.head > 1024 && this.head * 2 >= this.items.length) {
-            this.items = this.items.slice(this.head);
-            this.head = 0;
-        }
-        return value;
-    }
-}
-
 
 
 function showBanner() {
+    const env = String(process.env.NODE_ENV || "").trim().toLowerCase();
+    const isJest = !!process.env.JEST_WORKER_ID;
+    const noBanner = ["1", "true", "yes", "on"].includes(String(process.env.COREX_NO_BANNER || "").trim().toLowerCase());
+    if (env === "test" || isJest || noBanner) return;
     console.clear();
     try {
         const banner = fs.readFileSync(BANNER_PATH, "utf8");
@@ -78,14 +57,7 @@ class CoreXEngine {
         this.flushScheduled = false;
         this.maxQueueSize = Number(process.env.TICK_QUEUE_MAX || ENGINE_TUNING.TICK_QUEUE_MAX);
         this.maxFlushCount = Number(process.env.TICK_FLUSH_MAX || ENGINE_TUNING.TICK_FLUSH_MAX);
-        this._droppedTicks = new Map();           // symbol -> count
-        this.feedStats = {
-            startedAt: Date.now(),
-            totalTicks: 0,
-            droppedTicks: 0,
-            lastTickAt: 0,
-            perSymbol: new Map()                  // symbol -> { count, lastTickAt, dropped }
-        };
+        this.feedStats = new Metrics();
         this.subscriptions = new Map();           // symbol → Set<strategy>
         this.executionContexts = new Map();       // mode → {adapter, broker}
         // Per-strategy scheduling queues
@@ -103,6 +75,12 @@ class CoreXEngine {
                 maxQueue: Number(process.env.SIGNAL_EXEC_MAX_QUEUE || 20000)
             })
         };
+
+        // Strategy crash handling
+        this.strategyCrashCounters = new Map();
+        this.maxCrashCount = 5;
+        this.crashTimeframe = 60000; // 1 minute
+        this.allowColdStart = !["0", "false", "no", "off"].includes(String(process.env.COREX_ALLOW_COLD_START || "true").trim().toLowerCase());
     }
 
     async start() {
@@ -110,19 +88,16 @@ class CoreXEngine {
         this.status = "INITIALIZING";
         this.lifecycle.transition(STATES.INITIALIZING, { reason: "start" });
         this.startTime = Date.now();
-        this.feedStats.startedAt = this.startTime;
-        this.feedStats.totalTicks = 0;
-        this.feedStats.droppedTicks = 0;
-        this.feedStats.lastTickAt = 0;
+        this.feedStats.reset();
         this.strategyQueues.clear();
         this._droppedStrategyTicks.clear();
         this.strategyStats.clear();
-        this.feedStats.perSymbol.clear();
+        this.strategyCrashCounters.clear();
 
         try {
             const cacheDir = path.join(process.cwd(), "data", "cache");
             await this._sanitizeCacheDirectory(cacheDir);
-            await clampCacheAsync(cacheDir);
+            await storage.clampCacheAsync(cacheDir);
         } catch (e) {
             log.warn(`Cache clamp failed: ${e.message}`);
         }
@@ -143,7 +118,7 @@ class CoreXEngine {
         } catch {
             return;
         }
-        files = files.filter((f) => f.startsWith("candles_") && (f.endsWith(".json") || f.endsWith(".json.gz")));
+        files = files.filter((f) => f.startsWith("candles_") && (f.endsWith(".csv") || f.endsWith(".csv.gz")));
         if (!files.length) return;
 
         const maxWriteBars = Number(process.env.WARMUP_CACHE_MAX_WRITE_BARS || ENGINE_TUNING.WARMUP_CACHE_MAX_WRITE_BARS);
@@ -153,11 +128,11 @@ class CoreXEngine {
         for (const name of files) {
             const p = path.join(cacheDir, name);
             try {
-                // filename format: candles_<symbol>_<tf>.json(.gz)
+                // filename format: candles_<symbol>_<tf>.csv(.gz)
                 const stem = name
                     .replace(/^candles_/, "")
-                    .replace(/\.json\.gz$/i, "")
-                    .replace(/\.json$/i, "");
+                    .replace(/\.csv\.gz$/i, "")
+                    .replace(/\.csv$/i, "");
                 const parts = stem.split("_");
                 const tf = parts.length > 1 ? parts[parts.length - 1] : "1m";
                 const tfMs = this._timeframeToMs(tf);
@@ -208,6 +183,7 @@ class CoreXEngine {
         strategy.timeframe = normalizedTf;
 
         // 2. State Transition
+        this.strategyCrashCounters.set(id, { count: 0, firstCrashAt: 0 }); // Reset crash counter on registration
         const canProceed = stateManager.commit(id, "WARMING_UP", { reason: "Registration sequence initiated" });
         if (!canProceed) {
             log.warn(`[${id}] Registration blocked by state controller (Current: ${stateManager.getStatus(id)})`);
@@ -232,14 +208,25 @@ class CoreXEngine {
             // 5. Historical Warmup (The Critical Gate)
             log.info(`[${id}] Commencing historical data synchronization...`);
             const warmupSuccess = await this.warmupStrategy(strategy);
-
-            if (!warmupSuccess) {
-                throw new Error("Warmup phase failed: No data returned from broker");
+            const coldStart = !warmupSuccess;
+            if (coldStart) {
+                if (!this.allowColdStart) {
+                    throw new Error("Warmup phase failed: no data returned from broker");
+                }
+                log.warn(`[${id}] Warmup incomplete. Proceeding with cold-start registration (offline-tolerant mode).`);
+                bus.emit(EVENTS.SYSTEM.ERROR, {
+                    source: "engine_warmup",
+                    strategyId: id,
+                    message: "Warmup incomplete: strategy started in cold-start mode.",
+                    at: new Date().toISOString()
+                }, { userId: parseScopedId(id).userId || null });
             }
 
             // 6. Finalize Activation
             stateManager.commit(id, "ACTIVE", {
-                reason: "Handshake complete, strategy is now live"
+                reason: coldStart
+                    ? "Cold-start active: awaiting market data"
+                    : "Handshake complete, strategy is now live"
             });
 
             // Update broker with the new aggregate symbol list
@@ -259,13 +246,16 @@ class CoreXEngine {
 
     _setupExecutionContext(strategy) {
         const mode = strategy.mode?.toUpperCase() || "PAPER";
+        const scoped = parseScopedId(strategy?.id || strategy?.name || "");
+        const userId = String(scoped.userId || "").trim() || "default";
+        const contextKey = mode === "PAPER" ? `${mode}:${userId}` : mode;
 
-        if (!this.executionContexts.has(mode)) {
+        if (!this.executionContexts.has(contextKey)) {
             let brokerInstance = null;
 
             if (mode === "PAPER") {
                 const { getPaperBroker } = require("@broker/paperStore");
-                brokerInstance = getPaperBroker();
+                brokerInstance = getPaperBroker(userId);
 
                 bus.on(EVENTS.MARKET.TICK, (tick) => {
                     brokerInstance?.updatePrice?.(tick.symbol, tick.price);
@@ -280,15 +270,15 @@ class CoreXEngine {
                 mode,
                 broker: brokerInstance,
                 brokers: {
-                    PAPER: require("@broker/paperStore").getPaperBroker(),
+                    PAPER: require("@broker/paperStore").getPaperBroker,
                     LIVE: require("@core/services/mt5Bridge")
                 }
             });
 
-            this.executionContexts.set(mode, { adapter, broker: brokerInstance });
+            this.executionContexts.set(contextKey, { adapter, broker: brokerInstance });
         }
 
-        strategy.executionContext = this.executionContexts.get(mode);
+        strategy.executionContext = this.executionContexts.get(contextKey);
     }
 
     _enqueueTick(data) {
@@ -356,6 +346,17 @@ class CoreXEngine {
 
     _enqueueStrategyTick(strat, tick) {
         const id = strat.id || strat.name;
+        const currentState = stateManager.getStatus(id);
+        if (currentState === 'DISABLED') {
+            // Track dropped ticks for disabled strategies
+            const dropped = (this._droppedStrategyTicks.get(id) || 0) + 1;
+            this._droppedStrategyTicks.set(id, dropped);
+            if (dropped % 100 === 0) {
+                log.debug(`[${id}] Dropped ${dropped} ticks (strategy DISABLED)`);
+            }
+            return;
+        }
+
         let entry = this.strategyQueues.get(id);
         if (!entry) {
             entry = { queue: new FastQueue(), running: false };
@@ -377,11 +378,11 @@ class CoreXEngine {
 
         if (!entry.running) {
             entry.running = true;
-            setImmediate(() => this._processStrategyQueue(id));
+            setImmediate(() => this._processStrategyQueue(id).catch((err) => this._handleStrategyCrash(id, err)));
         }
     }
 
-    _processStrategyQueue(id) {
+    async _processStrategyQueue(id) {
         const entry = this.strategyQueues.get(id);
         if (!entry) return;
 
@@ -398,7 +399,10 @@ class CoreXEngine {
             try {
                 const currentState = stateManager.getStatus(id);
                 if (currentState === "ACTIVE" && strat.enabled !== false) {
-                    const signal = this.signalPipeline.generation.generate({
+                    let signal = null;
+                    // Remote strategies are handled via the generateSignal stub created in strategyLoader.
+                    // We use the standard pipeline for both in-process and remote strategies.
+                    signal = this.signalPipeline.generation.generate({
                         strategy: strat,
                         packet: tick,
                         context: { isWarmup: false, symbol: tick?.symbol, strategyId: id, source: "tick" }
@@ -410,7 +414,13 @@ class CoreXEngine {
                     const adapter = strat.executionContext?.adapter;
                     if (processed.accepted && processed.signal && adapter) {
                         const enqueued = this.signalPipeline.execution.enqueue(
-                            () => adapter.handle(processed.signal),
+                            () => {
+                                if (typeof adapter.handle === 'function') {
+                                    return adapter.handle(processed.signal);
+                                } else {
+                                    log.error(`[EXEC] Adapter missing .handle() method for ${id}`);
+                                }
+                            },
                             { strategyId: id, symbol: tick?.symbol }
                         );
                         if (!enqueued) {
@@ -419,27 +429,49 @@ class CoreXEngine {
                     }
                 }
             } catch (err) {
-                log.error(`[CRASH] [${strat?.name || id}] ${err.message}`);
-                stateManager.commit(id, "ERROR", { error: err.message, at: new Date().toISOString() });
-                this.lifecycle.fail(err, { strategyId: strat?.name || id, phase: "process_tick" });
-                bus.emit(EVENTS.SYSTEM.ERROR, {
-                    source: "strategy",
-                    strategyId: strat?.name || id,
-                    message: err.message,
-                    at: new Date().toISOString()
-                });
+                this._handleStrategyCrash(id, err);
             }
 
             processedInBatch += 1;
             if (Date.now() - start >= this.strategySliceMs) {
                 this._recordStrategyBatch(id, Date.now() - start, processedInBatch);
-                setImmediate(() => this._processStrategyQueue(id));
+                setImmediate(() => this._processStrategyQueue(id).catch((err) => this._handleStrategyCrash(id, err)));
                 return;
             }
         }
 
         this._recordStrategyBatch(id, Date.now() - start, processedInBatch);
         entry.running = false;
+    }
+
+    _handleStrategyCrash(id, err) {
+        log.error(`[CRASH] [${id}] ${err.message}`);
+        stateManager.commit(id, "ERROR", { error: err.message, at: new Date().toISOString() });
+        this.lifecycle.fail(err, { strategyId: id, phase: "process_tick" });
+        bus.emit(EVENTS.SYSTEM.ERROR, {
+            source: "strategy",
+            strategyId: id,
+            message: err.message,
+            at: new Date().toISOString()
+        }, { userId: parseScopedId(id).userId });
+
+        const now = Date.now();
+        const crashCounter = this.strategyCrashCounters.get(id) || { count: 0, firstCrashAt: now };
+        
+        // Atomic reset check and update to prevent race conditions
+        if (now - crashCounter.firstCrashAt > this.crashTimeframe) {
+            crashCounter.count = 1;
+            crashCounter.firstCrashAt = now;
+        } else {
+            crashCounter.count++;
+        }
+        
+        this.strategyCrashCounters.set(id, crashCounter);
+
+        if (crashCounter.count >= this.maxCrashCount) {
+            log.warn(`[AUTO-DISABLE] Strategy ${id} disabled due to excessive crashes (${crashCounter.count} in the last minute).`);
+            stateManager.commit(id, "DISABLED", { reason: "Auto-disabled due to excessive crashes" });
+        }
     }
 
     _ensureStrategyStats(id) {
@@ -464,38 +496,24 @@ class CoreXEngine {
     }
 
     _recordTick(symbol) {
-        this.feedStats.totalTicks += 1;
-        this.feedStats.lastTickAt = Date.now();
-        let entry = this.feedStats.perSymbol.get(symbol);
-        if (!entry) {
-            entry = { count: 0, lastTickAt: 0, dropped: 0 };
-            this.feedStats.perSymbol.set(symbol, entry);
-        }
-        entry.count += 1;
-        entry.lastTickAt = this.feedStats.lastTickAt;
+        this.feedStats.record(symbol);
     }
 
     _recordDrop(symbol) {
-        this.feedStats.droppedTicks += 1;
-        let entry = this.feedStats.perSymbol.get(symbol);
-        if (!entry) {
-            entry = { count: 0, lastTickAt: 0, dropped: 0 };
-            this.feedStats.perSymbol.set(symbol, entry);
-        }
-        entry.dropped += 1;
+        this.feedStats.recordDrop(symbol);
     }
 
     getFeedMetrics() {
         const now = Date.now();
-        const symbols = Array.from(this.subscriptions.keys());
-        const payload = symbols.map((symbol) => {
-            const entry = this.feedStats.perSymbol.get(symbol) || { count: 0, lastTickAt: 0, dropped: 0 };
-            const queue = this.tickQueues.get(symbol);
+        const feedSnapshot = this.feedStats.getSnapshot();
+
+        const symbols = feedSnapshot.items.map((item) => {
+            const queue = this.tickQueues.get(item.key);
             return {
-                symbol,
-                count: entry.count,
-                lastTickAt: entry.lastTickAt,
-                dropped: entry.dropped,
+                symbol: item.key,
+                count: item.count,
+                lastTickAt: item.lastAt,
+                dropped: item.dropped,
                 queueDepth: queue ? queue.length : 0
             };
         });
@@ -518,20 +536,64 @@ class CoreXEngine {
         return {
             status: this.status,
             lifecycle: this.lifecycle.snapshot(),
-            startedAt: this.feedStats.startedAt,
+            startedAt: feedSnapshot.startedAt,
             uptimeMs: this.startTime ? (now - this.startTime) : 0,
-            totalTicks: this.feedStats.totalTicks,
-            droppedTicks: this.feedStats.droppedTicks,
-            lastTickAt: this.feedStats.lastTickAt,
-            symbols: payload,
+            totalTicks: feedSnapshot.total,
+            droppedTicks: feedSnapshot.dropped,
+            lastTickAt: feedSnapshot.lastAt,
+            symbols: symbols,
             strategies,
             signalExecution: this.signalPipeline.execution.getMetrics()
         };
     }
 
+    getExecutionTelemetry(options = {}) {
+        const includeEvents = options.includeEvents === true;
+        const eventLimit = Math.max(1, Math.min(100, Number(options.eventLimit || 20)));
+        const contexts = [];
+
+        for (const [mode, context] of this.executionContexts.entries()) {
+            const adapter = context?.adapter || null;
+            const broker = context?.broker || null;
+            const brokerSummary = {
+                mode,
+                available: !!broker
+            };
+
+            if (mode === "PAPER" && broker?.getAccountSnapshot) {
+                const snap = broker.getAccountSnapshot();
+                brokerSummary.cash = Number(snap?.cash || 0);
+                brokerSummary.equity = Number(snap?.equity || 0);
+                brokerSummary.freeMargin = Number(snap?.freeMargin || 0);
+                brokerSummary.usedMargin = Number(snap?.usedMargin || 0);
+                brokerSummary.positions = Array.isArray(snap?.positions) ? snap.positions.length : 0;
+            } else if (mode === "LIVE" && broker?.getStatus) {
+                const status = broker.getStatus();
+                brokerSummary.connected = !!status?.connected;
+                brokerSummary.authorized = !!status?.authorized;
+                brokerSummary.pendingRequests = Number(status?.pending || 0);
+                brokerSummary.lastHeartbeat = Number(status?.lastHeartbeat || 0);
+            }
+
+            contexts.push({
+                mode,
+                adapter: adapter?.getMetrics ? adapter.getMetrics() : null,
+                events: includeEvents && adapter?.getRecentEvents ? adapter.getRecentEvents(eventLimit) : undefined,
+                broker: brokerSummary
+            });
+        }
+
+        return {
+            generatedAt: Date.now(),
+            engineStatus: this.status,
+            pipeline: this.signalPipeline.execution.getMetrics(),
+            contexts
+        };
+    }
+
     _getWarmupCachePolicy(strategy) {
-        const storage = getStorageConfig();
-        const storageCache = storage?.cache || {};
+        const storageConfig = storage.getConfig();
+        const storageCache = storageConfig?.cache || {};
         return engineSettings.resolveWarmupCache(strategy, storageCache);
     }
 
@@ -616,7 +678,7 @@ class CoreXEngine {
         }
 
         try {
-            await clampCacheAsync(cacheDir, {
+            await storage.clampCacheAsync(cacheDir, {
                 maxSizeMb: cachePolicy.clampMaxSizeMb,
                 maxAgeDays: cachePolicy.clampMaxAgeDays
             });
@@ -631,81 +693,103 @@ class CoreXEngine {
         strategy.lookback = Math.min(lookback, Math.max(1, maxLookback));
 
         for (const sym of strategy.symbols || []) {
-            const safeSym = sym.replace(/[^a-zA-Z0-9-]/g, "-");
-            const cacheFile = path.join(cacheDir, `candles_${safeSym}_${strategy.timeframe}.json`);
+            try {
+                const safeSym = sym.replace(/[^a-zA-Z0-9-]/g, "-");
+                const cacheFile = path.join(cacheDir, `candles_${safeSym}_${strategy.timeframe}.csv`);
 
-            let candles = [];
-            let needsFullFetch = true;
-
-            if (cachePolicy.enabled) {
-                try {
-                    const cached = await this._readWarmupCacheAsync(cacheFile, tfMs, cachePolicy.maxWriteBars);
-                    if (cached.length > 0) {
-                        const lastTs = cached[cached.length - 1].time;
-                        const gapMs = Date.now() - lastTs;
-                        const gapBars = Math.floor(gapMs / tfMs);
-
-                        if (gapBars <= 1) {
-                            candles = cached;
-                            needsFullFetch = false;
-                            stats.hits += 1;
-                        } else if (gapBars <= cachePolicy.maxGapBarsForPatch) {
-                            const patchLimit = Math.min(gapBars + 5, cachePolicy.maxPatchBars);
-                            const patch = await broker.fetchHistory({
-                                symbol: sym,
-                                interval: strategy.timeframe,
-                                outputsize: patchLimit
-                            });
-
-                            const patchRows = this._normalizeCachedBars(patch, tfMs)
-                                .filter((c) => c.time > lastTs);
-
-                            candles = this._mergeBarsByTime(cached, patchRows, cachePolicy.maxWriteBars);
-                            needsFullFetch = false;
-                            stats.patched += 1;
-                        }
-                    }
-                } catch (e) {
-                    log.debug(`[${id}] Cache skip for ${sym}: ${e.message}`);
-                }
-            }
-
-            if (!needsFullFetch && candles.length < strategy.lookback) {
-                log.info(`[${id}] Warm cache depth too small for ${sym} (${candles.length}/${strategy.lookback})`);
-                needsFullFetch = true;
-            }
-
-            if (needsFullFetch || candles.length < strategy.lookback) {
-                stats.miss += 1;
-                log.info(`[${id}] Syncing ${strategy.lookback} bars for ${sym} (full fetch)`);
-                const fetched = await broker.fetchHistory({
-                    symbol: sym,
-                    interval: strategy.timeframe,
-                    outputsize: strategy.lookback
-                }).catch(err => {
-                    log.error(`[${id}] History fetch failed for ${sym}: ${err.message}`);
-                    return null;
-                });
-                candles = this._normalizeCachedBars(fetched, tfMs).slice(-strategy.lookback);
-            }
-
-            if (candles.length >= Math.min(strategy.lookback, 10)) {
-                const startIdx = Math.max(0, candles.length - strategy.lookback);
-                for (let i = startIdx; i < candles.length; i++) {
-                    if (typeof strategy.onBar === "function") strategy.onBar({ ...candles[i], symbol: sym });
-                    else if (typeof strategy.onTick === "function") strategy.onTick({ ...candles[i], symbol: sym }, true);
-                }
-                strategy._warmedUp = true;
+                let candles = [];
+                let needsFullFetch = true;
 
                 if (cachePolicy.enabled) {
-                    const writeLimit = Math.max(1, cachePolicy.maxWriteBars);
-                    const cacheRows = candles.slice(-writeLimit);
-                    this._writeWarmupCacheAsync(cacheFile, cacheRows, cachePolicy).catch((e) => {
-                        log.debug(`[${id}] Cache write skipped for ${sym}: ${e.message}`);
-                    });
+                    try {
+                        const cached = await this._readWarmupCacheAsync(cacheFile, tfMs, cachePolicy.maxWriteBars);
+                        if (cached.length > 0) {
+                            const lastTs = cached[cached.length - 1].time;
+                            const gapMs = Date.now() - lastTs;
+                            const gapBars = Math.floor(gapMs / tfMs);
+
+                            if (gapBars <= 1) {
+                                candles = cached;
+                                needsFullFetch = false;
+                                stats.hits += 1;
+                            } else if (gapBars <= cachePolicy.maxGapBarsForPatch) {
+                                const patchLimit = Math.min(gapBars + 5, cachePolicy.maxPatchBars);
+                                const patch = await broker.fetchHistory({
+                                    symbol: sym,
+                                    interval: strategy.timeframe,
+                                    outputsize: patchLimit
+                                });
+
+                                const patchRows = this._normalizeCachedBars(patch, tfMs)
+                                    .filter((c) => c.time > lastTs);
+
+                                candles = this._mergeBarsByTime(cached, patchRows, cachePolicy.maxWriteBars);
+                                needsFullFetch = false;
+                                stats.patched += 1;
+                            }
+                        }
+                    } catch (e) {
+                        log.debug(`[${id}] Cache skip for ${sym}: ${e.message}`);
+                    }
                 }
-            } else {
-                log.error(`[${id}] Warmup failed for ${sym}: insufficient data (${candles.length}/${strategy.lookback})`);
+
+                if (!needsFullFetch && candles.length < strategy.lookback) {
+                    log.info(`[${id}] Warm cache depth too small for ${sym} (${candles.length}/${strategy.lookback})`);
+                    needsFullFetch = true;
+                }
+
+                if (needsFullFetch || candles.length < strategy.lookback) {
+                    stats.miss += 1;
+                    log.info(`[${id}] Syncing ${strategy.lookback} bars for ${sym} (full fetch)`);
+                    const fetched = await broker.fetchHistory({
+                        symbol: sym,
+                        interval: strategy.timeframe,
+                        outputsize: strategy.lookback
+                    }).catch(err => {
+                        log.error(`[${id}] History fetch failed for ${sym}: ${err.message}`);
+                        return null;
+                    });
+                    candles = this._normalizeCachedBars(fetched, tfMs).slice(-strategy.lookback);
+                }
+
+                if (candles.length >= Math.min(strategy.lookback, 10)) {
+                    const startIdx = Math.max(0, candles.length - strategy.lookback);
+                    for (let i = startIdx; i < candles.length; i++) {
+                        const bar = { ...candles[i], symbol: sym };
+                        try {
+                            if (strategy.__remote && strategyRuntime) {
+                                // Warmup is sequential by design: wait for each bar to be consumed
+                                // to avoid out-of-order indicator state in remote runtimes.
+                                const warmupResult = await strategyRuntime.warmupBar({ strategyId: id, bar });
+                                if (warmupResult?.ok === false) {
+                                    throw new Error(warmupResult.error || "REMOTE_WARMUP_FAILED");
+                                }
+                            } else if (typeof strategy.onBar === "function") {
+                                strategy.onBar(bar);
+                            } else if (typeof strategy.onTick === "function") {
+                                strategy.onTick(bar, true);
+                            }
+                        } catch (e) {
+                            log.warn(`[${id}] Warmup bar processing failed for ${sym}: ${e.message}`);
+                            success = false;
+                            break;
+                        }
+                    }
+                    strategy._warmedUp = true;
+
+                    if (cachePolicy.enabled) {
+                        const writeLimit = Math.max(1, cachePolicy.maxWriteBars);
+                        const cacheRows = candles.slice(-writeLimit);
+                        this._writeWarmupCacheAsync(cacheFile, cacheRows, cachePolicy).catch((e) => {
+                            log.debug(`[${id}] Cache write skipped for ${sym}: ${e.message}`);
+                        });
+                    }
+                } else {
+                    log.error(`[${id}] Warmup failed for ${sym}: insufficient data (${candles.length}/${strategy.lookback})`);
+                    success = false;
+                }
+            } catch (err) {
+                log.error(`[${id}] Warmup exception for ${sym}: ${err.message}`);
                 success = false;
             }
         }
@@ -715,35 +799,24 @@ class CoreXEngine {
     }
 
     async _readWarmupCacheAsync(cacheFile, tfMs, maxBars) {
-        const variants = [cacheFile, `${cacheFile}.gz`];
-        for (const filePath of variants) {
-            try {
-                const raw = await fsp.readFile(filePath);
-                const decoded = filePath.endsWith(".gz")
-                    ? (await gunzipAsync(raw)).toString("utf8")
-                    : raw.toString("utf8");
-                const parsed = JSON.parse(decoded);
-                const normalized = this._normalizeCachedBars(parsed, tfMs);
-                if (!normalized.length) continue;
-                return normalized.slice(-Math.max(1, Number(maxBars) || normalized.length));
-            } catch {
-                // try next variant
+        try {
+            // Use CSV reader
+            const parsed = await storage.readCsvOrGz(cacheFile);
+            const normalized = this._normalizeCachedBars(parsed, tfMs);
+            if (!normalized.length) return [];
+            return normalized.slice(-Math.max(1, Number(maxBars) || normalized.length));
+        } catch (e) {
+            // Not found is ok, other errors should probably be logged
+            if (e.code !== 'ENOENT') {
+                log.debug(`Cache read failed for ${path.basename(cacheFile)}: ${e.message}`);
             }
+            return [];
         }
-        return [];
     }
 
     async _writeWarmupCacheAsync(cacheFile, rows = [], cachePolicy = {}) {
-        const body = JSON.stringify(rows);
-        const shouldCompress = !!cachePolicy.compress && Buffer.byteLength(body, "utf8") >= (Number(cachePolicy.compressMinBytes) || 0);
-        const targetPath = shouldCompress ? `${cacheFile}.gz` : cacheFile;
-        const tmp = `${targetPath}.tmp`;
-        const payload = shouldCompress ? await gzipAsync(Buffer.from(body, "utf8")) : body;
-        await fsp.writeFile(tmp, payload);
-        await fsp.rename(tmp, targetPath);
-
-        const stalePath = shouldCompress ? cacheFile : `${cacheFile}.gz`;
-        try { await fsp.unlink(stalePath); } catch { /* ignore */ }
+        // Use CSV writer
+        await storage.writeCsvOrGz(cacheFile, rows, cachePolicy);
     }
 
     _normalizeTimeframe(tf) {
@@ -776,20 +849,25 @@ class CoreXEngine {
         const entry = loader.registry.get(strategyId);
         if (!entry) return;
 
-        stateManager.commit(strategyId, "STOPPING", { reason: "Manual unregister" });
+        const currentStatus = stateManager.getStatus(strategyId);
+        if (["ACTIVE", "PAUSED", "ERROR", "WARMING_UP"].includes(currentStatus)) {
+            stateManager.commit(strategyId, "STOPPING", { reason: "Manual unregister" });
+        }
 
         const strategy = entry.instance;
 
-        strategy.symbols?.forEach(symbol => {
-            const subs = this.subscriptions.get(symbol);
-            if (subs) {
-                subs.delete(strategy);
-                if (subs.size === 0) {
-                    this.subscriptions.delete(symbol);
-                    this.activeSymbols.delete(symbol);
+        if (strategy && strategy.symbols) {
+            strategy.symbols.forEach(symbol => {
+                const subs = this.subscriptions.get(symbol);
+                if (subs) {
+                    subs.delete(strategy);
+                    if (subs.size === 0) {
+                        this.subscriptions.delete(symbol);
+                        this.activeSymbols.delete(symbol);
+                    }
                 }
-            }
-        });
+            });
+        }
 
         stateManager.commit(strategyId, "OFFLINE", { reason: "Unregistered" });
 
@@ -806,18 +884,19 @@ class CoreXEngine {
 
         broker.cleanup();
         bus.removeAllListeners(EVENTS.MARKET.TICK);
-        this.subscriptions.clear();
-        this.activeSymbols.clear();
-        this.tickQueues.clear();
-        this._droppedTicks.clear();
+        this.subscriptions?.clear();
+        this.activeSymbols?.clear();
+        this.tickQueues?.clear();
+        this._droppedTicks?.clear();
         this.flushScheduled = false;
-        this.feedStats.perSymbol.clear();
+        this.feedStats.perSymbol?.clear();
         this.feedStats.totalTicks = 0;
         this.feedStats.droppedTicks = 0;
         this.feedStats.lastTickAt = 0;
-        this.strategyQueues.clear();
-        this._droppedStrategyTicks.clear();
-        this.strategyStats.clear();
+        this.strategyQueues?.clear();
+        this._droppedStrategyTicks?.clear();
+        this.strategyStats?.clear();
+        this.strategyCrashCounters?.clear();
 
         this.status = "IDLE";
         this.lifecycle.transition(STATES.STOPPED, { reason: "stopped" });
@@ -829,14 +908,23 @@ class CoreXEngine {
         return this.startTime ? Date.now() - this.startTime : 0;
     }
 
+    async restart() {
+        log.info("Restarting CoreX Engine...");
+        await this.stop();
+        await this.start();
+        log.info("CoreX Engine restarted successfully.");
+    }
+
     getSettings() {
         return {
             tickQueueMax: this.maxQueueSize,
             tickFlushMax: this.maxFlushCount,
             stratQueueMax: this.maxStrategyQueueSize,
             stratSliceMs: this.strategySliceMs,
+            signalExecConcurrency: this.signalPipeline.execution.concurrency,
+            signalExecMaxQueue: this.signalPipeline.execution.maxQueue,
             logLevel: logger.level,
-            storage: getStorageConfig()
+            storage: storage.getConfig()
         };
     }
 
@@ -858,12 +946,17 @@ class CoreXEngine {
         const stratSliceMs = toNum(next.stratSliceMs);
         if (stratSliceMs && stratSliceMs > 0) this.strategySliceMs = stratSliceMs;
 
+        this.signalPipeline.execution.updateSettings({
+            concurrency: next.signalExecConcurrency,
+            maxQueue: next.signalExecMaxQueue
+        });
+
         if (next.logLevel) {
             logger.setLevel(String(next.logLevel));
         }
 
         if (next.storage && typeof next.storage === "object") {
-            setStorageConfig(next.storage);
+            storage.setConfig(next.storage);
         }
 
         return this.getSettings();

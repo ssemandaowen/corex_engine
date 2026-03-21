@@ -53,7 +53,9 @@ const OhlcChart = ({ candles = [], markers = [] }) => {
     const markerPoints = (Array.isArray(markers) ? markers : []).map((m) => {
       const x = pad.left + ((Number(m.time) - tMin) / tRange) * plotW;
       const y = toY(Number(m.value || 0));
-      return { x: clamp(x, pad.left, pad.left + plotW), y, label: m.label || "EVENT", t: Number(m.time) };
+      const kind = String(m.kind || "signal").toLowerCase();
+      const color = kind === "buy" ? "#22c55e" : (kind === "sell" ? "#ef4444" : "#60a5fa");
+      return { x: clamp(x, pad.left, pad.left + plotW), y, label: m.label || "EVENT", t: Number(m.time), color };
     });
 
     return { width, height, pad, minPrice, maxPrice, points, markerPoints };
@@ -86,8 +88,8 @@ const OhlcChart = ({ candles = [], markers = [] }) => {
 
       {markerPoints.slice(-24).map((m, i) => (
         <g key={`m_${m.t}_${i}`}>
-          <line x1={m.x} y1={pad.top} x2={m.x} y2={height - pad.bottom} stroke="#60a5fa66" strokeDasharray="3 3" />
-          <circle cx={m.x} cy={m.y} r="2.4" fill="#60a5fa" />
+          <line x1={m.x} y1={pad.top} x2={m.x} y2={height - pad.bottom} stroke={`${m.color}55`} strokeDasharray="3 3" />
+          <circle cx={m.x} cy={m.y} r="2.6" fill={m.color} />
         </g>
       ))}
 

@@ -33,7 +33,7 @@ const StrategySignalUtils = {
              * This allows the crossover to return 'true' during the exitRule (when long/short)
              * AND 'true' during the entryRule (when flat) on the exact same bar.
              */
-            const currentPos = this.positions?.get(symbol)?.direction || 'flat';
+            const currentPos = this._getCurrentPositionState(symbol);
             const autoKey = opts.key || `${direction}:${symbol}:${currentPos}`;
             
             if (this._signalState[autoKey] === barTime) return false;
@@ -41,6 +41,15 @@ const StrategySignalUtils = {
             this._signalState[autoKey] = barTime;
         }
         return true;
+    },
+
+    _getCurrentPositionState(symbol) {
+        const pos = this.positions?.get?.(symbol);
+        if (!pos) return "flat";
+        const raw = String(pos.side || pos.direction || "").toLowerCase();
+        if (raw === "long" || raw === "buy") return "long";
+        if (raw === "short" || raw === "sell") return "short";
+        return "flat";
     },
 
     above(a, b) {

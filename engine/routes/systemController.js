@@ -17,6 +17,56 @@ const engine = require("@core/core/engine");
 const { runHealthCheck } = require("@core/services/healthCheck");
 const logger = require('@utils/logger');
 const { BRIDGE_INTEGRATIONS, MODES, TIME } = require("@config/constants");
+const secretsVault = require("@core/services/secretsVault");
+const { requireAdmin } = require("@core/middleware/roleGuard");
+
+const SECRET_REDACTED = "<redacted>";
+
+const getAtPath = (obj, path) => {
+    const parts = String(path || "").split(".").filter(Boolean);
+    let cur = obj;
+    for (const p of parts) {
+        if (!cur || typeof cur !== "object") return undefined;
+        cur = cur[p];
+    }
+    return cur;
+};
+
+const setAtPath = (obj, path, value) => {
+    const parts = String(path || "").split(".").filter(Boolean);
+    if (!parts.length) return false;
+    let cur = obj;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+        const k = parts[i];
+        if (!cur[k] || typeof cur[k] !== "object") cur[k] = {};
+        cur = cur[k];
+    }
+    cur[parts[parts.length - 1]] = value;
+    return true;
+};
+
+const getMarketStatus = () => {
+    if (typeof marketBroker?.getStatus === "function") return marketBroker.getStatus();
+    return {
+        connected: !!marketBroker?.isConnected,
+        reconnectAttempts: Number(marketBroker?.reconnectAttempts || 0),
+        lastLatency: Number(marketBroker?.lastLatency || 0),
+        symbols: Array.from(marketBroker?.symbols || []),
+        nextReconnectAt: 0,
+        lastDisconnectAt: 0,
+        lastDisconnectReason: null,
+        websocketEnabled: true
+    };
+};
+
+const marketConnectivityLabel = (status) => {
+    if (!status?.websocketEnabled) return "DISABLED";
+    if (status?.connected) return "CONNECTED";
+    if (Number(status?.nextReconnectAt || 0) > Date.now()) return "RECONNECTING";
+    return "DISCONNECTED";
+};
+
+const getUserId = (req) => String(req.user?.sub || "").trim();
 
 /**
  * SYSTEM & ACCOUNT DOMAIN
@@ -36,6 +86,7 @@ router.get('/heartbeat', (req, res) => {
     const ramPct = totalMem > 0 ? (usedMem / totalMem) * 100 : 0;
 
     const bridgeStatus = mt5Bridge.getStatus();
+    const marketStatus = getMarketStatus();
 
     res.json({
         success: true,
@@ -51,10 +102,11 @@ router.get('/heartbeat', (req, res) => {
                 ramPct: ramPct.toFixed(1)
             },
             connectivity: {
-                marketData: marketBroker.isConnected ? "CONNECTED" : "DISCONNECTED",
+                marketData: marketConnectivityLabel(marketStatus),
+                marketDataDetail: marketStatus,
                 bridge: bridgeStatus.authorized ? "CONNECTED" : (bridgeStatus.connected ? "PENDING_AUTH" : "DISCONNECTED"),
                 bridgeDetail: bridgeStatus,
-                latency: marketBroker.lastLatency || 0
+                latency: marketStatus.lastLatency || 0
             }
         }
     });
@@ -63,11 +115,17 @@ router.get('/heartbeat', (req, res) => {
 // Feed metrics & health telemetry
 router.get('/feed/metrics', (req, res) => {
     try {
+        const marketStatus = getMarketStatus();
         const brokerInfo = {
-            connected: !!marketBroker.isConnected,
-            lastLatency: marketBroker.lastLatency || 0,
-            reconnectAttempts: marketBroker.reconnectAttempts || 0,
-            symbols: Array.from(marketBroker.symbols || [])
+            connected: !!marketStatus.connected,
+            websocketEnabled: !!marketStatus.websocketEnabled,
+            state: marketConnectivityLabel(marketStatus),
+            lastLatency: Number(marketStatus.lastLatency || 0),
+            reconnectAttempts: Number(marketStatus.reconnectAttempts || 0),
+            nextReconnectAt: Number(marketStatus.nextReconnectAt || 0),
+            lastDisconnectAt: Number(marketStatus.lastDisconnectAt || 0),
+            lastDisconnectReason: marketStatus.lastDisconnectReason || null,
+            symbols: Array.isArray(marketStatus.symbols) ? marketStatus.symbols : []
         };
 
         const engineMetrics = engine.getFeedMetrics();
@@ -100,29 +158,69 @@ router.get('/health/control-gates', async (req, res) => {
     }
 });
 
-const getBrokerByMode = (mode = 'paper') => {
+const getBrokerByMode = (mode = 'paper', userId = undefined) => {
     const m = String(mode || 'paper').toLowerCase();
-    if (m === 'paper') return getPaperBroker();
+    if (m === 'paper') return getPaperBroker(userId);
     if (m === 'live') return getLiveBroker();
     return null;
 };
 
-router.get('/account/modes', (req, res) => {
-    const active = String(process.env.COREX_ACTIVE_BROKER || 'paper').toLowerCase();
-    res.json({
-        success: true,
-        payload: {
-            active: ['paper', 'live'].includes(active) ? active : 'paper',
-            available: ['paper', 'live']
-        }
-    });
+const normalizeMode = (mode = "paper") => (String(mode || "paper").toLowerCase() === "live" ? "live" : "paper");
+
+router.get('/account/modes', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const persisted = await pgStore.getSystemSettingsForUser(userId);
+        const uiMode = normalizeMode(persisted?.payload?.ui?.activeAccountMode || "");
+        const fallback = normalizeMode(process.env.COREX_ACTIVE_BROKER || "paper");
+        res.json({
+            success: true,
+            payload: {
+                active: uiMode || fallback,
+                available: ['paper', 'live']
+            }
+        });
+    } catch {
+        const fallback = normalizeMode(process.env.COREX_ACTIVE_BROKER || "paper");
+        res.json({
+            success: true,
+            payload: {
+                active: fallback,
+                available: ['paper', 'live']
+            }
+        });
+    }
+});
+
+router.patch('/account/mode', async (req, res) => {
+    try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const mode = normalizeMode(req.body?.mode || "paper");
+        const existing = await pgStore.getSystemSettingsForUser(userId);
+        const payload = existing?.payload && typeof existing.payload === "object" ? existing.payload : {};
+        const next = {
+            ...payload,
+            ui: {
+                ...(payload.ui || {}),
+                activeAccountMode: mode
+            }
+        };
+        await pgStore.upsertSystemSettingsForUser(userId, next);
+        await configService.refresh();
+        bus.emit(EVENTS.SYSTEM.CONFIG_REFRESH, { source: "api.account.mode", updated: { activeAccountMode: mode } });
+        res.json({ success: true, payload: { active: mode, available: ['paper', 'live'] } });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "ACCOUNT_MODE_UPDATE_FAILED", message: err.message });
+    }
 });
 
 // 2. ACCOUNT BALANCES (For Account Tab)
 router.get('/account/:mode/balance', async (req, res) => {
     try {
         const mode = String(req.params.mode || "").toLowerCase();
-        const broker = getBrokerByMode(mode);
+        const broker = getBrokerByMode(mode, getUserId(req));
         if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
         let snapshot = broker.getAccountSnapshot();
         if (mode === "live") {
@@ -147,7 +245,7 @@ router.get('/account/:mode/balance', async (req, res) => {
 // Backward-compatible paper route
 router.get('/account/balance', async (req, res) => {
     try {
-        const broker = getPaperBroker();
+        const broker = getPaperBroker(getUserId(req));
         const snapshot = broker.getAccountSnapshot();
         res.json({ success: true, payload: snapshot });
     } catch (err) {
@@ -156,9 +254,12 @@ router.get('/account/balance', async (req, res) => {
 });
 
 // PAPER ACCOUNT SETTINGS
-router.patch('/account/:mode/settings', (req, res) => {
+router.patch('/account/:mode/settings', async (req, res) => {
     try {
-        const broker = getBrokerByMode(req.params.mode);
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const mode = normalizeMode(req.params.mode);
+        const broker = getBrokerByMode(mode, userId);
         if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
         const { cash, initialCash, config } = req.body || {};
 
@@ -168,6 +269,10 @@ router.patch('/account/:mode/settings', (req, res) => {
             if (next.commissionMin != null) next.commissionMin = Number(next.commissionMin);
             if (next.slippageBps != null) next.slippageBps = Number(next.slippageBps);
             if (next.fillProbability != null) next.fillProbability = Number(next.fillProbability);
+            if (next.spreadBps != null) next.spreadBps = Number(next.spreadBps);
+            if (next.latencyMsMin != null) next.latencyMsMin = Number(next.latencyMsMin);
+            if (next.latencyMsMax != null) next.latencyMsMax = Number(next.latencyMsMax);
+            if (next.positionBroadcastMinMs != null) next.positionBroadcastMinMs = Number(next.positionBroadcastMinMs);
             broker.updateConfig(next);
         }
         if (cash != null) {
@@ -178,17 +283,24 @@ router.patch('/account/:mode/settings', (req, res) => {
             const ok = broker.setInitialCash(initialCash);
             if (!ok) return res.status(400).json({ success: false, error: "INVALID_INITIAL_CASH" });
         }
-
-        res.json({ success: true, payload: broker.getAccountSnapshot() });
+        const snapshot = broker.getAccountSnapshot();
+        await pgStore.upsertBrokerSettingsForUser(userId, mode, {
+            cash: snapshot.cash,
+            initialCash: snapshot.initialCash,
+            config: snapshot.config || {}
+        });
+        res.json({ success: true, payload: snapshot });
     } catch (err) {
         res.status(500).json({ success: false, error: "UPDATE_FAILED" });
     }
 });
 
 // Backward-compatible paper route
-router.patch('/account/settings', (req, res) => {
+router.patch('/account/settings', async (req, res) => {
     try {
-        const broker = getPaperBroker();
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const broker = getPaperBroker(userId);
         const { cash, initialCash, config } = req.body || {};
 
         if (config && typeof config === 'object') {
@@ -197,6 +309,10 @@ router.patch('/account/settings', (req, res) => {
             if (next.commissionMin != null) next.commissionMin = Number(next.commissionMin);
             if (next.slippageBps != null) next.slippageBps = Number(next.slippageBps);
             if (next.fillProbability != null) next.fillProbability = Number(next.fillProbability);
+            if (next.spreadBps != null) next.spreadBps = Number(next.spreadBps);
+            if (next.latencyMsMin != null) next.latencyMsMin = Number(next.latencyMsMin);
+            if (next.latencyMsMax != null) next.latencyMsMax = Number(next.latencyMsMax);
+            if (next.positionBroadcastMinMs != null) next.positionBroadcastMinMs = Number(next.positionBroadcastMinMs);
             broker.updateConfig(next);
         }
         if (cash != null) {
@@ -207,32 +323,54 @@ router.patch('/account/settings', (req, res) => {
             const ok = broker.setInitialCash(initialCash);
             if (!ok) return res.status(400).json({ success: false, error: "INVALID_INITIAL_CASH" });
         }
-
-        res.json({ success: true, payload: broker.getAccountSnapshot() });
+        const snapshot = broker.getAccountSnapshot();
+        await pgStore.upsertBrokerSettingsForUser(userId, "paper", {
+            cash: snapshot.cash,
+            initialCash: snapshot.initialCash,
+            config: snapshot.config || {}
+        });
+        res.json({ success: true, payload: snapshot });
     } catch (err) {
         res.status(500).json({ success: false, error: "UPDATE_FAILED" });
     }
 });
 
-router.post('/account/:mode/reset', (req, res) => {
+router.post('/account/:mode/reset', async (req, res) => {
     try {
-        const broker = getBrokerByMode(req.params.mode);
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const mode = normalizeMode(req.params.mode);
+        const broker = getBrokerByMode(mode, userId);
         if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
         const { initialCash } = req.body || {};
         broker.resetAccount(initialCash);
-        res.json({ success: true, payload: broker.getAccountSnapshot() });
+        const snapshot = broker.getAccountSnapshot();
+        await pgStore.upsertBrokerSettingsForUser(userId, mode, {
+            cash: snapshot.cash,
+            initialCash: snapshot.initialCash,
+            config: snapshot.config || {}
+        });
+        res.json({ success: true, payload: snapshot });
     } catch (err) {
         res.status(500).json({ success: false, error: "RESET_FAILED" });
     }
 });
 
 // Backward-compatible paper route
-router.post('/account/reset', (req, res) => {
+router.post('/account/reset', async (req, res) => {
     try {
-        const broker = getPaperBroker();
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const broker = getPaperBroker(userId);
         const { initialCash } = req.body || {};
         broker.resetAccount(initialCash);
-        res.json({ success: true, payload: broker.getAccountSnapshot() });
+        const snapshot = broker.getAccountSnapshot();
+        await pgStore.upsertBrokerSettingsForUser(userId, "paper", {
+            cash: snapshot.cash,
+            initialCash: snapshot.initialCash,
+            config: snapshot.config || {}
+        });
+        res.json({ success: true, payload: snapshot });
     } catch (err) {
         res.status(500).json({ success: false, error: "RESET_FAILED" });
     }
@@ -251,12 +389,14 @@ router.post('/settings/update', (req, res) => {
 
 router.get('/account/:mode/settings', async (req, res) => {
     try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const mode = String(req.params.mode || "").toLowerCase();
-        const broker = getBrokerByMode(mode);
+        const broker = getBrokerByMode(mode, userId);
         if (!broker) return res.status(501).json({ success: false, error: "BROKER_NOT_AVAILABLE" });
 
         const snapshot = broker.getAccountSnapshot?.() || {};
-        const persisted = await pgStore.getBrokerSettings(mode);
+        const persisted = await pgStore.getBrokerSettingsForUser(userId, mode);
         res.json({
             success: true,
             payload: {
@@ -274,9 +414,17 @@ router.get('/account/:mode/settings', async (req, res) => {
 
 router.get('/settings', async (req, res) => {
     try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const runtime = engine.getSettings();
-        const persisted = await pgStore.getSystemSettings();
-        res.json({ success: true, payload: { runtime, persisted } });
+        const persisted = await pgStore.getSystemSettingsForUser(userId);
+
+        // Never return integration secrets to the UI once stored.
+        const safePersisted = persisted && typeof persisted === "object"
+            ? { ...persisted, payload: secretsVault.maskSecrets({ ...(persisted.payload || {}) }) }
+            : persisted;
+
+        res.json({ success: true, payload: { runtime, persisted: safePersisted } });
     } catch (err) {
         res.status(500).json({ success: false, error: "SETTINGS_READ_FAILED", message: err.message });
     }
@@ -284,6 +432,8 @@ router.get('/settings', async (req, res) => {
 
 router.patch('/settings', async (req, res) => {
     try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const { settings, persist } = req.body || {};
         const uiSettings = settings?.ui;
         const engineSettings = { ...(settings || {}) };
@@ -291,7 +441,7 @@ router.patch('/settings', async (req, res) => {
 
         const updated = engine.updateSettings(engineSettings || {});
         if (persist !== false) {
-            const existing = await pgStore.getSystemSettings();
+            const existing = await pgStore.getSystemSettingsForUser(userId);
             const payload = existing?.payload && typeof existing.payload === "object" ? existing.payload : {};
             const nextPayload = {
                 ...payload,
@@ -303,7 +453,25 @@ router.patch('/settings', async (req, res) => {
             if (uiSettings && typeof uiSettings === "object") {
                 nextPayload.ui = { ...(payload.ui || {}), ...uiSettings };
             }
-            await pgStore.upsertSystemSettings(nextPayload);
+
+            // If the UI sends back masked secrets, preserve the existing stored values.
+            for (const secretPath of secretsVault.DEFAULT_SECRET_PATHS || []) {
+                const incoming = getAtPath(nextPayload, secretPath);
+                if (incoming === SECRET_REDACTED || incoming === "") {
+                    const previous = getAtPath(payload, secretPath);
+                    if (typeof previous === "string" && previous) {
+                        setAtPath(nextPayload, secretPath, previous);
+                    } else {
+                        // If there's no previous value, drop the placeholder.
+                        setAtPath(nextPayload, secretPath, "");
+                    }
+                }
+            }
+
+            // Encrypt integration secrets at rest (DB) if COREX_SECRETS_KEY is configured.
+            secretsVault.encryptObjectSecrets(nextPayload);
+
+            await pgStore.upsertSystemSettingsForUser(userId, nextPayload);
         }
         await configService.refresh();
         await integrationRuntime.refresh();
@@ -325,7 +493,9 @@ const getDefaultRunSettings = () => ({
 
 router.get('/run/settings', async (req, res) => {
     try {
-        const persisted = await pgStore.getSystemSettings();
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const persisted = await pgStore.getSystemSettingsForUser(userId);
         const payload = persisted?.payload || {};
         const run = payload.run && typeof payload.run === "object" ? payload.run : {};
         const defaults = getDefaultRunSettings();
@@ -350,14 +520,16 @@ router.get('/run/settings', async (req, res) => {
 
 router.patch('/run/settings', async (req, res) => {
     try {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const run = req.body?.settings && typeof req.body.settings === "object" ? req.body.settings : {};
         const persist = req.body?.persist !== false;
-        const existing = await pgStore.getSystemSettings();
+        const existing = await pgStore.getSystemSettingsForUser(userId);
         const payload = existing?.payload && typeof existing.payload === "object" ? existing.payload : {};
         const defaults = getDefaultRunSettings();
         const nextRun = { ...(payload.run || defaults), ...run };
         const nextPayload = { ...payload, run: nextRun };
-        if (persist) await pgStore.upsertSystemSettings(nextPayload);
+        if (persist) await pgStore.upsertSystemSettingsForUser(userId, nextPayload);
         await configService.refresh();
         await integrationRuntime.refresh();
         bus.emit(EVENTS.SYSTEM.CONFIG_REFRESH, { source: "api.run.settings", updated: nextRun });
@@ -368,7 +540,7 @@ router.patch('/run/settings', async (req, res) => {
 });
 
 // 4. THE "CLEAR STATE" BUTTON (Emergency Reset)
-router.post('/maintenance/reset-states', (req, res) => {
+router.post('/maintenance/reset-states', requireAdmin, (req, res) => {
     try {
         const stateManager = require('@utils/stateController');
         stateManager.resetAll(); // Clears stuck transitions
@@ -382,6 +554,8 @@ router.post('/maintenance/reset-states', (req, res) => {
 });
 
 router.get('/mt5/status', (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
     Promise.all([
         db.query(
         `SELECT terminal_id, last_seen, status, account_id
@@ -389,7 +563,7 @@ router.get('/mt5/status', (req, res) => {
          ORDER BY last_seen DESC`
         ),
         db.query(`SELECT execution_enabled FROM execution_control WHERE id = 1`),
-        pgStore.getSystemSettings().catch(() => null)
+        pgStore.getSystemSettingsForUser(userId).catch(() => null)
     ]).then(([bridgeRes, execRes, systemSettings]) => {
         const rows = bridgeRes.rows || [];
         const heartbeat = rows[0] || null;
@@ -444,7 +618,11 @@ router.get('/mt5/status', (req, res) => {
 
 // WS Health Check
 router.get('/ws-health', (req, res) => {
-    const clients = broadcaster?.wss?.clients ? broadcaster.wss.clients.size : 0;
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+    const clients = typeof broadcaster.getClientCountForUser === "function"
+        ? broadcaster.getClientCountForUser(userId)
+        : (broadcaster?.wss?.clients ? broadcaster.wss.clients.size : 0);
     res.json({
         success: true,
         payload: {
@@ -456,6 +634,8 @@ router.get('/ws-health', (req, res) => {
 
 // Push-test: seed a LIVE order for a specific terminal
 router.post('/mt5/push-test', async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
     const terminalId = String(req.body?.terminal_id || "105388034").trim();
     const symbol = String(req.body?.symbol || "EURUSD").trim().toUpperCase();
     const side = String(req.body?.side || "BUY").trim().toUpperCase() === "SELL" ? "SELL" : "BUY";
@@ -465,9 +645,9 @@ router.post('/mt5/push-test', async (req, res) => {
     }
     try {
         await db.query(
-            `INSERT INTO orders (strategy_id, symbol, side, order_type, quantity, status, environment, terminal_id)
-             VALUES ($1, $2, $3, 'MARKET', $4, 'PENDING', 'LIVE', $5)`,
-            [null, symbol, side, quantity, terminalId]
+            `INSERT INTO orders (strategy_id, strategy_name, user_id, symbol, side, order_type, quantity, status, environment, terminal_id)
+             VALUES ($1, $2, $3, $4, $5, 'MARKET', $6, 'PENDING', 'LIVE', $7)`,
+            [null, null, userId, symbol, side, quantity, terminalId]
         );
         res.json({ success: true });
     } catch (err) {
@@ -492,7 +672,7 @@ router.post('/mt5/execution', async (req, res) => {
     }
 });
 
-router.get('/db/summary', async (req, res) => {
+router.get('/db/summary', requireAdmin, async (req, res) => {
     try {
         res.json({ success: true, payload: await pgStore.getSummary() });
     } catch (err) {
@@ -500,7 +680,7 @@ router.get('/db/summary', async (req, res) => {
     }
 });
 
-router.get('/db/users', async (req, res) => {
+router.get('/db/users', requireAdmin, async (req, res) => {
     try {
         res.json({ success: true, payload: await pgStore.listUsers() });
     } catch (err) {
@@ -508,7 +688,7 @@ router.get('/db/users', async (req, res) => {
     }
 });
 
-router.post('/db/users', async (req, res) => {
+router.post('/db/users', requireAdmin, async (req, res) => {
     try {
         const { hashPassword } = require("@core/services/authService");
         const password = String(req.body?.password || "");
@@ -523,7 +703,7 @@ router.post('/db/users', async (req, res) => {
     }
 });
 
-router.get('/db/accounts', async (req, res) => {
+router.get('/db/accounts', requireAdmin, async (req, res) => {
     try {
         res.json({ success: true, payload: await pgStore.listAccounts() });
     } catch (err) {
@@ -531,7 +711,7 @@ router.get('/db/accounts', async (req, res) => {
     }
 });
 
-router.post('/db/accounts', async (req, res) => {
+router.post('/db/accounts', requireAdmin, async (req, res) => {
     try {
         const account = await pgStore.upsertAccount(req.body || {});
         res.json({ success: true, payload: account });
@@ -540,7 +720,7 @@ router.post('/db/accounts', async (req, res) => {
     }
 });
 
-router.get('/db/quota/:userId', async (req, res) => {
+router.get('/db/quota/:userId', requireAdmin, async (req, res) => {
     try {
         const quota = await pgStore.getQuota(String(req.params.userId || ""));
         if (!quota) return res.status(404).json({ success: false, error: "QUOTA_NOT_FOUND" });
@@ -550,7 +730,7 @@ router.get('/db/quota/:userId', async (req, res) => {
     }
 });
 
-router.patch('/db/quota/:userId', async (req, res) => {
+router.patch('/db/quota/:userId', requireAdmin, async (req, res) => {
     try {
         const quota = await pgStore.upsertQuota(String(req.params.userId || ""), req.body || {});
         res.json({ success: true, payload: quota });

@@ -2,7 +2,9 @@
 
 const crypto = require("crypto");
 const db = require("@core/services/postgres");
+const { sanitizeUserId } = require("@core/services/userScope");
 const newId = () => crypto.randomUUID();
+const API_KEY_PEPPER = String(process.env.AUTH_KEY_PEPPER || process.env.JWT_SECRET || process.env.ADMIN_SECRET || "corex-auth-key-pepper");
 
 const toUserPayload = (row) => ({
     id: row.id,
@@ -35,6 +37,48 @@ const toQuotaPayload = (row) => ({
     resetAt: row.reset_at,
     updatedAt: row.updated_at
 });
+
+const toBacktestUploadPayload = (row) => ({
+    id: row.id,
+    userId: row.user_id,
+    digest: row.digest,
+    symbol: row.symbol,
+    source: row.source,
+    originalname: row.original_name,
+    ext: row.ext,
+    dedupPath: row.dedup_path,
+    symbolPath: row.symbol_path,
+    size: Number(row.size_bytes || 0),
+    barsCount: row.bars_count == null ? null : Number(row.bars_count),
+    meta: row.meta || {},
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+    lastUsedAt: row.last_used_at ? new Date(row.last_used_at).getTime() : null
+});
+
+const toBacktestDatasetPayload = (row) => ({
+    id: row.id,
+    cacheKey: row.cache_key,
+    userId: row.user_id || null,
+    source: row.source,
+    symbol: row.symbol,
+    timeframe: row.timeframe,
+    outputsize: Number(row.outputsize || 0),
+    rangeMode: row.range_mode,
+    rangeStart: row.range_start == null ? null : Number(row.range_start),
+    rangeEnd: row.range_end == null ? null : Number(row.range_end),
+    barsCount: Number(row.bars_count || 0),
+    bars: Array.isArray(row.bars) ? row.bars : [],
+    meta: row.meta || {},
+    createdAt: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
+    lastUsedAt: row.last_used_at ? new Date(row.last_used_at).getTime() : null
+});
+
+const hashApiKey = (rawKey) => crypto
+    .createHash("sha256")
+    .update(`${API_KEY_PEPPER}:${String(rawKey || "").trim()}`)
+    .digest("hex");
 
 class PgStore {
     async listUsers() {
@@ -163,6 +207,204 @@ class PgStore {
         return toQuotaPayload(rows[0]);
     }
 
+    async createApiKey(userId, payload = {}) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+
+        const rawKey = `cxk_${crypto.randomBytes(24).toString("base64url")}`;
+        const keyHash = hashApiKey(rawKey);
+        const id = payload.id || newId();
+        const label = String(payload.label || "default").trim() || "default";
+        const status = "active";
+        const expiresAt = payload.expiresAt ? new Date(payload.expiresAt) : null;
+        const expiresIso = expiresAt instanceof Date && Number.isFinite(expiresAt.getTime())
+            ? expiresAt.toISOString()
+            : null;
+
+        const { rows } = await db.query(
+            `INSERT INTO user_api_keys (id, user_id, label, key_hash, status, expires_at, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+             RETURNING id, user_id, label, status, expires_at, last_used_at, created_at, updated_at`,
+            [id, uid, label, keyHash, status, expiresIso]
+        );
+        const row = rows[0];
+        return {
+            id: row.id,
+            userId: row.user_id,
+            label: row.label,
+            status: row.status,
+            key: rawKey,
+            expiresAt: row.expires_at,
+            lastUsedAt: row.last_used_at,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        };
+    }
+
+    async listApiKeysForUser(userId) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) return [];
+        const { rows } = await db.query(
+            `SELECT id, user_id, label, status, expires_at, last_used_at, created_at, updated_at
+             FROM user_api_keys
+             WHERE user_id = $1
+             ORDER BY created_at DESC`,
+            [uid]
+        );
+        return (rows || []).map((row) => ({
+            id: row.id,
+            userId: row.user_id,
+            label: row.label,
+            status: row.status,
+            expiresAt: row.expires_at,
+            lastUsedAt: row.last_used_at,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+        }));
+    }
+
+    async revokeApiKey(userId, keyId) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) return false;
+        const { rowCount } = await db.query(
+            `UPDATE user_api_keys
+             SET status = 'revoked', updated_at = NOW()
+             WHERE id = $1 AND user_id = $2`,
+            [String(keyId || ""), uid]
+        );
+        return rowCount > 0;
+    }
+
+    async resolveUserByApiKey(rawKey) {
+        const token = String(rawKey || "").trim();
+        if (!token) return null;
+        const keyHash = hashApiKey(token);
+        const { rows } = await db.query(
+            `SELECT
+                k.id AS key_id,
+                k.user_id,
+                k.label,
+                k.status AS key_status,
+                k.expires_at,
+                u.email,
+                u.name,
+                u.role,
+                u.status AS user_status
+             FROM user_api_keys k
+             JOIN users u ON u.id = k.user_id
+             WHERE k.key_hash = $1
+             LIMIT 1`,
+            [keyHash]
+        );
+        const row = rows[0];
+        if (!row) return null;
+        if (String(row.key_status || "").toLowerCase() !== "active") return null;
+        if (String(row.user_status || "").toLowerCase() !== "active") return null;
+        if (row.expires_at && (new Date(row.expires_at).getTime() < Date.now())) return null;
+        return {
+            keyId: row.key_id,
+            user: {
+                id: row.user_id,
+                email: row.email,
+                name: row.name,
+                role: row.role
+            }
+        };
+    }
+
+    async touchApiKeyUsage(keyId) {
+        if (!keyId) return;
+        await db.query(
+            "UPDATE user_api_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1",
+            [String(keyId)]
+        );
+    }
+
+    async getSystemSettingsForUser(userId) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) return this.getSystemSettings();
+
+        const { rows } = await db.query(
+            "SELECT payload, updated_at FROM user_system_settings WHERE user_id = $1 LIMIT 1",
+            [uid]
+        );
+        if (!rows[0]) return this.getSystemSettings();
+        return {
+            userId: uid,
+            payload: rows[0].payload || {},
+            updatedAt: rows[0].updated_at
+        };
+    }
+
+    async upsertSystemSettingsForUser(userId, payload = {}) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+        const { rows } = await db.query(
+            `INSERT INTO user_system_settings (user_id, payload, updated_at)
+             VALUES ($1, $2::jsonb, NOW())
+             ON CONFLICT (user_id) DO UPDATE
+             SET payload = EXCLUDED.payload, updated_at = EXCLUDED.updated_at
+             RETURNING user_id, payload, updated_at`,
+            [uid, JSON.stringify(payload)]
+        );
+        return {
+            userId: rows[0].user_id,
+            payload: rows[0].payload || {},
+            updatedAt: rows[0].updated_at
+        };
+    }
+
+    async getBrokerSettingsForUser(userId, mode) {
+        const uid = sanitizeUserId(userId);
+        const m = String(mode || "").toLowerCase();
+        if (!uid) return this.getBrokerSettings(m);
+        if (!m) return null;
+        const { rows } = await db.query(
+            "SELECT * FROM user_broker_settings WHERE user_id = $1 AND mode = $2 LIMIT 1",
+            [uid, m]
+        );
+        if (!rows[0]) return this.getBrokerSettings(m);
+        return {
+            userId: rows[0].user_id,
+            mode: rows[0].mode,
+            cash: Number(rows[0].cash),
+            initialCash: Number(rows[0].initial_cash),
+            config: rows[0].config || {},
+            updatedAt: rows[0].updated_at
+        };
+    }
+
+    async upsertBrokerSettingsForUser(userId, mode, payload = {}) {
+        const uid = sanitizeUserId(userId);
+        const m = String(mode || "").toLowerCase();
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+        if (!m) throw new Error("MODE_REQUIRED");
+
+        const cash = Number(payload.cash ?? 0);
+        const initialCash = Number(payload.initialCash ?? 0);
+        const config = payload.config && typeof payload.config === "object" ? payload.config : {};
+
+        const { rows } = await db.query(
+            `INSERT INTO user_broker_settings (user_id, mode, cash, initial_cash, config, updated_at)
+             VALUES ($1, $2, $3, $4, $5::jsonb, NOW())
+             ON CONFLICT (user_id, mode) DO UPDATE
+             SET cash = EXCLUDED.cash,
+                 initial_cash = EXCLUDED.initial_cash,
+                 config = EXCLUDED.config,
+                 updated_at = EXCLUDED.updated_at
+             RETURNING *`,
+            [uid, m, cash, initialCash, JSON.stringify(config)]
+        );
+        return {
+            userId: rows[0].user_id,
+            mode: rows[0].mode,
+            cash: Number(rows[0].cash),
+            initialCash: Number(rows[0].initial_cash),
+            config: rows[0].config || {},
+            updatedAt: rows[0].updated_at
+        };
+    }
+
     async getSystemSettings() {
         const { rows } = await db.query("SELECT payload, updated_at FROM system_settings WHERE id = 1");
         if (!rows[0]) return null;
@@ -221,6 +463,205 @@ class PgStore {
             config: rows[0].config || {},
             updatedAt: rows[0].updated_at
         };
+    }
+
+    async getStrategyByName(name) {
+        const key = String(name || "").trim();
+        if (!key) return null;
+        const { rows } = await db.query(
+            `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_state, runtime_updated_at
+             FROM strategies
+             WHERE name = $1
+             LIMIT 1`,
+            [key]
+        );
+        return rows[0] || null;
+    }
+
+    async listBacktestUploadsForUser(userId, { symbol = null, limit = 200 } = {}) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) return [];
+        const sym = symbol ? String(symbol).trim().toUpperCase() : null;
+        const n = Math.max(1, Math.min(1000, Number(limit || 200)));
+        const { rows } = await db.query(
+            `SELECT *
+             FROM backtest_uploads
+             WHERE user_id = $1
+               ${sym ? "AND symbol = $2" : ""}
+             ORDER BY created_at DESC
+             LIMIT ${sym ? "$3" : "$2"}`,
+            sym ? [uid, sym, n] : [uid, n]
+        );
+        return (rows || []).map(toBacktestUploadPayload);
+    }
+
+    async getBacktestUploadForUser(userId, uploadId) {
+        const uid = sanitizeUserId(userId);
+        const id = String(uploadId || "").trim();
+        if (!uid || !id) return null;
+        const { rows } = await db.query(
+            "SELECT * FROM backtest_uploads WHERE user_id = $1 AND id = $2 LIMIT 1",
+            [uid, id]
+        );
+        return rows[0] ? toBacktestUploadPayload(rows[0]) : null;
+    }
+
+    async upsertBacktestUpload(meta = {}) {
+        const id = String(meta.id || "").trim();
+        const uid = sanitizeUserId(meta.userId);
+        if (!id) throw new Error("UPLOAD_ID_REQUIRED");
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+        const digest = String(meta.digest || "").trim();
+        if (!digest) throw new Error("UPLOAD_DIGEST_REQUIRED");
+
+        const symbol = String(meta.symbol || "UNASSIGNED").trim().toUpperCase();
+        const source = String(meta.source || "manual").trim().toLowerCase();
+        const originalName = String(meta.originalname || meta.originalName || "").trim() || null;
+        const ext = String(meta.ext || "").trim() || null;
+        const dedupPath = meta.dedupPath ?? meta.dedup_path ?? meta.dedupPath ?? null;
+        const symbolPath = meta.symbolPath ?? meta.symbol_path ?? null;
+        const sizeBytes = Number(meta.size ?? meta.sizeBytes ?? 0);
+        const barsCount = Number.isFinite(Number(meta.barsCount)) ? Number(meta.barsCount) : null;
+        const payloadMeta = meta.meta && typeof meta.meta === "object" ? meta.meta : {};
+        const createdAt = Number(meta.createdAt || Date.now());
+
+        const { rows } = await db.query(
+            `INSERT INTO backtest_uploads
+                (id, user_id, digest, symbol, source, original_name, ext, dedup_path, symbol_path, size_bytes, bars_count, meta, created_at, updated_at, last_used_at)
+             VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, to_timestamp($13 / 1000.0), NOW(), NOW())
+             ON CONFLICT (id) DO UPDATE
+             SET digest = EXCLUDED.digest,
+                 symbol = EXCLUDED.symbol,
+                 source = EXCLUDED.source,
+                 original_name = EXCLUDED.original_name,
+                 ext = EXCLUDED.ext,
+                 dedup_path = EXCLUDED.dedup_path,
+                 symbol_path = EXCLUDED.symbol_path,
+                 size_bytes = EXCLUDED.size_bytes,
+                 bars_count = EXCLUDED.bars_count,
+                 meta = EXCLUDED.meta,
+                 updated_at = NOW(),
+                 last_used_at = NOW()
+             RETURNING *`,
+            [
+                id,
+                uid,
+                digest,
+                symbol,
+                source,
+                originalName,
+                ext,
+                dedupPath,
+                symbolPath,
+                Number.isFinite(sizeBytes) ? Math.max(0, Math.floor(sizeBytes)) : 0,
+                barsCount,
+                JSON.stringify(payloadMeta),
+                Number.isFinite(createdAt) ? createdAt : Date.now()
+            ]
+        );
+        return toBacktestUploadPayload(rows[0]);
+    }
+
+    async touchBacktestUploadForUser(userId, uploadId) {
+        const uid = sanitizeUserId(userId);
+        const id = String(uploadId || "").trim();
+        if (!uid || !id) return false;
+        const { rowCount } = await db.query(
+            "UPDATE backtest_uploads SET last_used_at = NOW(), updated_at = NOW() WHERE user_id = $1 AND id = $2",
+            [uid, id]
+        );
+        return rowCount > 0;
+    }
+
+    async deleteBacktestUploadForUser(userId, uploadId) {
+        const uid = sanitizeUserId(userId);
+        const id = String(uploadId || "").trim();
+        if (!uid || !id) return null;
+        const { rows } = await db.query(
+            "DELETE FROM backtest_uploads WHERE user_id = $1 AND id = $2 RETURNING *",
+            [uid, id]
+        );
+        return rows[0] ? toBacktestUploadPayload(rows[0]) : null;
+    }
+
+    async upsertBacktestDataset(record = {}) {
+        const cacheKey = String(record.cacheKey || "").trim();
+        if (!cacheKey) throw new Error("CACHE_KEY_REQUIRED");
+
+        const uid = sanitizeUserId(record.userId) || null;
+        const id = String(record.id || newId());
+        const source = String(record.source || "twelvedata").trim().toLowerCase();
+        const symbol = String(record.symbol || "").trim().toUpperCase();
+        const timeframe = String(record.timeframe || "1m").trim().toLowerCase();
+        const outputsize = Number(record.outputsize || 0);
+        const rangeMode = String(record.rangeMode || "points").trim().toLowerCase();
+        const rangeStart = Number.isFinite(Number(record.rangeStart)) ? Number(record.rangeStart) : null;
+        const rangeEnd = Number.isFinite(Number(record.rangeEnd)) ? Number(record.rangeEnd) : null;
+        const bars = Array.isArray(record.bars) ? record.bars : [];
+        const barsCount = Number.isFinite(Number(record.barsCount)) ? Number(record.barsCount) : bars.length;
+        const meta = record.meta && typeof record.meta === "object" ? record.meta : {};
+
+        if (!symbol) throw new Error("SYMBOL_REQUIRED");
+
+        const { rows } = await db.query(
+            `INSERT INTO backtest_market_data
+                (id, cache_key, user_id, source, symbol, timeframe, outputsize, range_mode, range_start, range_end, bars_count, bars, meta, created_at, updated_at, last_used_at)
+             VALUES
+                ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb, NOW(), NOW(), NOW())
+             ON CONFLICT (cache_key) DO UPDATE
+             SET user_id = EXCLUDED.user_id,
+                 source = EXCLUDED.source,
+                 symbol = EXCLUDED.symbol,
+                 timeframe = EXCLUDED.timeframe,
+                 outputsize = EXCLUDED.outputsize,
+                 range_mode = EXCLUDED.range_mode,
+                 range_start = EXCLUDED.range_start,
+                 range_end = EXCLUDED.range_end,
+                 bars_count = EXCLUDED.bars_count,
+                 bars = EXCLUDED.bars,
+                 meta = EXCLUDED.meta,
+                 updated_at = NOW(),
+                 last_used_at = NOW()
+             RETURNING *`,
+            [
+                id,
+                cacheKey,
+                uid,
+                source,
+                symbol,
+                timeframe,
+                Number.isFinite(outputsize) ? Math.max(0, Math.floor(outputsize)) : 0,
+                rangeMode,
+                rangeStart,
+                rangeEnd,
+                Math.max(0, Math.floor(Number(barsCount || 0))),
+                JSON.stringify(bars),
+                JSON.stringify(meta)
+            ]
+        );
+        return toBacktestDatasetPayload(rows[0]);
+    }
+
+    async deleteExpiredBacktestUploads(maxAgeDays = 30) {
+        const days = Math.max(1, Number(maxAgeDays || 30));
+        const { rows } = await db.query(
+            `DELETE FROM backtest_uploads
+             WHERE COALESCE(last_used_at, created_at) < NOW() - ($1::int * INTERVAL '1 day')
+             RETURNING *`,
+            [days]
+        );
+        return (rows || []).map(toBacktestUploadPayload);
+    }
+
+    async deleteExpiredBacktestDatasets(maxAgeDays = 7) {
+        const days = Math.max(1, Number(maxAgeDays || 7));
+        const { rowCount } = await db.query(
+            `DELETE FROM backtest_market_data
+             WHERE COALESCE(last_used_at, created_at) < NOW() - ($1::int * INTERVAL '1 day')`,
+            [days]
+        );
+        return Number(rowCount || 0);
     }
 
     async getSummary() {
