@@ -1,3 +1,4 @@
+
 "use strict";
 
 const WebSocket = require("ws");
@@ -10,7 +11,16 @@ const engine = require("@core/core/engine");
 const loader = require("@core/strategyLoader");
 const marketBroker = require("@broker/twelvedata");
 const mt5Bridge = require("@core/services/mt5Bridge");
+const { getMarketStatus, marketConnectivityLabel } = require("@core/services/marketStatus");
 const { parseScopedId, fromScopedId } = require("@core/services/userScope");
+const db = require("@core/services/postgres");
+const jobWorkerSupervisor = require("@core/services/jobWorkerSupervisor");
+
+let lastCpuUsage = process.cpuUsage();
+let lastCpuTime = Date.now();
+// Cached once per statusInterval tick (server-side, shared by every client) so
+// adding this to the WS payload never means "N clients = N DB round trips".
+let lastDbStatus = "DISABLED";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -41,6 +51,20 @@ const WS_MAX_BUFFER_MISSES = Math.max(
     Number(process.env.COREX_WS_MAX_BUFFER_MISSES || 3)
 );
 
+/**
+ * FIX (Owen, Jul 2026): Unaddressed SYSTEM_LOG / SYSTEM_ERROR events were being
+ * dropped for every client whose role wasn't exactly "admin". On a single-operator
+ * deployment this silently hid ALL general system/startup logs from the only user,
+ * leaving just the two hardcoded placeholder lines seeded in the frontend store.
+ * Default is now OFF (visible to every authenticated client). Set
+ * COREX_WS_SYSTEM_LOGS_ADMIN_ONLY=true to restore the old admin-only behavior
+ * (e.g. for a real multi-tenant deployment where you don't want every user
+ * seeing server-wide diagnostic noise).
+ */
+const WS_SYSTEM_LOGS_ADMIN_ONLY = ["1", "true", "yes", "on"].includes(
+    String(process.env.COREX_WS_SYSTEM_LOGS_ADMIN_ONLY || "false").trim().toLowerCase()
+);
+
 const WS_GLOBAL_EVENT_TYPES = new Set([
     WS_EVENT_TYPES.DATA_TICK,
     WS_EVENT_TYPES.DATA_CANDLE,
@@ -55,25 +79,27 @@ const WS_GLOBAL_EVENT_TYPES = new Set([
     WS_EVENT_TYPES.MT5_POSITIONS_SYNC,
     WS_EVENT_TYPES.MT5_ORDER_REQUEST,
     WS_EVENT_TYPES.MT5_ORDER_RESULT,
-    "MT5_BRIDGE_STATUS"
 ]);
 
-const WS_USER_SCOPED_EVENT_TYPES = new Set([
-    WS_EVENT_TYPES.ORDER_CREATED,
-    WS_EVENT_TYPES.ORDER_FILLED,
-    WS_EVENT_TYPES.ORDER_CANCELLED,
-    WS_EVENT_TYPES.ORDER_UPDATED,
-    WS_EVENT_TYPES.POSITION_UPDATED,
-    WS_EVENT_TYPES.PORTFOLIO_UPDATED,
-    WS_EVENT_TYPES.STRATEGY_SIGNAL,
-    WS_EVENT_TYPES.STRATEGY_LOADED,
-    WS_EVENT_TYPES.STRATEGY_UNLOADED,
-    WS_EVENT_TYPES.STRATEGY_START,
-    WS_EVENT_TYPES.STRATEGY_STOP,
-    WS_EVENT_TYPES.STRATEGY_STATE,
-    WS_EVENT_TYPES.WORKER_STATE,
-    WS_EVENT_TYPES.BACKTEST_PROGRESS
-]);
+const WS_USER_SCOPED_EVENT_TYPES = new Set([ 
+    WS_EVENT_TYPES.ORDER_CREATED, 
+    WS_EVENT_TYPES.ORDER_FILLED, 
+    WS_EVENT_TYPES.ORDER_CANCELLED, 
+    WS_EVENT_TYPES.ORDER_UPDATED, 
+    WS_EVENT_TYPES.POSITION_UPDATED, 
+    WS_EVENT_TYPES.PORTFOLIO_UPDATED, 
+    WS_EVENT_TYPES.STRATEGY_SIGNAL, 
+    WS_EVENT_TYPES.STRATEGY_LOADED, 
+    WS_EVENT_TYPES.STRATEGY_UNLOADED, 
+    WS_EVENT_TYPES.STRATEGY_START, 
+    WS_EVENT_TYPES.STRATEGY_STOP, 
+    WS_EVENT_TYPES.STRATEGY_STATE, 
+    WS_EVENT_TYPES.WORKER_STATE, 
+    WS_EVENT_TYPES.BACKTEST_PROGRESS, 
+    WS_EVENT_TYPES.BACKTEST_UPLOAD_CREATED, 
+    WS_EVENT_TYPES.BACKTEST_UPLOAD_DELETED, 
+    WS_EVENT_TYPES.BACKTEST_UPLOAD_ARCHIVED 
+]); 
 
 // Production-safe defaults: status-only unless the client explicitly subscribes.
 const DEFAULT_CHANNELS_RAW = String(process.env.COREX_WS_DEFAULT_CHANNELS || "status").trim().toLowerCase();
@@ -92,28 +118,7 @@ const DEFAULT_SYMBOLS = new Set(
             : parseCsv(DEFAULT_SYMBOLS_RAW).map((s) => s.toUpperCase())
 );
 
-// ─── Market helpers ──────────────────────────────────────────────────────────
-
-const getMarketStatus = () => {
-    if (typeof marketBroker?.getStatus === "function") return marketBroker.getStatus();
-    return {
-        connected: !!marketBroker?.isConnected,
-        reconnectAttempts: Number(marketBroker?.reconnectAttempts || 0),
-        lastLatency: Number(marketBroker?.lastLatency || 0),
-        symbols: Array.from(marketBroker?.symbols || []),
-        nextReconnectAt: 0,
-        lastDisconnectAt: 0,
-        lastDisconnectReason: null,
-        websocketEnabled: true
-    };
-};
-
-const marketConnectivityLabel = (status) => {
-    if (!status?.websocketEnabled) return "DISABLED";
-    if (status?.connected) return "CONNECTED";
-    if (Number(status?.nextReconnectAt || 0) > Date.now()) return "RECONNECTING";
-    return "DISCONNECTED";
-};
+// Market helpers moved to engine/services/marketStatus.js
 
 // ─── Broadcaster ─────────────────────────────────────────────────────────────
 
@@ -126,6 +131,7 @@ class Broadcaster {
         this.feedInterval      = null;
         this.mt5Interval       = null;
         this.tickFlushInterval = null;
+        this.dbHealthInterval  = null;
 
         /** symbol → { payload, meta }  (tick aggregation) */
         this.latestTickBySymbol = new Map();
@@ -156,7 +162,17 @@ class Broadcaster {
         this.heartbeatInterval = setInterval(() => this._heartbeat(), 30_000);
         this.statusInterval    = setInterval(() => this._emitStatusUpdate(),  WS_STATUS_INTERVAL_MS);
         this.feedInterval      = setInterval(() => this._emitFeedMetrics(),   WS_FEED_INTERVAL_MS);
-        this.mt5Interval       = setInterval(() => this._emitMt5Status(),     WS_MT5_INTERVAL_MS);
+        // One lightweight DB ping shared by every client, on its own slow cadence —
+        // NOT per-client polling. _emitStatusUpdate just reads the cached result.
+        this._refreshDbHealth();
+        this.dbHealthInterval  = setInterval(() => this._refreshDbHealth(), 10_000);
+        // FIX 3: Gate MT5 interval behind isConnected check — no MT5 = no broadcast
+        this.mt5Interval       = setInterval(() => {
+            const bridgeStatus = mt5Bridge.getStatus();
+            if (bridgeStatus?.connected || bridgeStatus?.authorized) {
+                this._emitMt5Status();
+            }
+        }, WS_MT5_INTERVAL_MS);
 
         if (WS_TICK_INTERVAL_MS > 0) {
             this.tickFlushInterval = setInterval(() => this._flushTickAggregation(), WS_TICK_INTERVAL_MS);
@@ -171,21 +187,17 @@ class Broadcaster {
     _bindInternalEvents() {
         BUS_EVENT_TO_WS.forEach(({ event, type, category }) => {
             const handler = (payload, meta) => {
-                const resolvedUserId = this._resolveScopedUserId(meta, payload);
-                const isGlobalEvent = WS_GLOBAL_EVENT_TYPES.has(type)
-                    || type === WS_EVENT_TYPES.SYSTEM_LOG
-                    || type === WS_EVENT_TYPES.SYSTEM_ERROR;
-                if (!resolvedUserId && !isGlobalEvent) {
-                    logger.warn(
-                        `[WS] Bus event "${event}" (type=${type}) carries no meta.userId. ` +
-                        "Tag events at the source to avoid multi-tenant data leaks."
-                    );
-                }
-                this.transmit(type, payload, {
-                    ...(meta && typeof meta === "object" ? meta : {}),
-                    category,
-                    ...(resolvedUserId ? { userId: resolvedUserId } : {})
-                });
+            // Standardize the envelope IMMEDIATELY
+                const envelope = {
+                    type,
+                    payload,
+                    meta: { 
+                        ...meta, 
+                        category, 
+                        userId: this._resolveScopedUserId(meta, payload) 
+                    }
+                };
+                this.transmit(envelope.type, envelope.payload, envelope.meta);
             };
             bus.on(event, handler);
             this._listeners.push({ event, handler });
@@ -251,8 +263,9 @@ class Broadcaster {
         this.wss.clients.forEach((client) => {
             if (client.readyState !== WebSocket.OPEN) return;
 
-            // System events: only admins see unaddressed system logs.
+            // System events: gated to admins only if COREX_WS_SYSTEM_LOGS_ADMIN_ONLY=true.
             if (
+                WS_SYSTEM_LOGS_ADMIN_ONLY &&
                 !routedUserId &&
                 (type === WS_EVENT_TYPES.SYSTEM_LOG || type === WS_EVENT_TYPES.SYSTEM_ERROR)
             ) {
@@ -389,20 +402,20 @@ class Broadcaster {
     }
 
     _stringifyWsMessage(type, payload, meta = {}) {
-        const ts = Number(meta?.ts || Date.now());
-        const resolvedUserId = this._resolveScopedUserId(meta, payload);
-        const nextMeta = {
-            server: "CoreX-Hub",
-            ts,
-            schema: "corex.ws.v1",
-            eventId: String(meta?.eventId || this._newEventId(type, ts)),
-            ...(meta && typeof meta === "object" ? meta : {})
-        };
-        if (resolvedUserId) nextMeta.userId = resolvedUserId;
+    // Reuse the existing meta where possible rather than spreading
         return JSON.stringify({
-            type: String(type || ""),
-            payload: payload && typeof payload === "object" ? payload : {},
-            meta: nextMeta
+            type,
+            payload: payload || {},
+            meta: {
+                server: "CoreX-Hub",
+                ts: meta.ts || Date.now(),
+                schema: "corex.ws.v1",
+                eventId: meta.eventId || this._newEventId(type, meta.ts),
+                // Explicitly map required fields instead of ...meta
+                userId: meta.userId,
+                channel: meta.channel,
+                category: meta.category
+            }
         });
     }
 
@@ -505,6 +518,30 @@ class Broadcaster {
 
     // ── Periodic emitters ─────────────────────────────────────────────────────
 
+    /**
+     * One shared DB ping, cached to `lastDbStatus` and read by every client's
+     * STATUS_UPDATE — this is the opposite of polling: it's a single query on
+     * its own 10s cadence no matter how many browsers are connected, instead
+     * of N clients each hitting REST /status (and therefore the DB) on their
+     * own timer.
+     */
+    async _refreshDbHealth() {
+        if (this._dbHealthInFlight) return; // don't stack calls if the DB is slow
+        this._dbHealthInFlight = true;
+        try {
+            if (!db.hasDbConfig()) {
+                lastDbStatus = "DISABLED";
+                return;
+            }
+            await db.query("SELECT 1");
+            lastDbStatus = "CONNECTED";
+        } catch {
+            lastDbStatus = "DISCONNECTED";
+        } finally {
+            this._dbHealthInFlight = false;
+        }
+    }
+
     _emitStatusUpdate(target = null) {
         try {
             if (!this.wss?.clients) return;
@@ -513,7 +550,19 @@ class Broadcaster {
             const memory  = process.memoryUsage();
             const cores   = os.cpus()?.length || 1;
             const load    = os.loadavg()[0] || 0;
-            const cpuPct  = Math.min(100, Math.max(0, (load / cores) * 100));
+
+            const currentCpuUsage = process.cpuUsage();
+            const currentTime = Date.now();
+            const cpuUsageDelta = process.cpuUsage(lastCpuUsage);
+            const timeDelta = (currentTime - lastCpuTime) * 1000;
+            const processCpuPct = timeDelta > 0 ? ((cpuUsageDelta.user + cpuUsageDelta.system) / timeDelta) * 100 : 0;
+
+            lastCpuUsage = currentCpuUsage;
+            lastCpuTime = currentTime;
+
+            const systemCpuPct = (load / cores) * 100;
+            const cpuPct = Math.min(100, Math.max(0, systemCpuPct > 0 ? systemCpuPct : (processCpuPct / cores)));
+
             const totalMem = os.totalmem();
             const freeMem  = os.freemem();
             const usedMem  = totalMem - freeMem;
@@ -528,8 +577,15 @@ class Broadcaster {
             const sharedSystemStatus = {
                 status: "OPERATIONAL",
                 uptime: `${Math.floor(uptime / 3600)}h ${Math.floor((uptime % 3600) / 60)}m`,
+                // FIX (Owen, Jul 2026): these two used to only be available via
+                // REST /status, which HomeView polled every 5s per client. `db`
+                // is the cached result of _refreshDbHealth() (one query per 10s,
+                // shared by every client, not per-client). `worker` is a cheap
+                // in-process flag check — no cost either way.
+                db: lastDbStatus,
+                worker: jobWorkerSupervisor.isRunning() ? "CONNECTED" : "OFFLINE",
                 resources: {
-                    cpu:        os.loadavg()[0].toFixed(2),
+                    cpu:        load.toFixed(2),
                     cpuPct:     cpuPct.toFixed(1),
                     ram:        `${(memory.heapUsed / 1024 / 1024).toFixed(2)} MB`,
                     ramUsedMb:  (usedMem  / 1024 / 1024).toFixed(0),
@@ -573,7 +629,7 @@ class Broadcaster {
                     }))
                     : list;
 
-                const payload = { systemStatus: sharedSystemStatus, pulse: null, strategies, accounts: null };
+                const payload = { systemStatus: sharedSystemStatus, pulse: sharedSystemStatus, strategies, accounts: null };
                 const msg = this._stringifyWsMessage(
                     WS_EVENT_TYPES.STATUS_UPDATE,
                     payload,
@@ -598,9 +654,10 @@ class Broadcaster {
     }
 
     _emitFeedMetrics(target = null) {
-        try {
-            if (!this.wss?.clients) return;
+        // Defensive: ensure engine and API exist before attempting metric collection
+        if (!this.wss?.clients) return;
 
+        try {
             const marketStatus = getMarketStatus();
             const brokerInfo   = {
                 connected:            !!marketStatus.connected,
@@ -614,16 +671,18 @@ class Broadcaster {
                 symbols:              Array.isArray(marketStatus.symbols) ? marketStatus.symbols : []
             };
 
+            // Guard: engine may be undefined during early shutdown or tests
+            if (!engine || typeof engine.getFeedMetrics !== "function") {
+                logger.debug("[WS] FEED_METRICS skipped: engine.getFeedMetrics unavailable");
+                return;
+            }
+
             const engineMetrics = engine.getFeedMetrics();
-            const config = {
-                tickQueueMax: engine.maxQueueSize,
-                tickFlushMax: engine.maxFlushCount
-            };
 
             // Stringify once — sent to all eligible clients.
             const message = this._stringifyWsMessage(
                 WS_EVENT_TYPES.FEED_METRICS,
-                { broker: brokerInfo, engine: engineMetrics, config },
+                { broker: brokerInfo, engine: engineMetrics },
                 { category: "feed", channel: "feed" }
             );
 
@@ -635,7 +694,8 @@ class Broadcaster {
             });
 
         } catch (err) {
-            logger.warn(`[WS] FEED_METRICS failed: ${err.message}`);
+            // Do not flood logs — surface as warn and keep service alive
+            logger.warn(`[WS] FEED_METRICS failed: ${err && err.message ? err.message : String(err)}`);
         }
     }
 
@@ -658,12 +718,12 @@ class Broadcaster {
 
             // Stringify each privilege tier once.
             const publicMsg = this._stringifyWsMessage(
-                "MT5_BRIDGE_STATUS",
+                WS_EVENT_TYPES.MT5_BRIDGE_STATUS,
                 publicPayload,
                 { category: "mt5", channel: "mt5" }
             );
             const adminMsg = this._stringifyWsMessage(
-                "MT5_BRIDGE_STATUS",
+                WS_EVENT_TYPES.MT5_BRIDGE_STATUS,
                 adminPayload,
                 { category: "mt5", channel: "mt5" }
             );
@@ -707,6 +767,7 @@ class Broadcaster {
         clearIfSet("feedInterval");
         clearIfSet("mt5Interval");
         clearIfSet("tickFlushInterval");
+        clearIfSet("dbHealthInterval");
 
         this.latestTickBySymbol.clear();
         this._unbindInternalEvents();

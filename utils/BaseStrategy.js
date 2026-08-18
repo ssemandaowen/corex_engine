@@ -1,10 +1,19 @@
 "use strict";
 
-const rootLogger = require('@utils/logger');
+const rootLogger = require("@utils/logger");
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
-const math = require('mathjs');
-const indicators = require('technicalindicators');
+let _sharedMath = null; 
+const getSharedMath = () => { 
+    if (_sharedMath) return _sharedMath; 
+    try { 
+        _sharedMath = require("mathjs"); 
+    } catch { 
+        _sharedMath = null; 
+    } 
+    return _sharedMath; 
+}; 
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const IndicatorAdapter = require("./strategy/IndicatorAdapter");
 const {
     StrategyDataManager,
     StrategySignalUtils,
@@ -14,6 +23,7 @@ const {
     StrategyRuntimeUtils,
     RuleChain
 } = require("./strategy");
+const StrategyStateStore = require("./strategy/StrategyStateStore");
 
 const SignalHelpers = {
     entryLong(params = {}) {
@@ -31,8 +41,9 @@ const SignalHelpers = {
                 price: signal.price,
                 params
             });
-            if (protection.sl > 0) signal.sl = protection.sl;
-            if (protection.tp > 0) signal.tp = protection.tp;
+            if (protection.sl > 0)       signal.sl       = protection.sl;
+            if (protection.tp > 0)       signal.tp       = protection.tp;
+            if (protection.trailPct > 0) signal.trailPct = protection.trailPct;
         }
         return signal;
     },
@@ -51,8 +62,9 @@ const SignalHelpers = {
                 price: signal.price,
                 params
             });
-            if (protection.sl > 0) signal.sl = protection.sl;
-            if (protection.tp > 0) signal.tp = protection.tp;
+            if (protection.sl > 0)       signal.sl       = protection.sl;
+            if (protection.tp > 0)       signal.tp       = protection.tp;
+            if (protection.trailPct > 0) signal.trailPct = protection.trailPct;
         }
         return signal;
     },
@@ -117,7 +129,8 @@ class BaseStrategy {
      * @param {Object} config
      */
     constructor(config = {}) {
-        this.id = config.id || `strat_${Date.now()}`;
+        this.runtimeId = config.runtimeId || config.id || `strat_${Date.now()}`;
+        this.id = this.runtimeId;
         this.name = config.name || "BaseStrategy";
         this.__corexStandardized = true;
         this.symbols = Array.isArray(config.symbols) ? [...config.symbols] : [];
@@ -135,6 +148,26 @@ class BaseStrategy {
         );
         this.tfMs = this._getTFMs(this.timeframe);
 
+        // ── Runtime context (injected by RuntimeLifecycle after broker boots) ──
+        // These are set to safe defaults here; RuntimeLifecycle.boot() overwrites
+        // them immediately after new StrategyClass() before any tick arrives.
+        this._brokerRef    = null;
+        this._posSnapshot  = { positions: {}, openCount: 0, totalUnrealized: 0 };
+
+        /**
+         * this.env — read-only execution environment block.
+         * Set to real values by RuntimeLifecycle.boot() via _attachRuntime().
+         * Safe to read in next() — will never be undefined.
+         */
+        this.env = Object.freeze({
+            mode:       "UNKNOWN",
+            isBacktest: false,
+            isPaper:    false,
+            isLive:     false,
+            runtimeId:  this.runtimeId,
+            symbol:     this.symbols[0] || "",
+        });
+
         // Expose enums & dependencies
         this.INTENT = INTENTS;
         this.SIDE = SIDES;
@@ -143,13 +176,22 @@ class BaseStrategy {
             ui: true,
             uiLevels: ["debug", "info", "warn", "error"]
         });
-        this.math = math;
-        this.indicators = indicators;
+        Object.defineProperty(this, "math", { 
+            configurable: false, 
+            enumerable: true, 
+            get: () => getSharedMath() 
+        }); 
+        this._indicatorAdapter = new IndicatorAdapter();
+        Object.defineProperty(this, "indicators", { 
+            configurable: false, 
+            enumerable: true, 
+            get: () => IndicatorAdapter.proxyFor(this._indicatorAdapter)
+        }); 
 
         // Parameter system
-        this.schema = this.defineSchema ? this.defineSchema() : {};
-        this.params = {};
-        this._applyDefaults();
+        this.schema = this.defineSchema ? this.defineSchema() : {}; 
+        this.params = {}; 
+        this._applyDefaults(); 
 
         // Data stores
         this.dataManager = new StrategyDataManager({
@@ -159,23 +201,142 @@ class BaseStrategy {
 
         this.lastTick = null;
         this.currentBar = null;
-        this._signalState = {}; // Used by StrategySignalUtils for cross-logic
-        this._flipNext = null;
+        this._signalState = {}; // Used by StrategySignalUtils for cross-logic 
+        this._flipNext = null; 
         this.positions = new StrategyPositionManager();
+
+        /**
+         * this.state — persistent key-value store.
+         * Survives crashes and server restarts.
+         * Flush callback is injected by strategyLoader after boot.
+         *
+         *   this.state.set("trend", "bull");
+         *   this.state.get("trend");   // → "bull" even after restart
+         */
+        this.state = new StrategyStateStore(this.runtimeId);
+        this._plugins = new Map(); 
+        if (typeof this.definePlugins === "function") { 
+            try { 
+                const plugins = this.definePlugins(); 
+                this.applyPlugins(plugins); 
+            } catch (err) { 
+                this.log?.warn?.(`[${this.id}] definePlugins failed: ${err.message}`); 
+            } 
+        } 
+    } 
+
+    /**
+     * Called by RuntimeLifecycle.boot() immediately after the broker is ready.
+     * Wires the live broker reference and env block into the strategy instance.
+     * Never called for backtest runs (backtestManager wires broker directly).
+     *
+     * @param {object} opts
+     * @param {object} opts.broker     - Live BaseBroker subclass instance
+     * @param {string} opts.mode       - "PAPER" | "LIVE" | "BACKTEST"
+     * @param {string} opts.runtimeId
+     * @param {string} opts.symbol
+     */
+    _attachRuntime({ broker, mode, runtimeId, symbol }) {
+        this._brokerRef = broker || null;
+        const m = String(mode || "UNKNOWN").toUpperCase();
+        this.env = Object.freeze({
+            mode:       m,
+            isBacktest: m === "BACKTEST",
+            isPaper:    m === "PAPER",
+            isLive:     m === "LIVE",
+            runtimeId:  runtimeId || this.runtimeId,
+            symbol:     symbol    || this.symbols[0] || "",
+        });
+        // Sync initial position snapshot from broker
+        if (broker && typeof broker.getPositionSnapshot === "function") {
+            this._posSnapshot = broker.getPositionSnapshot() ||
+                { positions: {}, openCount: 0, totalUnrealized: 0 };
+        }
+    }
+
+    /**
+     * Sync the position snapshot from broker. Called by MarketFeed after
+     * every broker.handle() so this.pos() always reflects real state.
+     * @param {object} snapshot
+     */
+    _syncPositionSnapshot(snapshot) {
+        if (snapshot && typeof snapshot === "object") {
+            this._posSnapshot = snapshot;
+        }
     }
 
     /** * Statistical Helper: Get array of values for indicators 
      */
-    series(symbol, field = 'close') {
-        const window = this.dataManager.getLookbackWindow(symbol || this.symbols[0]);
-        return window.map(b => b[field]);
-    }
+    series(symbol, field = "close", n = null) { 
+        const window = this.dataManager.getLookbackWindow(symbol || this.symbols[0], n || undefined); 
+        return window.map(b => b[field]); 
+    } 
+ 
+    /** 
+     * Plugin system: hot-swappable, per-strategy feature hooks. 
+     * plugin = { name: string, apply(strategy) } 
+     */ 
+    use(plugin) { 
+        if (!plugin || typeof plugin !== "object") return; 
+        const name = String(plugin.name || "").trim(); 
+        if (!name || this._plugins.has(name)) return; 
+        if (typeof plugin.apply === "function") { 
+            plugin.apply(this); 
+        } 
+        this._plugins.set(name, plugin); 
+    } 
+ 
+    applyPlugins(list = []) { 
+        if (!Array.isArray(list)) return; 
+        list.forEach((p) => { 
+            if (typeof p === "string") { 
+                let registry = null; 
+                try { registry = require("./strategy/StrategyPluginRegistry"); } catch { registry = null; } 
+                const resolved = registry?.get ? registry.get(p) : null; 
+                if (resolved) this.use(resolved); 
+                return; 
+            } 
+            this.use(p); 
+        }); 
+    } 
+ 
+    /** 
+     * Reset runtime state without losing configuration. 
+     * Helps clean restarts and keeps memory stable. 
+     */ 
+    resetState() { 
+        this.dataManager?.data?.clear?.(); 
+        this.dataManager = new StrategyDataManager({ 
+            symbols: this.symbols, 
+            maxHistory: this.max_data_history 
+        }); 
+        this.lastTick = null; 
+        this.currentBar = null; 
+        this._signalState = {}; 
+        this._featureState = {}; 
+        this._flipNext = null; 
+        this.positions = new StrategyPositionManager();
+        // NOTE: this.state is intentionally NOT reset — persistent state
+        // survives resets within a session. Use this.state.clear() explicitly
+        // if you need to wipe it from within a strategy.
+    } 
+ 
+    destroy() { 
+        // Flush persistent state synchronously before teardown
+        if (this.state && typeof this.state.flush === "function") {
+            this.state.flush().catch(() => {});
+        }
+        this.resetState(); 
+        this._plugins?.clear?.(); 
+    } 
 
     _processData(packet, meta = {}) {
+        this._indicatorAdapter?._tickReset();
+
         const source = meta.source || meta.type || "tick";
         const isBar = source === "bar";
 
-        if (!packet?.symbol || typeof packet.time !== 'number') return null;
+        if (!packet?.symbol || typeof packet.time !== "number") return null;
 
         const symbol = packet.symbol;
 
@@ -257,7 +418,9 @@ class BaseStrategy {
             }
             return true;
         }
-        return this.positions.is(sym, state);
+        const record = this._posSnapshot.positions?.[sym];
+        if (state === "flat") return !record || record.side === "flat";
+        return record?.side === state;
     }
 
     _resolveOrderQuantity({ signal, params = {} } = {}) {
@@ -292,7 +455,7 @@ class BaseStrategy {
     }
 
     _resolveExitQuantity(symbol, requestedQty) {
-        const openQty = Number(this.positions?.get?.(symbol)?.quantity || 0);
+        const openQty = Number(this._posSnapshot.positions?.[symbol]?.quantity || 0);
         const normalizedRequested = this._normalizeQuantity(requestedQty, {
             fallbackQty: 0,
             minQty: 0

@@ -83,6 +83,11 @@ function bindTerminalControls() {
             return;
         }
 
+        if (key.ctrl && key.name === "d") {
+            await handleExit("Ctrl+D");
+            return;
+        }
+
         if (key.ctrl && key.name === "r") {
             if (restartInFlight) return;
             restartInFlight = true;
@@ -112,11 +117,11 @@ function bindTerminalControls() {
         }
 
         if (str === "?" || (key.ctrl && key.name === "h")) {
-            logger.info("Terminal controls: Ctrl+R restart engine | Ctrl+P list routes | Ctrl+L clear console | Ctrl+C exit");
+            logger.info("Terminal controls: Ctrl+R restart engine | Ctrl+P list routes | Ctrl+L clear console | Ctrl+D stop engine | Ctrl+C exit");
         }
     });
 
-    logger.info("Terminal controls enabled: Ctrl+R restart | Ctrl+P routes | Ctrl+L clear | ? help");
+    logger.info("Terminal controls enabled: Ctrl+R restart | Ctrl+P routes | Ctrl+L clear | Ctrl+D stop | ? help");
 }
 
 async function bootstrap() {
@@ -140,7 +145,7 @@ async function bootstrap() {
             jobWorkerSupervisor.start();
         }
         bindTerminalControls();
-        logger.info(`CoreX Ready to use...`);
+        logger.info("CoreX Ready to use...");
     } catch (err) {
         console.error("Bootstrap Failed:", err);
         process.exit(1);
@@ -161,7 +166,7 @@ async function handleExit(signal) {
     let exitCode = 0;
     // Ensure we always exit even if some shutdown steps hang or reject
     const forcedExitTimer = setTimeout(() => {
-        logger.warn('Graceful shutdown timed out, forcing exit.');
+        logger.warn("Graceful shutdown timed out, forcing exit.");
         process.exit(1);
     }, Number(process.env.COREX_SHUTDOWN_FORCE_MS || 5000));
 
@@ -200,12 +205,12 @@ process.on("SIGTERM", () => {
 
 process.on("unhandledRejection", (reason, promise) => {
     logger.error("Unhandled Rejection at:", promise, "reason:", reason);
-    // Optionally, you can decide to exit the process
-    // handleExit('unhandledRejection');
+    // Triggering graceful shutdown on unhandled rejections prevents stale DB locks
+    handleExit("unhandledRejection");
 });
 
 process.on("uncaughtException", (err, origin) => {
     logger.error(`Caught exception: ${err}\n` + `Exception origin: ${origin}`);
     // It's not safe to continue after an uncaught exception
-    handleExit('uncaughtException');
+    handleExit("uncaughtException");
 });

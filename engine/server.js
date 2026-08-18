@@ -19,6 +19,8 @@ const mt5Routes = require("@core/routes/mt5Controller");
 const authRoutes = require("@core/routes/authController");
 const authGuard = require("@core/middleware/authGuard");
 const rateLimit = require("@core/middleware/rateLimit");
+const settingsRoutes = require("@core/routes/settingsController");
+const dataRoutes     = require("@core/routes/dataController");
 
 // 2. Services
 const broadcaster = require("@core/services/broadcaster");
@@ -65,6 +67,8 @@ function registerRoutes() {
     app.use("/api/system", authGuard, userLimiter, systemRoutes);
     app.use("/api/bridge", bridgeRoutes);
     app.use("/api/mt5", mt5Routes);
+    app.use("/api/settings", authGuard, userLimiter, settingsRoutes);
+    app.use("/api/data",     authGuard, userLimiter, dataRoutes);
 
     // Health check (Public)
     app.get("/ping", (req, res) => res.send("PONG"));
@@ -129,6 +133,19 @@ function start() {
                 }
                 if (pathname === "/mt5") {
                     if (!mt5Bridge.wss) return socket.destroy();
+                    const token = String(process.env.MT5_BRIDGE_TOKEN || "").trim();
+                    if (!token) {
+                        logger.warn("[MT5] Rejected upgrade on /mt5 — MT5_BRIDGE_TOKEN not configured");
+                        return socket.destroy();
+                    }
+                    
+                    const url = new URL(request.url, `http://${request.headers.host}`);
+                    const providedToken = url.searchParams.get("token");
+                    if (providedToken !== token) {
+                        logger.warn(`[MT5] Unauthorized WS upgrade attempt from ${request.socket.remoteAddress}`);
+                        return socket.destroy();
+                    }
+
                     mt5Bridge.wss.handleUpgrade(request, socket, head, (ws) => {
                         mt5Bridge.wss.emit("connection", ws, request);
                     });
@@ -141,12 +158,12 @@ function start() {
         });
         server.once("error", reject);
         const port = getPort();
+
+        broadcaster.initServer(server);
+        mt5Bridge.initServer(server);
+
         server.listen(port, () => {
             logger.info(`CoreX Hub READY on port ${port}`);
-
-            broadcaster.initServer(server);
-            mt5Bridge.initServer(server);
-
             logger.info("System Bootstrapped Successfully.");
             resolve(server);
         });

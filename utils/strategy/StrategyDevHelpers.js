@@ -34,15 +34,15 @@ const StrategyDevHelpers = {
     /**
      * Return a series safely; never throws, always returns array.
      */
-    safeSeries(symbol, field = "close", fallback = []) {
-        try {
-            const sym = this.resolveSymbol({ symbol });
-            const s = this.series(sym, field);
-            return Array.isArray(s) ? s : fallback;
-        } catch {
-            return fallback;
-        }
-    },
+    safeSeries(symbol, field = "close", fallback = [], n = null) { 
+        try { 
+            const sym = this.resolveSymbol({ symbol }); 
+            const s = this.series(sym, field, n); 
+            return Array.isArray(s) ? s : fallback; 
+        } catch { 
+            return fallback; 
+        } 
+    }, 
 
     /**
      * Ensures an action happens once per bar for a key.

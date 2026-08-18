@@ -1,0 +1,6 @@
+{
+  "name": "CoreX UI",
+  "description": "An algorithmic trading strategy engine console with strategy creation, backtesting, live execution monitoring, and portfolio analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

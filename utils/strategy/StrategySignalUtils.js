@@ -1,23 +1,39 @@
 "use strict";
-const { extractCrossInputs, evaluateCross } = require("./signalCore");
+
+function extractCrossInputs(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return null;
+    if (a.length < 2 || b.length < 2) return null;
+    return {
+        pA: a[a.length - 2],
+        nA: a[a.length - 1],
+        pB: b[b.length - 2],
+        nB: b[b.length - 1]
+    };
+}
+
+function evaluateCross(pA, nA, pB, nB, direction) {
+    if ([pA, nA, pB, nB].some((v) => v == null || typeof v !== "number")) return false;
+    if (direction === "up") return pA <= pB && nA > nB;
+    return pA >= pB && nA < nB;
+}
 
 const StrategySignalUtils = {
     crossover(a, b, opts = {}) {
         // Support both (a, b, data) and (a, b, { time, symbol })
         const normalized = (opts && opts.time) ? { barTime: opts.time, key: opts.key, symbol: opts.symbol } : opts;
-        return this._evaluateCross(a, b, normalized || {}, 'up');
+        return this._evaluateCross(a, b, normalized || {}, "up");
     },
 
     crossunder(a, b, opts = {}) {
         const normalized = (opts && opts.time) ? { barTime: opts.time, key: opts.key, symbol: opts.symbol } : opts;
-        return this._evaluateCross(a, b, normalized || {}, 'down');
+        return this._evaluateCross(a, b, normalized || {}, "down");
     },
 
     _evaluateCross(a, b, opts, direction) {
-        const parsed = extractCrossInputs(a, b, arguments);
+        const parsed = extractCrossInputs(a, b);
         if (!parsed) return false;
-        let { pA, nA, pB, nB } = parsed;
-        opts = parsed.opts || opts || {};
+        const { pA, nA, pB, nB } = parsed;
+        opts = opts || {};
         const isCrossed = evaluateCross(pA, nA, pB, nB, direction);
             
         if (!isCrossed) return false;
@@ -26,7 +42,7 @@ const StrategySignalUtils = {
         const barTime = opts.barTime || this.currentBar?.time || this.lastTick?.time;
         
         if (barTime && this._signalState) {
-            const symbol = opts.symbol || (this.symbols ? this.symbols[0] : 'default');
+            const symbol = opts.symbol || (this.symbols ? this.symbols[0] : "default");
             
             /**
              * We add the current position state to the key.

@@ -6,6 +6,7 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const readline = require("readline");
 const db = require("@core/services/postgres");
 const { hashPassword } = require("@core/services/authService");
 const logger = require("@utils/logger");
@@ -37,6 +38,130 @@ function isDbConnectionError(err) {
     if (["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET"].includes(directCode)) return true;
     const nested = Array.isArray(err.errors) ? err.errors : [];
     return nested.some((e) => ["ECONNREFUSED", "ENOTFOUND", "ETIMEDOUT", "ECONNRESET"].includes(String(e?.code || "")));
+}
+
+// ── DB connection wait state ────────────────────────────────────────────────
+// Exposed so a health route / WS status can reflect "waiting for DB" instead
+// of just looking dead or half-broken while this loop runs.
+let _dbWaitState = { waiting: false, attempt: 0, startedAt: null };
+function getDbWaitState() {
+    return { ..._dbWaitState };
+}
+
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+/**
+ * Ping-pong wait loop for an offline-but-configured database.
+ *
+ * Instead of either crashing immediately (COREX_DB_REQUIRED=true) or
+ * silently booting half-broken (COREX_DB_REQUIRED=false), this retries the
+ * connection on an interval, shows a live spinner with attempt/elapsed time,
+ * and gives the operator two explicit options:
+ *   - do nothing: keep waiting, retries automatically once DB comes online
+ *   - press 'q' or Ctrl+C: cancel the wait and fall through (degraded mode
+ *     if COREX_DB_REQUIRED=false, otherwise bootstrap() aborts cleanly)
+ *
+ * In a non-TTY environment (Docker/CI, no human to press a key) the loop is
+ * bounded by COREX_DB_WAIT_MAX_ATTEMPTS instead of waiting forever.
+ */
+async function waitForDbConnection({
+    intervalMs = Number(process.env.COREX_DB_WAIT_INTERVAL_MS || 3000),
+    maxAttempts = process.stdin.isTTY ? Infinity : Number(process.env.COREX_DB_WAIT_MAX_ATTEMPTS || 10)
+} = {}) {
+    // isTTY is false when spawned via execSync/child_process from menu.js.
+    // We still want Ctrl+C to work — wire it through SIGINT in all cases.
+    const isTty = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+    let attempt = 0;
+    let cancelled = false;
+    let onKeypress = null;
+    let onSigint = null;
+    let wasRaw = false;
+
+    // ── SIGINT handler (works in both TTY and non-TTY) ────────────────────
+    // This fires when the user presses Ctrl+C in any shell context,
+    // including when db:migrate is launched from menu.js via execSync.
+    onSigint = () => { cancelled = true; };
+    process.once("SIGINT", onSigint);
+
+    if (isTty) {
+        try {
+            readline.emitKeypressEvents(process.stdin);
+            wasRaw = process.stdin.isRaw;
+            if (!wasRaw) process.stdin.setRawMode(true);
+            process.stdin.resume();
+            onKeypress = (str, key = {}) => {
+                if ((key && key.ctrl && key.name === "c") || key?.name === "q") {
+                    cancelled = true;
+                }
+            };
+            process.stdin.on("keypress", onKeypress);
+        } catch (_) {
+            // setRawMode throws in some CI / pipe contexts — silently fall back
+        }
+    }
+
+    const clearLine = () => {
+        if (!isTty) return;
+        readline.cursorTo(process.stdout, 0);
+        process.stdout.write(" ".repeat(110));
+        readline.cursorTo(process.stdout, 0);
+    };
+
+    _dbWaitState = { waiting: true, attempt: 0, startedAt: Date.now() };
+    if (!isTty) {
+        logger.warn(`[DB] Database unreachable — retrying every ${Math.round(intervalMs / 1000)}s (no TTY: bounded to ${maxAttempts} attempts).`);
+    }
+
+    try {
+        let frame = 0;
+        while (attempt < maxAttempts) {
+            attempt += 1;
+            _dbWaitState.attempt = attempt;
+
+            try {
+                await db.getPool().query("SELECT 1");
+                clearLine();
+                logger.info(`[DB] Connection established after ${attempt} attempt(s).`);
+                return { ok: true, attempt };
+            } catch (err) {
+                if (!isDbConnectionError(err)) throw err; // a real query error, not connectivity — don't mask it
+            }
+
+            const elapsedSec = Math.round((Date.now() - _dbWaitState.startedAt) / 1000);
+            for (let waited = 0; waited < intervalMs; waited += 200) {
+                if (cancelled) break;
+                if (isTty) {
+                    frame += 1;
+                    readline.cursorTo(process.stdout, 0);
+                    process.stdout.write(
+                        `${SPINNER_FRAMES[frame % SPINNER_FRAMES.length]} Waiting for DB connection... ` +
+                        `(attempt ${attempt}, ${elapsedSec}s elapsed) — press 'q' or Ctrl+C to continue without DB`
+                    );
+                }
+                await new Promise((resolve) => setTimeout(resolve, 200));
+            }
+
+            if (cancelled) {
+                clearLine();
+                logger.warn(`[DB] Connection wait cancelled by operator after ${attempt} attempt(s).`);
+                return { ok: false, cancelled: true, attempt };
+            }
+        }
+
+        clearLine();
+        logger.warn(`[DB] Gave up after ${attempt} attempt(s) (no TTY present to confirm — set COREX_DB_WAIT_MAX_ATTEMPTS to change).`);
+        return { ok: false, cancelled: false, attempt };
+    } finally {
+        _dbWaitState.waiting = false;
+        if (onSigint) process.removeListener("SIGINT", onSigint);
+        if (onKeypress) {
+            process.stdin.removeListener("keypress", onKeypress);
+            // Restore raw mode state if we changed it
+            if (isTty && !wasRaw) {
+                try { process.stdin.setRawMode(false); } catch (_) {}
+            }
+        }
+    }
 }
 
 async function applyMigrations() {
@@ -280,6 +405,27 @@ async function run() {
         return { skipped: true, reason: "NOT_CONFIGURED" };
     }
 
+    // DB is configured (the operator intends to use it) but may not be
+    // reachable yet — wait/retry instead of failing on the first hiccup.
+    let reachable = false;
+    try {
+        await db.getPool().query("SELECT 1");
+        reachable = true;
+    } catch (err) {
+        if (!isDbConnectionError(err)) throw err;
+    }
+
+    if (!reachable) {
+        const waited = await waitForDbConnection();
+        if (!waited.ok) {
+            if (dbRequired) {
+                throw new Error(`POSTGRES_UNREACHABLE: ${waited.cancelled ? "connection wait cancelled by operator" : "gave up after " + waited.attempt + " attempt(s)"} and COREX_DB_REQUIRED=true`);
+            }
+            logger.warn("[DB] Continuing without a database connection (degraded mode — DB-backed routes will fail until it's reachable).");
+            return { skipped: true, reason: waited.cancelled ? "CANCELLED_BY_OPERATOR" : "WAIT_EXHAUSTED" };
+        }
+    }
+
     try {
         await applyMigrations();
         await migrateLegacyUsersAndAccounts();
@@ -311,5 +457,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-    run
+    run,
+    getDbWaitState
 };

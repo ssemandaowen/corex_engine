@@ -1,17 +1,19 @@
 "use strict";
 
-const express = require('express');
+const express = require("express");
+const router = express.Router();
 const path = require("path");
 const fs = require("fs");
 const zlib = require("zlib");
-const router = express.Router();
-const loader = require('@core/strategyLoader'); // Import the Loader directly
-const stateManager = require('@utils/stateController');
-const logger = require('@utils/logger');
+const runtimeService = require("@core/services/runtimeService");
+const loaderFacade = require("@core/core/loader/StrategyLoader");
+const stateManager = require("@utils/stateController");
+const logger = require("@utils/logger");
 const { MODES, TIME, BRIDGE_INTEGRATIONS } = require("@config/constants");
 const pgStore = require("@core/services/pgStore");
 const tradeHistoryService = require("@core/services/tradeHistoryService");
 const engine = require("@core/core/engine");
+const jobWorkerSupervisor = require("@core/services/jobWorkerSupervisor");
 const { toScopedId, fromScopedId } = require("@core/services/userScope");
 
 const getUserId = (req) => String(req.user?.sub || "").trim();
@@ -66,12 +68,11 @@ const readCacheCandles = async (basePath, limit = 600) => {
  */
 
 // 1. GET ENGINE STATUS
-router.get('/status', (req, res) => {
+router.get("/status", (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-    // We use the loader's list method because it aggregates 
-    // status + instance params + uptime into one payload.
-    const strategies = loader.listStrategies()
+    const all = runtimeService.getAllStatus();
+    const strategies = Object.values(all)
         .filter((s) => String(s.id || "").startsWith(`${userId}::`))
         .map((s) => ({
             ...s,
@@ -79,22 +80,20 @@ router.get('/status', (req, res) => {
             name: toPublicStrategyId(req, s.name || s.id)
         }))
         .filter((s) => !!s.id);
-    
-    // Convert array to Key-Value object for the Frontend Object.entries mapping
     const payload = {};
     strategies.forEach(s => { payload[s.id] = s; });
-
     res.json({ success: true, payload });
 });
 
-router.get('/telemetry/:id', async (req, res) => {
+router.get("/telemetry/:id", async (req, res) => {
     try {
         const scopedId = toScopedStrategyId(req, req.params.id);
         if (!scopedId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-        const entry = loader.registry.get(scopedId);
-        if (!entry || !entry.instance) {
+        const instance = loaderFacade.getActiveInstance(scopedId);
+        if (!instance) {
             return res.status(404).json({ success: false, error: "STRATEGY_NOT_FOUND" });
         }
+        const entry = { instance };
 
         const barsRaw = Number(req.query?.bars ?? 600);
         const bars = Math.max(10, Math.min(5000, Number.isFinite(barsRaw) ? barsRaw : 600));
@@ -111,9 +110,8 @@ router.get('/telemetry/:id', async (req, res) => {
 
         let candleSource = "instance";
         const historical = symbol ? (entry.instance.getLookbackWindow?.(symbol) || []) : [];
-        const trimmed = Array.isArray(historical) ? historical.slice(-bars) : [];
         const active = store?.activeCandle ? [{ ...store.activeCandle, symbol }] : [];
-        let candles = [...trimmed, ...active]
+        let candles = [...historical, ...active]
             .filter((c) => c && Number.isFinite(Number(c.time)))
             .map((c) => ({
                 symbol,
@@ -160,7 +158,28 @@ router.get('/telemetry/:id', async (req, res) => {
         }
 
         const status = stateManager.getStatus(scopedId);
-        const summary = loader.listStrategies().find((s) => s.id === scopedId) || null;
+        const meta = loaderFacade.getMeta(scopedId);
+
+        // Phase E: surface live position / unrealized P&L from the broker
+        // attached to this runtime, so the dashboard's "engine state" panel
+        // (position, unrealizedPnl, lastPrice) is populated without the
+        // frontend recomputing anything.
+        const runtimes = loaderFacade.getRuntimes(scopedId, scopedId.split("::")[0]);
+        const runtimeEntry = runtimes.find((r) => r.symbol === symbol) || runtimes[0] || null;
+        const broker = runtimeEntry?.broker || null;
+
+        let positionSnapshot = { positions: {}, openCount: 0, totalUnrealized: 0 };
+        if (broker && typeof broker.getPositionSnapshot === "function") {
+            try { positionSnapshot = broker.getPositionSnapshot(symbol); } catch { /* best effort */ }
+        }
+
+        const openPosition = symbol ? positionSnapshot.positions?.[symbol] : null;
+        const lastPrice = Number(
+            store?.activeCandle?.close ??
+            candles[candles.length - 1]?.close ??
+            0
+        );
+
         return res.json({
             success: true,
             payload: {
@@ -176,13 +195,16 @@ router.get('/telemetry/:id', async (req, res) => {
                 params: entry.instance.params || {},
                 schema: entry.instance.schema || {},
                 api: Array.isArray(entry.instance.__corexApi) ? entry.instance.__corexApi : [],
-                dataPoints: summary?.dataPoints ?? 0,
-                historyPoints: summary?.historyPoints ?? 0,
-                lookbackCoveragePct: summary?.lookbackCoveragePct ?? 0,
+                dataPoints: meta?.metadata?.dataPoints ?? 0,
+                historyPoints: meta?.metadata?.historyPoints ?? 0,
+                lookbackCoveragePct: meta?.metadata?.lookbackCoveragePct ?? 0,
                 candles,
                 candleSource,
                 activeCandle: store?.activeCandle || null,
-                lastTick: entry.instance.lastTick || null
+                lastTick: entry.instance.lastTick || null,
+                position: openPosition ? String(openPosition.side || "FLAT").toUpperCase() : "FLAT",
+                unrealizedPnl: Number(positionSnapshot.totalUnrealized || 0),
+                lastPrice
             }
         });
     } catch (err) {
@@ -190,7 +212,7 @@ router.get('/telemetry/:id', async (req, res) => {
     }
 });
 
-router.get('/history', async (req, res) => {
+router.get("/history", async (req, res) => {
     try {
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
@@ -246,7 +268,7 @@ router.get('/history', async (req, res) => {
     }
 });
 
-router.get('/ops/telemetry', async (req, res) => {
+router.get("/ops/telemetry", async (req, res) => {
     const db = require("@core/services/postgres");
     try {
         const userId = getUserId(req);
@@ -262,45 +284,79 @@ router.get('/ops/telemetry', async (req, res) => {
         let stale = [];
         let statusBreakdown = [];
         if (db.hasDbConfig()) {
-            const staleRes = await db.query(
-                `SELECT id, strategy_name, symbol, status, created_at
-                 FROM orders o
-                 WHERE o.user_id = $1
-                   AND o.environment = 'LIVE'
-                   AND o.status IN ('PENDING', 'SENT')
-                   AND o.created_at < NOW() - ($2::int * interval '1 second')
-                   AND NOT EXISTS (SELECT 1 FROM order_fills f WHERE f.order_id = o.id)
-                 ORDER BY o.created_at ASC
-                 LIMIT 200`,
-                [userId, maxAgeSec]
-            );
-            stale = staleRes.rows || [];
-            stale = stale.map((row) => ({
-                ...row,
-                strategy_name: toPublicStrategyId(req, row.strategy_name) || row.strategy_name
+            try {
+                const staleRes = await db.query(
+                    `SELECT id, strategy_name, symbol, status, created_at
+                     FROM orders o
+                     WHERE o.user_id = $1
+                       AND o.environment = 'LIVE'
+                       AND o.status IN ('PENDING', 'SENT')
+                       AND o.created_at < NOW() - ($2::int * interval '1 second')
+                       AND NOT EXISTS (SELECT 1 FROM order_fills f WHERE f.order_id = o.id)
+                     ORDER BY o.created_at ASC
+                     LIMIT 200`,
+                    [userId, maxAgeSec]
+                );
+                stale = (staleRes.rows || []).map((row) => ({
+                    ...row,
+                    strategy_name: toPublicStrategyId(req, row.strategy_name) || row.strategy_name
+                }));
+
+                const statusRes = await db.query(
+                    `SELECT status, COUNT(*)::int AS count
+                     FROM orders
+                     WHERE user_id = $1
+                       AND environment IN ('PAPER', 'LIVE')
+                       AND created_at >= NOW() - interval '7 days'
+                     GROUP BY status
+                     ORDER BY count DESC`,
+                    [userId]
+                );
+                statusBreakdown = (statusRes.rows || []).map((row) => ({
+                    status: String(row.status || ""),
+                    count: Number(row.count || 0)
+                }));
+            } catch (dbErr) {
+                logger.warn(`Execution telemetry DB probe degraded: ${dbErr.message}`);
+            }
+        }
+
+        // Flat runtime list the dashboard (HomeView) expects: { mode, status }.
+        // getExecutionTelemetry() returns per-mode contexts, not a top-level
+        // runtimes array, so derive it here (scoped to the requesting user).
+        const feed = engine.getFeedMetrics();
+        const runtimes = (feed.strategies || [])
+            .filter((s) => !userId || s.userId === userId)
+            .map((s) => ({
+                runtimeId: s.id,
+                strategyName: s.strategyName,
+                symbol: s.symbol,
+                mode: s.mode,
+                status: s.status === "ACTIVE" ? "running" : "stopped",
+                userId: s.userId,
+                startedAt: s.startedAt
             }));
 
-            const statusRes = await db.query(
-                `SELECT status, COUNT(*)::int AS count
-                 FROM orders
-                 WHERE user_id = $1
-                   AND environment IN ('PAPER', 'LIVE')
-                   AND created_at >= NOW() - interval '7 days'
-                 GROUP BY status
-                 ORDER BY count DESC`
-                ,
-                [userId]
-            );
-            statusBreakdown = (statusRes.rows || []).map((row) => ({
-                status: String(row.status || ""),
-                count: Number(row.count || 0)
-            }));
-        }
+        // Dashboard feed/engine telemetry HomeView reads off opsTelemetry.feed
+        // and opsTelemetry.engine — derive safe values so the UI never gets
+        // undefined (which would throw on .eventsPerSec / .memoryUseMb).
+        const uptimeSec = Number(feed.uptimeMs || 0) / 1000;
+        const feedTelemetry = {
+            eventsPerSec: uptimeSec > 0 ? Number(((feed.totalTicks || 0) / uptimeSec).toFixed(2)) : 0,
+            latencyMs: 0
+        };
+        const engineTelemetry = {
+            activeWorkerCount: jobWorkerSupervisor.proc ? 1 : 0,
+            memoryUseMb: Math.round((process.memoryUsage().heapUsed || 0) / 1048576)
+        };
 
         return res.json({
             success: true,
             payload: {
                 ...telemetry,
+                runtimes,
+                feed: feedTelemetry,
+                engine: engineTelemetry,
                 liveOrderStatus7d: statusBreakdown,
                 staleOrders: {
                     thresholdSec: maxAgeSec,
@@ -314,7 +370,7 @@ router.get('/ops/telemetry', async (req, res) => {
     }
 });
 
-router.post('/ops/reconcile', async (req, res) => {
+router.post("/ops/reconcile", async (req, res) => {
     const db = require("@core/services/postgres");
     try {
         const userId = getUserId(req);
@@ -392,7 +448,7 @@ router.post('/ops/reconcile', async (req, res) => {
     }
 });
 
-router.get('/history/snapshots', async (req, res) => {
+router.get("/history/snapshots", async (req, res) => {
     const db = require("@core/services/postgres");
     try {
         const userId = getUserId(req);
@@ -466,7 +522,7 @@ router.get('/history/snapshots', async (req, res) => {
     }
 });
 
-router.delete('/history', async (req, res) => {
+router.delete("/history", async (req, res) => {
     const db = require("@core/services/postgres");
     try {
         const userId = getUserId(req);
@@ -516,11 +572,11 @@ router.delete('/history', async (req, res) => {
             if (ids.length === 0) return { ordersDeleted: 0, fillsDeleted: 0 };
 
             const fills = await tx.query(
-                `DELETE FROM order_fills WHERE order_id = ANY($1::uuid[])`,
+                "DELETE FROM order_fills WHERE order_id = ANY($1::uuid[])",
                 [ids]
             );
             const orders = await tx.query(
-                `DELETE FROM orders WHERE id = ANY($1::uuid[])`,
+                "DELETE FROM orders WHERE id = ANY($1::uuid[])",
                 [ids]
             );
             return { ordersDeleted: orders.rowCount || 0, fillsDeleted: fills.rowCount || 0 };
@@ -533,101 +589,101 @@ router.delete('/history', async (req, res) => {
 });
 
 // 2. DEPLOY STRATEGY (OFFLINE -> ACTIVE)
-router.post('/start/:id', (req, res) => {
-    const { id: rawId } = req.params;
-    const id = toScopedStrategyId(req, rawId);
-    const { mode, params, timeframe } = req.body;
-
-    if (id === 'undefined' || !id) {
-        return res.status(400).json({ success: false, error: "Strategy ID is required" });
+router.post("/start/:id", async (req, res) => {
+    try {
+        const { id: rawId } = req.params;
+        const id = toScopedStrategyId(req, rawId);
+        if (id === "undefined" || !id) {
+            return res.status(400).json({ success: false, error: "Strategy ID is required" });
+        }
+        const { mode, params, timeframe, symbol } = req.body;
+        const normalizedMode = String(mode || MODES.PAPER).toUpperCase();
+        if (![MODES.PAPER, MODES.LIVE].includes(normalizedMode)) {
+            return res.status(400).json({ success: false, error: `INVALID_MODE: ${normalizedMode}` });
+        }
+        const normalizedTf = String(timeframe || TIME.DEFAULT_TIMEFRAMES[0]);
+        const requestedSymbol = String(symbol || req.query.symbol || "").trim();
+        const result = await runtimeService.startStrategy(id, {
+            mode: normalizedMode,
+            timeframe: normalizedTf,
+            symbol: requestedSymbol || undefined,
+            params: params || {}
+        });
+        if (!result || !result.ok) {
+            const reason = (result && result.reason) || "Unknown startup failure";
+            const status = reason === "START_IN_PROGRESS" ? 409
+                : reason.includes("not found") ? 404
+                : 500;
+            return res.status(status).json({ success: false, error: "START_FAILED", message: reason });
+        }
+        logger.info(`Execution request processed for [${rawId}] in mode: ${normalizedMode}`, { timeframe: normalizedTf });
+        // Return the real runtimeId so the UI can track this exact instance
+        // (the runtimeId is composite: userId::strategy::SYMBOL::MODE).
+        res.json({
+            success: true,
+            message: `Run initiated for ${rawId}. Engine handover in progress...`,
+            payload: {
+                runtimeId: result.runtimeId,
+                mode: result.mode,
+                symbol: result.symbol,
+                alreadyRunning: !!result.alreadyRunning,
+                params: result.params || {}
+            }
+        });
+    } catch (err) {
+        const status = (err.message.includes("not supported") || err.message.includes("declares no symbols")) ? 400
+            : err.message.includes("not found") ? 404
+            : 500;
+        res.status(status).json({ success: false, error: "START_FAILED", message: err.message });
     }
-
-    // 1. Call the loader method directly to trigger the Engine handover
-    const normalizedMode = String(mode || MODES.PAPER).toUpperCase();
-    if (![MODES.PAPER, MODES.LIVE].includes(normalizedMode)) {
-        return res.status(400).json({ success: false, error: `INVALID_MODE: ${normalizedMode}` });
-    }
-    const normalizedTf = String(timeframe || TIME.DEFAULT_TIMEFRAMES[0]);
-
-    const entry = loader.startStrategy(id, {
-        mode: normalizedMode,
-        timeframe: normalizedTf,
-        strategyParams: params || {} 
-    });
-
-    if (!entry) {
-        return res.status(404).json({ success: false, error: `Strategy [${rawId}] not found in registry.` });
-    }
-
-    logger.info(`Execution request processed for [${rawId}] in mode: ${normalizedMode}`, {
-        timeframe: normalizedTf
-    });
-
-    res.json({ 
-        success: true, 
-        message: `Run initiated for ${rawId}. Engine handover in progress...` 
-    });
 });
 
 // 3. TERMINATE STRATEGY (ACTIVE -> OFFLINE)
-router.post('/stop/:id', (req, res) => {
-    const { id: rawId } = req.params;
-    const id = toScopedStrategyId(req, rawId);
-
-    const entry = loader.stopStrategy(id);
-
-    if (!entry) {
-        return res.status(404).json({ success: false, error: "Strategy not found" });
+router.post("/stop/:id", async (req, res) => {
+    try {
+        const { id: rawId } = req.params;
+        const id = toScopedStrategyId(req, rawId);
+        if (!id) return res.status(400).json({ success: false, error: "INVALID_ID" });
+        // Allow an explicit runtimeId to be passed in the body (composite
+        // userId::strategy::SYMBOL::MODE) for surgical single-instance stops.
+        const explicitRuntimeId = req.body && req.body.runtimeId ? String(req.body.runtimeId) : null;
+        const ok = await runtimeService.stopStrategy(id, explicitRuntimeId ? { runtimeId: explicitRuntimeId } : {});
+        if (!ok) return res.status(404).json({ success: false, error: "STRATEGY_NOT_RUNNING", message: `No active runtime found for ${rawId}` });
+        res.json({ success: true, message: `Stop signal processed for ${rawId}. Connections closing.` });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "STOP_FAILED", message: err.message });
     }
-
-    res.json({ 
-        success: true, 
-        message: `Stop signal processed for ${rawId}. Connections closing.` 
-    });
 });
 
 // 3b. RESTART STRATEGY (reload code + preserve desired runtime state)
-router.post('/restart/:id', async (req, res) => {
-    const { id: rawId } = req.params;
-    const id = toScopedStrategyId(req, rawId);
-    const entry = loader.registry.get(id);
-    if (!entry) {
-        return res.status(404).json({ success: false, error: "Strategy not found" });
-    }
-
+router.post("/restart/:id", async (req, res) => {
     try {
-        const ok = await loader.reloadStrategy(id);
-        if (!ok) {
-            return res.status(500).json({ success: false, error: "RESTART_FAILED" });
-        }
-        return res.json({ success: true, message: `Restart sequence completed for ${rawId}.` });
+        const { id: rawId } = req.params;
+        const id = toScopedStrategyId(req, rawId);
+        if (!id) return res.status(400).json({ success: false, error: "INVALID_ID" });
+        await runtimeService.restartStrategy(id);
+        res.json({ success: true, message: `Restart sequence completed for ${rawId}.` });
     } catch (err) {
-        return res.status(500).json({ success: false, error: "RESTART_FAILED", message: err.message });
+        const status = err.message.includes("not found") ? 404 : 500;
+        res.status(status).json({ success: false, error: "RESTART_FAILED", message: err.message });
     }
 });
 
 // 4. REAL-TIME PARAM TUNING
-router.patch('/params/:id', (req, res) => {
-    const id = toScopedStrategyId(req, req.params.id);
-    const { params } = req.body;
-
-    const entry = loader.registry.get(id);
-    if (!entry) {
-        return res.status(404).json({ success: false, error: "Strategy not found" });
+router.patch("/params/:id", async (req, res) => {
+    try {
+        const id = toScopedStrategyId(req, req.params.id);
+        if (!id) return res.status(400).json({ success: false, error: "INVALID_ID" });
+        const { params } = req.body;
+        if (!params || typeof params !== "object") {
+            return res.status(400).json({ success: false, error: "INVALID_PARAMS" });
+        }
+        const result = await runtimeService.patchParams(id, params);
+        res.json({ success: true, ...result });
+    } catch (err) {
+        const status = err.message.includes("not found") ? 404 : 500;
+        res.status(status).json({ success: false, error: "PATCH_PARAMS_FAILED", message: err.message });
     }
-
-    // If active, hot-swap and persist. If inactive, just persist (applies next start).
-    const status = stateManager.getStatus(id);
-    if (entry.instance.updateParams) {
-        entry.instance.updateParams(params);
-    }
-    loader._saveParams(id, params);
-    loader._updateRuntimeStateInDb(id, { params }).catch(() => {});
-
-    if (status === 'ACTIVE') {
-        return res.json({ success: true, message: "Parameters hot-swapped and persisted." });
-    }
-    return res.json({ success: true, message: "Parameters saved. They will apply on next start." });
 });
 
 router.get("/config", async (req, res) => {
@@ -667,75 +723,52 @@ router.get("/config", async (req, res) => {
 });
 
 // 5. RESTORE DEFAULT PARAMS
-router.post('/params/:id/reset', (req, res) => {
-    const { id: rawId } = req.params;
-    const id = toScopedStrategyId(req, rawId);
-    const entry = loader.registry.get(id);
-    if (!entry) {
-        return res.status(404).json({ success: false, error: "Strategy not found" });
-    }
-
-    let defaults = null;
+router.post("/params/:id/reset", async (req, res) => {
     try {
-        const fresh = loader._instantiateStrategy(entry.source || "", entry.id);
-        if (fresh && typeof fresh._applyDefaults === 'function') fresh._applyDefaults();
-        defaults = fresh?.params || {};
-    } catch (e) {
-        defaults = null;
+        const { id: rawId } = req.params;
+        const id = toScopedStrategyId(req, rawId);
+        if (!id) return res.status(400).json({ success: false, error: "INVALID_ID" });
+        const result = await runtimeService.resetParams(id);
+        res.json({ success: true, ...result });
+    } catch (err) {
+        const status = err.message.includes("not found") ? 404 : 500;
+        res.status(status).json({ success: false, error: "RESET_PARAMS_FAILED", message: err.message });
     }
-
-    if (!defaults || Object.keys(defaults).length === 0) {
-        if (entry.instance._applyDefaults) {
-            entry.instance._applyDefaults();
-        }
-        defaults = entry.instance.params || {};
-    }
-
-    if (entry.instance.updateParams) {
-        entry.instance.updateParams(defaults);
-    } else {
-        entry.instance.params = { ...(defaults || {}) };
-    }
-
-    loader._saveParams(id, entry.instance.params || {});
-
-    logger.info(`Default parameters restored for strategy [${rawId}].`);
-    return res.json({ success: true, payload: entry.instance.params || {}, message: "Defaults restored and persisted." });
 });
 
 // GET DATASET METADATA for running strategy
-router.get('/dataset/:id', (req, res) => {
+router.get("/dataset/:id", (req, res) => {
     try {
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         
         const scopedId = toScopedStrategyId(req, req.params.id);
-        const entry = loader.registry.get(scopedId);
-        
-        if (!entry || !entry.instance) {
+        const instance = loaderFacade.getActiveInstance(scopedId);
+
+        if (!instance) {
             return res.status(404).json({ success: false, error: "STRATEGY_NOT_FOUND" });
         }
 
         // Extract dataset information from the running strategy
-        const dm = entry.instance.dataManager;
-        const dataSymbols = dm?.data && typeof dm.data.keys === "function" 
-            ? Array.from(dm.data.keys()) 
+        const dm = instance.dataManager;
+        const dataSymbols = dm?.data && typeof dm.data.keys === "function"
+            ? Array.from(dm.data.keys())
             : [];
 
         // Get dataset metadata from dataManager if available
-        const datasetMeta = entry.instance.datasetMeta || {};
-        
+        const datasetMeta = instance.datasetMeta || {};
+
         const payload = {
-            symbols: entry.instance.symbols || dataSymbols || [],
-            timeframe: entry.instance.timeframe || null,
-            lookback: entry.instance.lookback || null,
-            mode: entry.instance.mode || null,
-            datasetName: datasetMeta.name || 'Default Dataset',
-            datasetId: datasetMeta.id || 'N/A',
+            symbols: instance.symbols || dataSymbols || [],
+            timeframe: instance.timeframe || null,
+            lookback: instance.lookback || null,
+            mode: instance.mode || null,
+            datasetName: datasetMeta.name || "Default Dataset",
+            datasetId: datasetMeta.id || "N/A",
             uploadedAt: datasetMeta.uploadedAt || null,
             recordCount: datasetMeta.recordCount || 0,
             dateRange: datasetMeta.dateRange || { start: null, end: null },
-            source: datasetMeta.source || 'auto'
+            source: datasetMeta.source || "auto"
         };
 
         return res.json({ success: true, payload });

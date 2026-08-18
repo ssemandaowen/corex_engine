@@ -26,14 +26,17 @@ router.get("/next-order", async (req, res) => {
     }
     try {
         const { rows: authRows } = await db.query(
-            `SELECT status FROM bridge_status WHERE terminal_id = $1 LIMIT 1`,
+            "SELECT status FROM bridge_status WHERE terminal_id = $1 LIMIT 1",
             [terminalId]
         );
-        if (!authRows[0] || authRows[0].status !== "AUTHORIZED") {
-            return res.status(403).json({ success: false, error: "TERMINAL_NOT_AUTHORIZED" });
+        if (!authRows[0]) {
+            return res.status(403).json({ success: false, error: "TERMINAL_NOT_FOUND", message: "Terminal must send heartbeat first." });
+        }
+        if (authRows[0].status !== "AUTHORIZED") {
+            return res.status(403).json({ success: false, error: "TERMINAL_PENDING_APPROVAL", message: "Remote terminal is awaiting admin approval." });
         }
         const { rows: settingsRows } = await db.query(
-            `SELECT payload FROM system_settings WHERE id = 1`
+            "SELECT payload FROM system_settings WHERE id = 1"
         );
         const payload = settingsRows[0]?.payload || {};
         const execution = payload.execution || {};

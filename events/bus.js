@@ -1,5 +1,5 @@
-const EventEmitter = require('events');
-const { EVENTS } = require('@config/constants');
+const EventEmitter = require("events");
+const { EVENTS } = require("@config/constants");
 
 class EventBus extends EventEmitter { }
 
@@ -8,6 +8,6 @@ const bus = new EventBus();
 bus.setMaxListeners(Number(process.env.COREX_BUS_MAX_LISTENERS || 1000));
 
 module.exports = {
-  bus,
-  EVENTS
+    bus,
+    EVENTS
 };

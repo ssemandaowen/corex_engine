@@ -478,6 +478,27 @@ class PgStore {
         return rows[0] || null;
     }
 
+    /**
+     * Returns this user's current upload count and total size (bytes),
+     * for quota enforcement. Excludes soft-deleted rows.
+     */
+    async getBacktestUploadUsageForUser(userId) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) return { count: 0, totalBytes: 0 };
+        const { rows } = await db.query(
+            `SELECT COUNT(*)::int AS count, COALESCE(SUM(size_bytes), 0)::bigint AS total_bytes
+             FROM backtest_uploads
+             WHERE user_id = $1
+               AND (meta->>'deletedAt') IS NULL`,
+            [uid]
+        );
+        const row = rows?.[0] || {};
+        return {
+            count: Number(row.count || 0),
+            totalBytes: Number(row.total_bytes || 0)
+        };
+    }
+
     async listBacktestUploadsForUser(userId, { symbol = null, limit = 200 } = {}) {
         const uid = sanitizeUserId(userId);
         if (!uid) return [];
@@ -487,6 +508,7 @@ class PgStore {
             `SELECT *
              FROM backtest_uploads
              WHERE user_id = $1
+               AND (meta->>'deletedAt') IS NULL
                ${sym ? "AND symbol = $2" : ""}
              ORDER BY created_at DESC
              LIMIT ${sym ? "$3" : "$2"}`,
@@ -500,7 +522,7 @@ class PgStore {
         const id = String(uploadId || "").trim();
         if (!uid || !id) return null;
         const { rows } = await db.query(
-            "SELECT * FROM backtest_uploads WHERE user_id = $1 AND id = $2 LIMIT 1",
+            "SELECT * FROM backtest_uploads WHERE user_id = $1 AND id = $2 AND (meta->>'deletedAt') IS NULL LIMIT 1",
             [uid, id]
         );
         return rows[0] ? toBacktestUploadPayload(rows[0]) : null;
@@ -569,6 +591,69 @@ class PgStore {
         if (!uid || !id) return false;
         const { rowCount } = await db.query(
             "UPDATE backtest_uploads SET last_used_at = NOW(), updated_at = NOW() WHERE user_id = $1 AND id = $2",
+            [uid, id]
+        );
+        return rowCount > 0;
+    }
+
+    async listBacktestUploadsForArchive({ maxAgeDays = 60, limit = 100 } = {}) {
+        const days = Math.max(1, Number(maxAgeDays || 60));
+        const n = Math.max(1, Math.min(500, Number(limit || 100)));
+        const { rows } = await db.query(
+            `SELECT *
+             FROM backtest_uploads
+             WHERE COALESCE(last_used_at, created_at) < NOW() - ($1::int * INTERVAL '1 day')
+               AND (meta->>'archivedAt') IS NULL
+               AND (meta->>'deletedAt') IS NULL
+               AND (dedup_path IS NOT NULL OR symbol_path IS NOT NULL)
+             ORDER BY COALESCE(last_used_at, created_at) ASC
+             LIMIT $2`,
+            [days, n]
+        );
+        return (rows || []).map(toBacktestUploadPayload);
+    }
+
+    async markBacktestUploadArchived({ userId, uploadId, dedupPath = null, symbolPath = null } = {}) {
+        const uid = sanitizeUserId(userId);
+        const id = String(uploadId || "").trim();
+        if (!uid || !id) return false;
+        const { rowCount } = await db.query(
+            `UPDATE backtest_uploads
+             SET dedup_path = $3,
+                 symbol_path = $4,
+                 meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{archivedAt}', to_jsonb((extract(epoch from NOW()) * 1000)::bigint), true),
+                 updated_at = NOW()
+             WHERE user_id = $1 AND id = $2`,
+            [uid, id, dedupPath, symbolPath]
+        );
+        return rowCount > 0;
+    }
+
+    async listBacktestUploadsForPurge({ maxAgeDays = 180, limit = 100 } = {}) {
+        const days = Math.max(1, Number(maxAgeDays || 180));
+        const n = Math.max(1, Math.min(500, Number(limit || 100)));
+        const { rows } = await db.query(
+            `SELECT *
+             FROM backtest_uploads
+             WHERE COALESCE(last_used_at, created_at) < NOW() - ($1::int * INTERVAL '1 day')
+               AND (meta->>'deletedAt') IS NULL
+             ORDER BY COALESCE(last_used_at, created_at) ASC
+             LIMIT $2`,
+            [days, n]
+        );
+        return (rows || []).map(toBacktestUploadPayload);
+    }
+
+    async softDeleteBacktestUploadForUser(userId, uploadId) {
+        const uid = sanitizeUserId(userId);
+        const id = String(uploadId || "").trim();
+        if (!uid || !id) return false;
+        const { rowCount } = await db.query(
+            `UPDATE backtest_uploads
+             SET symbol_path = NULL,
+                 meta = jsonb_set(COALESCE(meta, '{}'::jsonb), '{deletedAt}', to_jsonb((extract(epoch from NOW()) * 1000)::bigint), true),
+                 updated_at = NOW()
+             WHERE user_id = $1 AND id = $2`,
             [uid, id]
         );
         return rowCount > 0;

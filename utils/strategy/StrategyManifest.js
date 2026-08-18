@@ -26,13 +26,13 @@ const CORE_METHOD_MANIFEST = [
         signature: "requireBars(symbol, n = 1, context = 'requireBars')",
         documentation: "Guard helper that returns false when not enough bars are available."
     },
-    {
-        label: "safeSeries",
-        category: "helper",
-        detail: "Safe series accessor",
-        signature: "safeSeries(symbol, field = 'close', fallback = [])",
-        documentation: "Reads a numeric series safely without throwing on missing data."
-    },
+    { 
+        label: "safeSeries", 
+        category: "helper", 
+        detail: "Safe series accessor", 
+        signature: "safeSeries(symbol, field = 'close', fallback = [], n?)", 
+        documentation: "Reads a numeric series safely without throwing on missing data. Optional n limits lookback." 
+    }, 
     {
         label: "oncePerBar",
         category: "helper",

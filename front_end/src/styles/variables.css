@@ -1,0 +1,100 @@
+:root {
+  --ui-bg: #020617;
+  --ui-panel: #070e20;
+  --ui-panel-strong: #0b1329;
+  --ui-panel-soft: #040a1b;
+  --ui-border: #1e293b;
+  --ui-border-strong: #334155;
+  --ui-text: #f8fafc;
+  --ui-muted: #64748b;
+  --ui-subtle: #475569;
+  --ui-accent: #1e90ff;
+  --ui-accent-strong: #38bdf8;
+  --ui-positive: #10b981;
+  --ui-negative: #ef4444;
+  --ui-warning: #f59e0b;
+  --ui-shadow: rgba(0, 0, 0, 0.6);
+  --ui-glow: rgba(30, 144, 255, 0.25);
+  --ui-input-bg: #030712;
+  --ui-sidebar-bg: #020617;
+  --ui-terminal-bg: #030712;
+  --ui-radius: 12px;
+  --ui-radius-sm: 8px;
+  --ui-radius-xs: 6px;
+}
+
+.theme-dark {
+  --ui-bg: #020617;
+  --ui-panel: #070e20;
+  --ui-panel-strong: #0b1329;
+  --ui-panel-soft: #040a1b;
+  --ui-border: #1e293b;
+  --ui-border-strong: #334155;
+  --ui-text: #f8fafc;
+  --ui-muted: #64748b;
+  --ui-subtle: #475569;
+  --ui-accent: #1e90ff;
+  --ui-accent-strong: #38bdf8;
+  --ui-shadow: rgba(0, 0, 0, 0.6);
+  --ui-glow: rgba(30, 144, 255, 0.25);
+  --ui-input-bg: #030712;
+  --ui-sidebar-bg: #020617;
+  --ui-terminal-bg: #030712;
+}
+
+.theme-light {
+  --ui-bg: #f8fafc;
+  --ui-panel: #ffffff;
+  --ui-panel-strong: #f1f5f9;
+  --ui-panel-soft: #f8fafc;
+  --ui-border: #cbd5e1;
+  --ui-border-strong: #94a3b8;
+  --ui-text: #0f172a;
+  --ui-muted: #64748b;
+  --ui-subtle: #94a3b8;
+  --ui-accent: #1e90ff;
+  --ui-accent-strong: #0369a1;
+  --ui-shadow: rgba(15, 23, 42, 0.08);
+  --ui-glow: rgba(30, 144, 255, 0.15);
+  --ui-input-bg: #f8fafc;
+  --ui-sidebar-bg: #f1f5f9;
+  --ui-terminal-bg: #f8fafc;
+}
+
+.theme-godot-dark {
+  --ui-bg: #1A1C22;
+  --ui-panel: #20242C;
+  --ui-panel-strong: #2A2E37;
+  --ui-panel-soft: #181A1F;
+  --ui-border: #2F3542;
+  --ui-border-strong: #3F4756;
+  --ui-text: #E0E1E5;
+  --ui-muted: #8E929E;
+  --ui-subtle: #5B5F6C;
+  --ui-accent: #478CBF;
+  --ui-accent-strong: #5FA5D5;
+  --ui-shadow: rgba(0, 0, 0, 0.5);
+  --ui-glow: rgba(71, 140, 191, 0.25);
+  --ui-input-bg: #15171C;
+  --ui-sidebar-bg: #20242C;
+  --ui-terminal-bg: #15171C;
+}
+
+.theme-godot-light {
+  --ui-bg: #EAEBED;
+  --ui-panel: #F5F6F7;
+  --ui-panel-strong: #DFE1E5;
+  --ui-panel-soft: #F9FAFA;
+  --ui-border: #CCD0D5;
+  --ui-border-strong: #B0B5BC;
+  --ui-text: #24292E;
+  --ui-muted: #6A737D;
+  --ui-subtle: #959DA5;
+  --ui-accent: #478CBF;
+  --ui-accent-strong: #33719E;
+  --ui-shadow: rgba(0, 0, 0, 0.1);
+  --ui-glow: rgba(71, 140, 191, 0.15);
+  --ui-input-bg: #FFFFFF;
+  --ui-sidebar-bg: #F5F6F7;
+  --ui-terminal-bg: #FFFFFF;
+}

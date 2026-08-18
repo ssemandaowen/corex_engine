@@ -3,9 +3,10 @@
 const path    = require("path");
 const { promises: fsp } = require("fs");
 const logger  = require("@utils/logger");
-const storage = require("@utils/storageManager");
-const db = require("@core/services/postgres");
-const pgStore = require("@core/services/pgStore");
+const storage = require("@utils/storageManager"); 
+const db = require("@core/services/postgres"); 
+const pgStore = require("@core/services/pgStore"); 
+const { bus, EVENTS } = require("@events/bus"); 
 
 const log = logger.createModuleLogger("DATA_CULLER", { category: "system" });
 
@@ -44,12 +45,18 @@ class DataCuller {
                 backtests:  path.join(root, "backtests")
             },
             limits: {
-                maxSizeMb:  Number(process.env.COREX_CULL_MAX_SIZE_MB   || 1024),
-                maxAgeDays: Number(process.env.COREX_CULL_MAX_AGE_DAYS  || 7)
+                // Applies to the general-purpose uploads directory cull.
+                // Defaults are intentionally conservative to avoid removing datasets too early.
+                maxSizeMb:  Number(process.env.COREX_UPLOADS_CULL_MAX_SIZE_MB || process.env.COREX_CULL_MAX_SIZE_MB || 1024),
+                maxAgeDays: Number(process.env.COREX_UPLOADS_CULL_MAX_AGE_DAYS || 90)
             },
             db: {
                 uploadsMaxAgeDays: Math.max(1, Number(process.env.COREX_DB_UPLOAD_CULL_MAX_AGE_DAYS || 30)),
-                datasetMaxAgeDays: Math.max(1, Number(process.env.COREX_DB_DATASET_CULL_MAX_AGE_DAYS || 14))
+                datasetMaxAgeDays: Math.max(1, Number(process.env.COREX_DB_DATASET_CULL_MAX_AGE_DAYS || 90)),
+                uploadsArchiveAfterDays: Math.max(1, Number(process.env.COREX_DB_UPLOAD_ARCHIVE_AFTER_DAYS || 60)),
+                uploadsDeleteAfterDays: Math.max(1, Number(process.env.COREX_DB_UPLOAD_DELETE_AFTER_DAYS || 180)),
+                archiveLimit: Math.max(1, Math.min(500, Number(process.env.COREX_DB_UPLOAD_ARCHIVE_LIMIT || 50))),
+                purgeLimit: Math.max(1, Math.min(500, Number(process.env.COREX_DB_UPLOAD_PURGE_LIMIT || 50)))
             }
         };
     }
@@ -130,7 +137,14 @@ class DataCuller {
                     return { error: e.message };
                 }),
 
-            this._cullDirectory(cfg.dirs.uploads, cfg.limits),
+            // Phase D: the global size-based uploads directory cull has been
+            // disabled. Per-user upload quotas (enforced at upload time —
+            // see backtestController.js) keep total dataset storage bounded
+            // without ever auto-deleting a user's files behind their back.
+            // The DB archive→purge pipeline below still runs (age-based,
+            // with in-use checks) and remains the only automatic cleanup
+            // for uploaded datasets.
+            Promise.resolve({ deleted: 0, skipped: 0, disabled: true }),
 
             this._cullBacktestDbArtifacts(cfg).catch((e) => {
                 log.error(`Backtest DB cull hook failed: ${e.message}`);
@@ -154,7 +168,7 @@ class DataCuller {
             );
         } else {
             log.warn(
-                `Cull finished with errors — check stats for details.`,
+                "Cull finished with errors — check stats for details.",
                 { durationMs, stats: this._lastResult.stats }
             );
         }
@@ -162,29 +176,124 @@ class DataCuller {
 
     async _cullBacktestDbArtifacts(cfg) {
         if (!db.hasDbConfig()) {
-            return { uploadsDeleted: 0, datasetsDeleted: 0, filesDeleted: 0 };
+            return { uploadsArchived: 0, uploadsPurged: 0, uploadsSkippedInUse: 0, datasetsDeleted: 0, filesDeleted: 0 };
         }
 
-        let expiredUploads = [];
-        try {
-            expiredUploads = await pgStore.deleteExpiredBacktestUploads(cfg.db.uploadsMaxAgeDays);
-        } catch (err) {
-            if (String(err?.code || "") !== "42P01") throw err;
-            return { uploadsDeleted: 0, datasetsDeleted: 0, filesDeleted: 0 };
-        }
+        const variants = (p) => {
+            const raw = String(p || "").trim();
+            if (!raw) return [];
+            if (raw.endsWith(".gz")) return [raw, raw.slice(0, -3)];
+            return [raw, `${raw}.gz`];
+        };
+
+        const isUploadInUse = async (upload) => {
+            const paths = [
+                ...variants(upload?.symbolPath),
+                ...variants(upload?.dedupPath)
+            ].filter(Boolean);
+            if (paths.length === 0) return false;
+
+            const { rowCount } = await db.query(
+                `SELECT 1
+                 FROM corex_jobs
+                 WHERE status IN ('queued','running')
+                   AND (payload->'options'->'file'->>'path') = ANY($1::text[])
+                 LIMIT 1`,
+                [paths]
+            );
+            return Number(rowCount || 0) > 0;
+        };
+
+        let uploadsArchived = 0;
+        let uploadsPurged = 0;
+        let uploadsSkippedInUse = 0;
         let filesDeleted = 0;
-        for (const row of expiredUploads) {
-            // Only remove user-scoped symbol copies; dedup blobs are shared and
-            // remain under regular filesystem age/size culling.
-            if (row?.symbolPath) {
-                const removed = await this._safeUnlink({ path: row.symbolPath }).catch(() => false);
-                if (removed) filesDeleted += 1;
-            }
-        }
+
+        // 1) Archive: gzip old datasets in-place and update DB paths to the .gz variants.
+        try {
+            const candidates = await pgStore.listBacktestUploadsForArchive({
+                maxAgeDays: cfg.db.uploadsArchiveAfterDays,
+                limit: cfg.db.archiveLimit
+            });
+
+            for (const row of candidates) {
+                // Dedup blobs are shared; do not rewrite them here (avoid breaking other rows).
+                const nextDedup = row?.dedupPath || null;
+                const nextSymbol = row?.symbolPath && !String(row.symbolPath).endsWith(".gz")
+                    ? await storage.gzipFileAsync(row.symbolPath, { deleteSource: true }).then((r) => r.gzPath).catch(() => row.symbolPath)
+                    : row?.symbolPath || null;
+
+                const ok = await pgStore.markBacktestUploadArchived({ 
+                    userId: row.userId, 
+                    uploadId: row.id, 
+                    dedupPath: nextDedup, 
+                    symbolPath: nextSymbol 
+                }).catch(() => false); 
+                if (ok) { 
+                    uploadsArchived += 1; 
+                    bus.emit( 
+                        EVENTS.BACKTEST.UPLOAD_ARCHIVED, 
+                        { 
+                            upload: { 
+                                id: row.id, 
+                                symbol: row.symbol || null, 
+                                source: row.source || null 
+                            }, 
+                            archivedAt: Date.now() 
+                        }, 
+                        { userId: row.userId } 
+                    ); 
+                } 
+            } 
+        } catch (err) { 
+            if (String(err?.code || "") !== "42P01") throw err; 
+        } 
+
+        // 2) Purge: delete files and soft-delete DB metadata (keep row for auditability).
+        try {
+            const candidates = await pgStore.listBacktestUploadsForPurge({
+                maxAgeDays: cfg.db.uploadsDeleteAfterDays,
+                limit: cfg.db.purgeLimit
+            });
+
+            for (const row of candidates) {
+                if (await isUploadInUse(row).catch(() => false)) {
+                    uploadsSkippedInUse += 1;
+                    continue;
+                }
+
+                for (const p of variants(row?.symbolPath)) {
+                    if (!p) continue;
+                    const removed = await this._safeUnlink({ path: p }).catch(() => false);
+                    if (removed) filesDeleted += 1;
+                }
+
+                const ok = await pgStore.softDeleteBacktestUploadForUser(row.userId, row.id).catch(() => false); 
+                if (ok) { 
+                    uploadsPurged += 1; 
+                    bus.emit( 
+                        EVENTS.BACKTEST.UPLOAD_DELETED, 
+                        { 
+                            upload: { 
+                                id: row.id, 
+                                symbol: row.symbol || null, 
+                                source: row.source || null 
+                            }, 
+                            deletedAt: Date.now() 
+                        }, 
+                        { userId: row.userId } 
+                    ); 
+                } 
+            } 
+        } catch (err) { 
+            if (String(err?.code || "") !== "42P01") throw err; 
+        } 
 
         const datasetsDeleted = await pgStore.deleteExpiredBacktestDatasets(cfg.db.datasetMaxAgeDays);
         return {
-            uploadsDeleted: Number(expiredUploads.length || 0),
+            uploadsArchived,
+            uploadsPurged,
+            uploadsSkippedInUse,
             datasetsDeleted: Number(datasetsDeleted || 0),
             filesDeleted
         };
@@ -192,61 +301,6 @@ class DataCuller {
 
     // ── Directory culling ─────────────────────────────────────────────────────
 
-    /**
-     * Delete files in `dir` that are either older than maxAgeDays OR push
-     * the total directory size above maxSizeMb (oldest-first eviction).
-     *
-     * The size-pressure pass only removes files strictly needed to get back
-     * under budget — it will never delete a file that is both new AND within
-     * the size budget.
-     *
-     * @returns {{ deleted: number, skipped: number, finalSizeMb: string } | { error: string }}
-     */
-    async _cullDirectory(dir, { maxSizeMb, maxAgeDays }) {
-        const maxBytes = maxSizeMb * BYTES_PER_MB;
-        const maxAgeMs = maxAgeDays * MS_PER_DAY;
-        const now      = Date.now();
-
-        try {
-            const files = await this._scan(dir);
-            if (files.length === 0) {
-                return { deleted: 0, skipped: 0, finalSizeMb: "0.00" };
-            }
-
-            // Oldest first — eviction order for size-pressure pass.
-            files.sort((a, b) => a.mtime - b.mtime);
-
-            let deleted     = 0;
-            let skipped     = 0;
-            let currentSize = files.reduce((acc, f) => acc + f.size, 0);
-
-            for (const file of files) {
-                const age        = now - file.mtime;
-                const isTooOld   = age > maxAgeMs;
-                const isOverSize = currentSize > maxBytes;
-
-                if (!isTooOld && !isOverSize) continue;
-
-                const removed = await this._safeUnlink(file);
-                if (removed) {
-                    currentSize -= file.size;
-                    deleted++;
-                } else {
-                    skipped++;
-                }
-            }
-
-            return {
-                deleted,
-                skipped,
-                finalSizeMb: (currentSize / BYTES_PER_MB).toFixed(2)
-            };
-
-        } catch (e) {
-            log.error(`_cullDirectory("${dir}") failed: ${e.message}`);
-            return { error: e.message };
-        }
-    }
 
     /**
      * Unlink a single file.

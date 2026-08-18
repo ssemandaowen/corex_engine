@@ -6,6 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 const zlib = require("zlib");
 const { promisify } = require("util");
+const { pipeline } = require("stream/promises");
 const { TIME } = require("@config/constants");
 const dataForge = require("data-forge");
 require("data-forge-fs");
@@ -128,6 +129,48 @@ const manager = {
     cleanupUploadsAsync: (dir, opts = {}) => 
         pruneByAgeAndSizeAsync(dir, { ...config.uploads, ...opts }),
 
+    /**
+     * Gzip a file to `${filePath}.gz` (streaming). Returns the gz path.
+     * If the gz already exists, this is a no-op (optionally deletes the source).
+     */
+    gzipFileAsync: async (filePath, opts = {}) => {
+        const src = String(filePath || "").trim();
+        if (!src) throw new Error("FILE_PATH_REQUIRED");
+        const deleteSource = opts.deleteSource !== undefined ? !!opts.deleteSource : true;
+        if (src.endsWith(".gz")) return { gzPath: src, changed: false };
+
+        const gzPath = `${src}.gz`;
+
+        const srcExists = fs.existsSync(src);
+        const gzExists = fs.existsSync(gzPath);
+
+        if (!srcExists && gzExists) return { gzPath, changed: false };
+        if (!srcExists && !gzExists) throw Object.assign(new Error(`ENOENT: ${src}`), { code: "ENOENT" });
+
+        if (gzExists) {
+            if (deleteSource) await safeUnlinkAsync(src);
+            return { gzPath, changed: false };
+        }
+
+        await fsp.mkdir(path.dirname(gzPath), { recursive: true }).catch(() => {});
+
+        const tmp = `${gzPath}.tmp`;
+        const gzip = zlib.createGzip({
+            level: Number.isFinite(Number(opts.level)) ? Number(opts.level) : zlib.constants.Z_BEST_SPEED
+        });
+
+        await pipeline(
+            fs.createReadStream(src),
+            gzip,
+            fs.createWriteStream(tmp)
+        );
+
+        await fsp.rename(tmp, gzPath);
+        if (deleteSource) await safeUnlinkAsync(src);
+
+        return { gzPath, changed: true };
+    },
+
     readCsvOrGz: async (filePath) => {
         const variants = [filePath, `${filePath}.gz`];
         for (const p of variants) {
@@ -141,7 +184,7 @@ const manager = {
             } catch (err) {
                 // If the file doesn't exist, try the next variant.
                 // For any other error (e.g., malformed CSV), we should fail fast.
-                if (err.code === 'ENOENT') continue;
+                if (err.code === "ENOENT") continue;
                 throw err;
             }
         }

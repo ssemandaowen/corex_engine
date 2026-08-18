@@ -1,16 +1,18 @@
 "use strict";
 
 const router = require("express").Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const loader = require("@core/strategyLoader");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+const loader = require("@core/core/loader/StrategyLoader");
 const storageManager = require("@utils/storageManager");
 const crypto = require("crypto");
-const db = require("@core/services/postgres");
-const pgStore = require("@core/services/pgStore");
-const jobQueue = require("@core/services/jobQueue");
-const { BACKTEST, TIME } = require("@config/constants");
+const db = require("@core/services/postgres"); 
+const pgStore = require("@core/services/pgStore"); 
+const jobQueue = require("@core/services/jobQueue"); 
+const { MAX_BARS_LIMIT } = require("@core/core/backtestDataResolver");
+const { bus, EVENTS } = require("@events/bus"); 
+const { BACKTEST, TIME } = require("@config/constants"); 
 const { toScopedId, fromScopedId, sanitizeEntityId } = require("@core/services/userScope");
 const logger = require("@utils/logger").createModuleLogger("BACKTEST_API", {
     category: "backtest",
@@ -20,15 +22,13 @@ const logger = require("@utils/logger").createModuleLogger("BACKTEST_API", {
 const fsp = fs.promises;
 
 // Standardize Paths
-const DATA_DIR = path.join(process.cwd(), 'data');
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
-const UPLOADS_TMP_DIR = path.join(UPLOADS_DIR, 'tmp');
-const UPLOADS_DEDUP_DIR = path.join(UPLOADS_DIR, 'dedup');
-const UPLOADS_BY_SYMBOL_DIR = path.join(UPLOADS_DIR, 'by-symbol');
-const UPLOADS_INDEX_FILE = path.join(UPLOADS_DIR, 'index.json');
-const REPORTS_DIR = path.join(DATA_DIR, 'backtests');
-const PROGRESS_TTL_MS = 30 * 60 * 1000;
-const backtestProgress = new Map();
+const DATA_DIR = path.join(process.cwd(), "data");
+const UPLOADS_DIR = path.join(DATA_DIR, "uploads");
+const UPLOADS_TMP_DIR = path.join(UPLOADS_DIR, "tmp");
+const UPLOADS_DEDUP_DIR = path.join(UPLOADS_DIR, "dedup");
+const UPLOADS_BY_SYMBOL_DIR = path.join(UPLOADS_DIR, "by-symbol");
+const UPLOADS_INDEX_FILE = path.join(UPLOADS_DIR, "index.json");
+const REPORTS_DIR = path.join(DATA_DIR, "backtests");
 let storageInit = false;
 let storageInitPromise = null;
 let uploadsIndexWrite = Promise.resolve();
@@ -65,64 +65,20 @@ const ensureStorageReady = async () => {
 
 const getUserId = (req) => String(req.user?.sub || "").trim();
 const toPublicScopedId = (req, id) => fromScopedId(getUserId(req), id) || id;
-const toScopedReportId = (req, id) => {
-    const userId = getUserId(req);
-    const reportId = sanitizeEntityId(id);
-    if (!userId || !reportId) return "";
-    return `${userId}__${reportId}`;
-};
-const toPublicReportId = (req, id) => {
-    const userId = getUserId(req);
-    const raw = String(id || "");
-    const prefix = `${userId}__`;
-    if (userId && raw.startsWith(prefix)) return raw.slice(prefix.length);
-    return fromScopedId(userId, raw) || raw;
-};
+const toScopedReportId = (req, id) => toScopedId(getUserId(req), id);
+const toPublicReportId = (req, id) => fromScopedId(getUserId(req), id) || id;
 const progressKey = (req, jobId) => toScopedId(getUserId(req), jobId);
-
-const pruneBacktestProgress = () => {
-    const now = Date.now();
-    for (const [id, job] of backtestProgress.entries()) {
-        if ((now - Number(job?.updatedAt || 0)) > PROGRESS_TTL_MS) {
-            backtestProgress.delete(id);
-        }
-    }
-};
-
-const toProgressEntry = (jobId) => ({
-    jobId,
-    status: "RUNNING",
-    currentStage: "QUEUED",
-    currentMessage: "Backtest queued...",
-    pct: 0,
-    steps: [{
-        stage: "QUEUED",
-        message: "Backtest queued...",
-        pct: 0,
-        ts: Date.now()
-    }],
-    startedAt: Date.now(),
-    updatedAt: Date.now(),
-    finishedAt: null,
-    error: null,
-    resultMeta: null
-});
-
-const updateProgress = (key, patch = {}) => {
-    const existing = backtestProgress.get(key) || toProgressEntry(key);
-    const next = {
-        ...existing,
-        ...patch,
-        updatedAt: Date.now()
-    };
-    backtestProgress.set(key, next);
-    return next;
-};
 
 // Note: no side effects at import-time. Storage is initialized lazily per request.
 
 // Configure Multer for CSV datasets
 const MAX_UPLOAD_MB = Number(process.env.BACKTEST_MAX_MB || 50);
+
+// Per-user dataset quotas (Phase C — data safety limits)
+const MAX_UPLOADS_PER_USER = Math.max(1, Number(process.env.COREX_MAX_UPLOADS_PER_USER || 10));
+const MAX_UPLOAD_STORAGE_MB_PER_USER = Math.max(1, Number(process.env.COREX_MAX_UPLOAD_STORAGE_MB || 500));
+const MAX_UPLOAD_STORAGE_BYTES_PER_USER = MAX_UPLOAD_STORAGE_MB_PER_USER * 1024 * 1024;
+
 const upload = multer({
     dest: UPLOADS_TMP_DIR,
     limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 },
@@ -143,6 +99,69 @@ const hashFile = (filePath) => new Promise((resolve, reject) => {
 
 const safeSymbolName = (symbol = "UNASSIGNED") =>
     String(symbol || "UNASSIGNED").replace(/[^a-zA-Z0-9_.-]/g, "_").toUpperCase();
+
+/**
+ * Streams a CSV (or .gz) file to determine its bar count and the time
+ * range it covers, without loading the whole file into memory.
+ * Used at upload time to calibrate range/points validation for the
+ * Backtest "Run" form (Phase C).
+ *
+ * @returns {Promise<{ barsCount: number, firstTime: number|null, lastTime: number|null }>}
+ */
+const scanCsvBarRange = async (filePath) => {
+    const readline = require("readline");
+    const zlib = require("zlib");
+
+    let stream = fs.createReadStream(filePath);
+    if (filePath.endsWith(".gz")) {
+        stream = stream.pipe(zlib.createGunzip());
+    }
+
+    const rl = readline.createInterface({ input: stream, crlfDelay: Infinity });
+
+    let header = null;
+    let timeIdx = -1;
+    let barsCount = 0;
+    let firstTime = null;
+    let lastTime = null;
+
+    const parseTimeValue = (raw) => {
+        if (raw === undefined || raw === null || raw === "") return null;
+        const num = Number(raw);
+        if (Number.isFinite(num)) return num < 1e11 ? num * 1000 : num;
+        const parsed = Date.parse(raw);
+        return Number.isFinite(parsed) ? parsed : null;
+    };
+
+    try {
+        for await (const line of rl) {
+            if (!line || !line.trim()) continue;
+
+            if (!header) {
+                header = line.split(",").map((h) => h.trim().toLowerCase());
+                timeIdx = header.findIndex((h) =>
+                    ["time", "timestamp", "datetime", "date", "at"].includes(h)
+                );
+                continue;
+            }
+
+            barsCount += 1;
+
+            if (timeIdx >= 0) {
+                const cols = line.split(",");
+                const t = parseTimeValue(cols[timeIdx]);
+                if (t !== null) {
+                    if (firstTime === null) firstTime = t;
+                    lastTime = t;
+                }
+            }
+        }
+    } finally {
+        rl.close();
+    }
+
+    return { barsCount, firstTime, lastTime };
+};
 
 const readUploadsIndex = async () => {
     await ensureStorageReady();
@@ -249,13 +268,11 @@ const removeUploadMeta = async (userId, id) => {
 
 const getDefaultBacktestSettings = async (userId) => {
     const defaults = {
-        defaultSymbol: "BTC/USD",
-        defaultInterval: TIME.DEFAULT_TIMEFRAMES?.[0] || "1m",
-        defaultInitialCapital: 10000,
-        defaultOutputsize: 5000,
+        symbol: "EUR/USD",
+        timeframe: "1m",
+        initialCapital: 10000,
+        rangePoints: 1000,
         includeTrades: true,
-        maxUploadMb: MAX_UPLOAD_MB,
-        allowedIntervals: TIME.DEFAULT_TIMEFRAMES || ["1m", "5m", "15m", "1h", "4h", "1d"]
     };
     try {
         const persisted = await pgStore.getSystemSettingsForUser(userId);
@@ -284,15 +301,15 @@ const fileExists = async (p) => {
     }
 };
 
-const buildUploadRecord = async ({ userId, tmpPath, originalname, symbol, source = "manual" }) => {
+const buildUploadRecord = async ({ userId, tmpPath, originalname, symbol, source = "manual" }) => { 
     await ensureStorageReady();
+    const safeSym = safeSymbolName(symbol);
     const digest = await hashFile(tmpPath);
     const ext = path.extname(originalname || ".csv") || ".csv";
     const dedupPath = path.join(UPLOADS_DEDUP_DIR, `${digest}${ext}`);
-    const safeSym = safeSymbolName(symbol);
     const symbolDir = path.join(UPLOADS_BY_SYMBOL_DIR, safeSym);
     await ensureDirAsync(symbolDir);
-    const symbolPath = path.join(symbolDir, `${digest}${ext}`);
+    const symbolPath = path.join(symbolDir, `${digest.slice(0,16)}${ext}`);
 
     if (await fileExists(dedupPath)) {
         try { await fsp.unlink(tmpPath); } catch { /* ignore */ }
@@ -304,7 +321,22 @@ const buildUploadRecord = async ({ userId, tmpPath, originalname, symbol, source
     }
 
     const stat = await fsp.stat(dedupPath);
-    const uploadId = toScopedId(userId, `${safeSym}_${digest.slice(0, 16)}`);
+    const uploadId = toScopedId(userId, `${digest}`);
+
+    // Phase C: calibrate range/points validation by scanning the dataset
+    // once at upload time (best-effort — never blocks the upload).
+    let barsCount = null;
+    let timeRange = null;
+    try {
+        const scan = await scanCsvBarRange(dedupPath);
+        barsCount = scan.barsCount;
+        if (scan.firstTime !== null && scan.lastTime !== null) {
+            timeRange = { firstTime: scan.firstTime, lastTime: scan.lastTime };
+        }
+    } catch (err) {
+        // Non-fatal: range validation will simply be skipped for this upload.
+    }
+
     const meta = {
         id: uploadId,
         userId,
@@ -316,10 +348,26 @@ const buildUploadRecord = async ({ userId, tmpPath, originalname, symbol, source
         dedupPath,
         symbolPath,
         size: stat.size,
+        barsCount,
+        meta: timeRange ? { timeRange } : {},
         createdAt: Date.now()
     };
-    return upsertUploadMeta(meta);
-};
+    const saved = await upsertUploadMeta(meta); 
+    bus.emit( 
+        EVENTS.BACKTEST.UPLOAD_CREATED, 
+        { 
+            upload: { 
+                id: saved?.id || uploadId, 
+                symbol: safeSym, 
+                source, 
+                originalname: saved?.originalname || meta.originalname, 
+                createdAt: saved?.createdAt || meta.createdAt 
+            } 
+        }, 
+        { userId } 
+    ); 
+    return saved; 
+}; 
 
 router.get("/settings", async (req, res) => {
     try {
@@ -352,7 +400,12 @@ router.get("/uploads", async (req, res) => {
         const rows = (await listUploadsForUser(userId, { symbol: symbolFilter }))
             .filter((x) => !symbolFilter || safeSymbolName(x.symbol) === symbolFilter)
             .sort((a, b) => Number(b.createdAt || 0) - Number(a.createdAt || 0))
-            .map((x) => ({ ...x, id: toPublicReportId(req, x.id) }));
+            .map((x) => ({ 
+                ...x, 
+                id: toPublicReportId(req, x.id),
+                sizeLabel: (Number(x.size || 0) / (1024 * 1024)).toFixed(2) + " MB",
+                dateLabel: new Date(Number(x.createdAt || 0)).toLocaleString()
+            }));
         res.json({ success: true, payload: rows });
     } catch (err) {
         res.status(500).json({ success: false, error: "UPLOADS_LIST_FAILED", message: err.message });
@@ -378,6 +431,33 @@ router.post("/uploads", upload.single("dataset"), async (req, res) => {
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         if (!uploadedPath) return res.status(400).json({ success: false, error: "DATASET_REQUIRED" });
+
+        // Phase C: enforce per-user dataset quotas before accepting the file.
+        const usage = await pgStore.getBacktestUploadUsageForUser(userId).catch(() => ({ count: 0, totalBytes: 0 }));
+        const incomingBytes = Number(req.file?.size || 0);
+
+        if (usage.count >= MAX_UPLOADS_PER_USER) {
+            return res.status(413).json({
+                success: false,
+                error: "UPLOAD_QUOTA_EXCEEDED",
+                message: `You have reached the maximum of ${MAX_UPLOADS_PER_USER} datasets. Delete an existing dataset before uploading a new one.`,
+                quota: { maxUploads: MAX_UPLOADS_PER_USER, currentUploads: usage.count }
+            });
+        }
+
+        if (usage.totalBytes + incomingBytes > MAX_UPLOAD_STORAGE_BYTES_PER_USER) {
+            return res.status(413).json({
+                success: false,
+                error: "STORAGE_QUOTA_EXCEEDED",
+                message: `This upload would exceed your ${MAX_UPLOAD_STORAGE_MB_PER_USER}MB storage limit. Delete existing datasets to free up space.`,
+                quota: {
+                    maxBytes: MAX_UPLOAD_STORAGE_BYTES_PER_USER,
+                    currentBytes: usage.totalBytes,
+                    incomingBytes
+                }
+            });
+        }
+
         const symbol = req.body?.symbol || "UNASSIGNED";
         const saved = await buildUploadRecord({
             userId,
@@ -399,20 +479,31 @@ router.post("/uploads", upload.single("dataset"), async (req, res) => {
     }
 });
 
-router.delete("/uploads/:uploadId", async (req, res) => {
-    try {
-        const userId = getUserId(req);
-        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-        const target = await getUploadForUser(userId, req.params.uploadId);
-        if (!target) return res.status(404).json({ success: false, error: "UPLOAD_NOT_FOUND" });
-        await removeUploadMeta(userId, req.params.uploadId);
-        try { if (target.symbolPath && (await fileExists(target.symbolPath))) await fsp.unlink(target.symbolPath); } catch { /* ignore */ }
-        logger.warn(`Upload deleted: ${toPublicReportId(req, target.id)}`);
-        res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "UPLOAD_DELETE_FAILED", message: err.message });
-    }
-});
+router.delete("/uploads/:uploadId", async (req, res) => { 
+    try { 
+        const userId = getUserId(req); 
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" }); 
+        const target = await getUploadForUser(userId, req.params.uploadId); 
+        if (!target) return res.status(404).json({ success: false, error: "UPLOAD_NOT_FOUND" }); 
+        await removeUploadMeta(userId, req.params.uploadId); 
+        try { if (target.symbolPath && (await fileExists(target.symbolPath))) await fsp.unlink(target.symbolPath); } catch { /* ignore */ } 
+        logger.warn(`Upload deleted: ${toPublicReportId(req, target.id)}`); 
+        bus.emit( 
+            EVENTS.BACKTEST.UPLOAD_DELETED, 
+            { 
+                upload: { 
+                    id: target?.id || toScopedId(userId, req.params.uploadId), 
+                    symbol: target?.symbol || null, 
+                    source: target?.source || null 
+                } 
+            }, 
+            { userId } 
+        ); 
+        res.json({ success: true }); 
+    } catch (err) { 
+        res.status(500).json({ success: false, error: "UPLOAD_DELETE_FAILED", message: err.message }); 
+    } 
+}); 
 
 /**
  * @route GET /api/backtest
@@ -482,6 +573,7 @@ router.post("/jobs/:jobId/cancel", async (req, res) => {
         if (!db.hasDbConfig()) return res.status(503).json({ success: false, error: "BACKTEST_DB_REQUIRED" });
         const jobId = String(req.params.jobId || "").trim();
         const ok = await jobQueue.cancelJob({ id: jobId, userId });
+
         res.json({ success: true, payload: { cancelled: ok } });
     } catch (err) {
         res.status(500).json({ success: false, error: "JOB_CANCEL_FAILED", message: err.message });
@@ -491,7 +583,6 @@ router.post("/jobs/:jobId/cancel", async (req, res) => {
 // Legacy endpoint kept for UI compatibility (maps to corex_jobs progress state).
 router.get("/progress/:jobId", async (req, res) => {
     try {
-        pruneBacktestProgress();
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const jobId = String(req.params.jobId || "").trim();
@@ -504,18 +595,23 @@ router.get("/progress/:jobId", async (req, res) => {
             const p = job.progress || {};
             const stage = String(p.stage || "").trim() || "QUEUED";
             const pct = Number.isFinite(Number(p.pct)) ? Number(p.pct) : 0;
-            const status = job.status === "failed" ? "ERROR"
-                : job.status === "succeeded" ? "DONE"
-                    : job.status === "cancelled" ? "CANCELLED"
-                        : "RUNNING";
+
+            let status = "RUNNING";
+            if (job.status === "failed") status = "ERROR";
+            else if (job.status === "succeeded") status = "DONE";
+            else if (job.status === "cancelled") {
+                // Keep in RUNNING state if we are still waiting for the worker to stop safely.
+                status = (stage === "CANCELLED" || stage === "FAILED") ? "CANCELLED" : "RUNNING";
+            }
 
             const payload = {
                 jobId,
+                progressJobId: jobId,
                 status,
                 currentStage: stage,
                 currentMessage: String(p.message || ""),
                 pct,
-                steps: [],
+                steps: p.steps || [{ stage, message: String(p.message || ""), pct, ts: job.updatedAt }],
                 startedAt: job.createdAt ? new Date(job.createdAt).getTime() : null,
                 updatedAt: job.updatedAt ? new Date(job.updatedAt).getTime() : Date.now(),
                 finishedAt: (job.status === "succeeded" || job.status === "failed" || job.status === "cancelled")
@@ -532,9 +628,7 @@ router.get("/progress/:jobId", async (req, res) => {
             return res.json({ success: true, payload });
         }
 
-        const legacy = backtestProgress.get(progressKey(req, jobId));
-        if (!legacy) return res.status(404).json({ success: false, error: "PROGRESS_NOT_FOUND" });
-        return res.json({ success: true, payload: { ...legacy, jobId } });
+        return res.status(503).json({ success: false, error: "BACKTEST_DB_REQUIRED" });
     } catch (err) {
         return res.status(500).json({ success: false, error: "PROGRESS_READ_FAILED", message: err.message });
     }
@@ -544,95 +638,206 @@ router.get("/progress/:jobId", async (req, res) => {
  * @route POST /api/backtest/:id
  * @desc Triggered by "Run" Tab for Backtest mode
  */
-router.post("/:id", upload.single('dataset'), async (req, res) => {
+router.post("/:id", upload.single("dataset"), async (req, res) => {
     let uploadedPath = null;
     try {
-        pruneBacktestProgress();
         const userId = getUserId(req);
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const scopedStrategyId = toScopedId(userId, req.params.id);
-        const entry = loader.registry.get(scopedStrategyId);
-        if (!entry) return res.status(404).json({ success: false, error: "STRATEGY_NOT_FOUND" });
-        const clientJobIdRaw = String(req.body?.clientJobId || "").trim();
-        const publicJobId = clientJobIdRaw || crypto.randomUUID().slice(0, 8);
+        let entry = loader.get(scopedStrategyId);
+        if (!entry) {
+            // Strategy may exist but not be compiled yet (lazy/on-demand loading) —
+            // check the DB before rejecting.
+            const { rows } = await db.query(
+                "SELECT name FROM strategies WHERE name = $1 LIMIT 1",
+                [scopedStrategyId]
+            );
+            if (!rows?.[0]) return res.status(404).json({ success: false, error: "STRATEGY_NOT_FOUND" });
+            entry = { id: scopedStrategyId };
+        }
+        const publicJobId = crypto.randomUUID().slice(0, 8);
         const runtimeId = toScopedReportId(req, publicJobId);
 
         uploadedPath = req.file?.path || null;
-        const systemDefaults = await getDefaultBacktestSettings(userId);
-        const warnings = [];
         let selectedUpload = null;
+
+        const readNumber = (value, fallback) => {
+            if (value === undefined || value === null || value === "") return fallback;
+            const n = Number(value);
+            return Number.isFinite(n) ? n : fallback;
+        };
 
         if (req.body?.uploadId) {
             selectedUpload = await getUploadForUser(userId, String(req.body.uploadId));
             if (!selectedUpload) {
-                return res.status(404).json({ success: false, error: "UPLOAD_NOT_FOUND", message: `Unknown uploadId: ${req.body.uploadId}` });
+                return res.status(400).json({ success: false, error: "INVALID_DATASET", message: "The selected dataset no longer exists or is unavailable." });
             }
             pgStore.touchBacktestUploadForUser(userId, selectedUpload.id).catch(() => {});
         }
 
         if (uploadedPath) {
+            if (!req.body?.symbol) return res.status(400).json({ success: false, error: "SYMBOL_REQUIRED", message: "Please provide a symbol for the uploaded dataset." });
             selectedUpload = await buildUploadRecord({
                 userId,
                 tmpPath: uploadedPath,
                 originalname: req.file?.originalname,
-                symbol: req.body?.symbol || systemDefaults.defaultSymbol || "UNASSIGNED",
+                symbol: req.body.symbol,
                 source: "backtest"
             });
             uploadedPath = null;
         }
 
-        const readNumber = (value, fallback) => {
-            const n = Number(value);
-            return Number.isFinite(n) ? n : Number(fallback);
-        };
+        // Senior Initiation: Clearly distinguish between CSV-driven (Offline) and API-driven (Online).
+        // Honor the explicit dataSource the frontend actually sent ("ONLINE"/"OFFLINE"),
+        // falling back to upload-presence detection for legacy/automation callers.
+        const explicitDataSource = String(req.body?.dataSource || "").trim().toUpperCase();
+        let dataSourceType;
+        if (explicitDataSource === "OFFLINE") {
+            if (!selectedUpload) {
+                return res.status(400).json({
+                    success: false,
+                    error: "OFFLINE_REQUIRES_DATASET",
+                    message: "Offline CSV mode was selected, but no dataset is attached. Please upload a CSV file (or pick an existing upload) and try again."
+                });
+            }
+            dataSourceType = "OFFLINE_CSV";
+        } else if (explicitDataSource === "ONLINE") {
+            dataSourceType = "ONLINE_API";
+        } else {
+            dataSourceType = selectedUpload ? "OFFLINE_CSV" : "ONLINE_API";
+        }
+        
+        const symbol = (req.body?.symbol || selectedUpload?.symbol || "").toUpperCase().replace(/[^A-Z0-9/_.-]/g, "");
+        const safeSym = safeSymbolName(symbol);
+        if (!symbol) return res.status(400).json({ success: false, error: "SYMBOL_REQUIRED", message: "Market symbol is required for simulation." });
 
-        const symbol = String(req.body?.symbol || selectedUpload?.symbol || systemDefaults.defaultSymbol || "BTC/USD");
-        const interval = String(req.body?.interval || systemDefaults.defaultInterval || "1m").trim();
-        const initialCapital = readNumber(req.body?.initialCapital ?? systemDefaults.defaultInitialCapital, systemDefaults.defaultInitialCapital);
-        const includeTrades = String(req.body?.includeTrades ?? String(systemDefaults.includeTrades)) === "true";
+        const interval = String(req.body?.interval || "").toLowerCase().trim().replace(/[^a-z0-9]/g, "");
+        if (dataSourceType === "ONLINE_API" && !interval) {
+            return res.status(400).json({ success: false, error: "INTERVAL_REQUIRED", message: "Timeframe interval is required for Online API mode." });
+        }
+
+        const initialCapital = readNumber(req.body?.initialCapital, null);
+        if (initialCapital === null || initialCapital <= 0) {
+            return res.status(400).json({ success: false, error: "CAPITAL_REQUIRED", message: "Starting capital must be a valid positive number." });
+        }
+
+        const clampPct = (value) => Math.min(100, Math.max(0, value));
+        const stopLossPct = clampPct(readNumber(req.body.stopLossPct, 0));
+        const takeProfitPct = clampPct(readNumber(req.body.takeProfitPct, 0));
+        const trailingStopLossPct = clampPct(readNumber(req.body.trailingStopLossPct, 0));
+
+        const includeTrades = String(req.body?.includeTrades || "true") === "true";
         const rangeMode = String(req.body?.rangeMode || "points").toLowerCase();
-        const rangePointsRaw = readNumber(req.body?.rangePoints ?? req.body?.outputsize ?? systemDefaults.defaultOutputsize, systemDefaults.defaultOutputsize);
-        const outputsizeRaw = readNumber(req.body?.outputsize ?? rangePointsRaw ?? systemDefaults.defaultOutputsize, systemDefaults.defaultOutputsize);
+
+        const rangePoints = readNumber(req.body?.rangePoints ?? req.body?.outputsize, null);
+        if (rangeMode === "points") {
+            if (rangePoints === null) {
+                return res.status(400).json({ success: false, error: "RANGE_REQUIRED", message: "Number of data points is required for 'Points' range mode." });
+            }
+            if (rangePoints <= 0) {
+                return res.status(400).json({ success: false, error: "RANGE_REQUIRED", message: "Number of data points must be greater than zero." });
+            }
+        }
+
         const rangeStartRaw = req.body?.rangeStart ? Date.parse(String(req.body.rangeStart)) : NaN;
         const rangeEndRaw = req.body?.rangeEnd ? Date.parse(String(req.body.rangeEnd)) : NaN;
 
-        if (!req.body?.symbol && !selectedUpload?.symbol) warnings.push("Symbol missing in request; system default was used.");
-        if (!req.body?.interval) warnings.push("Interval missing in request; system default was used.");
-        if (!req.body?.initialCapital) warnings.push("Initial capital missing in request; system default was used.");
-        if (!req.body?.rangePoints && !req.body?.outputsize) warnings.push("Range points missing in request; system default was used.");
-        if (rangeMode === "dates" && Number.isNaN(rangeStartRaw) && Number.isNaN(rangeEndRaw)) {
-            warnings.push("Date range mode selected but start/end missing; full dataset used.");
-        }
-        if (!selectedUpload && !symbol) {
-            return res.status(400).json({ success: false, error: "MISSING_DATA_SOURCE", message: "Provide dataset upload, uploadId, or symbol/interval." });
+        if (rangeMode === "dates" && (Number.isNaN(rangeStartRaw) || Number.isNaN(rangeEndRaw))) {
+            return res.status(400).json({ success: false, error: "DATES_REQUIRED", message: "Both Start and End dates must be selected for Date Range mode." });
         }
 
-        const outputsize = Number.isFinite(outputsizeRaw) && outputsizeRaw > 0
-            ? Math.floor(outputsizeRaw)
-            : Number(systemDefaults.defaultOutputsize || 1000);
-        const rangePoints = Number.isFinite(rangePointsRaw) && rangePointsRaw > 0
-            ? Math.floor(rangePointsRaw)
-            : outputsize;
+        // Phase C: calibrate the requested range against the dataset's known
+        // bar count / time coverage (offline/CSV mode only).
+        if (selectedUpload) {
+            const knownBars = Number.isFinite(Number(selectedUpload.barsCount)) ? Number(selectedUpload.barsCount) : null;
+            const timeRange = selectedUpload.meta?.timeRange || null;
 
+            if (rangeMode === "points" && knownBars !== null && rangePoints !== null) {
+                if (rangePoints > knownBars) {
+                    return res.status(400).json({
+                        success: false,
+                        error: "RANGE_EXCEEDS_DATASET",
+                        message: `Requested ${rangePoints} bars, but this dataset only contains ${knownBars} bars.`,
+                        dataset: { barsCount: knownBars }
+                    });
+                }
+                if (rangePoints <= 0) {
+                    return res.status(400).json({ success: false, error: "RANGE_REQUIRED", message: "Number of data points must be greater than zero." });
+                }
+            }
+
+            if (rangeMode === "dates" && timeRange) {
+                const { firstTime, lastTime } = timeRange;
+                if (rangeStartRaw > lastTime || rangeEndRaw < firstTime) {
+                    return res.status(400).json({
+                        success: false,
+                        error: "RANGE_OUTSIDE_DATASET",
+                        message: `Selected date range does not overlap with this dataset's coverage (${new Date(firstTime).toISOString()} to ${new Date(lastTime).toISOString()}).`,
+                        dataset: { firstTime, lastTime }
+                    });
+                }
+            }
+        }
+
+        if (dataSourceType === "ONLINE_API" && rangeMode === "points" && (rangePoints || 0) > MAX_BARS_LIMIT) {
+            return res.status(400).json({ 
+                success: false, 
+                error: "LIMIT_EXCEEDED", 
+                message: `Maximum ${MAX_BARS_LIMIT} bars allowed for API fetch. Please reduce range or use CSV upload for larger datasets.` 
+            });
+        }
+
+        let resolvedFile = null;
+        if (selectedUpload) {
+            const symbolPath = selectedUpload.symbolPath ? String(selectedUpload.symbolPath) : "";
+            const dedupPath = selectedUpload.dedupPath ? String(selectedUpload.dedupPath) : "";
+            const symbolOk = symbolPath ? await fileExists(symbolPath) : false;
+            const dedupOk = dedupPath ? await fileExists(dedupPath) : false;
+
+            if (symbolOk) {
+                resolvedFile = { path: symbolPath };
+            } else if (dedupOk) {
+                resolvedFile = { path: dedupPath };
+                // Self-heal: restore missing per-symbol copy from dedup blob (best-effort).
+                if (symbolPath) {
+                    try {
+                        await ensureDirAsync(path.dirname(symbolPath));
+                        await fsp.copyFile(dedupPath, symbolPath);
+                    } catch { /* ignore */ }
+                }
+            } else {
+                throw new Error(`UPLOAD_FILE_MISSING: ${toPublicReportId(req, selectedUpload.id)}`);
+            }
+        }
+
+        // Package options for the BacktestManager configuration resolver
         const options = {
             runtimeId,
             userId,
-            file: selectedUpload ? { path: selectedUpload.symbolPath || selectedUpload.dedupPath } : null,
+            dataMode: dataSourceType === "OFFLINE_CSV" ? "offline" : "online",
+            file: resolvedFile,
             symbol,
-            interval,
-            initialCapital: Number.isFinite(initialCapital) && initialCapital > 0 ? initialCapital : Number(systemDefaults.defaultInitialCapital || 10000),
+            interval: interval, // Aligned with internal engine expectations
+            initialCapital,
             includeTrades,
-            outputsize: rangeMode === "points" ? rangePoints : outputsize,
             rangeMode,
-            rangePoints,
-            rangeStart: Number.isFinite(rangeStartRaw) ? rangeStartRaw : null,
-            rangeEnd: Number.isFinite(rangeEndRaw) ? rangeEndRaw : null
+            rangePoints: rangePoints || 1000,
+            stopLossPct,
+            takeProfitPct,
+            trailingStopLossPct,
+            // ── Realism config (passed through to BacktestBroker) ────────────
+            commissionPct:  Number(req.body.commissionPct  ?? 0) || 0,
+            slippageBps:    Number(req.body.slippageBps    ?? 0) || 0,
+            spread:         Number(req.body.spread         ?? 0) || 0,
+            // ── Execution quota (passed to _runSimulation) ───────────────────
+            barBudgetMs:     Number(req.body.barBudgetMs     ?? 100) || 100,
+            barBudgetStrikes: Number(req.body.barBudgetStrikes ?? 5)  || 5,
+            batchSize:       Number(req.body.batchSize       ?? 500) || 500,
         };
-
-        const rawParams = req.body.params;
-        let params = null;
-        if (rawParams) {
-            try { params = JSON.parse(rawParams); } catch { warnings.push("Params payload could not be parsed; strategy defaults were used."); }
+        
+        let params = req.body.params;
+        if (typeof params === "string") {
+            try { params = JSON.parse(params); } catch { params = null; }
         }
 
         if (BACKTEST.DB_REQUIRED && !db.hasDbConfig()) {
@@ -652,9 +857,6 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
             maxAttempts: 2
         });
 
-        const progressId = progressKey(req, queued.id);
-        updateProgress(progressId, toProgressEntry(progressId));
-
         // Fire-and-forget cleanup (don't block the response)
         storageManager.cleanupBacktestsAsync(REPORTS_DIR).catch(err => {
             logger.warn(`[CLEANUP] Failed to cleanup backtests: ${err.message}`);
@@ -667,28 +869,13 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
             success: true,
             payload: {
                 jobId: queued.id,
+                progressJobId: queued.id,
                 status: queued.status,
                 queuedAt: queued.createdAt
             },
-            meta: {
-                warnings,
-                optionsApplied: options,
-                progressJobId: queued.id,
-                upload: selectedUpload ? { id: toPublicReportId(req, selectedUpload.id), symbol: selectedUpload.symbol, source: selectedUpload.source } : null
-            }
+            meta: { progressJobId: queued.id, dataSourceType }
         });
     } catch (err) {
-        const clientJobIdRaw = String(req.body?.clientJobId || "").trim();
-        if (clientJobIdRaw) {
-            updateProgress(progressKey(req, clientJobIdRaw), {
-                status: "ERROR",
-                currentStage: "FAILED",
-                currentMessage: err.message,
-                pct: 100,
-                finishedAt: Date.now(),
-                error: err.message
-            });
-        }
         const code = err.message === "INVALID_FILE_TYPE" ? 400 : 500;
         res.status(code).json({ success: false, error: "SIMULATION_FAILED", message: err.message });
     } finally {
@@ -704,23 +891,66 @@ router.post("/:id", upload.single('dataset'), async (req, res) => {
  * @desc Fetch report data for the "Data" Tab charts
  */
 router.get("/:reportId", (req, res) => {
-    const userId = getUserId(req);
-    if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-    if (!db.hasDbConfig()) return res.status(503).json({ success: false, error: "BACKTEST_DB_REQUIRED" });
-    const scopedReportId = toScopedReportId(req, req.params.reportId);
-    db.query(
-        `SELECT report FROM backtests WHERE user_id = $1 AND (id = $2 OR id = $3) LIMIT 1`,
-        [userId, scopedReportId, String(req.params.reportId || "")]
-    ).then(({ rows }) => {
-        if (!rows[0]) return res.status(404).json({ success: false, error: "REPORT_NOT_FOUND" });
-        const report = rows[0].report || {};
+    // Kept sync wrapper for backward compatibility; delegates to async handler.
+    (async () => {
+        const userId = getUserId(req);
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+
+        const reportId = sanitizeEntityId(String(req.params.reportId || ""));
+        const scopedReportId = toScopedReportId(req, reportId);
+
+        let report = null;
+
+        // Primary source: Postgres (authoritative when present).
+        if (db.hasDbConfig()) {
+            try {
+                const { rows } = await db.query(
+                    "SELECT report FROM backtests WHERE user_id = $1 AND (id = $2 OR id = $3) LIMIT 1",
+                    [userId, scopedReportId, reportId]
+                );
+                if (rows?.[0]?.report) report = rows[0].report;
+            } catch (err) {
+                logger.warn(`Backtest DB read failed (fallback to file): ${err.message}`);
+            }
+        }
+
+        // Fallback: filesystem snapshot (keeps UI responsive even if DB write fails).
+        if (!report) {
+            await ensureStorageReady();
+            const candidates = [
+                path.join(REPORTS_DIR, `${scopedReportId}.json`),
+                path.join(REPORTS_DIR, `${reportId}.json`)
+            ];
+            for (const p of candidates) {
+                if (!(await fileExists(p))) continue;
+                try {
+                    const raw = await fsp.readFile(p, "utf8");
+                    report = JSON.parse(raw);
+                    break;
+                } catch (err) {
+                    logger.warn(`Backtest file read failed: ${err.message}`);
+                }
+            }
+        }
+
+        if (!report) return res.status(404).json({ success: false, error: "REPORT_NOT_FOUND" });
+
         if (report?.meta) {
             report.meta.id = toPublicReportId(req, report.meta.id);
             report.meta.strategyId = toPublicReportId(req, report.meta.strategyId);
             report.meta.strategyName = toPublicReportId(req, report.meta.strategyName);
         }
+
+        // Trade Truncation for UI Performance
+        if (report.trades && Array.isArray(report.trades) && report.trades.length > 50) {
+            report.summary = { ...report.summary, totalTrades: report.trades.length };
+            report.trades = report.trades.slice(0, 50);
+            report.isTruncated = true;
+            report.fullDownloadUrl = `/api/backtest/download/${reportId}`;
+        }
+
         return res.json({ success: true, payload: report });
-    }).catch((err) => {
+    })().catch((err) => {
         res.status(500).json({ success: false, error: "READ_FAILED", message: err.message });
     });
 });
@@ -733,10 +963,31 @@ router.delete("/:reportId", (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
     const reportId = toScopedReportId(req, req.params.reportId);
-    if (!db.hasDbConfig()) return res.status(503).json({ success: false, error: "BACKTEST_DB_REQUIRED" });
-    db.query(`DELETE FROM backtests WHERE user_id = $1 AND (id = $2 OR id = $3)`, [userId, reportId, String(req.params.reportId || "")])
-        .then(() => res.json({ success: true }))
-        .catch((err) => res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message }));
+
+    (async () => {
+        const publicId = sanitizeEntityId(String(req.params.reportId || ""));
+
+        // Best-effort DB delete.
+        if (db.hasDbConfig()) {
+            await db.query(
+                "DELETE FROM backtests WHERE user_id = $1 AND (id = $2 OR id = $3)",
+                [userId, reportId, publicId]
+            ).catch(() => {});
+        }
+
+        // Best-effort file delete.
+        await ensureStorageReady();
+        const p1 = path.join(REPORTS_DIR, `${reportId}.json`);
+        const p2 = path.join(REPORTS_DIR, `${publicId}.json`);
+        if (await fileExists(p1)) {
+            try { await fsp.unlink(p1); } catch { /* ignore */ }
+        }
+        if (await fileExists(p2)) {
+            try { await fsp.unlink(p2); } catch { /* ignore */ }
+        }
+
+        return res.json({ success: true });
+    })().catch((err) => res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message }));
 });
 
 module.exports = router;

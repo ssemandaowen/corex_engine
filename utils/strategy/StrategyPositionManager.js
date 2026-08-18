@@ -79,15 +79,18 @@ class StrategyPositionManager {
         const now = Date.now();
         const openedLots = [];
         const closedLots = [];
+        const DUST_THRESHOLD = 1e-10;
         let realizedPnl = 0;
 
         const existing = this._positions.get(symbol);
         if (!existing) {
             const side = delta > 0 ? "long" : "short";
-            const opened = this.open(symbol, side, Math.abs(delta), px);
+            const qty = Math.abs(delta);
+            if (qty < DUST_THRESHOLD) return null;
+            const opened = this.open(symbol, side, qty, px);
             openedLots.push({
                 side,
-                quantity: Math.abs(delta),
+                quantity: qty,
                 entryPrice: px,
                 entryTime: now
             });
@@ -129,9 +132,10 @@ class StrategyPositionManager {
             const reduced = existing.reduceDetailed(qtyToReduce, px);
             realizedPnl += Number(reduced.realized || 0);
             closedLots.push(...(reduced.closedLots || []));
-            if (reduced.remainingQty > 0) {
-                const remainder = Number(reduced.remainingQty || 0);
-                if (remainder > 0) {
+            
+            if (reduced.remainingQty > DUST_THRESHOLD) {
+                const remainder = Number(reduced.remainingQty);
+                if (remainder > DUST_THRESHOLD) {
                     const flipped = this.open(symbol, "short", remainder, px);
                     openedLots.push({
                         side: "short",
@@ -152,7 +156,7 @@ class StrategyPositionManager {
                     return flipped;
                 }
             }
-            if (existing.quantity === 0) this._positions.delete(symbol);
+            if (existing.quantity <= DUST_THRESHOLD) this._positions.delete(symbol);
             this._lastDelta = {
                 symbol,
                 price: px,
@@ -191,9 +195,10 @@ class StrategyPositionManager {
         const reduced = existing.reduceDetailed(qtyToReduce, px);
         realizedPnl += Number(reduced.realized || 0);
         closedLots.push(...(reduced.closedLots || []));
-        if (reduced.remainingQty > 0) {
-            const remainder = Number(reduced.remainingQty || 0);
-            if (remainder > 0) {
+
+        if (reduced.remainingQty > DUST_THRESHOLD) {
+            const remainder = Number(reduced.remainingQty);
+            if (remainder > DUST_THRESHOLD) {
                 const flipped = this.open(symbol, "long", remainder, px);
                 openedLots.push({
                     side: "long",
@@ -214,7 +219,7 @@ class StrategyPositionManager {
                 return flipped;
             }
         }
-        if (existing.quantity === 0) this._positions.delete(symbol);
+        if (existing.quantity <= DUST_THRESHOLD) this._positions.delete(symbol);
         this._lastDelta = {
             symbol,
             price: px,

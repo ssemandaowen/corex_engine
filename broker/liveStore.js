@@ -1,17 +1,11 @@
 "use strict";
 
-const LiveBroker = require('./live');
+const runtimeService = require("@core/services/runtimeService");
 
-let liveBroker = null;
+function getLiveBroker(userId) {
+    const all = runtimeService.getAllStatus() || {};
+    const key = `${userId}::LIVE`;
+    return all[key] ? { ...all[key], id: key } : null;
+}
 
-const getLiveBroker = () => {
-    if (!liveBroker) {
-        const seed = Number(process.env.LIVE_INITIAL_CASH ?? 0);
-        liveBroker = new LiveBroker(Number.isFinite(seed) ? seed : 0);
-    }
-    return liveBroker;
-};
-
-module.exports = {
-    getLiveBroker
-};
+module.exports = { getLiveBroker };

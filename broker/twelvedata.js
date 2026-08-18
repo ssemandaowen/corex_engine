@@ -263,8 +263,9 @@ class TwelveDataBroker {
 
             // Safety: TwelveData returns 'status: error' inside a 200 OK response often
             if (response.data.status === "error" || !Array.isArray(rawValues)) {
-                logger.error(`TwelveData API Error: ${response.data.message || "Invalid Symbol or Interval"}`);
-                return [];
+                const msg = response.data.message || "Invalid Symbol or Interval";
+                logger.error(`TwelveData API Error [${symbol}]: ${msg}`);
+                throw new Error(`DATA_UNAVAILABLE: ${symbol} is not supported by the market data provider (${msg})`);
             }
 
             return rawValues
@@ -272,8 +273,11 @@ class TwelveDataBroker {
                 .sort((a, b) => a.time - b.time);
 
         } catch (error) {
+            if (error.response?.status === 404) {
+                throw new Error(`DATA_UNAVAILABLE: Symbol '${symbol}' not found in market data provider (HTTP 404). Try uploading a CSV file for offline backtesting.`);
+            }
             logger.error(`REST Portal Error [${symbol}]: ${error.message}`);
-            return [];
+            throw error;
         }
     }
 

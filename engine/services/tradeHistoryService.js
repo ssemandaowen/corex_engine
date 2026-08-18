@@ -278,7 +278,9 @@ function buildPerformance(trades = [], initialCapital = 10000) {
     const expectancy = ((winRate / 100) * avgWin) - ((1 - (winRate / 100)) * avgLoss);
 
     const analytics = buildEquityAnalytics(initialCapital, safeTrades, safeTrades[0]?.entryTime || Date.now());
-    const maxDrawdown = Math.min(0, ...analytics.drawdownCurve.map((p) => toNum(p.drawdown, 0)));
+    // drawdownCurve values are <= 0 (percent below peak); report magnitude
+    // so the frontend's `< 10` / `< 20` severity thresholds work correctly.
+    const maxDrawdown = Math.abs(Math.min(0, ...analytics.drawdownCurve.map((p) => toNum(p.drawdown, 0))));
 
     return {
         performance: {

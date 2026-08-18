@@ -1,25 +1,25 @@
 "use strict";
 
-require('module-alias/register');
+require("module-alias/register");
 
 const broker = require("@broker/twelvedata");
 const loader = require("@core/strategyLoader");
 const { bus, EVENTS } = require("@events/bus");
 const path = require("path");
 const fs = require("fs");
-const zlib = require("zlib");
 const { promises: fsp } = fs;
-const { promisify } = require("util");
 const { TIME, ENGINE_TUNING } = require("@config/constants");
 const logger = require("@utils/logger");
 const stateManager = require("@utils/stateController");
 const storage = require("@utils/storageManager");
 const engineSettings = require("./EngineSettings");
 const { ComponentLifecycle, STATES } = require("@core/core/lifecycle/ComponentLifecycle");
-const { SignalGenerationEngine, SignalProcessingEngine, SignalExecutionEngine } = require("@core/core/pipeline");
+const SignalGenerationEngine = require("@core/core/pipeline/SignalGenerationEngine");
+const SignalProcessingEngine = require("@core/core/pipeline/SignalProcessingEngine");
+const SignalExecutionEngine = require("@core/core/pipeline/SignalExecutionEngine");
 const strategyRuntime = require("@core/modules/strategyRuntime");
-const FastQueue = require("@utils/data/fastQueue");
-const Metrics = require("@utils/metrics");
+const RuntimeRegistry = require("@core/core/runtime/RuntimeRegistry");
+const MarketFeed = require("@core/core/runtime/MarketFeed");
 const { parseScopedId } = require("@core/services/userScope");
 
 const BANNER_PATH = path.join(__dirname, "banner.txt");
@@ -51,36 +51,31 @@ class CoreXEngine {
 
         this.status = "IDLE";
         this.startTime = null;
-        this.activeSymbols = new Set();
-        // Tick distribution backpressure
-        this.tickQueues = new Map();              // symbol -> FastQueue
-        this.flushScheduled = false;
-        this.maxQueueSize = Number(process.env.TICK_QUEUE_MAX || ENGINE_TUNING.TICK_QUEUE_MAX);
-        this.maxFlushCount = Number(process.env.TICK_FLUSH_MAX || ENGINE_TUNING.TICK_FLUSH_MAX);
-        this.feedStats = new Metrics();
-        this.subscriptions = new Map();           // symbol → Set<strategy>
-        this.executionContexts = new Map();       // mode → {adapter, broker}
-        // Per-strategy scheduling queues
-        this.strategyQueues = new Map();          // id -> { queue: FastQueue, running: false }
-        this.maxStrategyQueueSize = Number(process.env.STRAT_QUEUE_MAX || ENGINE_TUNING.STRAT_QUEUE_MAX);
-        this.strategySliceMs = Number(process.env.STRAT_SLICE_MS || ENGINE_TUNING.STRAT_SLICE_MS);
-        this._droppedStrategyTicks = new Map();   // id -> count
-        this.strategyStats = new Map();           // id -> { processedTicks, totalProcessMs, lastProcessMs, lastProcessedAt, dropped }
         this.lifecycle = new ComponentLifecycle("ENGINE", { category: "system" });
+
         this.signalPipeline = {
-            generation: new SignalGenerationEngine(),
-            processing: new SignalProcessingEngine(),
-            execution: new SignalExecutionEngine({
-                concurrency: Number(process.env.SIGNAL_EXEC_CONCURRENCY || 8),
-                maxQueue: Number(process.env.SIGNAL_EXEC_MAX_QUEUE || 20000)
-            })
+            generation: SignalGenerationEngine,
+            processing: SignalProcessingEngine,
+            execution: SignalExecutionEngine
         };
+        
+        this.signalPipeline.execution.updateSettings({
+            concurrency: Number(process.env.SIGNAL_EXEC_CONCURRENCY || 8),
+            maxQueue: Number(process.env.SIGNAL_EXEC_MAX_QUEUE || 20000)
+        });
 
         // Strategy crash handling
         this.strategyCrashCounters = new Map();
         this.maxCrashCount = 5;
         this.crashTimeframe = 60000; // 1 minute
         this.allowColdStart = !["0", "false", "no", "off"].includes(String(process.env.COREX_ALLOW_COLD_START || "true").trim().toLowerCase());
+
+        // Auto-recovery settings
+        this.recoveryBaseDelay = 5000;  // 5 seconds
+        this.recoveryMaxDelay = 300000; // 5 minutes
+        this.recoveryFactor = 2;
+        this.recoveryMaxAttempts = 10;  // limit of 10 retries
+        this.strategyRecoveryStates = new Map(); // id -> { attempts, timer }
     }
 
     async start() {
@@ -88,10 +83,6 @@ class CoreXEngine {
         this.status = "INITIALIZING";
         this.lifecycle.transition(STATES.INITIALIZING, { reason: "start" });
         this.startTime = Date.now();
-        this.feedStats.reset();
-        this.strategyQueues.clear();
-        this._droppedStrategyTicks.clear();
-        this.strategyStats.clear();
         this.strategyCrashCounters.clear();
 
         try {
@@ -104,7 +95,14 @@ class CoreXEngine {
 
         await loader.init(this);
 
-        bus.on(EVENTS.MARKET.TICK, (data) => this._enqueueTick(data));
+        // Listen for state changes to manage auto-recovery
+        bus.on(EVENTS.SYSTEM.STATE_CHANGED, ({ id, to }) => {
+            if (to === "ERROR") {
+                this._scheduleRecovery(id);
+            } else if (["ACTIVE", "STOPPED", "OFFLINE", "DISABLED"].includes(to)) {
+                this._clearRecovery(id);
+            }
+        });
 
         this.status = "RUNNING";
         this.lifecycle.transition(STATES.RUNNING, { reason: "engine_active" });
@@ -165,289 +163,18 @@ class CoreXEngine {
         }
     }
 
-    async registerStrategy(strategy, options = {}) {
-        const id = strategy.id || strategy.name;
-
-        // 1. Validation Guard
-        if (!strategy.symbols || !Array.isArray(strategy.symbols) || strategy.symbols.length === 0) {
-            log.warn(`[${id}] No symbols defined -> registration skipped`);
-            stateManager.commit(id, "ERROR", { reason: "Missing symbols" });
-            return false;
-        }
-        const normalizedTf = this._normalizeTimeframe(strategy.timeframe || "");
-        if (!normalizedTf) {
-            log.error(`[${id}] Invalid timeframe: ${strategy.timeframe}`);
-            stateManager.commit(id, "ERROR", { reason: "Invalid timeframe" });
-            return false;
-        }
-        strategy.timeframe = normalizedTf;
-
-        // 2. State Transition
-        this.strategyCrashCounters.set(id, { count: 0, firstCrashAt: 0 }); // Reset crash counter on registration
-        const canProceed = stateManager.commit(id, "WARMING_UP", { reason: "Registration sequence initiated" });
-        if (!canProceed) {
-            log.warn(`[${id}] Registration blocked by state controller (Current: ${stateManager.getStatus(id)})`);
-            return false;
-        }
-
-        try {
-            log.info(`[${id}] Linking to market stream via ${strategy.mode || 'PAPER'}`);
-
-            // 3. Environment Setup
-            this._setupExecutionContext(strategy);
-
-            // 4. Subscription Mapping
-            for (const symbol of strategy.symbols) {
-                this.activeSymbols.add(symbol);
-                if (!this.subscriptions.has(symbol)) {
-                    this.subscriptions.set(symbol, new Set());
-                }
-                this.subscriptions.get(symbol).add(strategy);
-            }
-
-            // 5. Historical Warmup (The Critical Gate)
-            log.info(`[${id}] Commencing historical data synchronization...`);
-            const warmupSuccess = await this.warmupStrategy(strategy);
-            const coldStart = !warmupSuccess;
-            if (coldStart) {
-                if (!this.allowColdStart) {
-                    throw new Error("Warmup phase failed: no data returned from broker");
-                }
-                log.warn(`[${id}] Warmup incomplete. Proceeding with cold-start registration (offline-tolerant mode).`);
-                bus.emit(EVENTS.SYSTEM.ERROR, {
-                    source: "engine_warmup",
-                    strategyId: id,
-                    message: "Warmup incomplete: strategy started in cold-start mode.",
-                    at: new Date().toISOString()
-                }, { userId: parseScopedId(id).userId || null });
-            }
-
-            // 6. Finalize Activation
-            stateManager.commit(id, "ACTIVE", {
-                reason: coldStart
-                    ? "Cold-start active: awaiting market data"
-                    : "Handshake complete, strategy is now live"
-            });
-
-            // Update broker with the new aggregate symbol list
-            broker.updateSymbols(Array.from(this.activeSymbols));
-            if (this.status === "RUNNING") broker.connect();
-
-            return true;
-
-        } catch (err) {
-            log.error(`[${id}] Engine Registration Failed: ${err.message}`);
-            stateManager.commit(id, "ERROR", {
-                reason: `Registration Error: ${err.message.slice(0, 50)}`
-            });
-            return false;
-        }
-    }
-
-    _setupExecutionContext(strategy) {
-        const mode = strategy.mode?.toUpperCase() || "PAPER";
-        const scoped = parseScopedId(strategy?.id || strategy?.name || "");
-        const userId = String(scoped.userId || "").trim() || "default";
-        const contextKey = mode === "PAPER" ? `${mode}:${userId}` : mode;
-
-        if (!this.executionContexts.has(contextKey)) {
-            let brokerInstance = null;
-
-            if (mode === "PAPER") {
-                const { getPaperBroker } = require("@broker/paperStore");
-                brokerInstance = getPaperBroker(userId);
-
-                bus.on(EVENTS.MARKET.TICK, (tick) => {
-                    brokerInstance?.updatePrice?.(tick.symbol, tick.price);
-                });
-            }
-            if (mode === "LIVE") {
-                brokerInstance = require("@core/services/mt5Bridge");
-            }
-
-            const SignalAdapter = require("@core/signalAdapter");
-            const adapter = new SignalAdapter({
-                mode,
-                broker: brokerInstance,
-                brokers: {
-                    PAPER: require("@broker/paperStore").getPaperBroker,
-                    LIVE: require("@core/services/mt5Bridge")
-                }
-            });
-
-            this.executionContexts.set(contextKey, { adapter, broker: brokerInstance });
-        }
-
-        strategy.executionContext = this.executionContexts.get(contextKey);
-    }
-
-    _enqueueTick(data) {
-        if (this.status !== "RUNNING") return;
-        if (!data || !data.symbol) return;
-
-        let queue = this.tickQueues.get(data.symbol);
-        if (!queue) {
-            queue = new FastQueue();
-            this.tickQueues.set(data.symbol, queue);
-        }
-
-        queue.push(data);
-        this._recordTick(data.symbol);
-        if (queue.length > this.maxQueueSize) {
-            queue.shift();
-            const dropped = (this._droppedTicks.get(data.symbol) || 0) + 1;
-            this._droppedTicks.set(data.symbol, dropped);
-            this._recordDrop(data.symbol);
-            if (dropped % 1000 === 0) {
-                log.warn(`[FEED] Dropped ${dropped} ticks for ${data.symbol} (queue overflow)`);
-            }
-        }
-
-        if (!this.flushScheduled) {
-            this.flushScheduled = true;
-            setImmediate(() => this._flushTickQueues());
-        }
-    }
-
-    _flushTickQueues() {
-        if (this.status !== "RUNNING") {
-            this.flushScheduled = false;
-            return;
-        }
-
-        let processed = 0;
-        for (const [symbol, queue] of this.tickQueues) {
-            while (queue.length > 0) {
-                const tick = queue.shift();
-                if (!tick) continue;
-                this._deliverTick(tick);
-                processed++;
-                if (processed >= this.maxFlushCount) {
-                    this.flushScheduled = false;
-                    setImmediate(() => this._flushTickQueues());
-                    return;
-                }
-            }
-        }
-
-        this.flushScheduled = false;
-    }
-
-    _deliverTick(data) {
-        if (this.status !== "RUNNING") return;
-
-        const strategies = this.subscriptions.get(data.symbol);
-        if (!strategies) return;
-
-        for (const strat of strategies) {
-            this._enqueueStrategyTick(strat, data);
-        }
-    }
-
-    _enqueueStrategyTick(strat, tick) {
-        const id = strat.id || strat.name;
-        const currentState = stateManager.getStatus(id);
-        if (currentState === 'DISABLED') {
-            // Track dropped ticks for disabled strategies
-            const dropped = (this._droppedStrategyTicks.get(id) || 0) + 1;
-            this._droppedStrategyTicks.set(id, dropped);
-            if (dropped % 100 === 0) {
-                log.debug(`[${id}] Dropped ${dropped} ticks (strategy DISABLED)`);
-            }
-            return;
-        }
-
-        let entry = this.strategyQueues.get(id);
-        if (!entry) {
-            entry = { queue: new FastQueue(), running: false };
-            this.strategyQueues.set(id, entry);
-        }
-
-        entry.queue.push(tick);
-        this._ensureStrategyStats(id);
-        if (entry.queue.length > this.maxStrategyQueueSize) {
-            entry.queue.shift();
-            const dropped = (this._droppedStrategyTicks.get(id) || 0) + 1;
-            this._droppedStrategyTicks.set(id, dropped);
-            const stats = this.strategyStats.get(id);
-            if (stats) stats.dropped += 1;
-            if (dropped % 1000 === 0) {
-                log.warn(`[STRAT] Dropped ${dropped} ticks for ${id} (queue overflow)`);
-            }
-        }
-
-        if (!entry.running) {
-            entry.running = true;
-            setImmediate(() => this._processStrategyQueue(id).catch((err) => this._handleStrategyCrash(id, err)));
-        }
-    }
-
-    async _processStrategyQueue(id) {
-        const entry = this.strategyQueues.get(id);
-        if (!entry) return;
-
-        const start = Date.now();
-        let processedInBatch = 0;
-        while (entry.queue.length > 0) {
-            const tick = entry.queue.shift();
-            if (!tick) continue;
-            const liveEntry = loader.registry.get(id);
-            const strat = liveEntry?.instance;
-            if (!strat) continue;
-            loader.syncRuntimeState(id);
-
-            try {
-                const currentState = stateManager.getStatus(id);
-                if (currentState === "ACTIVE" && strat.enabled !== false) {
-                    let signal = null;
-                    // Remote strategies are handled via the generateSignal stub created in strategyLoader.
-                    // We use the standard pipeline for both in-process and remote strategies.
-                    signal = this.signalPipeline.generation.generate({
-                        strategy: strat,
-                        packet: tick,
-                        context: { isWarmup: false, symbol: tick?.symbol, strategyId: id, source: "tick" }
-                    });
-                    const processed = this.signalPipeline.processing.process(signal, {
-                        strategyId: id,
-                        symbol: tick?.symbol
-                    });
-                    const adapter = strat.executionContext?.adapter;
-                    if (processed.accepted && processed.signal && adapter) {
-                        const enqueued = this.signalPipeline.execution.enqueue(
-                            () => {
-                                if (typeof adapter.handle === 'function') {
-                                    return adapter.handle(processed.signal);
-                                } else {
-                                    log.error(`[EXEC] Adapter missing .handle() method for ${id}`);
-                                }
-                            },
-                            { strategyId: id, symbol: tick?.symbol }
-                        );
-                        if (!enqueued) {
-                            log.warn(`[PIPELINE] Execution queue full: dropped signal for ${id}:${tick?.symbol}`);
-                        }
-                    }
-                }
-            } catch (err) {
-                this._handleStrategyCrash(id, err);
-            }
-
-            processedInBatch += 1;
-            if (Date.now() - start >= this.strategySliceMs) {
-                this._recordStrategyBatch(id, Date.now() - start, processedInBatch);
-                setImmediate(() => this._processStrategyQueue(id).catch((err) => this._handleStrategyCrash(id, err)));
-                return;
-            }
-        }
-
-        this._recordStrategyBatch(id, Date.now() - start, processedInBatch);
-        entry.running = false;
-    }
-
-    _handleStrategyCrash(id, err) {
+    /**
+     * Central crash handler for a strategy runtime. Marks the runtime ERROR
+     * (triggering the auto-recovery listener registered in start()), tracks
+     * crash frequency, and auto-disables a runtime that crashes repeatedly.
+     * Called by MarketFeed.js when a live/paper strategy's onMarketData()
+     * throws.
+     * @param {string} id - runtimeId or strategyId
+     * @param {Error} err
+     */
+    handleStrategyCrash(id, err) {
         log.error(`[CRASH] [${id}] ${err.message}`);
         stateManager.commit(id, "ERROR", { error: err.message, at: new Date().toISOString() });
-        this.lifecycle.fail(err, { strategyId: id, phase: "process_tick" });
         bus.emit(EVENTS.SYSTEM.ERROR, {
             source: "strategy",
             strategyId: id,
@@ -457,7 +184,7 @@ class CoreXEngine {
 
         const now = Date.now();
         const crashCounter = this.strategyCrashCounters.get(id) || { count: 0, firstCrashAt: now };
-        
+
         // Atomic reset check and update to prevent race conditions
         if (now - crashCounter.firstCrashAt > this.crashTimeframe) {
             crashCounter.count = 1;
@@ -465,7 +192,7 @@ class CoreXEngine {
         } else {
             crashCounter.count++;
         }
-        
+
         this.strategyCrashCounters.set(id, crashCounter);
 
         if (crashCounter.count >= this.maxCrashCount) {
@@ -474,74 +201,91 @@ class CoreXEngine {
         }
     }
 
-    _ensureStrategyStats(id) {
-        if (this.strategyStats.has(id)) return;
-        this.strategyStats.set(id, {
-            processedTicks: 0,
-            totalProcessMs: 0,
-            lastProcessMs: 0,
-            lastProcessedAt: 0,
-            dropped: 0
-        });
+    _scheduleRecovery(id) {
+        const currentState = stateManager.getStatus(id);
+        if (currentState !== "ERROR") return;
+
+        let recovery = this.strategyRecoveryStates.get(id) || { attempts: 0, timer: null };
+        if (recovery.timer) clearTimeout(recovery.timer);
+
+        if (this.recoveryMaxAttempts > 0 && recovery.attempts >= this.recoveryMaxAttempts) {
+            log.warn(`[RECOVERY] Strategy ${id} exceeded max recovery attempts (${this.recoveryMaxAttempts}). Disabling.`);
+            stateManager.commit(id, "DISABLED", { reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED" });
+            this._clearRecovery(id);
+            return;
+        }
+
+        const delay = Math.min(
+            this.recoveryMaxDelay,
+            this.recoveryBaseDelay * Math.pow(this.recoveryFactor, recovery.attempts)
+        );
+
+        log.info(`[RECOVERY] Strategy ${id} scheduled for auto-restart in ${delay / 1000}s (Attempt ${recovery.attempts + 1})`);
+
+        recovery.timer = setTimeout(() => {
+            this._attemptRecovery(id).catch(err => {
+                log.error(`[RECOVERY] Critical failure in recovery loop for ${id}: ${err.message}`);
+            });
+        }, delay);
+
+        recovery.attempts += 1;
+        this.strategyRecoveryStates.set(id, recovery);
     }
 
-    _recordStrategyBatch(id, durationMs, processed) {
-        if (!processed) return;
-        const stats = this.strategyStats.get(id);
-        if (!stats) return;
-        stats.processedTicks += processed;
-        stats.totalProcessMs += durationMs;
-        stats.lastProcessMs = durationMs;
-        stats.lastProcessedAt = Date.now();
+    async _attemptRecovery(id) {
+        const currentState = stateManager.getStatus(id);
+        if (currentState !== "ERROR") {
+            this._clearRecovery(id);
+            return;
+        }
+
+        log.info(`[RECOVERY] Attempting auto-restart for ${id}...`);
+        try {
+            // 1. Force termination of any partial runtime state
+            const activeRuntimes = RuntimeRegistry.forStrategy(id);
+            for (const r of activeRuntimes) {
+                await loader.stopStrategy(id, { runtimeId: r.runtimeId });
+            }
+
+            // 2. Request start via bootloader (uses persisted mode/symbol/params)
+            const success = await loader.startStrategy(id);
+            if (!success) {
+                this._scheduleRecovery(id);
+            }
+        } catch (err) {
+            log.error(`[RECOVERY] Auto-restart execution failed for ${id}: ${err.message}`);
+            this._scheduleRecovery(id);
+        }
     }
 
-    _recordTick(symbol) {
-        this.feedStats.record(symbol);
-    }
-
-    _recordDrop(symbol) {
-        this.feedStats.recordDrop(symbol);
+    _clearRecovery(id) {
+        const recovery = this.strategyRecoveryStates.get(id);
+        if (recovery?.timer) clearTimeout(recovery.timer);
+        this.strategyRecoveryStates.delete(id);
     }
 
     getFeedMetrics() {
         const now = Date.now();
-        const feedSnapshot = this.feedStats.getSnapshot();
+        const feed = MarketFeed.getMetrics();
 
-        const symbols = feedSnapshot.items.map((item) => {
-            const queue = this.tickQueues.get(item.key);
-            return {
-                symbol: item.key,
-                count: item.count,
-                lastTickAt: item.lastAt,
-                dropped: item.dropped,
-                queueDepth: queue ? queue.length : 0
-            };
-        });
-
-        const strategies = Array.from(this.strategyQueues.keys()).map((id) => {
-            const entry = this.strategyQueues.get(id);
-            const stats = this.strategyStats.get(id) || { processedTicks: 0, totalProcessMs: 0, lastProcessMs: 0, lastProcessedAt: 0, dropped: 0 };
-            const avgMs = stats.processedTicks > 0 ? (stats.totalProcessMs / stats.processedTicks) : 0;
-            return {
-                id,
-                queueDepth: entry ? entry.queue.length : 0,
-                processedTicks: stats.processedTicks,
-                avgProcessMs: Number(avgMs.toFixed(3)),
-                lastProcessMs: stats.lastProcessMs,
-                lastProcessedAt: stats.lastProcessedAt,
-                dropped: stats.dropped
-            };
-        });
+        const strategies = RuntimeRegistry.all().map((entry) => ({
+            id: entry.runtimeId,
+            strategyName: entry.strategyName,
+            symbol: entry.symbol,
+            mode: entry.mode,
+            userId: entry.userId,
+            status: stateManager.getStatus(entry.runtimeId),
+            startedAt: entry.startedAt
+        }));
 
         return {
             status: this.status,
             lifecycle: this.lifecycle.snapshot(),
-            startedAt: feedSnapshot.startedAt,
+            startedAt: feed.startedAt,
             uptimeMs: this.startTime ? (now - this.startTime) : 0,
-            totalTicks: feedSnapshot.total,
-            droppedTicks: feedSnapshot.dropped,
-            lastTickAt: feedSnapshot.lastAt,
-            symbols: symbols,
+            totalTicks: feed.totalTicks,
+            lastTickAt: feed.lastTickAt,
+            symbols: feed.symbols,
             strategies,
             signalExecution: this.signalPipeline.execution.getMetrics()
         };
@@ -552,34 +296,48 @@ class CoreXEngine {
         const eventLimit = Math.max(1, Math.min(100, Number(options.eventLimit || 20)));
         const contexts = [];
 
-        for (const [mode, context] of this.executionContexts.entries()) {
-            const adapter = context?.adapter || null;
-            const broker = context?.broker || null;
+        // executionContexts was never initialized — the real per-mode broker
+        // instances are tracked in RuntimeRegistry. Derive contexts from there.
+        const perMode = new Map();
+        for (const entry of RuntimeRegistry.all()) {
+            if (!perMode.has(entry.mode)) perMode.set(entry.mode, []);
+            perMode.get(entry.mode).push(entry);
+        }
+
+        for (const [mode, entries] of perMode) {
+            const broker = entries[0]?.broker || null;
             const brokerSummary = {
                 mode,
-                available: !!broker
+                available: !!broker,
+                runtimeCount: entries.length
             };
 
-            if (mode === "PAPER" && broker?.getAccountSnapshot) {
+            if (broker?.getAccountSnapshot) {
                 const snap = broker.getAccountSnapshot();
-                brokerSummary.cash = Number(snap?.cash || 0);
-                brokerSummary.equity = Number(snap?.equity || 0);
-                brokerSummary.freeMargin = Number(snap?.freeMargin || 0);
-                brokerSummary.usedMargin = Number(snap?.usedMargin || 0);
+                const account = snap || broker.getAccount?.() || {};
+                brokerSummary.cash = Number(account?.balance || account?.cash || 0);
+                brokerSummary.equity = Number(account?.equity || 0);
+                brokerSummary.freeMargin = Number(account?.availableMargin || account?.freeMargin || 0);
+                brokerSummary.usedMargin = Number(account?.usedMargin || 0);
                 brokerSummary.positions = Array.isArray(snap?.positions) ? snap.positions.length : 0;
-            } else if (mode === "LIVE" && broker?.getStatus) {
-                const status = broker.getStatus();
-                brokerSummary.connected = !!status?.connected;
-                brokerSummary.authorized = !!status?.authorized;
-                brokerSummary.pendingRequests = Number(status?.pending || 0);
-                brokerSummary.lastHeartbeat = Number(status?.lastHeartbeat || 0);
+                if (mode === "LIVE" && broker.getStatus) {
+                    const status = broker.getStatus();
+                    brokerSummary.connected = !!status?.connected;
+                    brokerSummary.authorized = !!status?.authorized;
+                    brokerSummary.pendingRequests = Number(status?.pending || 0);
+                    brokerSummary.lastHeartbeat = Number(status?.lastHeartbeat || 0);
+                }
             }
 
             contexts.push({
                 mode,
-                adapter: adapter?.getMetrics ? adapter.getMetrics() : null,
-                events: includeEvents && adapter?.getRecentEvents ? adapter.getRecentEvents(eventLimit) : undefined,
-                broker: brokerSummary
+                adapter: null,
+                broker: brokerSummary,
+                runtimes: entries.map((e) => ({
+                    runtimeId: e.runtimeId,
+                    symbol: e.symbol,
+                    strategyName: e.strategyName
+                }))
             });
         }
 
@@ -807,7 +565,7 @@ class CoreXEngine {
             return normalized.slice(-Math.max(1, Number(maxBars) || normalized.length));
         } catch (e) {
             // Not found is ok, other errors should probably be logged
-            if (e.code !== 'ENOENT') {
+            if (e.code !== "ENOENT") {
                 log.debug(`Cache read failed for ${path.basename(cacheFile)}: ${e.message}`);
             }
             return [];
@@ -845,57 +603,12 @@ class CoreXEngine {
         return num * unitMs;
     }
 
-    unregisterStrategy(strategyId) {
-        const entry = loader.registry.get(strategyId);
-        if (!entry) return;
-
-        const currentStatus = stateManager.getStatus(strategyId);
-        if (["ACTIVE", "PAUSED", "ERROR", "WARMING_UP"].includes(currentStatus)) {
-            stateManager.commit(strategyId, "STOPPING", { reason: "Manual unregister" });
-        }
-
-        const strategy = entry.instance;
-
-        if (strategy && strategy.symbols) {
-            strategy.symbols.forEach(symbol => {
-                const subs = this.subscriptions.get(symbol);
-                if (subs) {
-                    subs.delete(strategy);
-                    if (subs.size === 0) {
-                        this.subscriptions.delete(symbol);
-                        this.activeSymbols.delete(symbol);
-                    }
-                }
-            });
-        }
-
-        stateManager.commit(strategyId, "OFFLINE", { reason: "Unregistered" });
-
-        broker.updateSymbols(Array.from(this.activeSymbols));
-        this.strategyQueues.delete(strategyId);
-        this._droppedStrategyTicks.delete(strategyId);
-        log.info(`[${strategyId}] Unregistered`);
-    }
-
     stop() {
         log.info("Shutting down CoreX Engine");
         this.status = "STOPPING";
         this.lifecycle.transition(STATES.STOPPING, { reason: "shutdown" });
 
         broker.cleanup();
-        bus.removeAllListeners(EVENTS.MARKET.TICK);
-        this.subscriptions?.clear();
-        this.activeSymbols?.clear();
-        this.tickQueues?.clear();
-        this._droppedTicks?.clear();
-        this.flushScheduled = false;
-        this.feedStats.perSymbol?.clear();
-        this.feedStats.totalTicks = 0;
-        this.feedStats.droppedTicks = 0;
-        this.feedStats.lastTickAt = 0;
-        this.strategyQueues?.clear();
-        this._droppedStrategyTicks?.clear();
-        this.strategyStats?.clear();
         this.strategyCrashCounters?.clear();
 
         this.status = "IDLE";
@@ -917,14 +630,16 @@ class CoreXEngine {
 
     getSettings() {
         return {
-            tickQueueMax: this.maxQueueSize,
-            tickFlushMax: this.maxFlushCount,
-            stratQueueMax: this.maxStrategyQueueSize,
-            stratSliceMs: this.strategySliceMs,
             signalExecConcurrency: this.signalPipeline.execution.concurrency,
             signalExecMaxQueue: this.signalPipeline.execution.maxQueue,
             logLevel: logger.level,
-            storage: storage.getConfig()
+            storage: storage.getConfig(),
+            recoveryBaseDelay: this.recoveryBaseDelay,
+            recoveryMaxDelay: this.recoveryMaxDelay,
+            recoveryFactor: this.recoveryFactor,
+            recoveryMaxAttempts: this.recoveryMaxAttempts,
+            maxCrashCount: this.maxCrashCount,
+            crashTimeframe: this.crashTimeframe
         };
     }
 
@@ -934,17 +649,23 @@ class CoreXEngine {
             return Number.isFinite(n) ? n : null;
         };
 
-        const tickQueueMax = toNum(next.tickQueueMax);
-        if (tickQueueMax && tickQueueMax > 0) this.maxQueueSize = tickQueueMax;
+        const recoveryBaseDelay = toNum(next.recoveryBaseDelay);
+        if (recoveryBaseDelay && recoveryBaseDelay > 0) this.recoveryBaseDelay = recoveryBaseDelay;
 
-        const tickFlushMax = toNum(next.tickFlushMax);
-        if (tickFlushMax && tickFlushMax > 0) this.maxFlushCount = tickFlushMax;
+        const recoveryMaxDelay = toNum(next.recoveryMaxDelay);
+        if (recoveryMaxDelay && recoveryMaxDelay > 0) this.recoveryMaxDelay = recoveryMaxDelay;
 
-        const stratQueueMax = toNum(next.stratQueueMax);
-        if (stratQueueMax && stratQueueMax > 0) this.maxStrategyQueueSize = stratQueueMax;
+        const recoveryFactor = toNum(next.recoveryFactor);
+        if (recoveryFactor && recoveryFactor >= 1) this.recoveryFactor = recoveryFactor;
 
-        const stratSliceMs = toNum(next.stratSliceMs);
-        if (stratSliceMs && stratSliceMs > 0) this.strategySliceMs = stratSliceMs;
+        const recoveryMaxAttempts = toNum(next.recoveryMaxAttempts);
+        if (recoveryMaxAttempts !== null) this.recoveryMaxAttempts = Math.max(0, Math.floor(recoveryMaxAttempts));
+
+        const maxCrashCount = toNum(next.maxCrashCount);
+        if (maxCrashCount !== null) this.maxCrashCount = Math.max(1, Math.floor(maxCrashCount));
+
+        const crashTimeframe = toNum(next.crashTimeframe);
+        if (crashTimeframe && crashTimeframe > 0) this.crashTimeframe = crashTimeframe;
 
         this.signalPipeline.execution.updateSettings({
             concurrency: next.signalExecConcurrency,

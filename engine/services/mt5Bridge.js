@@ -50,10 +50,24 @@ class MT5Bridge {
             authorizedClients: this._authorizedClients().length
         });
 
+        // Security: an unauthenticated socket that never completes the
+        // handshake within this window is dropped — prevents unauthorized
+        // clients from sitting on /mt5 indefinitely or driving _audit() writes.
+        const handshakeTimeoutMs = Number(process.env.COREX_MT5_HANDSHAKE_TIMEOUT_MS || 10_000);
+        const handshakeTimer = setTimeout(() => {
+            if (!this._isAuthorized(ws)) {
+                logger.warn(`[MT5] Closing unauthenticated connection from ${ip} (handshake timeout)`);
+                try { ws.close(4002, "Handshake timeout"); } catch { /* ignore */ }
+            }
+        }, handshakeTimeoutMs);
+        handshakeTimer.unref?.();
+        this.clientMeta.get(ws).handshakeTimer = handshakeTimer;
+
         ws.on("pong", () => { ws.isAlive = true; });
         ws.on("message", (raw) => this._handleMessage(ws, raw));
         ws.on("close", () => {
             const meta = this.clientMeta.get(ws);
+            if (meta?.handshakeTimer) clearTimeout(meta.handshakeTimer);
             this.clients.delete(ws);
             this.clientMeta.delete(ws);
             this._rejectPending("MT5_RECEIVER_DISCONNECTED");
@@ -82,18 +96,21 @@ class MT5Bridge {
         const type = msg?.type;
         if (!type) return;
 
-        const orderId = msg?.payload?.orderId || msg?.payload?.order_id || msg?.orderId || null;
-        this._audit("IN", msg, orderId);
-
         if (type === "handshake") {
+            const orderId = msg?.payload?.orderId || msg?.payload?.order_id || msg?.orderId || null;
+            this._audit("IN", msg, orderId);
             this._handleHandshake(ws, msg?.payload || {});
             return;
         }
 
-        if (!this._isAuthorized(ws)) {
+        const isAuthorized = this._isAuthorized(ws);
+        if (!isAuthorized) {
             logger.warn("[MT5] Ignoring message from unauthorized receiver");
             return;
         }
+
+        const orderId = msg?.payload?.orderId || msg?.payload?.order_id || msg?.orderId || null;
+        this._audit("IN", msg, orderId);
 
         if (type === "heartbeat") {
             this.lastHeartbeat = Date.now();
@@ -245,6 +262,7 @@ class MT5Bridge {
             terminal,
             accountId
         };
+        clearTimeout(meta?.handshakeTimer);
         this.clientMeta.set(ws, nextMeta);
         const ack = {
             type: "handshake_ack",
@@ -272,13 +290,33 @@ class MT5Bridge {
         return !!this.clientMeta.get(ws)?.authorized;
     }
 
-    _authorizedClients() {
-        return Array.from(this.clients).filter((ws) => this._isAuthorized(ws));
-    }
-
-    _pickAuthorizedClient() {
-        return this._authorizedClients()[0] || null;
-    }
+    _authorizedClients() { 
+        return Array.from(this.clients).filter((ws) => this._isAuthorized(ws)); 
+    } 
+ 
+    _pickAuthorizedClient(target = {}) { 
+        const list = this._authorizedClients(); 
+        if (list.length === 0) return null; 
+ 
+        const receiverId = String(target.receiverId || "").trim(); 
+        const terminal = String(target.terminal || target.terminalId || "").trim().toUpperCase(); 
+        const accountId = String(target.accountId || "").trim(); 
+ 
+        if (receiverId) { 
+            const match = list.find((ws) => String(this.clientMeta.get(ws)?.receiverId || "") === receiverId); 
+            if (match) return match; 
+        } 
+        if (terminal) { 
+            const match = list.find((ws) => String(this.clientMeta.get(ws)?.terminal || "").toUpperCase() === terminal); 
+            if (match) return match; 
+        } 
+        if (accountId) { 
+            const match = list.find((ws) => String(this.clientMeta.get(ws)?.accountId || "") === accountId); 
+            if (match) return match; 
+        } 
+ 
+        return list[0] || null; 
+    } 
 
     _rejectPending(errorCode) {
         this.pending.forEach((p) => {
@@ -332,15 +370,20 @@ class MT5Bridge {
         return this.positions;
     }
 
-    async request(action, payload = {}, timeoutMs = 5000) {
-        if (!this.isConnected()) {
-            throw new Error("MT5_BRIDGE_DISCONNECTED");
-        }
-
-        const ws = this._pickAuthorizedClient();
-        if (!ws) {
-            throw new Error("MT5_BRIDGE_UNAUTHORIZED");
-        }
+    async request(action, payload = {}, timeoutMs = 5000) { 
+        if (!this.isConnected()) { 
+            throw new Error("MT5_BRIDGE_DISCONNECTED"); 
+        } 
+ 
+        const target = { 
+            receiverId: payload?.receiverId || payload?.receiver_id || payload?.receiver, 
+            terminalId: payload?.terminalId || payload?.terminal_id || payload?.terminal, 
+            accountId: payload?.accountId || payload?.account_id 
+        }; 
+        const ws = this._pickAuthorizedClient(target); 
+        if (!ws) { 
+            throw new Error("MT5_BRIDGE_UNAUTHORIZED"); 
+        } 
         const requestId = `mt5_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const msg = {
             type: "order_request",

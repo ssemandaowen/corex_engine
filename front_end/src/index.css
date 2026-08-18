@@ -1,0 +1,55 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import "./styles/variables.css";
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Space Grotesk", sans-serif;
+}
+
+/* Custom global styles for CoreX Engine Theme */
+body {
+  background-color: var(--ui-bg);
+  color: var(--ui-text);
+  font-family: var(--font-sans);
+  overflow: hidden; /* App shell manages its own scroll */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom helper classes based on variables */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2.25rem; /* h-9 */
+  border-bottom: 1px solid var(--ui-border);
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  background-color: var(--ui-panel-strong);
+}
+
+.section-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ui-muted);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ui-panel-soft);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--ui-subtle);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ui-muted);
+}

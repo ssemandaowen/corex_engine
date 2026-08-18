@@ -42,6 +42,14 @@ function _moments(arr) {
     return { mean, variance, std: Math.sqrt(variance), n };
 }
 
+function _isoWeek(date) {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 1 — trades
 // Scalar performance metrics derived from a flat trade list.
@@ -78,21 +86,23 @@ const trades = {
         const sharpe    = _n(supplement.sharpeRatio);
 
         return {
-            // Formatted strings — for display
-            netProfit:           _fix2(netProfit),
-            roiPercent:          _fix2((netProfit / capital) * 100),
-            maxDrawdownPercent:  _fix2(maxDD),
+            netProfit:           netProfit,
+            roiPercent:          (netProfit / capital) * 100,
+            maxDrawdownPercent:  maxDD,
             totalTrades:         safe.length,
-            winRate:             safe.length > 0 ? _fix2(winRate * 100) : "0.00",
-            sharpeRatio:         sharpe ? _fix2(sharpe) : "N/A",
-            profitFactor:        profitFactor != null ? _fix2(profitFactor) : "N/A",
-            grossProfit:         _fix2(grossProfit),
-            grossLoss:           _fix2(grossLoss),
-            avgWin:              _fix2(avgWin),
-            avgLoss:             _fix2(avgLoss),
-            expectancy:          _fix2(expectancy),
+            winRate:             safe.length > 0 ? winRate * 100 : 0,
+            sharpeRatio:         sharpe || 0,
+            profitFactor:        profitFactor ?? 0,
+            grossProfit:         grossProfit,
+            grossLoss:           grossLoss,
+            avgWin:              avgWin,
+            avgLoss:             avgLoss,
+            expectancy:          expectancy,
+            totalCommission:     _n(supplement.totalCommission),
+            maxConsecWins:       _n(supplement.maxConsecWins),
+            maxConsecLosses:     _n(supplement.maxConsecLosses),
+            avgHoldDuration:     _n(supplement.avgHoldDuration),
 
-            // Raw numbers — for charts and further computation
             raw: {
                 netProfit,
                 roiPercent:          (netProfit / capital) * 100,
@@ -175,6 +185,51 @@ const trades = {
         const totalMs = safe.reduce((s, t) => s + (_n(t.exitTime) - _n(t.entryTime)), 0);
         const avgMs   = totalMs / safe.length;
         return { avgMs, avgMinutes: avgMs / 60_000, avgHours: avgMs / 3_600_000 };
+    },
+
+    /**
+     * Compute return frequency distribution (Histogram)
+     */
+    histogram(returnValues = [], bins = 20) {
+        const values = returnValues.map(Number).filter(Number.isFinite);
+        if (!values.length) return [];
+        const min = Math.min(...values);
+        const max = Math.max(...values);
+        if (min === max) return [{ label: `${(min * 100).toFixed(1)}%`, count: values.length }];
+        
+        const width = (max - min) / bins;
+        const buckets = Array.from({ length: bins }, (_, i) => ({
+            min: min + i * width,
+            max: min + (i + 1) * width,
+            count: 0
+        }));
+        values.forEach(v => {
+            const idx = Math.min(buckets.length - 1, Math.floor((v - min) / width));
+            buckets[idx].count++;
+        });
+        return buckets.map(b => ({
+            label: `${(b.min * 100).toFixed(1)}%`,
+            count: b.count
+        }));
+    },
+
+    /**
+     * Compute P&L heatmaps by month/week
+     */
+    heatmap(tradeList = [], mode = "month") {
+        const map = new Map();
+        (tradeList || []).forEach(t => {
+            const ts = t.exitTime || t.entryTime;
+            if (!ts) return;
+            const d = new Date(ts);
+            const key = mode === "week" 
+                ? `${d.getFullYear()}-W${String(_isoWeek(d)).padStart(2, "0")}`
+                : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+            map.set(key, (map.get(key) || 0) + _n(t.profit));
+        });
+        return Array.from(map.entries())
+            .map(([key, value]) => ({ key, value }))
+            .sort((a, b) => a.key.localeCompare(b.key));
     }
 };
 
@@ -774,6 +829,10 @@ const format = {
      * @returns {AnalyticsReport}
      */
     buildReport(meta, tradeList, initialCapital, supplement = {}, opts = {}) {
+        return this.computeFull(meta, tradeList, initialCapital, supplement, opts);
+    },
+
+    computeFull(meta, tradeList, initialCapital, supplement = {}, opts = {}) {
         const window         = Math.max(2, _n(opts.rollingWindow, 20));
         const periodsPerYear = _n(opts.periodsPerYear, 252);
         const fallbackTs     = _n(opts.fallbackTs, Date.now());
@@ -814,7 +873,12 @@ const format = {
                 drawdownCurve:   allSeries.drawdownCurve,
                 underwaterCurve: allSeries.underwaterCurve,
                 returns:         ret,
-                rolling:         rollingData
+                rollingSharpe:   rollingData.sharpe,
+                rolling:         rollingData,
+                histogram:       trades.histogram(ret.map(r => r.value)),
+                monthly:         trades.heatmap(safe, "month"),
+                weekly:          trades.heatmap(safe, "week"),
+                expectancy:      stats.raw.expectancy
             },
             trades: opts.includeTrades ? safe : []
         };

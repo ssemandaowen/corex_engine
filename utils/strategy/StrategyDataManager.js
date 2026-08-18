@@ -75,8 +75,12 @@ class StrategyDataManager {
         const candleStart = Math.floor(time / tfMs) * tfMs;
 
         if (!store.activeCandle || store.activeCandle.time !== candleStart) {
-            // Push the completed candle (no spread, we trust the previous ref is finished)
-            if (store.activeCandle) {
+            // Only a *previous* candle closing counts as "closed". The very
+            // first tick for a symbol (or the first tick after ingestBar()
+            // reset activeCandle to null) just opens the first candle — it
+            // hasn't closed anything yet.
+            const hadPrevious = !!store.activeCandle;
+            if (hadPrevious) {
                 store.candles.push(store.activeCandle);
             }
             // Create new candle object
@@ -85,7 +89,7 @@ class StrategyDataManager {
                 open: price, high: price, low: price, close: price,
                 volume
             };
-            return { closed: true };
+            return { closed: hadPrevious };
         }
 
         const c = store.activeCandle;

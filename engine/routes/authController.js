@@ -1,51 +1,131 @@
 "use strict";
 
+/**
+ * Auth Controller
+ *
+ * Routes:
+ *   POST /api/auth/signin       — returns JWT + optional API key
+ *   POST /api/auth/signout      — revokes the session in corex_sessions
+ *   POST /api/auth/register     — creates a new BASIC user (not admin)
+ *   POST /api/auth/bootstrap    — creates the first admin (requires ADMIN_SECRET)
+ *   GET  /api/auth/me           — returns current user profile
+ *   GET  /api/auth/apikeys      — list user's API keys
+ *   POST /api/auth/apikeys      — issue a new API key
+ *   DELETE /api/auth/apikeys/:id — revoke an API key
+ */
+
 const express = require("express");
-const router = express.Router();
+const router  = express.Router();
+const crypto  = require("crypto");
+const db      = require("@core/services/postgres");
 const pgStore = require("@core/services/pgStore");
 const { hashPassword, verifyPassword, signToken, verifyToken } = require("@core/services/authService");
+const authGuard = require("@core/middleware/authGuard");
 
-const sanitizeUser = (user) => ({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    status: user.status,
-    lastLoginAt: user.lastLoginAt || user.last_login_at || null
-});
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function sanitizeUser(user) {
+    const role = user.role === "basic" ? "user" : user.role;
+    return {
+        id:          user.id,
+        email:       user.email,
+        name:        user.name,
+        role,
+        status:      user.status,
+        subscriptionTier: user.subscriptionTier || user.subscription_tier || "developer",
+        lastLoginAt: user.lastLoginAt || user.last_login_at || null,
+    };
+}
 
 function readBearerToken(req) {
     const header = String(req.headers.authorization || "").trim();
     if (!header) return null;
     const [scheme, token] = header.split(" ");
     if (scheme !== "Bearer" || !token) return null;
-    return token;
+    return token.trim();
 }
 
-async function requireAuthUser(req, res) {
-    const token = readBearerToken(req);
-    if (!token) {
-        res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-        return null;
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// Sign in
+// ─────────────────────────────────────────────────────────────────────────────
+// Inside your auth router configuration
+const handleRegister = async (req, res) => {
     try {
-        const payload = verifyToken(token);
-        const user = await pgStore.getUserById(payload.sub);
-        if (!user) {
-            res.status(404).json({ success: false, error: "USER_NOT_FOUND" });
-            return null;
+        const email    = String(req.body?.email    || "").trim().toLowerCase();
+        const password = String(req.body?.password || "");
+        const name     = String(req.body?.name     || "").trim() || email;
+
+        if (!email || !password) {
+            return res.status(400).json({ success: false, error: "EMAIL_PASSWORD_REQUIRED" });
         }
-        return user;
+
+        if (password.length < 8) {
+            return res.status(400).json({ success: false, error: "PASSWORD_TOO_SHORT" });
+        }
+
+        const existing = await pgStore.getAuthUserByEmail(email);
+        if (existing) {
+            return res.status(409).json({ success: false, error: "EMAIL_EXISTS" });
+        }
+
+        const passwordHash = await hashPassword(password);
+
+        // New public registrations are BASIC role — not operator, not admin
+        const user = await pgStore.createUser({
+            email,
+            name,
+            passwordHash,
+            role:   "basic",
+            status: "active",
+        });
+
+        const sessionId = crypto.randomUUID();
+        if (db.hasDbConfig()) {
+            await db.query(
+                `INSERT INTO corex_sessions (session_id, user_id, ip_address, user_agent)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT DO NOTHING`,
+                [
+                    sessionId,
+                    user.id,
+                    req.ip || null,
+                    String(req.headers["user-agent"] || "").slice(0, 512) || null,
+                ]
+            ).catch(() => {});
+        }
+
+        const token = signToken({
+            sub: user.id,
+            role: user.role,
+            email: user.email,
+            sessionId,
+        });
+
+        return res.json({
+            success: true,
+            payload: {
+                token,
+                sessionId,
+                authKey: null,
+                user: sanitizeUser(user),
+            },
+        });
+
     } catch (err) {
-        res.status(401).json({ success: false, error: "UNAUTHORIZED", message: err.message });
-        return null;
+        return res.status(500).json({ success: false, error: "REGISTRATION_FAILED", message: err.message });
     }
-}
+};
+
+router.post("/signup", handleRegister);
+router.post("/register", handleRegister);
 
 router.post("/signin", async (req, res) => {
     try {
-        const email = String(req.body?.email || "").trim().toLowerCase();
+        const email    = String(req.body?.email    || "").trim().toLowerCase();
         const password = String(req.body?.password || "");
+
         if (!email || !password) {
             return res.status(400).json({ success: false, error: "EMAIL_PASSWORD_REQUIRED" });
         }
@@ -60,52 +140,118 @@ router.post("/signin", async (req, res) => {
             return res.status(401).json({ success: false, error: "INVALID_CREDENTIALS" });
         }
 
-        await pgStore.markLastLogin(user.id);
+        // Create a session record for revocation support
+        const sessionId = crypto.randomUUID();
+        if (db.hasDbConfig()) {
+            await db.query(
+                `INSERT INTO corex_sessions (session_id, user_id, ip_address, user_agent)
+                 VALUES ($1, $2, $3, $4)
+                 ON CONFLICT DO NOTHING`,
+                [
+                    sessionId,
+                    user.id,
+                    req.ip || null,
+                    String(req.headers["user-agent"] || "").slice(0, 512) || null,
+                ]
+            ).catch(() => {});
+        }
+
+        await pgStore.markLastLogin(user.id).catch(() => {});
+
         const token = signToken({
-            sub: user.id,
-            role: user.role,
-            email: user.email
+            sub:       user.id,
+            role:      user.role,
+            email:     user.email,
+            sessionId,
         });
 
+        // Optional long-lived API key for "remember me"
         let authKey = null;
-        if (req.body?.issueAuthKey === true) {
-            const ttlDaysRaw = Number(req.body?.authKeyTtlDays ?? 30);
-            const ttlDays = Math.max(1, Math.min(180, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : 30));
-            const expiresAt = new Date(Date.now() + (ttlDays * 24 * 60 * 60 * 1000)).toISOString();
+        const rememberMe = req.body?.rememberMe === true;
+        if (req.body?.issueAuthKey === true || rememberMe) {
+            const defaultTtl = rememberMe ? 90 : 7;
+            const ttlDaysRaw = Number(req.body?.authKeyTtlDays ?? defaultTtl);
+            const ttlDays    = Math.max(1, Math.min(180, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : defaultTtl));
+            const expiresAt  = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
             const issued = await pgStore.createApiKey(user.id, {
-                label: "web-session",
-                expiresAt
+                label: rememberMe ? "web-session-extended" : "web-session",
+                expiresAt,
             });
-            authKey = {
-                key: issued.key,
-                id: issued.id,
-                expiresAt: issued.expiresAt
-            };
+            if (issued?.key) {
+                authKey = {
+                    key:       issued.key,
+                    expiresAt: issued.expiresAt,
+                    id:        issued.id,
+                };
+            }
         }
 
         return res.json({
             success: true,
             payload: {
                 token,
+                sessionId,
                 authKey,
-                user: sanitizeUser(user)
-            }
+                user: sanitizeUser(user),
+            },
         });
+
     } catch (err) {
         return res.status(500).json({ success: false, error: "SIGNIN_FAILED", message: err.message });
     }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Sign out — revokes the session
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post("/signout", async (req, res) => {
+    try {
+        const token = readBearerToken(req);
+        if (token && db.hasDbConfig()) {
+            try {
+                const payload = verifyToken(token);
+                if (payload.sessionId) {
+                    await db.query(
+                        `UPDATE corex_sessions
+                         SET revoked_at = NOW()
+                         WHERE session_id = $1 AND user_id = $2`,
+                        [payload.sessionId, payload.sub]
+                    );
+                }
+            } catch {
+                // Token may already be expired — that is fine for sign-out
+            }
+        }
+        return res.json({ success: true });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: "SIGNOUT_FAILED", message: err.message });
+    }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Register — creates a BASIC user (not admin, not pro)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Registration handled above via handleRegister
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bootstrap — creates the first admin account
+// Requires ADMIN_SECRET env var to be set
+// ─────────────────────────────────────────────────────────────────────────────
+
 router.post("/bootstrap", async (req, res) => {
     try {
-        const key = req.headers["x-admin-key"];
-        if (!process.env.ADMIN_SECRET || key !== process.env.ADMIN_SECRET) {
+        const secret = process.env.ADMIN_SECRET;
+        const key    = req.headers["x-admin-key"];
+
+        if (!secret || key !== secret) {
             return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         }
 
-        const email = String(req.body?.email || "").trim().toLowerCase();
+        const email    = String(req.body?.email    || "").trim().toLowerCase();
         const password = String(req.body?.password || "");
-        const name = String(req.body?.name || "Admin");
+        const name     = String(req.body?.name     || "Admin").trim();
 
         if (!email || !password) {
             return res.status(400).json({ success: false, error: "EMAIL_PASSWORD_REQUIRED" });
@@ -115,16 +261,21 @@ router.post("/bootstrap", async (req, res) => {
         const user = await pgStore.createUser({
             email,
             name,
-            role: "admin",
-            status: "active",
-            passwordHash
+            role:         "admin",
+            status:       "active",
+            passwordHash,
         });
 
-        return res.json({ success: true, payload: user });
+        return res.json({ success: true, payload: sanitizeUser(user) });
+
     } catch (err) {
         return res.status(400).json({ success: false, error: "BOOTSTRAP_FAILED", message: err.message });
     }
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Current user profile
+// ─────────────────────────────────────────────────────────────────────────────
 
 router.get("/me", async (req, res) => {
     try {
@@ -132,57 +283,57 @@ router.get("/me", async (req, res) => {
         if (!token) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
 
         const payload = verifyToken(token);
-        const user = await pgStore.getUserById(payload.sub);
+        const user    = await pgStore.getUserById(payload.sub);
         if (!user) return res.status(404).json({ success: false, error: "USER_NOT_FOUND" });
+
         return res.json({ success: true, payload: sanitizeUser(user) });
     } catch (err) {
         return res.status(401).json({ success: false, error: "UNAUTHORIZED", message: err.message });
     }
 });
 
-router.get("/apikeys", async (req, res) => {
-    const user = await requireAuthUser(req, res);
-    if (!user) return;
+// ─────────────────────────────────────────────────────────────────────────────
+// API key management (all require auth)
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.get("/apikeys", authGuard, async (req, res) => {
     try {
-        const keys = await pgStore.listApiKeysForUser(user.id);
+        const keys = await pgStore.listApiKeysForUser(req.user.sub);
         return res.json({ success: true, payload: keys });
     } catch (err) {
         return res.status(500).json({ success: false, error: "API_KEYS_READ_FAILED", message: err.message });
     }
 });
 
-router.post("/apikeys", async (req, res) => {
-    const user = await requireAuthUser(req, res);
-    if (!user) return;
+router.post("/apikeys", authGuard, async (req, res) => {
     try {
-        const label = String(req.body?.label || "manual").trim() || "manual";
+        const label      = String(req.body?.label || "manual").trim() || "manual";
         const ttlDaysRaw = Number(req.body?.ttlDays ?? 90);
-        const ttlDays = Math.max(1, Math.min(365, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : 90));
-        const expiresAt = req.body?.neverExpires === true
+        const ttlDays    = Math.max(1, Math.min(365, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : 90));
+        const expiresAt  = req.body?.neverExpires === true
             ? null
-            : new Date(Date.now() + (ttlDays * 24 * 60 * 60 * 1000)).toISOString();
-        const issued = await pgStore.createApiKey(user.id, { label, expiresAt });
+            : new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
+
+        const issued = await pgStore.createApiKey(req.user.sub, { label, expiresAt });
         return res.json({
             success: true,
             payload: {
-                id: issued.id,
-                label: issued.label,
-                status: issued.status,
-                key: issued.key,
+                id:        issued.id,
+                label:     issued.label,
+                status:    issued.status,
+                key:       issued.key,
                 expiresAt: issued.expiresAt,
-                createdAt: issued.createdAt
-            }
+                createdAt: issued.createdAt,
+            },
         });
     } catch (err) {
         return res.status(500).json({ success: false, error: "API_KEY_CREATE_FAILED", message: err.message });
     }
 });
 
-router.delete("/apikeys/:id", async (req, res) => {
-    const user = await requireAuthUser(req, res);
-    if (!user) return;
+router.delete("/apikeys/:id", authGuard, async (req, res) => {
     try {
-        const ok = await pgStore.revokeApiKey(user.id, String(req.params.id || ""));
+        const ok = await pgStore.revokeApiKey(req.user.sub, String(req.params.id || ""));
         if (!ok) return res.status(404).json({ success: false, error: "API_KEY_NOT_FOUND" });
         return res.json({ success: true });
     } catch (err) {

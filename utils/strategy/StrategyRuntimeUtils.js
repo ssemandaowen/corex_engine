@@ -50,6 +50,7 @@ const StrategyRuntimeUtils = {
         const directTp = Number(params.tp ?? params.takeProfit ?? params.take_profit ?? 0);
         const slPct = Number(params.slPct ?? params.stopLossPct ?? params.stop_loss_pct ?? 0);
         const tpPct = Number(params.tpPct ?? params.takeProfitPct ?? params.take_profit_pct ?? 0);
+        const trailPct = Number(params.trailPct ?? params.trailStopPct ?? 0);
 
         let sl = Number.isFinite(directSl) && directSl > 0 ? directSl : 0;
         let tp = Number.isFinite(directTp) && directTp > 0 ? directTp : 0;
@@ -69,8 +70,9 @@ const StrategyRuntimeUtils = {
         }
 
         return {
-            sl: Number.isFinite(sl) && sl > 0 ? Number(sl.toFixed(8)) : 0,
-            tp: Number.isFinite(tp) && tp > 0 ? Number(tp.toFixed(8)) : 0
+            sl:       Number.isFinite(sl) && sl > 0 ? Number(sl.toFixed(8)) : 0,
+            tp:       Number.isFinite(tp) && tp > 0 ? Number(tp.toFixed(8)) : 0,
+            trailPct: Number.isFinite(trailPct) && trailPct > 0 ? trailPct : 0,
         };
     },
 
@@ -110,7 +112,9 @@ const StrategyRuntimeUtils = {
     },
 
     getAccountSnapshot() {
-        const broker = this.executionContext?.broker;
+        // _brokerRef is injected by _attachRuntime() (RuntimeLifecycle.boot).
+        // In backtest mode, backtestManager injects it directly via the broker arg.
+        const broker = this._brokerRef;
         if (broker && typeof broker.getAccountSnapshot === "function") {
             return broker.getAccountSnapshot();
         }

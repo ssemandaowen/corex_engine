@@ -15,6 +15,10 @@ class JobWorkerSupervisor {
         this.restarts = 0;
     }
 
+    isRunning() {
+        return !!(this.proc && !this.stopping);
+    }
+
     _enabled() {
         return !["0", "false", "no", "off"].includes(
             String(process.env.COREX_JOB_WORKER_AUTOSTART || "true").trim().toLowerCase()

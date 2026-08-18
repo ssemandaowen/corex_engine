@@ -10,14 +10,19 @@ class StateController {
         this.registry = new Map(); // strategyId -> StateLedger
 
         // SERVER CONTROL RULES: Define legal logic flow
+        // NOTE: "STOPPED" and "OFFLINE" are treated as equivalent terminal/idle
+        // states. Most of the codebase commits "STOPPED" (RuntimeLifecycle.terminate,
+        // strategyLoader.stopStrategy, the runtime_state DB column convention);
+        // both are accepted here so those calls aren't silently rejected.
         this.rules = {
             "OFFLINE": ["STAGED", "WARMING_UP", "STOPPING"],
-            "STAGED": ["WARMING_UP", "OFFLINE", "STOPPING"],
-            "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE", "DISABLED"],
-            "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE", "DISABLED"],
-            "PAUSED": ["ACTIVE", "STOPPING", "OFFLINE"],
-            "STOPPING": ["OFFLINE"],
-            "ERROR": ["STAGED", "OFFLINE", "WARMING_UP", "STOPPING", "DISABLED"], // Allow stopping from error
+            "STOPPED": ["STAGED", "WARMING_UP", "STOPPING"],
+            "STAGED": ["WARMING_UP", "ACTIVE", "OFFLINE", "STOPPED", "STOPPING"],
+            "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE", "STOPPED", "DISABLED"],
+            "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE", "STOPPED", "DISABLED"],
+            "PAUSED": ["ACTIVE", "STOPPING", "OFFLINE", "STOPPED"],
+            "STOPPING": ["OFFLINE", "STOPPED"],
+            "ERROR": ["STAGED", "OFFLINE", "STOPPED", "WARMING_UP", "STOPPING", "DISABLED"], // Allow stopping from error
             "DISABLED": ["STAGED"]
         };
     }
