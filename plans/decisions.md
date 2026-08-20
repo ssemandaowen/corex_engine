@@ -46,3 +46,14 @@ Key locked decisions for broker layer:
 - Integration points updated: RuntimeLifecycle._warmup, engine.js warmup cache, backtestManager._fetchFromBroker
 - Root package.json updated with @data alias
 - 64 tests pass; 294 total pass, 11 pre-existing failures (MetaApiDriver live mode + security guards)
+
+---
+
+**2026-08-21** — YahooFinanceProvider rewritten to use `yahoo-finance2` v4 npm package (per user instruction).
+- Replaced raw fetch to query1.finance.yahoo.com with `yahoo-finance2` YahooFinance instance
+- Provider uses lazy-loaded YahooFinance (require on first connect) with injected `yahooImpl` for testing
+- API key auto-read from process.env.YAHOO_API_KEY (optional — yahoo-finance2 uses crumb auth by default)
+- Error mapping: 404→SYMBOL_NOT_FOUND, 429/rate-limit→RATE_LIMITED, others→PROVIDER_UNAVAILABLE
+- 21 tests pass using injected mock (no real API calls)
+- Sample integration tests added: FileDataProvider loads real files from data/sample/
+- 70 total Package 2 tests pass across 6 suites
