@@ -1,0 +1,44 @@
+{
+  "name": "corex-broker-contract",
+  "version": "2026.1.20",
+  "description": "CoreX Broker Contract Layer — BrokerContract, BaseBroker, RuntimeBrokerFactory, MT5 Bridge",
+  "main": "src/mt5Bridge.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "jest --passWithNoTests"
+  },
+  "dependencies": {
+    "ws": "^8.18.3",
+    "winston": "^3.19.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "module-alias": "^2.2.3"
+  },
+  "_moduleAliases": {
+    "@root": "../..",
+    "@core": "../../engine",
+    "@strategies": "../../strategies",
+    "@utils": "../../utils",
+    "@broker": "./src",
+    "@events": "../../events",
+    "@config": "../../config"
+  },
+  "jest": {
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^@root/(.*)$": "<rootDir>/../../$1",
+      "^@core/(.*)$": "<rootDir>/../../engine/$1",
+      "^@strategies/(.*)$": "<rootDir>/../../strategies/$1",
+      "^@utils/(.*)$": "<rootDir>/../../utils/$1",
+      "^@broker/(.*)$": "<rootDir>/src/$1",
+      "^@events/(.*)$": "<rootDir>/../../events/$1",
+      "^@config/(.*)$": "<rootDir>/../../config/$1"
+    }
+  }
+}
