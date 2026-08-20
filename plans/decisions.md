@@ -24,3 +24,25 @@ Key locked decisions for broker layer:
 ---
 
 **2026-08-20** — MetaApiDriver async/sync fix: connector methods `getPositionSnapshot` and `getEquity` are async (REST/WebSocket), but were called synchronously in MetaApiDriver, causing them to always return null/0 (Promises, not resolved values). Fixed by adding `_cachedEquity`/`_cachedPositions`/`_cachedAccount` fields; `initialize()` calls new `refreshState()` to fetch initial broker state asynchronously; synchronous getters (`getEquity`, `getPosition`, `getPositionSnapshot`, `getAccount`) return cached values. Push events (`onFill`, `onBar`, `onTick`) update the cache. Live mode `setCash`/`setInitialCash`/`resetAccount` return `false` (broker owns ledger — spec #7). MetaApiConnector remains a skeleton stub — needs real credentials for end-to-end verification (spec #16).
+
+---
+
+**2026-08-20** — Package 2 (corex-market-data) design decisions:
+1. Provider lifecycle: TwelveData singleton treated as shared resource behind idempotent `connect()`; factory does not own raw connections. Must test backtest→paper→live mode-switch race conditions.
+2. Pagination: `DataProviderFactory.fetchHistorical` wraps `DataPaginationLayer.fetchall` by default; optional `max_candles` bypasses chunking for small warmup fetches.
+3. Symbol normalization: at each provider boundary (TwelveDataProvider, YahooFinanceProvider, FileDataProvider), not centrally. No sink-side normalization in MarketFeed.
+4. FileDataProvider config: structured object `{ type:"file", path:string, speed:number=1.0, loop:boolean=false, startOffset:datetime|null=null }`.
+5. Error unification: extend `DataProviderError` with `MAX_CANDLES_EXCEEDED` to retire `backtestDataResolver`'s generic `Error("LIMIT_EXCEEDED")` and all untyped throws in the package.
+
+---
+
+**2026-08-20** — Package 2 (corex-market-data) completed implementation:
+- Extracted DataProviderContract, TwelveDataProvider, backtestDataResolver, MarketFeed, twelvedata singleton to `packages/corex-market-data/`
+- TwelveDataProvider normalizes symbols at boundary via SymbolNormalizer (wraps singleton's _normalize + fetchLatestPrice)
+- DataProviderFactory: idempotent connect, single active provider, transparent DataPaginationLayer chunking with max_candles bypass
+- FileDataProvider: CSV/JSON/JSONL parsing, tick-by-tick replay, supports {type:"file", path, speed, loop, startOffset}
+- YahooFinanceProvider: new provider (needs real Yahoo API keys for verification)
+- CoreXPaperDriver.dataSource wired to FileDataProvider for paper-mode file replay (lazy require to avoid circular dep)
+- Integration points updated: RuntimeLifecycle._warmup, engine.js warmup cache, backtestManager._fetchFromBroker
+- Root package.json updated with @data alias
+- 64 tests pass; 294 total pass, 11 pre-existing failures (MetaApiDriver live mode + security guards)
