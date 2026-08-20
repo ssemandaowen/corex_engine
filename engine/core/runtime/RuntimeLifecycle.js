@@ -17,7 +17,7 @@
 const runtimeRegistry    = require("./RuntimeRegistry");
 const RuntimeBrokerFactory = require("./RuntimeBrokerFactory");
 const marketFeed         = require("./MarketFeed");
-const twelvedata          = require("@broker/twelvedata");
+const DataProviderFactory = require("@data/src/DataProviderFactory");
 const stateManager       = require("@utils/stateController");
 const pgStore            = require("@core/services/pgStore");
 const { bus, EVENTS }    = require("@events/bus");
@@ -199,10 +199,11 @@ class RuntimeLifecycle {
         const lookback = Math.max(1, Number(strategyInstance.lookback || 100));
 
         try {
-            const bars = await twelvedata.fetchHistory({
+            const bars = await DataProviderFactory.fetchHistorical({
                 symbol,
                 interval: timeframe,
-                outputsize: lookback
+                outputsize: lookback,
+                max_candles: lookback
             });
 
             if (!Array.isArray(bars) || bars.length === 0) return false;
