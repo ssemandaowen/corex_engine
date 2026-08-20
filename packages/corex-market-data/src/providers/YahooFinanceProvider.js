@@ -3,9 +3,8 @@
 /**
  * YahooFinanceProvider.js
  *
- * Yahoo Finance market data provider backed by Yahoo's public API.
- * Uses the @yahoo/finance/client library if available, falls back to
- * direct fetch to query1.finance.yahoo.com.
+ * Yahoo Finance market data provider backed by the official
+ * `yahoo-finance2` npm package (v4.x).
  *
  * Symbol normalization at provider boundary (spec #4 / decision #3):
  *   Yahoo symbols like "BRK.B", "VOW.DE" are normalized to canonical
@@ -19,14 +18,17 @@
  */
 
 const SymbolNormalizer = require("../../../corex-broker-contract/src/utils/SymbolNormalizer");
-const { DataProviderContract, validateProviderImplementation, DataProviderError } = require("../DataProviderContract");
+const {
+    DataProviderContract,
+    validateProviderImplementation,
+    DataProviderError
+} = require("../DataProviderContract");
 const logger = require("@utils/logger");
 
 const log = logger.createModuleLogger("YAHOO_PROVIDER");
 
 const SUPPORTED_INTERVALS = ["1m", "2m", "5m", "15m", "30m", "60m", "1h", "1d", "1wk"];
 const MAX_BARS = 5000;
-const YAHOO_BASE = "https://query1.finance.yahoo.com";
 
 const INTERVAL_MAP = {
     "1m": "1m",
@@ -39,22 +41,49 @@ const INTERVAL_MAP = {
     "1wk": "1wk"
 };
 
+const RANGE_MAP = {
+    "1d": "1d",
+    "5d": "5d",
+    "1mo": "1mo",
+    "3mo": "3mo",
+    "6mo": "6mo",
+    "1y": "1y",
+    "2y": "2y",
+    "5y": "5y",
+    "max": "max"
+};
+
 class YahooFinanceProvider extends DataProviderContract {
     /**
      * @param {Object} [opts]
-     * @param {string} [opts.apiKey]     — optional Yahoo API key
-     * @param {Object} [opts.fetchImpl]  — inject fetch (for testing)
+     * @param {string} [opts.apiKey]  — optional Yahoo API key (falls back to process.env.YAHOO_API_KEY)
+     * @param {Object} [opts.yahooImpl] — inject a yahoo-finance2 instance (for testing)
      */
     constructor(opts = {}) {
         super();
         this._apiKey = opts.apiKey || process.env.YAHOO_API_KEY || null;
-        this._fetch = opts.fetchImpl !== undefined ? opts.fetchImpl : (typeof fetch !== "undefined" ? fetch : null);
+        this._yahooImpl = opts.yahooImpl || null;
         this._connected = false;
         this._lastHeartbeat = null;
         /** Canonical symbol -> Yahoo symbol mapping */
         this._symbolMap = new Map();
 
         validateProviderImplementation(this);
+    }
+
+    /**
+     * Lazily create the yahoo-finance2 instance on first connect.
+     * This allows the test injector (yahooImpl) to bypass construction.
+     */
+    _getYahoo() {
+        if (this._yahooImpl) return this._yahooImpl;
+        const YahooFinance = require("yahoo-finance2").default;
+        const opts = {};
+        if (this._apiKey) {
+            opts.fetchOptions = { headers: { "User-Agent": "Mozilla/5.0 (compatible; CoreX/1.0)" } };
+        }
+        this._yahooImpl = new YahooFinance(opts);
+        return this._yahooImpl;
     }
 
     /**
@@ -96,36 +125,32 @@ class YahooFinanceProvider extends DataProviderContract {
         const { symbol: canonical } = SymbolNormalizer.normalize(symbol);
         const yahooSymbol = this._yahooSymbol(canonical);
         const apiInterval = INTERVAL_MAP[interval] || interval;
-        const range = this._estimateRange(Number(outputsize), interval);
+        const range = this._estimateRange(Number(outputsize) || MAX_BARS, interval);
 
-        if (!this._fetch) {
-            throw new DataProviderError("PROVIDER_UNAVAILABLE", {
-                provider: "yahoo",
-                symbol: canonical,
-                message: "No fetch implementation available"
-            });
-        }
-
-        const url = `${YAHOO_BASE}/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=${apiInterval}&range=${range}&includePrePost=false`;
-
-        let response;
+        let yahoo;
         try {
-            response = await this._fetch(url, {
-                headers: {
-                    "User-Agent": "Mozilla/5.0 (compatible; CoreX/1.0)"
-                }
-            });
+            yahoo = this._getYahoo();
         } catch (err) {
             throw new DataProviderError("PROVIDER_UNAVAILABLE", {
                 provider: "yahoo",
                 symbol: canonical,
-                message: `Network error: ${err.message}`,
+                message: "yahoo-finance2 not installed",
                 cause: err
             });
         }
 
-        if (!response.ok) {
-            const status = response.status;
+        const queryOpts = {
+            symbol: yahooSymbol,
+            interval: apiInterval,
+            range: range,
+            includePrePost: false
+        };
+
+        let result;
+        try {
+            result = await yahoo.chart(queryOpts);
+        } catch (err) {
+            const status = err?.result?.response?.status || err?.statusCode;
             if (status === 404) {
                 throw new DataProviderError("SYMBOL_NOT_FOUND", {
                     provider: "yahoo",
@@ -133,7 +158,7 @@ class YahooFinanceProvider extends DataProviderContract {
                     message: `Symbol not found on Yahoo Finance (${yahooSymbol})`
                 });
             }
-            if (status === 429) {
+            if (status === 429 || /rate.?limit/i.test(err?.message || "")) {
                 throw new DataProviderError("RATE_LIMITED", {
                     provider: "yahoo",
                     symbol: canonical,
@@ -143,23 +168,13 @@ class YahooFinanceProvider extends DataProviderContract {
             throw new DataProviderError("PROVIDER_UNAVAILABLE", {
                 provider: "yahoo",
                 symbol: canonical,
-                message: `HTTP ${status}: ${response.statusText}`
+                message: err?.message || "Unknown Yahoo Finance error",
+                cause: err
             });
         }
 
-        let data;
-        try {
-            data = await response.json();
-        } catch (err) {
-            throw new DataProviderError("PROVIDER_UNAVAILABLE", {
-                provider: "yahoo",
-                symbol: canonical,
-                message: "Invalid JSON response"
-            });
-        }
-
-        const result = data?.chart?.result?.[0];
-        if (!result || !result.timestamps) {
+        const { timestamps, quotes } = result;
+        if (!timestamps || !quotes || !quotes.length) {
             throw new DataProviderError("SYMBOL_NOT_FOUND", {
                 provider: "yahoo",
                 symbol: canonical,
@@ -167,18 +182,16 @@ class YahooFinanceProvider extends DataProviderContract {
             });
         }
 
-        const { timestamps, indicators } = result;
-        const quotes = indicators?.quote?.[0] || {};
-        const volumes = indicators?.quote?.[0]?.volume || [];
         const barCount = Math.min(Number(outputsize) || Infinity, timestamps.length, MAX_BARS);
 
         const bars = [];
         for (let i = 0; i < barCount; i++) {
             const ts = Number(timestamps[i]) * 1000;
-            const open = Number(quotes.open?.[i] || quotes.close?.[i] || 0);
-            const high = Number(quotes.high?.[i] || 0);
-            const low = Number(quotes.low?.[i] || 0);
-            const close = Number(quotes.close?.[i] || 0);
+            const quote = quotes[i] || {};
+            const open = Number(quote.open || quote.close || 0);
+            const high = Number(quote.high || 0);
+            const low = Number(quote.low || 0);
+            const close = Number(quote.close || 0);
 
             if (!Number.isFinite(ts) || ts <= 0) continue;
 
@@ -188,7 +201,7 @@ class YahooFinanceProvider extends DataProviderContract {
                 high: Number.isFinite(high) ? high : close,
                 low: Number.isFinite(low) ? low : close,
                 close: Number.isFinite(close) ? close : 0,
-                volume: Number(volumes[i] || 0),
+                volume: Number(quote.volume || 0),
                 symbol: canonical
             });
         }
@@ -199,22 +212,22 @@ class YahooFinanceProvider extends DataProviderContract {
 
     /**
      * Estimate Yahoo "range" parameter from outputsize + interval.
-     * Yahoo uses "range" (e.g. "5d", "1mo") rather than explicit bar count.
+     * Yahoo uses range (e.g. "5d", "1mo") rather than explicit bar count.
+     * Falls back to chart module's outputsize for intraday ranges.
      */
     _estimateRange(outputsize, interval) {
         const intervalMs = this._intervalToMs(interval);
         const totalMs = outputsize * intervalMs;
         const days = Math.ceil(totalMs / (86400 * 1000));
-        if (days <= 1) return "1d";
-        if (days <= 7) return "7d";
-        if (days <= 30) return "30d";
-        if (days <= 60) return "60d";
-        if (days <= 90) return "90d";
-        if (days <= 180) return "180d";
-        if (days <= 365) return "1y";
-        if (days <= 730) return "2y";
-        if (days <= 1825) return "5y";
-        return "max";
+        if (days <= 1) return RANGE_MAP["1d"];
+        if (days <= 5) return RANGE_MAP["5d"];
+        if (days <= 30) return RANGE_MAP["1mo"];
+        if (days <= 90) return RANGE_MAP["3mo"];
+        if (days <= 180) return RANGE_MAP["6mo"];
+        if (days <= 365) return RANGE_MAP["1y"];
+        if (days <= 730) return RANGE_MAP["2y"];
+        if (days <= 1825) return RANGE_MAP["5y"];
+        return RANGE_MAP["max"];
     }
 
     _intervalToMs(interval) {
@@ -246,6 +259,9 @@ class YahooFinanceProvider extends DataProviderContract {
         this._connected = false;
         this._symbolMap.clear();
         this._lastHeartbeat = null;
+        if (this._yahooImpl && typeof this._yahooImpl.cleanup === "function") {
+            try { this._yahooImpl.cleanup(); } catch { /* no-op */ }
+        }
     }
 }
 
