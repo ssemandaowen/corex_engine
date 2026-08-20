@@ -181,4 +181,42 @@ describe("FileDataProvider", () => {
             expect(provider._connected).toBe(false);
         });
     });
+
+    describe("sample data files in data/sample/", () => {
+        const SAMPLE_DIR = require("path").resolve(__dirname, "../../../data/sample");
+
+        test("loads EURUSD_1m.csv (20 rows, OHLCV)", async () => {
+            const provider = new FileDataProvider({
+                type: "file",
+                path: require("path").join(SAMPLE_DIR, "EURUSD_1m.csv")
+            });
+            await provider.connect();
+
+            expect(provider._bars).toHaveLength(20);
+            expect(provider._bars[0].symbol).toBe("EURUSD");
+            expect(provider._bars[0].open).toBe(1.0735);
+        });
+
+        test("loads EURUSD_1h.json (9 rows, JSON array)", async () => {
+            const provider = new FileDataProvider({
+                type: "file",
+                path: require("path").join(SAMPLE_DIR, "EURUSD_1h.json")
+            });
+            await provider.connect();
+
+            expect(provider._bars).toHaveLength(9);
+            expect(provider._bars[0].symbol).toBe("EURUSD");
+        });
+
+        test("loads EURUSD_1d.jsonl (10 rows, JSONL)", async () => {
+            const provider = new FileDataProvider({
+                type: "file",
+                path: require("path").join(SAMPLE_DIR, "EURUSD_1d.jsonl")
+            });
+            await provider.connect();
+
+            expect(provider._bars).toHaveLength(10);
+            expect(provider._bars[0].symbol).toBe("EURUSD");
+        });
+    });
 });
