@@ -47,7 +47,7 @@ class YahooFinanceProvider extends DataProviderContract {
      */
     constructor(opts = {}) {
         super();
-        this._apiKey = opts.apiKey || null;
+        this._apiKey = opts.apiKey || process.env.YAHOO_API_KEY || null;
         this._fetch = opts.fetchImpl !== undefined ? opts.fetchImpl : (typeof fetch !== "undefined" ? fetch : null);
         this._connected = false;
         this._lastHeartbeat = null;

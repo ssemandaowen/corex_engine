@@ -1,0 +1,11 @@
+[
+  {"time":1776038400000,"open":1.0735,"high":1.0742,"low":1.0728,"close":1.0739,"volume":123456,"symbol":"EURUSD"},
+  {"time":1776297600000,"open":1.0748,"high":1.0763,"low":1.0745,"close":1.0759,"volume":142560,"symbol":"EURUSD"},
+  {"time":1776556800000,"open":1.0764,"high":1.0775,"low":1.0758,"close":1.0770,"volume":135890,"symbol":"EURUSD"},
+  {"time":1776816000000,"open":1.0778,"high":1.0790,"low":1.0775,"close":1.0782,"volume":128743,"symbol":"EURUSD"},
+  {"time":1777075200000,"open":1.0792,"high":1.0805,"low":1.0789,"close":1.0798,"volume":141234,"symbol":"EURUSD"},
+  {"time":1777334400000,"open":1.0808,"high":1.0815,"low":1.0804,"close":1.0811,"symbol":"EURUSD","volume":134521},
+  {"time":1777680000000,"open":1.0835,"high":1.0842,"low":1.0832,"close":1.0839,"volume":138901,"symbol":"EURUSD"},
+  {"time":1777766400000,"open":1.0839,"high":1.0850,"low":1.0838,"close":1.0847,"volume":142340,"symbol":"EURUSD"},
+  {"time":1777939200000,"open":1.0847,"high":1.0858,"low":1.0844,"close":1.0852,"volume":139780,"symbol":"EURUSD"}
+]

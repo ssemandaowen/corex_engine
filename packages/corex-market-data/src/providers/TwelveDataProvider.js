@@ -41,7 +41,8 @@ class TwelveDataProvider extends DataProviderContract {
     constructor(opts = {}) {
         super();
         this._broker = opts.broker || twelvedata;
-        this._apiKey = opts.apiKey != null ? String(opts.apiKey) : null;
+        this._apiKey = opts.apiKey != null ? String(opts.apiKey)
+            : (process.env.TWELVE_DATA_KEY || process.env.TWELVE_DATA_API_KEY || null);
         this._lastHeartbeat = null;
 
         this._wrapTickNormalization();
