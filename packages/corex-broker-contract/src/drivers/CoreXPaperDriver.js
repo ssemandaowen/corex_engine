@@ -164,13 +164,50 @@ class CoreXPaperDriver extends BaseBroker {
         this.initialCash = Number(config.initialCash || this.initialCash || 10000);
         this.balance = this.initialCash;
         this._ready = true;
+
+        await this._initDataSource();
+
         return Promise.resolve();
+    }
+
+    /**
+     * Wire the per-session dataSource config (set by RuntimeBrokerFactory)
+     * to the appropriate market data provider. Currently supports file
+     * replay ({ type: "file", path, speed, loop, startOffset }).
+     *
+     * Uses lazy require to avoid circular dependency
+     * (broker-contract -> market-data -> broker-contract for SymbolNormalizer).
+     */
+    async _initDataSource() {
+        if (!this.dataSource) return;
+
+        const ds = this.dataSource;
+        const dsType = String(ds.type || "").toLowerCase();
+
+        if (dsType === "file") {
+            try {
+                const { FileDataProvider } = require("@data/providers/FileDataProvider");
+                this._fileProvider = new FileDataProvider(ds);
+                await this._fileProvider.connect();
+                // Ticks emitted on bus -> MarketFeed -> this driver via onTick
+                await this._fileProvider.startReplay({ symbol: this.symbol });
+            } catch (err) {
+                const logger = require("@utils/logger");
+                logger.error(`[CoreXPaperDriver] File data source failed for ${this.symbol}: ${err.message}`);
+            }
+        } else {
+            // Live feed: no action needed, ticks come from TwelveData singleton via bus
+        }
     }
 
     async destroy() {
         this._ready = false;
         this.positions.clear();
         this._pendingOrders = [];
+        if (this._fileProvider && typeof this._fileProvider.cleanup === "function") {
+            try { await this._fileProvider.cleanup(); } catch { /* best effort */ }
+        }
+        this._fileProvider = null;
     }
 
     getPosition(symbol) {
