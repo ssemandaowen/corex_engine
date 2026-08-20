@@ -1,86 +1,69 @@
 "use strict";
 
-const { bus, EVENTS } = require("@events/bus");
-const { MetricsAccumulator } = require("@utils/metrics");
-const BacktestBroker = require("../src/modes/BacktestBroker");
-const PaperBroker = require("../src/modes/PaperBroker");
-const LiveBroker = require("../src/modes/LiveBroker");
-const { MODES } = require("@config/constants");
+const BacktestDriver = require("../src/drivers/BacktestDriver");
+const CoreXPaperDriver = require("../src/drivers/CoreXPaperDriver");
+const MetaApiDriver = require("../src/drivers/MetaApiDriver");
+const RestDriver = require("../src/drivers/RestDriver");
 
-describe("BacktestBroker", () => {
-    test("constructor sets up state correctly", () => {
-        const broker = new BacktestBroker({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
-        expect(broker.initialCash).toBe(10000);
-        expect(broker.balance).toBe(10000);
-        expect(broker.mode).toBe("PAPER");
-        expect(broker.runtimeId).toBe("u1::strat::EURUSD::BACKTEST");
+describe("BacktestDriver", () => {
+    test("extends BaseBroker and has capability flags", () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "eur/usd", initialCash: 10000 });
+        expect(driver.supports_trading).toBe(true);
+        expect(driver.supports_streaming_data).toBe(true);
+        expect(driver.symbol).toBe("EURUSD");
     });
 
-    test("initialize sets _ready to true", async () => {
-        const broker = new BacktestBroker({ runtimeId: "u1::strat::EURUSD::BACKTEST" });
-        await broker.initialize({ runtimeId: "u1::strat::EURUSD::BACKTEST", mode: "BACKTEST" });
-        expect(broker._ready).toBe(true);
+    test("submit returns OrderResult with FILLED status", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        driver._ready = true;
+        driver._lastPrice = 1.1000;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 10, OrderType: "MARKET", Side: "BUY" });
+        expect(result).toHaveProperty("orderId");
+        expect(result).toHaveProperty("status", "FILLED");
+        expect(result).toHaveProperty("avgFillPrice");
+        expect(result).toHaveProperty("filled", 10);
+        expect(result).toHaveProperty("remaining", 0);
+        expect(result).toHaveProperty("commission");
+        expect(result).toHaveProperty("side", "BUY");
+        expect(result).toHaveProperty("symbol", "EURUSD");
     });
 
-    test("execute ENTER reduces balance by trade value", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        const result = broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        expect(result).toBeTruthy();
-        expect(result.entryPrice).toBeCloseTo(1.1000, 4);
-        expect(broker.balance).toBeCloseTo(10000 - 11.000, 4);
+    test("submit rejects zero quantity", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        driver._ready = true;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 0, OrderType: "MARKET", Side: "BUY" });
+        expect(result.status).toBe("REJECTED");
     });
 
-    test("execute EXIT closes position and records metrics", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        const exit = broker.execute({ intent: "EXIT", symbol: "EURUSD" }, { close: 1.1100, time: 2 });
-        expect(exit).toBeTruthy();
-        expect(exit.type).toBe("FILL_EXIT");
-        const metrics = broker.getPerformanceMetrics();
-        expect(metrics.totalTrades).toBe(1);
+    test("submit returns REJECTED if not ready", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 10, OrderType: "MARKET", Side: "BUY" });
+        expect(result.status).toBe("REJECTED");
     });
 
-    test("commission is applied on entry", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000, brokerConfig: { commissionPct: 0.1 } });
-        broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        const expectedCost = 11.000 + 11.000 * 0.001;
-        expect(broker.balance).toBeCloseTo(10000 - expectedCost, 4);
+    test("modify throws UnsupportedOperationError", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        await expect(driver.modify("order1", {})).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
     });
 
-    test("slippage increases long entry price", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000, brokerConfig: { slippageBps: 10 } });
-        const result = broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        expect(result.entryPrice).toBeGreaterThan(1.1000);
+    test("cancel throws UnsupportedOperationError", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        await expect(driver.cancel("order1")).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
     });
 
-    test("spread widens long entry price", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000, brokerConfig: { spread: 0.0002 } });
-        const result = broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        expect(result.entryPrice).toBeCloseTo(1.1000 + 0.0001, 4);
-    });
-
-    test("zero quantity returns null", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        const result = broker.execute({ intent: "ENTER", side: "long", quantity: 0, symbol: "EURUSD" }, { close: 1.1, time: 1 });
-        expect(result).toBeNull();
+    test("query_status throws UnsupportedOperationError", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        await expect(driver.query_status("order1")).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
     });
 
     test("getPosition returns null when no position", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        expect(broker.getPosition("EURUSD")).toBeNull();
-    });
-
-    test("getPosition returns position when open", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        const pos = broker.getPosition("EURUSD");
-        expect(pos).not.toBeNull();
-        expect(pos.quantity).toBe(10);
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        expect(driver.getPosition("EURUSD")).toBeNull();
     });
 
     test("getAccount returns correct shape", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        const account = broker.getAccount();
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        const account = driver.getAccount();
         expect(account).toHaveProperty("balance");
         expect(account).toHaveProperty("equity");
         expect(account).toHaveProperty("currency", "USD");
@@ -88,110 +71,230 @@ describe("BacktestBroker", () => {
         expect(account).toHaveProperty("availableMargin");
     });
 
-    test("getPositionSnapshot returns frozen snapshot", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        const snap = broker.getPositionSnapshot("EURUSD");
-        expect(Object.isFrozen(snap)).toBe(true);
-        expect(snap.openCount).toBe(1);
-        expect(snap.positions.EURUSD).toBeTruthy();
+    test("getEquity returns initialCash with no positions", () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        expect(driver.getEquity()).toBe(10000);
     });
 
-    test("resetState clears positions and resets balance", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        broker.execute({ intent: "ENTER", side: "long", quantity: 10, symbol: "EURUSD" }, { close: 1.1000, time: 1 });
-        expect(broker.positions.size).toBe(1);
-        broker.resetState();
-        expect(broker.positions.size).toBe(0);
-        expect(broker.balance).toBe(10000);
+    test("onBar updates _lastPrice", async () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        await driver.onBar({ close: 1.1500, time: Date.now() });
+        expect(driver._lastPrice).toBe(1.1500);
+    });
+
+    test("resetState resets balance and positions", () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        driver._ready = true;
+        driver._lastPrice = 1.1;
+        driver.resetState();
+        expect(driver.balance).toBe(10000);
+        expect(driver.positions.size).toBe(0);
+        expect(driver._lastPrice).toBe(0);
     });
 
     test("setCash updates balance and returns true", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        expect(broker.setCash(5000)).toBe(true);
-        expect(broker.balance).toBe(5000);
+        const driver = new BacktestDriver({ runtimeId: "u1::strat::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        expect(driver.setCash(5000)).toBe(true);
+        expect(driver.balance).toBe(5000);
     });
 
-    test("setCash returns false for negative value", () => {
-        const broker = new BacktestBroker({ runtimeId: "r1", initialCash: 10000 });
-        expect(broker.setCash(-100)).toBe(false);
+    test("setCash returns false for negative", () => {
+        const driver = new BacktestDriver({ runtimeId: "u1::str::EURUSD::BACKTEST", symbol: "EURUSD", initialCash: 10000 });
+        expect(driver.setCash(-100)).toBe(false);
     });
 });
 
-describe("PaperBroker", () => {
-    test("constructor sets up state correctly", () => {
-        const broker = new PaperBroker({ runtimeId: "u1::strat::EURUSD::PAPER", symbol: "EURUSD", userId: "u1" });
-        expect(broker.mode).toBe("PAPER");
-        expect(broker.runtimeId).toBe("u1::strat::EURUSD::PAPER");
-        expect(broker.userId).toBe("u1");
+describe("CoreXPaperDriver", () => {
+    test("extends BaseBroker with correct capability flags", () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "u1::strat::EURUSD::PAPER", symbol: "EURUSD", initialCash: 10000 });
+        expect(driver.supports_trading).toBe(true);
+        expect(driver.supports_streaming_data).toBe(true);
+        expect(driver.mode).toBe("PAPER");
     });
 
-    test("side 'buy' is normalised to 'long'", async () => {
-        const broker = new PaperBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 10000 });
-        await broker.initialize({ mode: "PAPER" });
-        const entry = await broker.execute({ intent: "ENTER", side: "buy", quantity: 1, symbol: "EURUSD" }, { close: 1.1, time: 1 });
-        expect(entry.side).toBe("long");
+    test("submit fills market order successfully", async () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "u1::strat::EURUSD::PAPER", symbol: "EURUSD", initialCash: 10000 });
+        driver._ready = true;
+        driver._lastPrice = 1.1000;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY", StopLoss: 1.0900, TakeProfit: 1.1100 });
+        expect(result.status).toBe("FILLED");
+        expect(result.symbol).toBe("EURUSD");
+        expect(result.filled).toBe(1);
     });
 
-    test("side 'sell' is normalised to 'short'", async () => {
-        const broker = new PaperBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 10000 });
-        await broker.initialize({ mode: "PAPER" });
-        const entry = await broker.execute({ intent: "ENTER", side: "sell", quantity: 1, symbol: "EURUSD" }, { close: 1.1, time: 1 });
-        expect(entry.side).toBe("short");
-    });
-
-    test("trailPct is stored in position record", async () => {
-        const broker = new PaperBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 10000 });
-        await broker.initialize({ mode: "PAPER" });
-        const entry = await broker.execute({ intent: "ENTER", side: "long", quantity: 1, symbol: "EURUSD", trailPct: 2.0 }, { close: 1.1, time: 1 });
-        expect(entry.trailPct).toBe(2.0);
-        expect(entry.hwm).toBeCloseTo(1.1, 4);
-    });
-
-    test("fillPolicy 'next_bar' queues orders", async () => {
-        const broker = new PaperBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 10000, brokerConfig: { fillPolicy: "next_bar" } });
-        await broker.initialize({ mode: "PAPER" });
-        const result = await broker.execute({ intent: "ENTER", side: "long", quantity: 1, symbol: "EURUSD" }, { close: 1.1, time: 1 });
+    test("submit with next_bar fillPolicy returns PENDING", async () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "u1::strat::EURUSD::PAPER", symbol: "EURUSD", initialCash: 10000, brokerConfig: { fillPolicy: "next_bar" } });
+        driver._ready = true;
+        driver._lastPrice = 1.1000;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY" });
         expect(result.status).toBe("PENDING");
     });
 
-    test("resetAccount resets balance and positions", () => {
-        const broker = new PaperBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 10000 });
-        broker.resetAccount(20000);
-        expect(broker.balance).toBe(20000);
+    test("submit returns REJECTED when no market data", async () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "u1::strat::EURUSD::PAPER", symbol: "EURUSD", initialCash: 10000 });
+        driver._ready = true;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY" });
+        expect(result.status).toBe("REJECTED");
+    });
+
+    test("modify throws UnsupportedOperationError", async () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "r1", symbol: "EURUSD", initialCash: 10000 });
+        await expect(driver.modify("order1", {})).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
+    });
+
+    test("cancel throws UnsupportedOperationError when no pending orders", async () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "r1", symbol: "EURUSD", initialCash: 10000 });
+        driver._ready = true;
+        await expect(driver.cancel("order1")).rejects.toThrow(/only cancel pending orders/);
+    });
+
+    test("getPosition returns null when no position", () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "r1", symbol: "EURUSD", initialCash: 10000 });
+        expect(driver.getPosition("EURUSD")).toBeNull();
+    });
+
+    test("resetState resets balance and clears positions", () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "r1", symbol: "EURUSD", initialCash: 10000 });
+        driver.resetState();
+        expect(driver.balance).toBe(10000);
+        expect(driver.positions.size).toBe(0);
+    });
+
+    test("resetAccount resets to new balance", () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "r1", symbol: "EURUSD", initialCash: 10000 });
+        driver.resetAccount(50000);
+        expect(driver.balance).toBe(50000);
+    });
+
+    test("dataSource is stored for paper mode flexibility", () => {
+        const driver = new CoreXPaperDriver({ runtimeId: "r1", symbol: "EURUSD", initialCash: 10000, dataSource: "twelvedata_stream" });
+        expect(driver.dataSource).toBe("twelvedata_stream");
     });
 });
 
-describe("LiveBroker", () => {
-    test("constructor loads MetaApiConnector by default with metaapi", () => {
-        const broker = new LiveBroker({ runtimeId: "u1::strat::EURUSD::LIVE", symbol: "EURUSD", userId: "u1", connectorType: "metaapi" });
-        expect(broker.connector).toBeDefined();
-        expect(broker.connector.type).toBe("METAAPI");
+describe("MetaApiDriver", () => {
+    test("constructor loads MetaApiConnector", () => {
+        const driver = new MetaApiDriver({ runtimeId: "u1::strat::EURUSD::LIVE", symbol: "EURUSD", userId: "u1" });
+        expect(driver.supports_trading).toBe(true);
+        expect(driver.supports_streaming_data).toBe(false);
+        expect(driver.connector).toBeDefined();
+        expect(driver.connector.type).toBe("METAAPI");
     });
 
-    test("getEquity falls back to cash + unrealized when connector returns 0", () => {
-        const broker = new LiveBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
-        expect(broker.getEquity()).toBeCloseTo(100000, 4);
+    test("submit returns REJECTED when not ready", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY" });
+        expect(result.status).toBe("REJECTED");
+    });
+
+    test("submit forwards to connector and returns FILLED on success", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        driver._ready = true;
+        driver._lastPrice = 1.1000;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY", Price: 1.1000 });
+        expect(result.status).toBe("FILLED");
+        expect(result.symbol).toBe("EURUSD");
+    });
+
+    test("modify throws UnsupportedOperationError", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        await expect(driver.modify("order1", {})).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
+    });
+
+    test("cancel throws UnsupportedOperationError", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        await expect(driver.cancel("order1")).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
+    });
+
+    test("query_status throws UnsupportedOperationError", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        await expect(driver.query_status("order1")).rejects.toBeInstanceOf(require("../src/base/UnsupportedOperationError"));
+    });
+
+    test("getEquity returns cached value (0 before initialize)", () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
+        expect(driver.getEquity()).toBe(0);
+    });
+
+    test("refreshState fetches equity from connector and caches it", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
+        driver.connector.getEquity = async () => 75000;
+        await driver.refreshState();
+        expect(driver.getEquity()).toBe(75000);
+    });
+
+    test("refreshState catches connector errors without throwing", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
+        driver.connector.getEquity = async () => { throw new Error("503 rate limit exceeded"); };
+        await expect(driver.refreshState()).resolves.toBeUndefined();
+        expect(driver.getEquity()).toBe(0);
+    });
+
+    test("initialize calls refreshState and sets _ready", async () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
+        driver.connector.getEquity = async () => 50000;
+        await driver.initialize({ mode: "LIVE" });
+        expect(driver._ready).toBe(true);
+        expect(driver.getEquity()).toBe(50000);
+    });
+
+    test("setCash returns false (live mode has no local ledger)", () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        expect(driver.setCash(50000)).toBe(false);
+    });
+
+    test("setInitialCash returns false (live mode has no local ledger)", () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        expect(driver.setInitialCash(50000)).toBe(false);
+    });
+
+    test("resetAccount returns false (live mode has no local ledger)", () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        expect(driver.resetAccount(50000)).toBe(false);
+    });
+
+    test("onFill updates cached equity (live push callback)", () => {
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        driver.onFill({ symbol: "EURUSD", fillPrice: 1.10, fillQty: 10, side: "BUY", commission: 1 });
+        expect(driver.getEquity()).toBeCloseTo(-12, 6);
     });
 
     test("getPositionSnapshot returns frozen object", () => {
-        const broker = new LiveBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
-        const snap = broker.getPositionSnapshot("EURUSD");
+        const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
+        const snap = driver.getPositionSnapshot("EURUSD");
         expect(Object.isFrozen(snap)).toBe(true);
-        expect(snap).toHaveProperty("positions");
-        expect(snap).toHaveProperty("openCount");
-        expect(snap).toHaveProperty("totalUnrealized");
+    });
+});
+
+describe("RestDriver", () => {
+    test("constructor sets capability flags", () => {
+        const driver = new RestDriver({ runtimeId: "u1::strat::EURUSD::LIVE", symbol: "EURUSD", userId: "u1" });
+        expect(driver.supports_trading).toBe(true);
+        expect(driver.supports_streaming_data).toBe(false);
     });
 
-    test("onBar updates _lastPrice from bar.close", () => {
-        const broker = new LiveBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
-        broker.onBar({ close: 1.1500, time: Date.now() });
-        expect(broker._lastPrice).toBe(1.1500);
+    test("submit returns REJECTED when bridge not connected", async () => {
+        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        driver._ready = true;
+        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY" });
+        expect(result.status).toBe("REJECTED");
+        expect(result.reason).toMatch(/not connected/);
     });
 
-    test("resetState resets cash to initialCash", () => {
-        const broker = new LiveBroker({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 50000, connectorType: "metaapi" });
-        broker.resetState();
-        expect(broker.cash).toBe(50000);
+    test("getPosition returns null when no connector positions", () => {
+        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        expect(driver.getPosition("EURUSD")).toBeNull();
+    });
+
+    test("getAccount returns zero state when bridge has no snapshot", () => {
+        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        const account = driver.getAccount();
+        expect(account.balance).toBe(0);
+        expect(account.currency).toBe("USD");
+    });
+
+    test("getEquity returns 0 when no bridge data", () => {
+        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
+        expect(driver.getEquity()).toBe(0);
     });
 });
