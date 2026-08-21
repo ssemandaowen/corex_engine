@@ -39,6 +39,7 @@
     "@utils": "./utils",
     "@broker": "./broker",
     "@data": "./packages/corex-market-data",
+    "@auth": "./packages/corex-auth",
     "@events": "./events",
     "@config": "./config"
   },
@@ -84,6 +85,7 @@
       "^@utils/(.*)$": "<rootDir>/utils/$1",
       "^@broker/(.*)$": "<rootDir>/broker/$1",
       "^@data/(.*)$": "<rootDir>/packages/corex-market-data/$1",
+      "^@auth/(.*)$": "<rootDir>/packages/corex-auth/$1",
       "^@events/(.*)$": "<rootDir>/events/$1",
       "^@config/(.*)$": "<rootDir>/config/$1"
     }
