@@ -12,6 +12,7 @@
     "dev": "nodemon index.js",
     "test": "jest --passWithNoTests",
     "test:auth": "jest --runInBand test/auth.service.test.js test/auth.integration.test.js",
+    "status:set": "node scripts/gh-project-status.js",
     "account:reset": "node scripts/reset-paper-account.js",
     "ui:dev": "npm --prefix front_end run dev",
     "ui:build": "npm --prefix front_end run build",
