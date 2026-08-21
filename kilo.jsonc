@@ -1,0 +1,38 @@
+{
+  "$schema": "https://app.kilo.ai/config.json",
+
+  // Load AGENTS.md automatically (project root) plus every numbered rule file below.
+  // Files load in filesystem/alphabetical order — the numeric prefixes control priority.
+  "instructions": [
+    ".kilo/rules/*.md"
+  ],
+
+  // Custom agent personas for CoreX-specific workflows (see .kilo/agents/).
+  "agents": [
+    ".kilo/agents/*.md"
+  ],
+
+  "permission": {
+    "bash": {
+      "*": "ask",
+      "git *": "allow",
+      "npm test": "allow",
+      "npm run build": "allow",
+      "npm run lint": "allow",
+      "npm run typecheck": "allow",
+      "npm run dev": "ask",
+      "rm *": "deny",
+      "git push*": "ask",
+      "git reset --hard*": "deny"
+    },
+    "read": "allow",
+    "edit": "allow",
+    "webfetch": "ask",
+
+    // Never let an agent touch live trading credentials or env files automatically.
+    "external_directory": {
+      "**/.env*": "deny",
+      "**/secrets/**": "deny"
+    }
+  }
+}
