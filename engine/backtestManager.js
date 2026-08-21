@@ -22,7 +22,7 @@ const crypto    = require("crypto");
 const dataForge = require("data-forge");
 
 const logger    = require("@utils/logger");
-const broker    = require("@broker/twelvedata");
+const DataProviderFactory = require("@data/src/DataProviderFactory");
 const BacktestBroker = require("@broker/modes/BacktestBroker");
 const { fetchGuardedHistory, MAX_BARS_LIMIT } = require("@core/core/backtestDataResolver");
 const db        = require("@core/services/postgres");
@@ -403,7 +403,7 @@ class BacktestManager {
         logger.info(`[FETCH] Broker request: ${options.symbol} @ ${interval} (${outputsize} bars)`);
 
         // Use the guarded chunker to enforce API limits and system stability
-        const rows = await fetchGuardedHistory(broker, {
+        const rows = await fetchGuardedHistory(DataProviderFactory, {
             symbol: options.symbol,
             interval: interval,
             outputsize: Math.min(outputsize, MAX_BARS_LIMIT),

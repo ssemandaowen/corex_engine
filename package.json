@@ -22,9 +22,9 @@
     "status": "node ./utils/system-check.js",
     "mt5:receiver": "python engine/managers/mt5Receiver.py",
     "mt5:receiver:env": "set DOTENV_CONFIG_PATH=.env.receiver && python engine/managers/mt5Receiver.py",
-    "db:start": "pg_ctl start -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -w",
-    "db:stop": "pg_ctl stop -D \"%USERPROFILE%/scoop/persist/postgresql/data\" -m fast",
-    "db:status": "pg_ctl status -D \"%USERPROFILE%/scoop/persist/postgresql/data\"",
+    "db:start": "pg_ctl start -D \"D:/scoop/persist/postgresql/data\" -w",
+    "db:stop": "pg_ctl stop -D \"D:/scoop/persist/postgresql/data\" -m fast",
+    "db:status": "pg_ctl status -D \"D:/scoop/persist/postgresql/data\"",
     "bench:engine": "node scripts/bench/engine-micro-bench.js",
     "sync:strategy-manifest": "node scripts/sync-strategy-manifest.js",
     "worker:jobs": "node engine/workers/jobWorker.js",
@@ -37,6 +37,7 @@
     "@strategies": "./strategies",
     "@utils": "./utils",
     "@broker": "./broker",
+    "@data": "./packages/corex-market-data",
     "@events": "./events",
     "@config": "./config"
   },
@@ -63,7 +64,8 @@
     "technicalindicators": "^3.1.0",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "yahoo-finance2": "^4.0.2"
   },
   "devDependencies": {
     "globals": "^17.6.0",
@@ -80,6 +82,7 @@
       "^@strategies/(.*)$": "<rootDir>/strategies/$1",
       "^@utils/(.*)$": "<rootDir>/utils/$1",
       "^@broker/(.*)$": "<rootDir>/broker/$1",
+      "^@data/(.*)$": "<rootDir>/packages/corex-market-data/$1",
       "^@events/(.*)$": "<rootDir>/events/$1",
       "^@config/(.*)$": "<rootDir>/config/$1"
     }

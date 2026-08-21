@@ -3,6 +3,7 @@
 require("module-alias/register");
 
 const broker = require("@broker/twelvedata");
+const DataProviderFactory = require("@data/src/DataProviderFactory");
 const loader = require("@core/strategyLoader");
 const { bus, EVENTS } = require("@events/bus");
 const path = require("path");
@@ -472,11 +473,12 @@ class CoreXEngine {
                                 stats.hits += 1;
                             } else if (gapBars <= cachePolicy.maxGapBarsForPatch) {
                                 const patchLimit = Math.min(gapBars + 5, cachePolicy.maxPatchBars);
-                                const patch = await broker.fetchHistory({
-                                    symbol: sym,
-                                    interval: strategy.timeframe,
-                                    outputsize: patchLimit
-                                });
+                const patch = await DataProviderFactory.fetchHistorical({
+                    symbol: sym,
+                    interval: strategy.timeframe,
+                    outputsize: patchLimit,
+                    max_candles: patchLimit
+                });
 
                                 const patchRows = this._normalizeCachedBars(patch, tfMs)
                                     .filter((c) => c.time > lastTs);
@@ -499,10 +501,11 @@ class CoreXEngine {
                 if (needsFullFetch || candles.length < strategy.lookback) {
                     stats.miss += 1;
                     log.info(`[${id}] Syncing ${strategy.lookback} bars for ${sym} (full fetch)`);
-                    const fetched = await broker.fetchHistory({
+                    const fetched = await DataProviderFactory.fetchHistorical({
                         symbol: sym,
                         interval: strategy.timeframe,
-                        outputsize: strategy.lookback
+                        outputsize: strategy.lookback,
+                        max_candles: strategy.lookback
                     }).catch(err => {
                         log.error(`[${id}] History fetch failed for ${sym}: ${err.message}`);
                         return null;
