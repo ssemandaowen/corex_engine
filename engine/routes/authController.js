@@ -4,14 +4,11 @@
  * Auth Controller
  *
  * Routes:
- *   POST /api/auth/signin       — returns JWT + optional API key
+ *   POST /api/auth/signin       — returns JWT
  *   POST /api/auth/signout      — revokes the session in corex_sessions
  *   POST /api/auth/register     — creates a new BASIC user (not admin)
  *   POST /api/auth/bootstrap    — creates the first admin (requires ADMIN_SECRET)
  *   GET  /api/auth/me           — returns current user profile
- *   GET  /api/auth/apikeys      — list user's API keys
- *   POST /api/auth/apikeys      — issue a new API key
- *   DELETE /api/auth/apikeys/:id — revoke an API key
  */
 
 const express = require("express");
@@ -20,7 +17,6 @@ const crypto  = require("crypto");
 const db      = require("@core/services/postgres");
 const pgStore = require("@core/services/pgStore");
 const { hashPassword, verifyPassword, signToken, verifyToken } = require("@core/services/authService");
-const authGuard = require("@core/middleware/authGuard");
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -165,33 +161,11 @@ router.post("/signin", async (req, res) => {
             sessionId,
         });
 
-        // Optional long-lived API key for "remember me"
-        let authKey = null;
-        const rememberMe = req.body?.rememberMe === true;
-        if (req.body?.issueAuthKey === true || rememberMe) {
-            const defaultTtl = rememberMe ? 90 : 7;
-            const ttlDaysRaw = Number(req.body?.authKeyTtlDays ?? defaultTtl);
-            const ttlDays    = Math.max(1, Math.min(180, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : defaultTtl));
-            const expiresAt  = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
-            const issued = await pgStore.createApiKey(user.id, {
-                label: rememberMe ? "web-session-extended" : "web-session",
-                expiresAt,
-            });
-            if (issued?.key) {
-                authKey = {
-                    key:       issued.key,
-                    expiresAt: issued.expiresAt,
-                    id:        issued.id,
-                };
-            }
-        }
-
         return res.json({
             success: true,
             payload: {
                 token,
                 sessionId,
-                authKey,
                 user: sanitizeUser(user),
             },
         });
@@ -289,55 +263,6 @@ router.get("/me", async (req, res) => {
         return res.json({ success: true, payload: sanitizeUser(user) });
     } catch (err) {
         return res.status(401).json({ success: false, error: "UNAUTHORIZED", message: err.message });
-    }
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// API key management (all require auth)
-// ─────────────────────────────────────────────────────────────────────────────
-
-router.get("/apikeys", authGuard, async (req, res) => {
-    try {
-        const keys = await pgStore.listApiKeysForUser(req.user.sub);
-        return res.json({ success: true, payload: keys });
-    } catch (err) {
-        return res.status(500).json({ success: false, error: "API_KEYS_READ_FAILED", message: err.message });
-    }
-});
-
-router.post("/apikeys", authGuard, async (req, res) => {
-    try {
-        const label      = String(req.body?.label || "manual").trim() || "manual";
-        const ttlDaysRaw = Number(req.body?.ttlDays ?? 90);
-        const ttlDays    = Math.max(1, Math.min(365, Number.isFinite(ttlDaysRaw) ? ttlDaysRaw : 90));
-        const expiresAt  = req.body?.neverExpires === true
-            ? null
-            : new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000).toISOString();
-
-        const issued = await pgStore.createApiKey(req.user.sub, { label, expiresAt });
-        return res.json({
-            success: true,
-            payload: {
-                id:        issued.id,
-                label:     issued.label,
-                status:    issued.status,
-                key:       issued.key,
-                expiresAt: issued.expiresAt,
-                createdAt: issued.createdAt,
-            },
-        });
-    } catch (err) {
-        return res.status(500).json({ success: false, error: "API_KEY_CREATE_FAILED", message: err.message });
-    }
-});
-
-router.delete("/apikeys/:id", authGuard, async (req, res) => {
-    try {
-        const ok = await pgStore.revokeApiKey(req.user.sub, String(req.params.id || ""));
-        if (!ok) return res.status(404).json({ success: false, error: "API_KEY_NOT_FOUND" });
-        return res.json({ success: true });
-    } catch (err) {
-        return res.status(500).json({ success: false, error: "API_KEY_REVOKE_FAILED", message: err.message });
     }
 });
 

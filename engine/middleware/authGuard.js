@@ -3,27 +3,16 @@
 /**
  * CoreX Auth Guard
  *
- * Two authentication paths:
+ * Single authentication path:
+ *   Bearer JWT token (web UI sessions)
+ *   → decode JWT → check expiry → check corex_sessions for revocation → attach req.user
  *
- * 1. Bearer JWT token (web UI sessions)
- *    → decode JWT → check expiry → check corex_sessions for revocation → attach req.user
- *
- * 2. API key (x-auth-key header or ApiKey scheme)
- *    → resolve from DB → check status/expiry → cache for TTL → attach req.user
- *
- * The legacy admin key bypass has been removed.
  * A revoked JWT (user signed out) returns 401 even if the token is not expired.
  */
 
 const logger     = require("@utils/logger");
 const db         = require("@core/services/postgres");
-const pgStore    = require("@core/services/pgStore");
 const { verifyToken } = require("@core/services/authService");
-
-// API key cache config
-const KEY_CACHE_TTL_MS = Math.max(5_000, Number(process.env.AUTH_KEY_CACHE_TTL_MS || 60_000));
-const KEY_CACHE_MAX    = Math.max(100,   Number(process.env.AUTH_KEY_CACHE_MAX    || 5_000));
-const keyCache = new Map();
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Token extraction helpers
@@ -35,16 +24,6 @@ function readBearerToken(req) {
     const [scheme, token] = header.split(" ");
     if (scheme !== "Bearer" || !token) return null;
     return token.trim();
-}
-
-function readApiKey(req) {
-    const fromHeader = String(req.headers["x-auth-key"] || "").trim();
-    if (fromHeader) return fromHeader;
-    const header = String(req.headers.authorization || "").trim();
-    if (!header) return null;
-    const [scheme, token] = header.split(" ");
-    if (String(scheme || "").toLowerCase() === "apikey" && token) return token.trim();
-    return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -104,55 +83,10 @@ async function verifyJwtWithSession(token) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// API key cache helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getCachedApiKeyUser(apiKey) {
-    const hit = keyCache.get(apiKey);
-    if (!hit) return null;
-    if (hit.expiresAt < Date.now()) {
-        keyCache.delete(apiKey);
-        return null;
-    }
-    return { user: hit.user, keyId: hit.keyId };
-}
-
-function setCachedApiKeyUser(apiKey, user, keyId) {
-    if (keyCache.size >= KEY_CACHE_MAX) {
-        // Evict oldest entry
-        const firstKey = keyCache.keys().next().value;
-        if (firstKey) keyCache.delete(firstKey);
-    }
-    keyCache.set(apiKey, {
-        expiresAt: Date.now() + KEY_CACHE_TTL_MS,
-        user,
-        keyId,
-    });
-}
-
-async function verifyApiKeyStillActive(keyId) {
-    if (!keyId) return false;
-    try {
-        const { rows } = await db.query(
-            "SELECT status, expires_at FROM user_api_keys WHERE id = $1",
-            [String(keyId)]
-        );
-        if (!rows[0]) return false;
-        if (String(rows[0].status || "").toLowerCase() !== "active") return false;
-        const expiresAt = rows[0].expires_at;
-        if (expiresAt && new Date(expiresAt).getTime() < Date.now()) return false;
-        return true;
-    } catch {
-        return false; // Deny on error
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Main middleware
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function authGuard(req, res, next) {
-    // ── Path 1: JWT Bearer token ─────────────────────────────────────────────
     const token = readBearerToken(req);
     if (token) {
         try {
@@ -162,7 +96,6 @@ async function authGuard(req, res, next) {
                 role:      payload.role,
                 email:     payload.email,
                 sessionId: payload.sessionId,
-                authType:  "jwt",
             };
             return next();
         } catch (err) {
@@ -171,46 +104,6 @@ async function authGuard(req, res, next) {
                 logger.warn(`[authGuard] Revoked session attempt from ${req.ip}`);
                 return res.status(401).json({ success: false, error: "SESSION_REVOKED" });
             }
-            // Token is expired or malformed — fall through to API key
-        }
-    }
-
-    // ── Path 2: API key ──────────────────────────────────────────────────────
-    const apiKey = readApiKey(req);
-    if (apiKey) {
-        // Check cache first
-        const cached = getCachedApiKeyUser(apiKey);
-        if (cached) {
-            // Always verify revocation — cache only saves the DB lookup, not the status check
-            const isActive = await verifyApiKeyStillActive(cached.keyId);
-            if (!isActive) {
-                keyCache.delete(apiKey);
-                logger.warn(`[authGuard] Revoked API key attempt: ${cached.keyId}`);
-                return res.status(401).json({ success: false, error: "KEY_REVOKED" });
-            }
-            req.user = { ...cached.user, authType: "api_key" };
-            return next();
-        }
-
-        // Not cached — do a full DB lookup
-        try {
-            const resolved = await pgStore.resolveUserByApiKey(apiKey);
-            if (resolved?.user?.id) {
-                const userPayload = {
-                    sub:      resolved.user.id,
-                    role:     resolved.user.role,
-                    email:    resolved.user.email,
-                    name:     resolved.user.name,
-                    keyId:    resolved.keyId,
-                    authType: "api_key",
-                };
-                setCachedApiKeyUser(apiKey, userPayload, resolved.keyId);
-                pgStore.touchApiKeyUsage(resolved.keyId).catch(() => {});
-                req.user = userPayload;
-                return next();
-            }
-        } catch (err) {
-            logger.warn(`[authGuard] API key DB lookup failed: ${err.message}`);
         }
     }
 

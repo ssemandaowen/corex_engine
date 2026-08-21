@@ -57,3 +57,26 @@ Key locked decisions for broker layer:
 - 21 tests pass using injected mock (no real API calls)
 - Sample integration tests added: FileDataProvider loads real files from data/sample/
 - 70 total Package 2 tests pass across 6 suites
+
+---
+
+**2026-08-21** — Auth simplification (Package 3 pre-work):
+
+1. JWT TTL extended from 12 hours to 30 days (`authService.js:5`) — enables "stay logged in" like Gemini without refresh token complexity. Revocation still works via `corex_sessions` table check on every request.
+2. API key system removed from auth flow:
+   - Removed `/apikeys` routes (GET/POST/DELETE) from `authController.js`
+   - Removed API key issuance from signin (`rememberMe`/`issueAuthKey` block)
+   - Removed API key auth path from `authGuard.js` (simplified to JWT-only)
+   - Removed unused `readApiKey` function and API key cache
+   - Kept `pgStore` API key methods and `user_api_keys` table (no destructive DB changes — protected boundary)
+3. Rationale: API keys are unnecessary complexity for a solo-dev system where the web UI is the primary interface. Single JWT path is cleaner, easier to maintain, and sufficient for the use case.
+
+---
+
+**2026-08-21** — Server package split analysis (Package 3 scope decision):
+
+Existing packages (corex-broker-contract, corex-market-data) are **pure-logic** — no Express.js, no PostgreSQL. They extract trading/broker logic and data provider logic respectively, with re-export shims in `engine/`.
+
+Auth is fundamentally different: `authService.js` (97 lines) and `secretsVault.js` (413 lines) are pure crypto (Node.js `crypto` only) — extractable. But `pgStore.js` (767 lines), `authGuard.js` (233 lines), `authController.js` (344 lines), `roleGuard.js`, and `connectorSettingsService.js` (275 lines) are all tightly coupled to Express middleware + PostgreSQL queries. The `authGuard` middleware protects ALL engine routes in `server.js` — it cannot function without the server context.
+
+**Decision**: Follow the existing Package 1/2 pattern — extract only the two pure-logic files (authService, secretsVault) to `packages/corex-auth/`. Keep DB/Express-coupled code (pgStore auth methods, authGuard, authController) in `engine/` with re-export shims. Do NOT create a separate server package — this would be a fundamentally different scope from the existing pure-logic packages and add unnecessary complexity. See `plans/server-split-analysis.md` for full analysis.

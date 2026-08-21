@@ -2,7 +2,7 @@
 
 const crypto = require("crypto");
 
-const TOKEN_TTL_SEC = Number(process.env.AUTH_TOKEN_TTL_SEC || 60 * 60 * 12);
+const TOKEN_TTL_SEC = Number(process.env.AUTH_TOKEN_TTL_SEC || 60 * 60 * 24 * 30); // 30 days — stay logged in
 const DEFAULT_SECRET = process.env.JWT_SECRET || process.env.ADMIN_SECRET || "corex-dev-secret";
 
 function base64UrlEncode(input) {
