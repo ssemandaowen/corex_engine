@@ -80,3 +80,19 @@ Existing packages (corex-broker-contract, corex-market-data) are **pure-logic** 
 Auth is fundamentally different: `authService.js` (97 lines) and `secretsVault.js` (413 lines) are pure crypto (Node.js `crypto` only) — extractable. But `pgStore.js` (767 lines), `authGuard.js` (233 lines), `authController.js` (344 lines), `roleGuard.js`, and `connectorSettingsService.js` (275 lines) are all tightly coupled to Express middleware + PostgreSQL queries. The `authGuard` middleware protects ALL engine routes in `server.js` — it cannot function without the server context.
 
 **Decision**: Follow the existing Package 1/2 pattern — extract only the two pure-logic files (authService, secretsVault) to `packages/corex-auth/`. Keep DB/Express-coupled code (pgStore auth methods, authGuard, authController) in `engine/` with re-export shims. Do NOT create a separate server package — this would be a fundamentally different scope from the existing pure-logic packages and add unnecessary complexity. See `plans/server-split-analysis.md` for full analysis.
+
+---
+
+**2026-08-22** — Target architecture defined (modular monolith roadmap):
+
+Before further extraction, defined target architecture to avoid "organized piles without a plan." Core decisions:
+
+1. **Engine becomes thin composition root** — `engine/` owns only HTTP/WebSocket I/O, wiring, lifecycle. No business logic.
+2. **7 target packages** — strategy-engine, execution, portfolio, jobs, risk, notifications, settings (see `plans/target-architecture.md` for full map).
+3. **Event-driven communication** — Packages communicate via `@events/bus`, not direct imports. Loose coupling = add features without touching existing code.
+4. **Leaf-first extraction order** — Extract packages with no dependents first, work up the dependency tree.
+5. **Professional rebuild, not fixing** — We are NOT fixing old monolith tests. We are rebuilding toward a clear target. Old tests testing package internals will be deleted, replaced by integration tests.
+
+Open decisions flagged for Owen: event bus granularity, DB access pattern, frontend coupling, migration approach, testing strategy.
+
+**Next step**: Extract `corex-strategy-engine` — the core trading logic package.
