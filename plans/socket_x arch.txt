@@ -1,0 +1,39 @@
+ARCHITECTURAL TOPOLOGY — socket_x_broker_model (plain-text diagram reference)
+
+    ┌─────────────────────────────┐
+    │       External clients       │
+    │     AI agents, bots, apps     │
+    └───────────────┬───────────────┘
+           │ commands in     ↑ signals/fills out
+           │                 ┆ (dashed = outbound path)
+           ▼                 ┆
+    ┌─────────────────────────────┐
+    │        Socket_X broker        │
+    │     protocol, mode-agnostic    │
+    └───────────────┬───────────────┘
+           │ validated       ↑ signals, fills
+           │                 ┆ (dashed = outbound path)
+           ▼                 ┆
+    ┌─────────────────────────────┐
+    │     Risk & portfolio gate      │
+    │      same rules, every mode     │
+    └───────────────┬───────────────┘
+                     │ execute
+                     ▼
+    ┌─────────────────────────────┐
+    │         BrokerContract          │
+    │        adapter interface         │
+    └───────┬───────────────┬───────┘
+            │               │
+            ▼               ▼
+    ┌───────────────┐ ┌───────────────┐
+    │  Paper adapter  │ │  Live adapter  │
+    │ testing, simulated│ │ MetaApi bridge │
+    └───────────────┘ └───────────────┘
+
+Notes for implementation:
+- Solid arrows = inbound command path (client → Socket_X → risk gate → BrokerContract → adapter).
+- Dashed arrows = outbound event path (adapter/risk gate → Socket_X → client), running in parallel alongside the solid path at each layer, not through it.
+- Every layer is one-directional in responsibility: a layer only talks to its immediate neighbor above or below, never skips a layer.
+- Risk & portfolio gate is the only layer with "same rules, every mode" — Paper and Live both pass through it identically before reaching BrokerContract.
+- BrokerContract is the single branch point: everything above it is one path; below it splits to exactly one of two adapters (Paper or Live) based on `mode` in the envelope.

@@ -1,7 +1,7 @@
 {
   "name": "corex-broker-contract",
   "version": "2026.1.20",
-  "description": "CoreX Broker Contract Layer — BrokerContract, BaseBroker, RuntimeBrokerFactory, MT5 Bridge",
+  "description": "CoreX Broker Contract Layer — BrokerContract, BaseBroker, RuntimeBrokerFactory, Socket_X protocol, MT5 Bridge",
   "main": "src/mt5Bridge.js",
   "engines": {
     "node": ">=18.0.0"

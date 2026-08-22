@@ -14,6 +14,10 @@ const mt5Bridge = require("./src/mt5Bridge");
 const SharedFillSim = require("./src/utils/SharedFillSim");
 const SymbolNormalizer = require("./src/utils/SymbolNormalizer");
 const DataPaginationLayer = require("./src/utils/DataPaginationLayer");
+const { MessageEnvelope, REASON_CODES } = require("./src/socketx/MessageEnvelope");
+const { SocketXConnection } = require("./src/socketx/SocketXConnection");
+const { SocketXServer } = require("./src/socketx/SocketXServer");
+const { RiskGateway } = require("./src/socketx/RiskGateway");
 
 module.exports = {
     BrokerContract,
@@ -38,5 +42,10 @@ module.exports = {
     STANDARD_ORDER_PAYLOAD,
     BacktestBroker: BacktestDriver,
     PaperBroker: CoreXPaperDriver,
-    LiveBroker: MetaApiDriver
+    LiveBroker: MetaApiDriver,
+    MessageEnvelope,
+    REASON_CODES,
+    SocketXConnection,
+    SocketXServer,
+    RiskGateway,
 };

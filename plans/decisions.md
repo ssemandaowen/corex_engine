@@ -96,3 +96,28 @@ Before further extraction, defined target architecture to avoid "organized piles
 Open decisions flagged for Owen: event bus granularity, DB access pattern, frontend coupling, migration approach, testing strategy.
 
 **Next step**: Extract `corex-strategy-engine` — the core trading logic package.
+
+---
+
+**2026-08-23** — Socket_X protocol layer added to `corex-broker-contract`:
+
+1. **New architecture** — Socket_X is a protocol boundary that sits **above** BrokerContract, not a replacement for it. The stack is: External clients → Socket_X → Risk Gateway → BrokerContract → Adapter (Paper or Live). See `plans/socket_x arch.txt` for the topology diagram.
+2. **5 non-negotiable policy rules** enforced at the Socket_X layer:
+   - Idempotency: duplicate `messageId` rejected with `DUPLICATE_COMMAND`
+   - Exclusivity: one connection per `runtimeId`; second gets `SESSION_CONFLICT`
+   - Rate limiting: token-bucket per connection; over-limit gets `RATE_LIMITED`
+   - Mode-agnostic: Paper and Live share identical protocol behavior
+   - Risk gate enforcement: every command passes through RiskGateway before BrokerContract
+3. **Components** — `MessageEnvelope.js` (schema + validation + factory methods), `SocketXConnection.js` (per-connection state), `SocketXServer.js` (connection lifecycle + handshake), `RiskGateway.js` (policy enforcement).
+4. **RestDriver deprecated** — the REST/MQL5 driver is no longer useful given the new Socket_X architecture. It remains in the codebase but is no longer referenced as a primary path.
+5. **Tests** — 181 tests pass (11 suites). Socket_X verified against mock brokers; real WebSocket transport integration not yet end-to-end verified.
+
+---
+
+**2026-08-23** — Socket_X envelope schema finalized:
+
+- `schemaVersion`: "1.0" (only supported version)
+- Required fields: `messageId`, `runtimeId`, `mode` (paper|live), `type` (command|event), `payload` (object), `timestamp` (ISO8601)
+- Command actions: BUY, SELL, MODIFY, CANCEL, HELLO
+- Event types: HELLO_ACK, SNAPSHOT, PING, PONG, FILL, REJECT, POSITION_UPDATE
+- Reason codes: RISK_LIMIT_EXCEEDED, INVALID_SYMBOL, DUPLICATE_COMMAND, BROKER_ERROR, RATE_LIMITED, SESSION_CONFLICT, INVALID_ENVELOPE, UNAUTHORIZED
