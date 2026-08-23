@@ -209,6 +209,31 @@ describe("SocketXServer handshake", () => {
         expect(reject.payload.reasonCode).toBe("DUPLICATE_COMMAND");
     });
 
+    test("duplicate messageId rejected across reconnect for same runtimeId", () => {
+        const server = new SocketXServer();
+        const socket1 = _createMockSocket();
+        server.handleConnection(socket1);
+
+        const rid = "user1::strat1::EURUSD::paper";
+        socket1._emit("message", _createHelloEnvelope({ runtimeId: rid }));
+
+        const buyData = JSON.parse(_createBuyEnvelope({ runtimeId: rid }));
+        const dupMessageId = "reconnect-dup-id";
+        buyData.messageId = dupMessageId;
+
+        socket1._emit("message", JSON.stringify(buyData));
+        socket1._emit("close");
+
+        const socket2 = _createMockSocket();
+        server.handleConnection(socket2);
+        socket2._emit("message", _createHelloEnvelope({ runtimeId: rid }));
+        socket2._emit("message", JSON.stringify(buyData));
+
+        const calls = socket2.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const reject = calls.find((c) => c.payload.reasonCode === "DUPLICATE_COMMAND");
+        expect(reject).toBeDefined();
+    });
+
     test("over-rate-limit gets RATE_LIMITED", () => {
         const server = new SocketXServer();
         const socket = _createMockSocket();
@@ -283,7 +308,7 @@ describe("SocketXServer BUY → FILL round trip", () => {
         socket._emit("message", _createHelloEnvelope({ mode: "paper" }));
 
         RiskGateway.registerBroker("user1::strat1::EURUSD::paper", {
-            submit: jest.fn().mockResolvedValue({
+            handle: jest.fn().mockResolvedValue({
                 status: "FILLED",
                 orderId: "order-123",
                 avgFillPrice: 1.1050,
@@ -305,5 +330,36 @@ describe("SocketXServer BUY → FILL round trip", () => {
         expect(fill).toBeDefined();
         expect(fill.payload.symbol).toBe("EURUSD");
         expect(fill.payload.side).toBe("BUY");
+    });
+
+    test("BUY command blocked by risk floor results in REJECT event", async () => {
+        const server = new SocketXServer();
+        const socket = _createMockSocket();
+        server.handleConnection(socket);
+
+        socket._emit("message", _createHelloEnvelope({ mode: "paper" }));
+
+        RiskGateway.registerBroker("user1::strat1::EURUSD::paper", {
+            handle: jest.fn().mockResolvedValue({
+                status: "REJECTED",
+                reason: "RISK_FLOOR",
+                reasonCode: "RISK_LIMIT_EXCEEDED",
+            }),
+            initialize: jest.fn().mockResolvedValue(),
+        });
+
+        socket._emit("message", _createBuyEnvelope({
+            runtimeId: "user1::strat1::EURUSD::paper",
+            mode: "paper",
+            symbol: "EURUSD",
+            quantity: 1,
+        }));
+
+        await new Promise((r) => setTimeout(r, 100));
+
+        const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const reject = calls.find((c) => c.payload.eventType === "REJECT");
+        expect(reject).toBeDefined();
+        expect(reject.payload.reasonCode).toBe("RISK_LIMIT_EXCEEDED");
     });
 });

@@ -19,6 +19,7 @@ class RiskGateway {
                     mode: mode.toUpperCase(),
                 });
                 await broker.initialize({ runtimeId, mode });
+                _registerBrokerSession(runtimeId, broker);
             }
         } catch (err) {
             return { status: "REJECTED", reason: err.message, reasonCode: "BROKER_ERROR" };
@@ -28,15 +29,28 @@ class RiskGateway {
             let result;
             switch (action) {
             case "BUY":
+                result = await broker.handle({
+                    intent: "ENTER",
+                    side: "long",
+                    symbol: payload.symbol,
+                    quantity: payload.quantity,
+                    orderType: payload.orderType || "MARKET",
+                    sl: payload.stopLoss,
+                    tp: payload.takeProfit,
+                    price: payload.limitPrice,
+                });
+                break;
+
             case "SELL":
-                result = await broker.submit({
-                    Symbol: payload.symbol,
-                    Volume: payload.quantity,
-                    OrderType: payload.orderType || "MARKET",
-                    Side: action,
-                    Price: payload.limitPrice,
-                    StopLoss: payload.stopLoss,
-                    TakeProfit: payload.takeProfit,
+                result = await broker.handle({
+                    intent: "ENTER",
+                    side: "short",
+                    symbol: payload.symbol,
+                    quantity: payload.quantity,
+                    orderType: payload.orderType || "MARKET",
+                    sl: payload.stopLoss,
+                    tp: payload.takeProfit,
+                    price: payload.limitPrice,
                 });
                 break;
 
@@ -66,6 +80,10 @@ const _runtimeIdToBroker = new Map();
 
 function _findBrokerByRuntimeId(runtimeId) {
     return _runtimeIdToBroker.get(runtimeId) || null;
+}
+
+function _registerBrokerSession(runtimeId, broker) {
+    _runtimeIdToBroker.set(runtimeId, broker);
 }
 
 RiskGateway.registerBroker = function (runtimeId, broker) {

@@ -13,6 +13,7 @@ class SocketXServer {
         this.onCommand = onCommand || (() => {});
         this.connections = new Map();
         this.runtimeIdClaims = new Map();
+        this.runtimeIdDedup = new Map();
         this._server = null;
     }
 
@@ -78,7 +79,7 @@ class SocketXServer {
 
             if (envelope.type !== "command") return;
 
-            if (connection.isDuplicate(envelope.messageId)) {
+            if (this.isDuplicate(connection.runtimeId, envelope.messageId)) {
                 const reject = MessageEnvelope.reject({
                     runtimeId: connection.runtimeId,
                     mode: connection.mode,
@@ -102,7 +103,7 @@ class SocketXServer {
                 return;
             }
 
-            connection.recordMessageProcessed(envelope.messageId);
+            this.recordMessageProcessed(connection.runtimeId, envelope.messageId);
 
             try {
                 const result = await RiskGateway.submit({ connection, command: envelope });
@@ -227,6 +228,29 @@ class SocketXServer {
         }
     }
 
+    isDuplicate(runtimeId, messageId) {
+        const set = this.runtimeIdDedup.get(runtimeId);
+        if (!set) return false;
+        return set.has(messageId);
+    }
+
+    recordMessageProcessed(runtimeId, messageId) {
+        let set = this.runtimeIdDedup.get(runtimeId);
+        if (!set) {
+            set = new Set();
+            this.runtimeIdDedup.set(runtimeId, set);
+        }
+        if (set.size >= 10000) {
+            const first = set.values().next().value;
+            if (first) set.delete(first);
+        }
+        set.add(messageId);
+    }
+
+    clearDedupForRuntime(runtimeId) {
+        this.runtimeIdDedup.delete(runtimeId);
+    }
+
     pruneConnection(connectionId, reason) {
         const conn = this.connections.get(connectionId);
         if (!conn) return;
@@ -250,6 +274,7 @@ class SocketXServer {
         }
         this.connections.clear();
         this.runtimeIdClaims.clear();
+        this.runtimeIdDedup.clear();
     }
 }
 
