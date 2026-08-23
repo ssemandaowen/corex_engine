@@ -33,9 +33,9 @@ External clients (AI agents, bots, apps)
 
 ### Socket_X Components
 - `src/socketx/MessageEnvelope.js` — envelope schema, validation, factory methods (helloAck, reject, snapshot, ping, fill, positionUpdate).
-- `src/socketx/SocketXConnection.js` — per-connection state (runtimeId claim, heartbeat, rate limiter, dedup cache).
-- `src/socketx/SocketXServer` — connection lifecycle, handshake (HELLO → HELLO_ACK + SNAPSHOT), command routing.
-- `src/socketx/RiskGateway` — policy enforcement (idempotency, exclusivity, rate limiting, mode-agnostic, risk gate) before BrokerContract.
+- `src/socketx/SocketXConnection.js` — per-connection state (runtimeId claim, heartbeat, rate limiter).
+- `src/socketx/SocketXServer` — connection lifecycle, handshake (HELLO → HELLO_ACK + SNAPSHOT), command routing, **idempotency cache keyed by runtimeId** (persists across reconnects).
+- `src/socketx/RiskGateway` — routes validated commands through `broker.handle()` which enforces risk floor + margin guardrails before execution.
 
 ## Boundaries (do not violate without asking Owen)
 - `runtimeId` = `userId::strategyName::symbol::mode` — never bypass.
