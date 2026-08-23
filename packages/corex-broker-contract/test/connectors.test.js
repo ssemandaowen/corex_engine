@@ -2,7 +2,6 @@
 
 const MT5MQL5Connector = require("../src/connectors/MT5MQL5Connector");
 const MetaApiConnector = require("../src/connectors/MetaApiConnector");
-const RestConnector = require("../src/connectors/RestConnector");
 const { NETWORK_TUNING, EVENTS } = require("@config/constants");
 
 describe("Connectors", () => {
@@ -54,27 +53,6 @@ describe("Connectors", () => {
             const connector = new MetaApiConnector();
             const result = await connector.liquidatePosition("EURUSD", "r1");
             expect(result.success).toBe(true);
-        });
-    });
-
-    describe("RestConnector", () => {
-        test("constructor sets webhookUrl and secret from env", () => {
-            const connector = new RestConnector({ webhookUrl: "http://example.com/webhook" });
-            expect(connector.webhookUrl).toBe("http://example.com/webhook");
-            expect(connector.secret).toBeDefined();
-        });
-
-        test("executeOrder returns error when no webhookUrl", async () => {
-            const connector = new RestConnector({});
-            const result = await connector.executeOrder({ intent: "ENTER" });
-            expect(result.success).toBe(false);
-            expect(result.error).toMatch(/webhook URL/);
-        });
-
-        test("liquidatePosition delegates to executeOrder", async () => {
-            const connector = new RestConnector({});
-            const result = await connector.liquidatePosition("EURUSD", "r1");
-            expect(result.success).toBe(false);
         });
     });
 });

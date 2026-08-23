@@ -3,7 +3,6 @@
 const BacktestDriver = require("../src/drivers/BacktestDriver");
 const CoreXPaperDriver = require("../src/drivers/CoreXPaperDriver");
 const MetaApiDriver = require("../src/drivers/MetaApiDriver");
-const RestDriver = require("../src/drivers/RestDriver");
 
 describe("BacktestDriver", () => {
     test("extends BaseBroker and has capability flags", () => {
@@ -263,38 +262,5 @@ describe("MetaApiDriver", () => {
         const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
         const snap = driver.getPositionSnapshot("EURUSD");
         expect(Object.isFrozen(snap)).toBe(true);
-    });
-});
-
-describe("RestDriver", () => {
-    test("constructor sets capability flags", () => {
-        const driver = new RestDriver({ runtimeId: "u1::strat::EURUSD::LIVE", symbol: "EURUSD", userId: "u1" });
-        expect(driver.supports_trading).toBe(true);
-        expect(driver.supports_streaming_data).toBe(false);
-    });
-
-    test("submit returns REJECTED when bridge not connected", async () => {
-        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
-        driver._ready = true;
-        const result = await driver.submit({ Symbol: "EURUSD", Volume: 1, OrderType: "MARKET", Side: "BUY" });
-        expect(result.status).toBe("REJECTED");
-        expect(result.reason).toMatch(/not connected/);
-    });
-
-    test("getPosition returns null when no connector positions", () => {
-        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
-        expect(driver.getPosition("EURUSD")).toBeNull();
-    });
-
-    test("getAccount returns zero state when bridge has no snapshot", () => {
-        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
-        const account = driver.getAccount();
-        expect(account.balance).toBe(0);
-        expect(account.currency).toBe("USD");
-    });
-
-    test("getEquity returns 0 when no bridge data", () => {
-        const driver = new RestDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1" });
-        expect(driver.getEquity()).toBe(0);
     });
 });

@@ -259,7 +259,6 @@ class ConnectorSettingsService {
             twelvedata: () => require("@broker/twelvedata"),
             metaapi: () => require("@broker/connectors/MetaApiConnector"),
             mt5_bridge: () => require("@broker/connectors/MT5MQL5Connector"),
-            oanda: () => require("@broker/connectors/RestConnector")
         };
         const fn = map[connectorType];
         if (!fn) return null;

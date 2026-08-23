@@ -4,16 +4,12 @@ const { MODES, PAPER_BROKER_DEFAULTS, DEFAULT_STRATEGY_CONFIG } = require("@conf
 const BacktestDriver = require("./drivers/BacktestDriver");
 const CoreXPaperDriver = require("./drivers/CoreXPaperDriver");
 const MetaApiDriver = require("./drivers/MetaApiDriver");
-const RestDriver = require("./drivers/RestDriver");
 
 const DRIVER_REGISTRY = {
     BACKTEST: BacktestDriver,
     PAPER: CoreXPaperDriver,
     LIVE: MetaApiDriver,
     METAAPI: MetaApiDriver,
-    REST: RestDriver,
-    MT5: RestDriver,
-    MQL5: RestDriver
 };
 
 class RuntimeBrokerFactory {
@@ -85,17 +81,6 @@ class RuntimeBrokerFactory {
             });
             break;
 
-        case "REST":
-            broker = new RestDriver({
-                runtimeId: opts.runtimeId,
-                symbol: assetSymbol,
-                userId: opts.userId,
-                mode: "LIVE",
-                initialCash: 0,
-                brokerConfig: opts.brokerConfig || {}
-            });
-            break;
-
         default:
             throw new Error(`[BrokerFactory] Production failure: execution mode '${mode}' maps to no valid driver.`);
         }
@@ -122,7 +107,6 @@ class RuntimeBrokerFactory {
         case MODES.PAPER:
             return "PAPER";
         case MODES.LIVE:
-            if (connectorType === "REST" || connectorType === "MT5" || connectorType === "MQL5") return "REST";
             return "METAAPI";
         default:
             return mode;

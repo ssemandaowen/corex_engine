@@ -40,7 +40,7 @@ External clients (AI agents, bots, apps)
 ## Boundaries (do not violate without asking Owen)
 - `runtimeId` = `userId::strategyName::symbol::mode` — never bypass.
 - BrokerContract interface: `submit`/`modify`/`cancel`/`query_status` are the primary async methods. `placeOrder`/`getPosition`/`getAccount` are deprecated delegates.
-- `CoreXPaperDriver` owns its local virtual ledger — never route paper through MetaAPI/REST.
+- `CoreXPaperDriver` owns its local virtual ledger — never route paper through MetaAPI.
 - `MetaApiDriver`: Live mode — broker owns the ledger. `setCash`/`setInitialCash`/`resetAccount` return `false` (no-op).
 - `SymbolNormalizer`: every driver AND every data source normalizes at its boundary before anything reaches the internal event bus.
 - `SharedFillSim`: single fill-simulation module shared by BacktestDriver and CoreXPaperDriver — never duplicate fill logic.

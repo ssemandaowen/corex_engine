@@ -5,10 +5,8 @@ const BaseBroker = require("./src/base/BaseBroker");
 const BacktestDriver = require("./src/drivers/BacktestDriver");
 const CoreXPaperDriver = require("./src/drivers/CoreXPaperDriver");
 const MetaApiDriver = require("./src/drivers/MetaApiDriver");
-const RestDriver = require("./src/drivers/RestDriver");
 const MT5MQL5Connector = require("./src/connectors/MT5MQL5Connector");
 const MetaApiConnector = require("./src/connectors/MetaApiConnector");
-const RestConnector = require("./src/connectors/RestConnector");
 const RuntimeBrokerFactory = require("./src/RuntimeBrokerFactory");
 const mt5Bridge = require("./src/mt5Bridge");
 const SharedFillSim = require("./src/utils/SharedFillSim");
@@ -26,10 +24,8 @@ module.exports = {
     BacktestDriver,
     CoreXPaperDriver,
     MetaApiDriver,
-    RestDriver,
     MT5MQL5Connector,
     MetaApiConnector,
-    RestConnector,
     RuntimeBrokerFactory,
     mt5Bridge,
     SharedFillSim,

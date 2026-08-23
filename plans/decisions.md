@@ -114,6 +114,22 @@ Open decisions flagged for Owen: event bus granularity, DB access pattern, front
 
 ---
 
+**2026-08-23** — RestDriver and RestConnector removed from `corex-broker-contract`:
+
+The REST/MQL5 driver and its connector were deprecated when Socket_X was introduced. Removed:
+- `src/drivers/RestDriver.js` — deleted
+- `src/connectors/RestConnector.js` — deleted
+- `src/RuntimeBrokerFactory.js` — removed REST/MT5/MQL5 from DRIVER_REGISTRY, removed REST switch case, simplified `_resolveDriverType` to always return METAAPI for LIVE mode
+- `index.js` — removed exports
+- `test/connectors.test.js` — removed RestConnector test block
+- `test/factory.test.js` — removed RestDriver test
+- `engine/services/connectorSettingsService.js` — removed `oanda` connector reference
+- `AGENTS.md` — removed REST references
+
+The package now has exactly 3 drivers: Backtest, Paper (CoreX), Live (MetaApi). Socket_X supersedes the old REST path.
+
+---
+
 **2026-08-23** — Socket_X envelope schema finalized:
 
 - `schemaVersion`: "1.0" (only supported version)

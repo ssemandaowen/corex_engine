@@ -5,7 +5,6 @@ const { MODES, PAPER_BROKER_DEFAULTS, DEFAULT_STRATEGY_CONFIG } = require("@conf
 const BacktestDriver = require("../src/drivers/BacktestDriver");
 const CoreXPaperDriver = require("../src/drivers/CoreXPaperDriver");
 const MetaApiDriver = require("../src/drivers/MetaApiDriver");
-const RestDriver = require("../src/drivers/RestDriver");
 
 describe("RuntimeBrokerFactory", () => {
     beforeEach(() => {
@@ -47,16 +46,6 @@ describe("RuntimeBrokerFactory", () => {
         });
         expect(broker).toBeInstanceOf(MetaApiDriver);
         expect(broker.supports_streaming_data).toBe(false);
-    });
-
-    test("creates RestDriver for LIVE mode with rest/mt5 connector", () => {
-        const broker = factory.createBroker(MODES.LIVE, {
-            runtimeId: "u1::strat::EURUSD::LIVE",
-            symbol: "EURUSD",
-            userId: "u1",
-            connectorType: "rest"
-        });
-        expect(broker).toBeInstanceOf(RestDriver);
     });
 
     test("normalizes lowercase mode strings", () => {
