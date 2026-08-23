@@ -15,6 +15,11 @@ const REASON_CODES = [
     "SESSION_CONFLICT",
     "INVALID_ENVELOPE",
     "UNAUTHORIZED",
+    "BROKER_UNAUTHORIZED",
+    "ACCOUNT_LIMIT_EXCEEDED",
+    "ACCOUNT_DEGRADED",
+    "NOT_FOUND",
+    "VALIDATION_ERROR",
 ];
 
 function _isNonEmptyString(v) {
@@ -158,17 +163,21 @@ class MessageEnvelope {
         });
     }
 
-    static ping() {
+    static ack({ runtimeId, mode, originalMessageId }) {
         return new MessageEnvelope({
             messageId: crypto.randomUUID(),
-            runtimeId: "system",
-            mode: "paper",
+            runtimeId,
+            mode,
             type: "event",
-            payload: { eventType: "PING" },
+            payload: {
+                eventType: "ACK",
+                originalMessageId,
+                status: "RECEIVED",
+            },
         });
     }
 
-    static fill({ runtimeId, mode, orderId, positionId, symbol, side, quantity, fillPrice }) {
+    static fill({ runtimeId, mode, originalMessageId, orderId, positionId, symbol, side, quantity, fillPrice }) {
         return new MessageEnvelope({
             messageId: crypto.randomUUID(),
             runtimeId,
@@ -176,6 +185,7 @@ class MessageEnvelope {
             type: "event",
             payload: {
                 eventType: "FILL",
+                originalMessageId,
                 orderId,
                 positionId,
                 symbol,
@@ -184,6 +194,16 @@ class MessageEnvelope {
                 fillPrice,
                 timestamp: new Date().toISOString(),
             },
+        });
+    }
+
+    static ping() {
+        return new MessageEnvelope({
+            messageId: crypto.randomUUID(),
+            runtimeId: "system",
+            mode: "paper",
+            type: "event",
+            payload: { eventType: "PING" },
         });
     }
 

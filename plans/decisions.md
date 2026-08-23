@@ -99,6 +99,21 @@ Open decisions flagged for Owen: event bus granularity, DB access pattern, front
 
 ---
 
+**2026-08-23** — Socket_X account model + operational fixes added to `corex-broker-contract`:
+
+1. **Account model** — New `Account` model with structured IDs (`cx_pap_<ulid>` / `cx_liv_<ulid>`). Mode is resolved server-side from the account record — client cannot assert mode anywhere in the protocol.
+2. **Connection roles** — Controller (exclusive, can trade) and observer (read-only, receives SNAPSHOT, max 5 per account). Observers cannot submit trading commands.
+3. **HELLO revision** — Client sends `{ accountId, role }` instead of `mode`. Server resolves account type from accountId via DB lookup.
+4. **ACK event** — Emitted immediately when command passes validation and is handed to RiskGateway, before broker responds. Gives client instant receipt distinct from FILL.
+5. **FILL.originalMessageId** — Added so clients can deterministically map async fills back to triggering commands.
+6. **BROKER_UNAUTHORIZED** — Broker auth failures emit REJECT but keep the connection open and retain controller claim. `ACCOUNT_DEGRADED` reserved for future use.
+7. **Idempotency fix** — Moved from per-connection to per-runtimeId (persists across reconnects).
+8. **Risk gateway fix** — Changed from `broker.submit()` to `broker.handle()` to enforce risk floor + margin guardrails.
+9. **Migration** — New `trading_accounts` table in `db/migrations/025_trading_accounts.sql`.
+10. **Tests** — 210 tests pass across 12 suites.
+
+---
+
 **2026-08-23** — Socket_X protocol layer added to `corex-broker-contract`:
 
 1. **New architecture** — Socket_X is a protocol boundary that sits **above** BrokerContract, not a replacement for it. The stack is: External clients → Socket_X → Risk Gateway → BrokerContract → Adapter (Paper or Live). See `plans/socket_x arch.txt` for the topology diagram.

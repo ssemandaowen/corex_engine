@@ -4,16 +4,19 @@ const crypto = require("crypto");
 const { MessageEnvelope, REASON_CODES } = require("./MessageEnvelope");
 const { SocketXConnection } = require("./SocketXConnection");
 const { RiskGateway } = require("./RiskGateway");
-const RuntimeBrokerFactory = require("../RuntimeBrokerFactory");
+const { parseAccountId } = require("../account/AccountId");
+const { Account } = require("../account/Account");
 
 class SocketXServer {
-    constructor({ transport, onConnection, onCommand } = {}) {
+    constructor({ transport, onConnection, onCommand, accountResolver } = {}) {
         this.transport = transport;
         this.onConnection = onConnection || (() => {});
         this.onCommand = onCommand || (() => {});
+        this.accountResolver = accountResolver || null;
         this.connections = new Map();
         this.runtimeIdClaims = new Map();
         this.runtimeIdDedup = new Map();
+        this.accountObservers = new Map();
         this._server = null;
     }
 
@@ -79,6 +82,18 @@ class SocketXServer {
 
             if (envelope.type !== "command") return;
 
+            if (connection.role === "observer") {
+                const reject = MessageEnvelope.reject({
+                    runtimeId: connection.runtimeId,
+                    mode: connection.mode,
+                    originalMessageId: envelope.messageId,
+                    reasonCode: "UNAUTHORIZED",
+                    reasonMessage: "Observer role cannot submit trading commands",
+                });
+                sendEnvelope(reject);
+                return;
+            }
+
             if (this.isDuplicate(connection.runtimeId, envelope.messageId)) {
                 const reject = MessageEnvelope.reject({
                     runtimeId: connection.runtimeId,
@@ -105,13 +120,21 @@ class SocketXServer {
 
             this.recordMessageProcessed(connection.runtimeId, envelope.messageId);
 
+            const ack = MessageEnvelope.ack({
+                runtimeId: connection.runtimeId,
+                mode: connection.mode,
+                originalMessageId: envelope.messageId,
+            });
+            sendEnvelope(ack);
+
             try {
                 const result = await RiskGateway.submit({ connection, command: envelope });
 
-                if (result.status === "FILLED" || result.status === "FILLED") {
+                if (result.status === "FILLED") {
                     const fill = MessageEnvelope.fill({
                         runtimeId: connection.runtimeId,
                         mode: connection.mode,
+                        originalMessageId: envelope.messageId,
                         orderId: result.orderId,
                         positionId: result.orderId,
                         symbol: envelope.payload.symbol,
@@ -146,63 +169,121 @@ class SocketXServer {
 
         socket.on("close", () => {
             this._releaseClaim(connectionId);
+            this._removeObserver(connection);
             if (connection) connection.destroy();
             this.connections.delete(connectionId);
         });
 
         socket.on("error", () => {
             this._releaseClaim(connectionId);
+            this._removeObserver(connection);
             if (connection) connection.destroy();
             this.connections.delete(connectionId);
         });
     }
 
-    _handleHello(connection, envelope, sendEnvelope) {
-        const runtimeId = envelope.runtimeId || envelope.payload.runtimeId;
-        const mode = (envelope.mode || envelope.payload.mode || "paper").toLowerCase();
+    async _handleHello(connection, envelope, sendEnvelope) {
+        const accountId = envelope.payload.accountId || envelope.runtimeId;
+        const role = envelope.payload.role || "controller";
+        const mode = (envelope.mode || "paper").toLowerCase();
 
-        if (!runtimeId) {
+        const roleError = this._validateRole(role);
+        if (roleError) {
             const reject = MessageEnvelope.reject({
-                runtimeId: "unknown",
-                mode: "paper",
+                runtimeId: accountId || "unknown",
+                mode,
                 originalMessageId: envelope.messageId,
                 reasonCode: "INVALID_ENVELOPE",
-                reasonMessage: "runtimeId required in HELLO",
+                reasonMessage: roleError,
             });
             sendEnvelope(reject);
             this._closeSocket(connection);
             return;
         }
 
-        if (this.runtimeIdClaims.has(runtimeId)) {
-            const existingConnId = this.runtimeIdClaims.get(runtimeId);
-            if (existingConnId !== connection.id && this.connections.has(existingConnId)) {
+        const parsed = accountId ? parseAccountId(accountId) : { valid: false };
+        if (!parsed.valid) {
+            const reject = MessageEnvelope.reject({
+                runtimeId: accountId || "unknown",
+                mode,
+                originalMessageId: envelope.messageId,
+                reasonCode: "INVALID_ENVELOPE",
+                reasonMessage: parsed.reason || "Invalid account ID",
+            });
+            sendEnvelope(reject);
+            this._closeSocket(connection);
+            return;
+        }
+
+        let accountType = parsed.type;
+        if (this.accountResolver) {
+            const resolved = await this.accountResolver(accountId);
+            if (!resolved) {
                 const reject = MessageEnvelope.reject({
-                    runtimeId,
+                    runtimeId: accountId,
                     mode,
                     originalMessageId: envelope.messageId,
-                    reasonCode: "SESSION_CONFLICT",
-                    reasonMessage: "runtimeId already claimed by another connection",
+                    reasonCode: "NOT_FOUND",
+                    reasonMessage: "Account not found",
                 });
                 sendEnvelope(reject);
                 this._closeSocket(connection);
                 return;
             }
+            accountType = resolved.type;
         }
 
-        connection.runtimeId = runtimeId;
-        connection.mode = mode;
+        const resolvedMode = accountType === "live" ? "live" : "paper";
+
+        if (role === "controller") {
+            if (this.runtimeIdClaims.has(accountId)) {
+                const existingConnId = this.runtimeIdClaims.get(accountId);
+                if (existingConnId !== connection.id && this.connections.has(existingConnId)) {
+                    const reject = MessageEnvelope.reject({
+                        runtimeId: accountId,
+                        mode: resolvedMode,
+                        originalMessageId: envelope.messageId,
+                        reasonCode: "SESSION_CONFLICT",
+                        reasonMessage: "Account already has an active controller",
+                    });
+                    sendEnvelope(reject);
+                    this._closeSocket(connection);
+                    return;
+                }
+            }
+            this.runtimeIdClaims.set(accountId, connection.id);
+        } else {
+            const observers = this.accountObservers.get(accountId) || new Set();
+            const maxObservers = (Account && Account.DEFAULT_LIMITS && Account.DEFAULT_LIMITS.observersPerAccount) || 5;
+            if (observers.size >= maxObservers) {
+                const reject = MessageEnvelope.reject({
+                    runtimeId: accountId,
+                    mode: resolvedMode,
+                    originalMessageId: envelope.messageId,
+                    reasonCode: "RATE_LIMITED",
+                    reasonMessage: `Max ${maxObservers} observers per account`,
+                });
+                sendEnvelope(reject);
+                this._closeSocket(connection);
+                return;
+            }
+            observers.add(connection.id);
+            this.accountObservers.set(accountId, observers);
+        }
+
+        connection.runtimeId = accountId;
+        connection.mode = resolvedMode;
+        connection.role = role;
         connection.isClaimed = true;
-        this.runtimeIdClaims.set(runtimeId, connection.id);
 
         connection.startHeartbeat();
 
-        const ack = MessageEnvelope.helloAck({ runtimeId, mode });
+        const ack = MessageEnvelope.helloAck({ runtimeId: accountId, mode: resolvedMode });
         sendEnvelope(ack);
 
         const snapshot = MessageEnvelope.snapshot({
-            runtimeId,
-            mode,
+            runtimeId: accountId,
+            mode: resolvedMode,
             positions: [],
             orders: [],
             balance: 0,
@@ -210,6 +291,25 @@ class SocketXServer {
         sendEnvelope(snapshot);
 
         this.onConnection(connection);
+    }
+
+    _validateRole(role) {
+        const validRoles = ["controller", "observer"];
+        if (!validRoles.includes(role)) {
+            return `role must be one of: ${validRoles.join(", ")}`;
+        }
+        return null;
+    }
+
+    _removeObserver(connection) {
+        if (connection.role !== "observer" || !connection.runtimeId) return;
+        const observers = this.accountObservers.get(connection.runtimeId);
+        if (observers) {
+            observers.delete(connection.id);
+            if (observers.size === 0) {
+                this.accountObservers.delete(connection.runtimeId);
+            }
+        }
     }
 
     _closeSocket(connection) {
@@ -255,6 +355,7 @@ class SocketXServer {
         const conn = this.connections.get(connectionId);
         if (!conn) return;
         this._releaseClaim(connectionId);
+        this._removeObserver(conn);
         conn.destroy();
         this.connections.delete(connectionId);
     }
@@ -275,6 +376,7 @@ class SocketXServer {
         this.connections.clear();
         this.runtimeIdClaims.clear();
         this.runtimeIdDedup.clear();
+        this.accountObservers.clear();
     }
 }
 

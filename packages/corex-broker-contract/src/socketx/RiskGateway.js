@@ -2,6 +2,22 @@
 
 const RuntimeBrokerFactory = require("../RuntimeBrokerFactory");
 
+const AUTH_ERROR_PATTERNS = [
+    /401/,
+    /unauthorized/i,
+    /authentication/i,
+    /credential/i,
+    /token.*expired/i,
+    /invalid.*token/i,
+    /access.*denied/i,
+    /forbidden/i,
+];
+
+function _isAuthError(err) {
+    const msg = String(err?.message || "");
+    return AUTH_ERROR_PATTERNS.some((re) => re.test(msg));
+}
+
 class RiskGateway {
     static async submit({ connection, command }) {
         const { runtimeId, mode, payload } = command;
@@ -22,7 +38,8 @@ class RiskGateway {
                 _registerBrokerSession(runtimeId, broker);
             }
         } catch (err) {
-            return { status: "REJECTED", reason: err.message, reasonCode: "BROKER_ERROR" };
+            const reasonCode = _isAuthError(err) ? "BROKER_UNAUTHORIZED" : "BROKER_ERROR";
+            return { status: "REJECTED", reason: err.message, reasonCode };
         }
 
         try {
@@ -71,7 +88,8 @@ class RiskGateway {
 
             return result;
         } catch (err) {
-            return { status: "REJECTED", reason: err.message, reasonCode: "BROKER_ERROR" };
+            const reasonCode = _isAuthError(err) ? "BROKER_UNAUTHORIZED" : "BROKER_ERROR";
+            return { status: "REJECTED", reason: err.message, reasonCode };
         }
     }
 }

@@ -16,24 +16,24 @@ function _createMockSocket() {
     };
 }
 
-function _createHelloEnvelope({ runtimeId = "user1::strat1::EURUSD::paper", mode = "paper", authToken = "test-token" }) {
+function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", role = "controller", mode = "paper" }) {
     return JSON.stringify({
         schemaVersion: "1.0",
         messageId: `msg-${Date.now()}-${Math.random()}`,
-        runtimeId,
+        runtimeId: accountId,
         mode,
         timestamp: new Date().toISOString(),
         type: "command",
-        payload: { action: "HELLO", authToken },
+        payload: { action: "HELLO", accountId, role },
     });
 }
 
-function _createBuyEnvelope({ runtimeId = "user1::strat1::EURUSD::paper", mode = "paper", symbol = "EURUSD", quantity = 1 }) {
+function _createBuyEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", symbol = "EURUSD", quantity = 1 }) {
     return JSON.stringify({
         schemaVersion: "1.0",
         messageId: `buy-${Date.now()}-${Math.random()}`,
-        runtimeId,
-        mode,
+        runtimeId: accountId,
+        mode: "paper",
         timestamp: new Date().toISOString(),
         type: "command",
         payload: { action: "BUY", symbol, quantity, orderType: "market" },
@@ -108,20 +108,10 @@ describe("TokenBucket", () => {
 });
 
 describe("SocketXConnection", () => {
-    test("detects duplicate messageIds", () => {
-        const socket = _createMockSocket();
-        const conn = new SocketXConnection({
-            id: "c1", socket, runtimeId: "r1", mode: "paper", server: { pruneConnection: jest.fn() },
-        });
-        conn.recordMessageProcessed("msg-123");
-        expect(conn.isDuplicate("msg-123")).toBe(true);
-        expect(conn.isDuplicate("msg-456")).toBe(false);
-    });
-
     test("rate limiter blocks over-limit", () => {
         const socket = _createMockSocket();
         const conn = new SocketXConnection({
-            id: "c1", socket, runtimeId: "r1", mode: "paper", server: { pruneConnection: jest.fn() },
+            id: "c1", socket, runtimeId: "cx_pap_01HZX89K329RVTNABCDEF1234", mode: "paper", server: { pruneConnection: jest.fn() },
         });
         for (let i = 0; i < 20; i++) {
             conn.checkRateLimit();
@@ -133,12 +123,10 @@ describe("SocketXConnection", () => {
         const socket = _createMockSocket();
         const server = { pruneConnection: jest.fn() };
         const conn = new SocketXConnection({
-            id: "c1", socket, runtimeId: "r1", mode: "paper", server,
+            id: "c1", socket, runtimeId: "cx_pap_01HZX89K329RVTNABCDEF1234", mode: "paper", server,
         });
-        conn.recordMessageProcessed("msg-1");
         conn.destroy();
         expect(conn.isAlive).toBe(false);
-        expect(conn.processedMessageIds.size).toBe(0);
     });
 });
 
@@ -148,23 +136,24 @@ describe("SocketXServer handshake", () => {
         const socket = _createMockSocket();
         server.handleConnection(socket);
 
-        socket._emit("message", _createHelloEnvelope({}));
+        socket._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
 
         expect(socket.send).toHaveBeenCalled();
         const firstCall = JSON.parse(socket.send.mock.calls[0][0]);
         expect(firstCall.payload.eventType).toBe("HELLO_ACK");
-        expect(firstCall.runtimeId).toBe("user1::strat1::EURUSD::paper");
+        expect(firstCall.runtimeId).toBe("cx_pap_01HZX89K329RVTNABCDEF1234");
 
         const secondCall = JSON.parse(socket.send.mock.calls[1][0]);
         expect(secondCall.payload.eventType).toBe("SNAPSHOT");
     });
 
-    test("HELLO without runtimeId gets REJECT", () => {
+    test("HELLO without accountId gets REJECT", () => {
         const server = new SocketXServer();
         const socket = _createMockSocket();
         server.handleConnection(socket);
 
         const helloData = JSON.parse(_createHelloEnvelope({}));
+        delete helloData.payload.accountId;
         delete helloData.runtimeId;
         socket._emit("message", JSON.stringify(helloData));
 
@@ -173,16 +162,16 @@ describe("SocketXServer handshake", () => {
         expect(reply.payload.reasonCode).toBe("INVALID_ENVELOPE");
     });
 
-    test("second connection on same runtimeId gets SESSION_CONFLICT", () => {
+    test("second controller on same accountId gets SESSION_CONFLICT", () => {
         const server = new SocketXServer();
         const socket1 = _createMockSocket();
         const socket2 = _createMockSocket();
 
         server.handleConnection(socket1);
-        socket1._emit("message", _createHelloEnvelope({ runtimeId: "user1::s1::EURUSD::paper" }));
+        socket1._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
 
         server.handleConnection(socket2);
-        socket2._emit("message", _createHelloEnvelope({ runtimeId: "user1::s1::EURUSD::paper" }));
+        socket2._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
 
         const reply = JSON.parse(socket2.send.mock.calls[0][0]);
         expect(reply.payload.eventType).toBe("REJECT");
@@ -209,15 +198,15 @@ describe("SocketXServer handshake", () => {
         expect(reject.payload.reasonCode).toBe("DUPLICATE_COMMAND");
     });
 
-    test("duplicate messageId rejected across reconnect for same runtimeId", () => {
+    test("duplicate messageId rejected across reconnect for same accountId", () => {
         const server = new SocketXServer();
         const socket1 = _createMockSocket();
         server.handleConnection(socket1);
 
-        const rid = "user1::strat1::EURUSD::paper";
-        socket1._emit("message", _createHelloEnvelope({ runtimeId: rid }));
+        const aid = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        socket1._emit("message", _createHelloEnvelope({ accountId: aid }));
 
-        const buyData = JSON.parse(_createBuyEnvelope({ runtimeId: rid }));
+        const buyData = JSON.parse(_createBuyEnvelope({ accountId: aid }));
         const dupMessageId = "reconnect-dup-id";
         buyData.messageId = dupMessageId;
 
@@ -226,7 +215,7 @@ describe("SocketXServer handshake", () => {
 
         const socket2 = _createMockSocket();
         server.handleConnection(socket2);
-        socket2._emit("message", _createHelloEnvelope({ runtimeId: rid }));
+        socket2._emit("message", _createHelloEnvelope({ accountId: aid }));
         socket2._emit("message", JSON.stringify(buyData));
 
         const calls = socket2.send.mock.calls.map((c) => JSON.parse(c[0]));
@@ -273,23 +262,23 @@ describe("SocketXServer handshake", () => {
         expect(conn.missedPongCount).toBe(0);
     });
 
-    test("server tracks claimed runtimeIds", () => {
+    test("server tracks claimed accountIds", () => {
         const server = new SocketXServer();
         const socket = _createMockSocket();
         server.handleConnection(socket);
 
-        socket._emit("message", _createHelloEnvelope({ runtimeId: "user1::s1::EURUSD::paper" }));
+        socket._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
 
-        expect(server.getClaimedRuntimeIds()).toContain("user1::s1::EURUSD::paper");
+        expect(server.getClaimedRuntimeIds()).toContain("cx_pap_01HZX89K329RVTNABCDEF1234");
         expect(server.getConnectionCount()).toBe(1);
     });
 
-    test("connection close releases runtimeId claim", () => {
+    test("connection close releases accountId claim", () => {
         const server = new SocketXServer();
         const socket = _createMockSocket();
         server.handleConnection(socket);
 
-        socket._emit("message", _createHelloEnvelope({ runtimeId: "user1::s1::EURUSD::paper" }));
+        socket._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
         expect(server.getClaimedRuntimeIds().length).toBe(1);
 
         socket._emit("close");
@@ -299,15 +288,15 @@ describe("SocketXServer handshake", () => {
     });
 });
 
-describe("SocketXServer BUY → FILL round trip", () => {
+describe("SocketXServer BUY round trip", () => {
     test("BUY command in Paper mode results in FILL event", async () => {
         const server = new SocketXServer();
         const socket = _createMockSocket();
         server.handleConnection(socket);
 
-        socket._emit("message", _createHelloEnvelope({ mode: "paper" }));
+        socket._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
 
-        RiskGateway.registerBroker("user1::strat1::EURUSD::paper", {
+        RiskGateway.registerBroker("cx_pap_01HZX89K329RVTNABCDEF1234", {
             handle: jest.fn().mockResolvedValue({
                 status: "FILLED",
                 orderId: "order-123",
@@ -317,8 +306,7 @@ describe("SocketXServer BUY → FILL round trip", () => {
         });
 
         socket._emit("message", _createBuyEnvelope({
-            runtimeId: "user1::strat1::EURUSD::paper",
-            mode: "paper",
+            accountId: "cx_pap_01HZX89K329RVTNABCDEF1234",
             symbol: "EURUSD",
             quantity: 1,
         }));
@@ -337,9 +325,9 @@ describe("SocketXServer BUY → FILL round trip", () => {
         const socket = _createMockSocket();
         server.handleConnection(socket);
 
-        socket._emit("message", _createHelloEnvelope({ mode: "paper" }));
+        socket._emit("message", _createHelloEnvelope({ accountId: "cx_pap_01HZX89K329RVTNABCDEF1234" }));
 
-        RiskGateway.registerBroker("user1::strat1::EURUSD::paper", {
+        RiskGateway.registerBroker("cx_pap_01HZX89K329RVTNABCDEF1234", {
             handle: jest.fn().mockResolvedValue({
                 status: "REJECTED",
                 reason: "RISK_FLOOR",
@@ -349,8 +337,7 @@ describe("SocketXServer BUY → FILL round trip", () => {
         });
 
         socket._emit("message", _createBuyEnvelope({
-            runtimeId: "user1::strat1::EURUSD::paper",
-            mode: "paper",
+            accountId: "cx_pap_01HZX89K329RVTNABCDEF1234",
             symbol: "EURUSD",
             quantity: 1,
         }));
