@@ -59,8 +59,13 @@ External clients (AI agents, bots, apps)
   5. **Risk gate enforcement** — every command passes through `RiskGateway` → `broker.handle()`.
 - **Connection roles:** controller (exclusive, can trade) and observer (read-only, max 5 per account).
 - **Account model:** Account ID format `cx_pap_<ulid>` / `cx_liv_<ulid>`; mode resolved server-side.
+- **Namespace separation:** Socket_X `accountId` is NOT the same as strategy runtimeId (`userId::strategyName::symbol::mode`). They are distinct namespaces — Socket_X is a direct trade-command channel that routes through `RiskGateway` → `broker.handle()`, separate from the strategy pipeline. Do not conflate them; do not pass a strategy runtimeId where a Socket_X accountId is expected or vice versa.
 - **Broker credential failures:** `BROKER_UNAUTHORIZED` keeps connection open; `ACCOUNT_DEGRADED` reserved.
 
 ## Human verification required
 - MetaApiDriver: needs Owen's real broker credentials (MetaAPI token, MT5 terminal) to verify end-to-end. Skeleton connector is functional but untested against real broker. Flag, don't self-certify.
 - Socket_X: handshake and command routing verified against mock brokers. Real WebSocket transport integration not yet verified end-to-end.
+
+## Open blockers (do not declare Socket_X complete until these are closed)
+1. **Portfolio-level risk enforcement** — `broker.handle()` only checks `_passesRiskFloor()` per-trade. `SignalProcessingEngine` (drawdown limits, portfolio-level position validation) is NOT invoked in the Socket_X path. An external agent can send multiple individually-valid trades that together exceed account risk limits. Needs: integrate portfolio-level validation into the `RiskGateway` → `broker.handle()` path, or add a separate portfolio risk gate before execution.
+2. **Account ownership verification** — `_handleHello` validates accountId format and existence but NEVER verifies the authenticated user (from authToken) owns the accountId being claimed. Any user who obtains another's accountId could connect as controller or observer. Needs: verify authToken → userId, then check `accountId` belongs to that userId before granting access.
