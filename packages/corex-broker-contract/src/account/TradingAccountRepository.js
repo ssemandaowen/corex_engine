@@ -1,5 +1,7 @@
 "use strict";
 
+require("dotenv").config({ path: require("path").resolve(__dirname, "../../../../.env") });
+
 const { Pool } = require("pg");
 const { Account } = require("./Account");
 const { generateAccountId } = require("./AccountId");
