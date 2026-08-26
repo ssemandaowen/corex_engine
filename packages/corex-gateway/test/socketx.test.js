@@ -4,6 +4,7 @@ const { MessageEnvelope, REASON_CODES } = require("../src/socketx/MessageEnvelop
 const { SocketXConnection, TokenBucket } = require("../src/socketx/SocketXConnection");
 const { SocketXServer } = require("../src/socketx/SocketXServer");
 const { RiskGateway } = require("../src/socketx/RiskGateway");
+const { signToken } = require("../../corex-auth/src/AuthService");
 
 function _createMockSocket() {
     const handlers = {};
@@ -16,7 +17,7 @@ function _createMockSocket() {
     };
 }
 
-function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", role = "controller", mode = "paper" }) {
+function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", role = "controller", mode = "paper", userId = "user_abc" }) {
     return JSON.stringify({
         schemaVersion: "1.0",
         messageId: `msg-${Date.now()}-${Math.random()}`,
@@ -24,7 +25,7 @@ function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", 
         mode,
         timestamp: new Date().toISOString(),
         type: "command",
-        payload: { action: "HELLO", accountId, role },
+        payload: { action: "HELLO", accountId, role, authToken: signToken({ userId }) },
     });
 }
 

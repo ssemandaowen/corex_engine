@@ -26,3 +26,12 @@ Confirmed by running `jest --passWithNoTests` on both branches:
 ### Status
 - These failures pre-date all Package work. Not blocking merge of Package 2.
 - Fixing them is out of scope until MetaApiDriver or PaperBroker are actively worked on.
+
+## Package 3 + corex-gateway extraction (2026-08-26)
+
+No new test failures introduced. Post-extraction full suite: **399 passed, 11 failed** (same 11 pre-existing).
+
+- `packages/corex-gateway/` extracted from `packages/corex-broker-contract/` — Socket_X protocol, account model, account REST routes.
+- Socket_X/account tests (75) now run standalone under `packages/corex-gateway/test/`.
+- `corex-broker-contract` retains BrokerContract, drivers, RuntimeBrokerFactory (151 tests).
+- Auth verifier injection pattern preserved unchanged — zero standalone JWT logic remains in broker-contract or gateway.

@@ -8,6 +8,12 @@ const { parseAccountId } = require("../account/AccountId");
 const { Account } = require("../account/Account");
 
 class SocketXServer {
+    static _authVerifier = null;
+
+    static setAuthVerifier(verifier) {
+        SocketXServer._authVerifier = verifier;
+    }
+
     constructor({ transport, onConnection, onCommand, accountResolver } = {}) {
         this.transport = transport;
         this.onConnection = onConnection || (() => {});
@@ -82,6 +88,43 @@ class SocketXServer {
 
             if (envelope.type !== "command") return;
 
+            const lifecycleAction = String(envelope.payload.action || "").toUpperCase();
+            if (lifecycleAction === "CLOSE") {
+                this._releaseClaim(connection.id);
+                this._removeObserver(connection);
+                const ack = MessageEnvelope.ack({
+                    runtimeId: connection.runtimeId,
+                    mode: connection.mode,
+                    originalMessageId: envelope.messageId,
+                });
+                sendEnvelope(ack);
+                connection.destroy();
+                this.connections.delete(connection.id);
+                return;
+            }
+
+            if (lifecycleAction === "PAUSE") {
+                connection.isPaused = true;
+                const ack = MessageEnvelope.ack({
+                    runtimeId: connection.runtimeId,
+                    mode: connection.mode,
+                    originalMessageId: envelope.messageId,
+                });
+                sendEnvelope(ack);
+                return;
+            }
+
+            if (lifecycleAction === "RESUME") {
+                connection.isPaused = false;
+                const ack = MessageEnvelope.ack({
+                    runtimeId: connection.runtimeId,
+                    mode: connection.mode,
+                    originalMessageId: envelope.messageId,
+                });
+                sendEnvelope(ack);
+                return;
+            }
+
             if (connection.role === "observer") {
                 const reject = MessageEnvelope.reject({
                     runtimeId: connection.runtimeId,
@@ -89,6 +132,18 @@ class SocketXServer {
                     originalMessageId: envelope.messageId,
                     reasonCode: "UNAUTHORIZED",
                     reasonMessage: "Observer role cannot submit trading commands",
+                });
+                sendEnvelope(reject);
+                return;
+            }
+
+            if (connection.isPaused) {
+                const reject = MessageEnvelope.reject({
+                    runtimeId: connection.runtimeId,
+                    mode: connection.mode,
+                    originalMessageId: envelope.messageId,
+                    reasonCode: "CONNECTION_PAUSED",
+                    reasonMessage: "Connection is paused — send RESUME before trading commands",
                 });
                 sendEnvelope(reject);
                 return;
@@ -186,6 +241,7 @@ class SocketXServer {
         const accountId = envelope.payload.accountId || envelope.runtimeId;
         const role = envelope.payload.role || "controller";
         const mode = (envelope.mode || "paper").toLowerCase();
+        const authToken = envelope.payload.authToken || null;
 
         const roleError = this._validateRole(role);
         if (roleError) {
@@ -216,6 +272,7 @@ class SocketXServer {
         }
 
         let accountType = parsed.type;
+        let accountUserId = null;
         if (this.accountResolver) {
             const resolved = await this.accountResolver(accountId);
             if (!resolved) {
@@ -231,6 +288,34 @@ class SocketXServer {
                 return;
             }
             accountType = resolved.type;
+            accountUserId = resolved.userId || null;
+        }
+
+        const authResult = SocketXServer._verifyToken(authToken);
+        if (!authResult.ok) {
+            const reject = MessageEnvelope.reject({
+                runtimeId: accountId,
+                mode,
+                originalMessageId: envelope.messageId,
+                reasonCode: "UNAUTHORIZED",
+                reasonMessage: `Authentication required: ${authResult.error}`,
+            });
+            sendEnvelope(reject);
+            this._closeSocket(connection);
+            return;
+        }
+
+        if (accountUserId && accountUserId !== authResult.userId) {
+            const reject = MessageEnvelope.reject({
+                runtimeId: accountId,
+                mode,
+                originalMessageId: envelope.messageId,
+                reasonCode: "UNAUTHORIZED",
+                reasonMessage: "Account does not belong to authenticated user",
+            });
+            sendEnvelope(reject);
+            this._closeSocket(connection);
+            return;
         }
 
         const resolvedMode = accountType === "live" ? "live" : "paper";
@@ -299,6 +384,37 @@ class SocketXServer {
             return `role must be one of: ${validRoles.join(", ")}`;
         }
         return null;
+    }
+
+    static _verifyToken(authToken) {
+        const verifier = SocketXServer._authVerifier;
+        if (!verifier) {
+            const env = String(process.env.NODE_ENV || "").trim().toLowerCase();
+            const isJest = !!process.env.JEST_WORKER_ID;
+            const isTest = env === "test" || env === "testing" || isJest;
+            if (isTest) {
+                console.warn("[SocketXServer] No auth verifier injected — using default fallback. Wire corex-auth verifier at startup in production.");
+                return SocketXServer._defaultVerifyToken(authToken);
+            }
+            throw new Error("SocketXServer: no auth verifier injected. Call SocketXServer.setAuthVerifier(verifier) at startup.");
+        }
+        return verifier(authToken);
+    }
+
+    static _defaultVerifyToken(authToken) {
+        if (!authToken || typeof authToken !== "string") {
+            return { ok: false, error: "TOKEN_MISSING" };
+        }
+        try {
+            const { verifyToken } = require("../../../corex-auth/src/AuthService");
+            const payload = verifyToken(authToken);
+            if (!payload || !payload.userId) {
+                return { ok: false, error: "TOKEN_NO_USER" };
+            }
+            return { ok: true, userId: payload.userId };
+        } catch (err) {
+            return { ok: false, error: err.message };
+        }
     }
 
     _removeObserver(connection) {

@@ -13,6 +13,12 @@ Package: `corex-auth` — JWT signing/verification (AuthService), AES-256-GCM en
 - AuthService: HMAC-SHA256 JWT + scrypt password hashing (Node.js `crypto` only).
 - SecretsVault: AES-256-GCM authenticated encryption with key rotation support (Node.js `crypto` only).
 - Re-export shims in `engine/services/` maintain backward compatibility with `@core/services/authService` and `@core/services/secretsVault` requires.
+- **Canonical JWT source** — AuthService is the single source of truth for JWT signing/verification. Other packages must NOT implement their own JWT logic.
+
+## Consumers
+- `corex-broker-contract` Socket_X: Verifier injected via `SocketXServer.setAuthVerifier()` at startup.
+- `engine/middleware/authGuard.js`: Direct `verifyToken()` calls for Express middleware.
+- `engine/services/authService.js`: Re-export shim → `corex-auth/src/AuthService.js`.
 
 ## Boundaries (do not violate without asking Owen)
 - `JWT_SECRET` must be set via environment variable — never hardcode or commit.

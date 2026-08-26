@@ -47,7 +47,9 @@ class SocketXConnection {
         this.processedMessageIds = new Set();
         this.missedPongCount = 0;
         this.isAlive = true;
+        this.isPaused = false;
         this.isClaimed = false;
+        this.role = null;
         this.lastActivity = Date.now();
         this.heartbeatTimer = null;
     }

@@ -4,7 +4,7 @@ const crypto = require("crypto");
 
 const SCHEMA_VERSION = "1.0";
 
-const COMMAND_TYPES = ["BUY", "SELL", "MODIFY", "CANCEL", "HELLO"];
+const COMMAND_TYPES = ["BUY", "SELL", "MODIFY", "CANCEL", "HELLO", "CLOSE", "PAUSE", "RESUME"];
 
 const REASON_CODES = [
     "RISK_LIMIT_EXCEEDED",
@@ -20,6 +20,7 @@ const REASON_CODES = [
     "ACCOUNT_DEGRADED",
     "NOT_FOUND",
     "VALIDATION_ERROR",
+    "CONNECTION_PAUSED",
 ];
 
 function _isNonEmptyString(v) {

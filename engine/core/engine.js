@@ -18,6 +18,9 @@ const { ComponentLifecycle, STATES } = require("@core/core/lifecycle/ComponentLi
 const SignalGenerationEngine = require("@core/core/pipeline/SignalGenerationEngine");
 const SignalProcessingEngine = require("@core/core/pipeline/SignalProcessingEngine");
 const SignalExecutionEngine = require("@core/core/pipeline/SignalExecutionEngine");
+const SocketXRiskEngine = require("@core/core/pipeline/SocketXRiskEngine");
+const { RiskGateway, SocketXServer } = require("@broker/corex-gateway");
+const { verifyToken } = require("@auth/corex-auth");
 const strategyRuntime = require("@core/modules/strategyRuntime");
 const RuntimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const MarketFeed = require("@core/core/runtime/MarketFeed");
@@ -65,6 +68,8 @@ class CoreXEngine {
             maxQueue: Number(process.env.SIGNAL_EXEC_MAX_QUEUE || 20000)
         });
 
+        this._wireSocketX();
+
         // Strategy crash handling
         this.strategyCrashCounters = new Map();
         this.maxCrashCount = 5;
@@ -108,6 +113,19 @@ class CoreXEngine {
         this.status = "RUNNING";
         this.lifecycle.transition(STATES.RUNNING, { reason: "engine_active" });
         log.info("CoreX Engine Active");
+    }
+
+    _wireSocketX() {
+        RiskGateway.setRiskEngine(SocketXRiskEngine);
+        SocketXServer.setAuthVerifier((token) => {
+            const payload = verifyToken(token);
+            if (!payload || !payload.userId) {
+                return { ok: false, error: "TOKEN_NO_USER" };
+            }
+            return { ok: true, userId: payload.userId };
+        });
+        log.info("Socket_X risk engine wired: SignalProcessingEngine");
+        log.info("Socket_X auth verifier wired: corex-auth");
     }
 
     async _sanitizeCacheDirectory(cacheDir) {

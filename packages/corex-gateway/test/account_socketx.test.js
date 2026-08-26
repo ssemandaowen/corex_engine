@@ -7,6 +7,7 @@ const { MessageEnvelope, REASON_CODES } = require("../src/socketx/MessageEnvelop
 const { SocketXConnection } = require("../src/socketx/SocketXConnection");
 const { SocketXServer } = require("../src/socketx/SocketXServer");
 const { RiskGateway } = require("../src/socketx/RiskGateway");
+const { signToken } = require("../../corex-auth/src/AuthService");
 
 function _createMockSocket() {
     const handlers = {};
@@ -19,7 +20,11 @@ function _createMockSocket() {
     };
 }
 
-function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", role = "controller", mode = "paper" }) {
+function _createToken(userId = "user_abc") {
+    return signToken({ userId });
+}
+
+function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", role = "controller", mode = "paper", userId = "user_abc" }) {
     return JSON.stringify({
         schemaVersion: "1.0",
         messageId: `msg-${Date.now()}-${Math.random()}`,
@@ -27,7 +32,7 @@ function _createHelloEnvelope({ accountId = "cx_pap_01HZX89K329RVTNABCDEF1234", 
         mode,
         timestamp: new Date().toISOString(),
         type: "command",
-        payload: { action: "HELLO", accountId, role },
+        payload: { action: "HELLO", accountId, role, authToken: _createToken(userId) },
     });
 }
 
@@ -426,7 +431,7 @@ describe("SocketXServer with account model", () => {
     });
 
     test("accountResolver used when provided", async () => {
-        const accountResolver = jest.fn().mockResolvedValue({ type: "live" });
+        const accountResolver = jest.fn().mockResolvedValue({ type: "live", userId: "user_abc" });
         const server = new SocketXServer({ accountResolver });
         const socket = _createMockSocket();
         server.handleConnection(socket);
@@ -456,5 +461,210 @@ describe("SocketXServer with account model", () => {
         const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
         const reject = calls.find((c) => c.payload.reasonCode === "NOT_FOUND");
         expect(reject).toBeDefined();
+    });
+});
+
+describe("Portfolio-level risk enforcement", () => {
+    test("sequence exceeding drawdown limit gets rejected", async () => {
+        const server = new SocketXServer();
+        const socket = _createMockSocket();
+        server.handleConnection(socket);
+
+        const accountId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        socket._emit("message", _createHelloEnvelope({ accountId, role: "controller" }));
+
+        let drawdownTriggered = false;
+        const mockBroker = {
+            handle: jest.fn().mockResolvedValue({ status: "FILLED", orderId: "o1", avgFillPrice: 1.1 }),
+            initialize: jest.fn().mockResolvedValue(),
+            getEquity: jest.fn().mockReturnValue(800),
+            getPositionSnapshot: jest.fn().mockReturnValue({ side: "FLAT" }),
+            initialCash: 1000,
+            config: { maxDrawdownPct: 10 },
+        };
+
+        RiskGateway.registerBroker(accountId, mockBroker);
+
+        for (let i = 0; i < 3; i++) {
+            socket._emit("message", _createBuyEnvelope({ accountId, quantity: 1 }));
+            await new Promise((r) => setTimeout(r, 50));
+        }
+
+        const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const riskReject = calls.find((c) => c.payload.reasonCode === "RISK_LIMIT_EXCEEDED");
+        if (riskReject) drawdownTriggered = true;
+
+        expect(drawdownTriggered).toBe(true);
+    });
+});
+
+describe("Account ownership verification", () => {
+    test("HELLO with accountId belonging to different user is rejected", async () => {
+        const accountResolver = jest.fn().mockResolvedValue({
+            type: "paper",
+            userId: "user_xyz",
+        });
+        const server = new SocketXServer({ accountResolver });
+        const socket = _createMockSocket();
+        server.handleConnection(socket);
+
+        const accountId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        const token = _createToken("user_abc");
+        socket._emit("message", JSON.stringify({
+            schemaVersion: "1.0",
+            messageId: `msg-${Date.now()}`,
+            runtimeId: accountId,
+            mode: "paper",
+            timestamp: new Date().toISOString(),
+            type: "command",
+            payload: { action: "HELLO", accountId, role: "controller", authToken: token },
+        }));
+
+        await new Promise((r) => setTimeout(r, 50));
+
+        const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const reject = calls.find((c) => c.payload.reasonCode === "UNAUTHORIZED");
+        expect(reject).toBeDefined();
+        expect(reject.payload.reasonMessage).toMatch(/does not belong/);
+    });
+
+    test("HELLO without authToken is rejected", async () => {
+        const accountResolver = jest.fn().mockResolvedValue({
+            type: "paper",
+            userId: "user_abc",
+        });
+        const server = new SocketXServer({ accountResolver });
+        const socket = _createMockSocket();
+        server.handleConnection(socket);
+
+        const accountId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        socket._emit("message", JSON.stringify({
+            schemaVersion: "1.0",
+            messageId: `msg-${Date.now()}`,
+            runtimeId: accountId,
+            mode: "paper",
+            timestamp: new Date().toISOString(),
+            type: "command",
+            payload: { action: "HELLO", accountId, role: "controller" },
+        }));
+
+        await new Promise((r) => setTimeout(r, 50));
+
+        const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const reject = calls.find((c) => c.payload.reasonCode === "UNAUTHORIZED");
+        expect(reject).toBeDefined();
+    });
+});
+
+describe("Connection lifecycle operations", () => {
+    test("CLOSE releases claim and closes socket", async () => {
+        const server = new SocketXServer();
+        const socket1 = _createMockSocket();
+        server.handleConnection(socket1);
+
+        const accountId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        socket1._emit("message", _createHelloEnvelope({ accountId, role: "controller" }));
+
+        expect(server.runtimeIdClaims.has(accountId)).toBe(true);
+
+        socket1._emit("message", JSON.stringify({
+            schemaVersion: "1.0",
+            messageId: "close-1",
+            runtimeId: accountId,
+            mode: "paper",
+            timestamp: new Date().toISOString(),
+            type: "command",
+            payload: { action: "CLOSE" },
+        }));
+
+        await new Promise((r) => setTimeout(r, 50));
+        expect(server.runtimeIdClaims.has(accountId)).toBe(false);
+
+        const socket2 = _createMockSocket();
+        server.handleConnection(socket2);
+        socket2._emit("message", _createHelloEnvelope({ accountId, role: "controller" }));
+
+        await new Promise((r) => setTimeout(r, 50));
+        const calls2 = socket2.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const helloAck = calls2.find((c) => c.payload.eventType === "HELLO_ACK");
+        expect(helloAck).toBeDefined();
+    });
+
+    test("PAUSE blocks BUY commands but retains claim", async () => {
+        const server = new SocketXServer();
+        const socket = _createMockSocket();
+        server.handleConnection(socket);
+
+        const accountId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        socket._emit("message", _createHelloEnvelope({ accountId, role: "controller" }));
+
+        socket._emit("message", JSON.stringify({
+            schemaVersion: "1.0",
+            messageId: "pause-1",
+            runtimeId: accountId,
+            mode: "paper",
+            timestamp: new Date().toISOString(),
+            type: "command",
+            payload: { action: "PAUSE" },
+        }));
+
+        socket._emit("message", _createBuyEnvelope({ accountId }));
+
+        await new Promise((r) => setTimeout(r, 50));
+        const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const pausedReject = calls.find((c) => c.payload.reasonCode === "CONNECTION_PAUSED");
+        expect(pausedReject).toBeDefined();
+
+        expect(server.runtimeIdClaims.has(accountId)).toBe(true);
+
+        const socket2 = _createMockSocket();
+        server.handleConnection(socket2);
+        socket2._emit("message", _createHelloEnvelope({ accountId, role: "controller" }));
+
+        await new Promise((r) => setTimeout(r, 50));
+        const calls2 = socket2.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const conflict = calls2.find((c) => c.payload.reasonCode === "SESSION_CONFLICT");
+        expect(conflict).toBeDefined();
+    });
+
+    test("RESUME allows commands again", async () => {
+        const server = new SocketXServer();
+        const socket = _createMockSocket();
+        server.handleConnection(socket);
+
+        const accountId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        socket._emit("message", _createHelloEnvelope({ accountId, role: "controller" }));
+
+        socket._emit("message", JSON.stringify({
+            schemaVersion: "1.0",
+            messageId: "pause-1",
+            runtimeId: accountId,
+            mode: "paper",
+            timestamp: new Date().toISOString(),
+            type: "command",
+            payload: { action: "PAUSE" },
+        }));
+
+        socket._emit("message", JSON.stringify({
+            schemaVersion: "1.0",
+            messageId: "resume-1",
+            runtimeId: accountId,
+            mode: "paper",
+            timestamp: new Date().toISOString(),
+            type: "command",
+            payload: { action: "RESUME" },
+        }));
+
+        RiskGateway.registerBroker(accountId, {
+            handle: jest.fn().mockResolvedValue({ status: "FILLED", orderId: "o1", avgFillPrice: 1.1 }),
+            initialize: jest.fn().mockResolvedValue(),
+        });
+
+        socket._emit("message", _createBuyEnvelope({ accountId }));
+        await new Promise((r) => setTimeout(r, 50));
+
+        const calls = socket.send.mock.calls.map((c) => JSON.parse(c[0]));
+        const fill = calls.find((c) => c.payload.eventType === "FILL");
+        expect(fill).toBeDefined();
     });
 });

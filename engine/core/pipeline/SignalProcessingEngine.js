@@ -29,6 +29,19 @@ class SignalProcessingEngine {
             return null;
         }
 
+        return this._validateRisk(intent, brokerInstance, runtimeId);
+    }
+
+    validateForCommand({ broker, intent, runtimeId = "socket_x" }) {
+        if (!broker) return null;
+        if (!intent || !intent.intent || !intent.side || !intent.symbol) {
+            log.error(`[PROCESSING_REJECTION] Runtime ${runtimeId} emitted a structurally malformed intent object.`);
+            return null;
+        }
+        return this._validateRisk(intent, broker, runtimeId);
+    }
+
+    _validateRisk(intent, brokerInstance, runtimeId) {
         const currentEquity = brokerInstance.getEquity();
         const initialAllocation = brokerInstance.initialCash;
         const currentDrawdownPct = ((initialAllocation - currentEquity) / initialAllocation) * 100;

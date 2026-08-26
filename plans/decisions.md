@@ -152,3 +152,18 @@ The package now has exactly 3 drivers: Backtest, Paper (CoreX), Live (MetaApi). 
 - Command actions: BUY, SELL, MODIFY, CANCEL, HELLO
 - Event types: HELLO_ACK, SNAPSHOT, PING, PONG, FILL, REJECT, POSITION_UPDATE
 - Reason codes: RISK_LIMIT_EXCEEDED, INVALID_SYMBOL, DUPLICATE_COMMAND, BROKER_ERROR, RATE_LIMITED, SESSION_CONFLICT, INVALID_ENVELOPE, UNAUTHORIZED
+
+---
+
+**2026-08-24** — Auth verifier injection pattern for Socket_X:
+
+The previous implementation had a standalone `tokenVerifier.js` in `corex-broker-contract` with `resolveUserIdFromToken()` — a duplicate JWT verification path that could silently drift from `corex-auth`. This is the same risk class as the RiskGateway duplication fixed earlier.
+
+**Decision:** Socket_X now uses dependency injection for auth verification, mirroring the RiskGateway pattern:
+- `SocketXServer.setAuthVerifier(fn)` — injects the verifier at startup
+- Engine wires the real `corex-auth` verifier in `_wireSocketX()`
+- Safety check: test environment logs warning + uses fallback; production throws immediately
+- Old `tokenVerifier.js` removed — no standalone JWT logic remains in `corex-broker-contract`
+- Fallback verifier delegates to `corex-auth` (not a duplicate implementation)
+
+**Reason:** Eliminates the duplicate auth path risk. The package now contains zero standalone JWT verification logic — only the injected verifier is used.
