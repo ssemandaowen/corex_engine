@@ -30,8 +30,9 @@ class InMemoryAccountRepository {
             };
         }
 
+        const isDefault = this._countByUserAndType(userId, type) === 0;
         const accountId = generateAccountId(type);
-        const account = new Account({ accountId, userId, type, label, brokerBinding, status: "active" });
+        const account = new Account({ accountId, userId, type, label, brokerBinding, isDefault, status: "active" });
         this._accounts.set(accountId, account);
 
         return { ok: true, account: account.toJSON() };
@@ -47,6 +48,28 @@ class InMemoryAccountRepository {
     async getByAccountId(accountId) {
         const acc = this._accounts.get(accountId);
         return acc ? acc.toJSON() : null;
+    }
+
+    async getDefaultForUser(userId, accountType) {
+        if (!accountType || !["paper", "live"].includes(accountType)) {
+            throw new Error("accountType is required and must be one of: paper, live");
+        }
+        const accounts = Array.from(this._accounts.values())
+            .filter((a) => a.userId === userId && a.type === accountType && a.isDefault)
+            .sort((a, b) => a.accountId.localeCompare(b.accountId));
+        return accounts.length > 0 ? accounts[0].toJSON() : null;
+    }
+
+    async setDefault(userId, accountId) {
+        const target = this._accounts.get(accountId);
+        if (!target || target.userId !== userId) {
+            return { ok: false, error: "Account not found", reasonCode: "NOT_FOUND" };
+        }
+        for (const acc of this._accounts.values()) {
+            if (acc.userId === userId && acc.type === target.type) acc.isDefault = false;
+        }
+        target.isDefault = true;
+        return { ok: true, account: target.toJSON() };
     }
 
     async archive(accountId) {

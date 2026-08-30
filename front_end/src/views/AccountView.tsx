@@ -128,6 +128,7 @@ export default function AccountView() {
 
   // --- CONNECTOR SETTINGS (encrypted secrets via connectorSettingsService) ---
   const [connectorSecrets, setConnectorSecrets] = useState<Record<string, any>>({});
+  const [selectedAccountId, setSelectedAccountId] = useState('');
 
   const loadConnectorSettings = async () => {
     try {
@@ -368,8 +369,8 @@ export default function AccountView() {
       }
 
       // Also persist structured connector secrets to user_connector_settings
-      if (apiServer && apiAccountId) {
-        connectorSettingsApi.save('mt5_bridge', {
+      if (selectedAccountId && apiServer && apiAccountId) {
+        connectorSettingsApi.save(selectedAccountId, 'metaapi', {
           host: apiServer,
           port: scriptPort,
           heartbeatMs: apiHeartbeat * 1000,

@@ -30,34 +30,35 @@ class TradingAccountRepository {
             };
         }
 
+        const isDefault = (await this._countByUserAndType(userId, type)) === 0;
         const accountId = generateAccountId(type);
         const status = "active";
 
         const sql = `
-            INSERT INTO trading_accounts (account_id, user_id, type, label, broker_binding, status, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-            RETURNING account_id, user_id, type, label, broker_binding, status, created_at, updated_at
+            INSERT INTO trading_accounts (account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
+            RETURNING account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at
         `;
         const brokerBindingJson = brokerBinding ? JSON.stringify(brokerBinding) : null;
-        const { rows } = await this._pool.query(sql, [accountId, userId, type, label || null, brokerBindingJson, status]);
+        const { rows } = await this._pool.query(sql, [accountId, userId, type, label || null, brokerBindingJson, isDefault, status]);
 
         return { ok: true, account: _rowToAccount(rows[0]) };
     }
 
     async listByUser(userId) {
         const sql = `
-            SELECT account_id, user_id, type, label, broker_binding, status, created_at, updated_at
+            SELECT account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at
             FROM trading_accounts
             WHERE user_id = $1
             ORDER BY created_at DESC
         `;
-        const { rows } = await this._pool.query(sql, [userId]);
+        const { rows } = await this._pool.query(sql, userId);
         return rows.map(_rowToAccount);
     }
 
     async getByAccountId(accountId) {
         const sql = `
-            SELECT account_id, user_id, type, label, broker_binding, status, created_at, updated_at
+            SELECT account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at
             FROM trading_accounts
             WHERE account_id = $1
         `;
@@ -66,12 +67,45 @@ class TradingAccountRepository {
         return _rowToAccount(rows[0]);
     }
 
+    async getDefaultForUser(userId, accountType) {
+        if (!accountType || !["paper", "live"].includes(accountType)) {
+            throw new Error("accountType is required and must be one of: paper, live");
+        }
+        const sql = `
+            SELECT account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at
+            FROM trading_accounts
+            WHERE user_id = $1 AND type = $2 AND is_default = true
+            LIMIT 1
+        `;
+        const { rows } = await this._pool.query(sql, [userId, accountType]);
+        if (rows.length === 0) return null;
+        return _rowToAccount(rows[0]);
+    }
+
+    async setDefault(userId, accountId) {
+        const target = await this.getByAccountId(accountId);
+        if (!target || target.userId !== userId) {
+            return { ok: false, error: "Account not found", reasonCode: "NOT_FOUND" };
+        }
+
+        await this._pool.query(
+            `UPDATE trading_accounts SET is_default = false, updated_at = NOW() WHERE user_id = $1 AND type = $2`,
+            [userId, target.type]
+        );
+        const { rows } = await this._pool.query(
+            `UPDATE trading_accounts SET is_default = true, updated_at = NOW() WHERE account_id = $1
+             RETURNING account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at`,
+            [accountId]
+        );
+        return { ok: true, account: _rowToAccount(rows[0]) };
+    }
+
     async archive(accountId) {
         const sql = `
             UPDATE trading_accounts
             SET status = 'archived', updated_at = NOW()
             WHERE account_id = $1
-            RETURNING account_id, user_id, type, label, broker_binding, status, created_at, updated_at
+            RETURNING account_id, user_id, type, label, broker_binding, is_default, status, created_at, updated_at
         `;
         const { rows } = await this._pool.query(sql, [accountId]);
         if (rows.length === 0) return { ok: false, error: "Account not found", reasonCode: "NOT_FOUND" };
@@ -100,6 +134,7 @@ function _rowToAccount(row) {
         type: row.type,
         label: row.label,
         brokerBinding: row.broker_binding || null,
+        isDefault: row.is_default,
         status: row.status,
     });
 }

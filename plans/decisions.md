@@ -167,3 +167,52 @@ The previous implementation had a standalone `tokenVerifier.js` in `corex-broker
 - Fallback verifier delegates to `corex-auth` (not a duplicate implementation)
 
 **Reason:** Eliminates the duplicate auth path risk. The package now contains zero standalone JWT verification logic — only the injected verifier is used.
+
+---
+
+**2026-08-28** — Account model split-brain resolution: consolidate on `trading_accounts`, drop duplicate `accounts` table, prune dead connector schemas.
+
+**Decision:** `trading_accounts` (corex-gateway, migration 025) is the single source of truth for account identity. The duplicate `accounts` table (corex-accounts, migration 026) is dropped.
+
+**Reason:** Two parallel account tables existed with identical purpose. `trading_accounts` has a FK to `users`, a richer schema (label, broker_binding, status, timestamps), and is what `POST /accounts` actually writes to. The `accounts` table was empty in practice — nothing wrote to it except the unused `AccountsService.createAccount()` path. The `connections` table's FK pointed at the wrong (empty) table, causing `PUT /api/settings/connectors/:type` to 500 when saving connector settings for a real account.
+
+**Changes:**
+1. New migration `027_drop_accounts_repoint_connections.sql`: drops `accounts`, repoints `connections.account_id` FK to `trading_accounts.account_id`.
+2. Deleted `packages/corex-accounts/src/accountsService.js` and its test file — the only consumer of the dropped table.
+3. `engine/services/connectorSettingsService.js` shim updated to resolve accounts via `TradingAccountRepository` (corex-gateway) instead of the deleted `AccountsService`.
+4. `CONNECTOR_SCHEMAS` in `connectionsService.js` pruned to `twelvedata` and `metaapi` only — `mt5_bridge` and `oanda` removed entirely (not commented out).
+
+**Permanent prohibition:** `mt5_bridge` and `oanda` must NOT be re-added as live-selectable connector types under any circumstance. This is the second time they have been removed (first: 2026-08-23, re-added silently). `mt5_bridge` has zero real instantiation in the codebase — confirmed dead as a live execution path. This is a locked boundary, not a scope decision to revisit.
+
+**Zero-diff verification:** `TradingAccountRepository.js`, `RuntimeRegistry.js`, `SignalProcessingEngine.js`, `SignalGenerationEngine.js`, and `SocketXServer.js` all have zero diff — the correct reference was left untouched.
+
+---
+
+**2026-08-30** — corex-auth extraction: task opened, discovery that it was already executed.
+
+This task (extract `authService.js` + `secretsVault.js` to `packages/corex-auth/`) was assumed never executed per the 2026-08-21 decision. On investigation, it **was** completed in commit `cc86c34` (2026-08-22) "Package 3: Extract corex-auth package". No code changes were required — only verification and documentation.
+
+**Discovery:**
+- `packages/corex-auth/` exists with both source files, index.js, package.json, AGENTS.md, and 23 unit tests.
+- Re-export shims at `engine/services/authService.js` and `engine/services/secretsVault.js` already point to the package.
+- `@auth` alias already present in root `package.json`.
+- Both source files are pure `node:crypto` — no imports from `engine/`, `pgStore`, or any Express/DB-coupled module. No cross-package reference needed.
+- Restricted files (`pgStore.js`, `authGuard.js`, `authController.js`, `roleGuard.js`) have zero diff vs the extraction commit — confirmed untouched.
+
+**Verification performed:**
+- Auth unit tests: 23/23 pass.
+- Shim round-trips (sign/verify token, hash/verify password, encrypt/decrypt) through `@core/services/` paths: all PASS.
+- Full suite: 414 pass, 11 fail — only the 2 previously-confirmed pre-existing failures remain.
+- All callers (`server.js`, `authController.js`, `authGuard.js`, `systemController.js`, `migrate.js`, `corex-accounts/connectionsService.js`, `configService.js`) work unchanged through the shim.
+
+**Conclusion:** Extraction is complete and verified. No code changes made. See `plans/corex-auth-extraction-notes.md` for full discovery log.
+
+---
+
+**[2026-08-30 15:21] Feature: Scope getDefaultForUser and setDefault to (user, account type); require ?mode= on GET convenience route**
+
+Decision: `getDefaultForUser(userId, accountType)` now requires `accountType` (no default). Throws if omitted or not `paper`/`live`. `setDefault` now scopes its `is_default = false` clear to `WHERE user_id = $1 AND type = <target's type>` so setting a live default cannot clobber a paper default. `InMemoryAccountRepository` mirrors both changes. The GET `/api/settings/connectors/:type` convenience route now reads `req.query.mode` and returns 400 `mode query param required (paper|live)` if missing/invalid, otherwise passes mode through as `accountType`.
+
+Reason: Migration 029 corrected the data model so every user has at most one default per type (one paper, one live). The application code still assumed one default total per user — `getDefaultForUser(userId)` with no type was ambiguous when two valid defaults exist. The fix closes the remaining application-code half of the split-brain: reads and writes of `is_default` are now correctly scoped to `(user, type)`.
+
+Consequence: Any caller that previously invoked `getDefaultForUser(userId)` without a type now throws — all such callers (the two convenience routes) were updated. Account-scoped routes (`/api/accounts/:accountId/connectors/:type`) were already accountId-based and required no change. Backfill from migration 029 already populated correct per-type defaults, so no new migration is needed.

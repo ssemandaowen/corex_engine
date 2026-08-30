@@ -206,6 +206,111 @@ describe("InMemoryAccountRepository", () => {
         expect(await repo.countByType("u1", "paper")).toBe(2);
         expect(await repo.countByType("u1", "live")).toBe(1);
     });
+
+    test("first account created for a user is auto-marked is_default = true", async () => {
+        const repo = new InMemoryAccountRepository();
+        const first = await repo.create({ userId: "u1", type: "paper" });
+        expect(first.ok).toBe(true);
+        expect(first.account.isDefault).toBe(true);
+    });
+
+    test("second account created for same user is not default", async () => {
+        const repo = new InMemoryAccountRepository();
+        await repo.create({ userId: "u1", type: "paper" });
+        const second = await repo.create({ userId: "u1", type: "paper" });
+        expect(second.ok).toBe(true);
+        expect(second.account.isDefault).toBe(false);
+    });
+
+    test("getDefaultForUser returns the default account", async () => {
+        const repo = new InMemoryAccountRepository();
+        await repo.create({ userId: "u1", type: "paper" });
+        await repo.create({ userId: "u1", type: "paper" });
+        const defaultAcc = await repo.getDefaultForUser("u1", "paper");
+        expect(defaultAcc).not.toBeNull();
+        expect(defaultAcc.isDefault).toBe(true);
+    });
+
+    test("getDefaultForUser returns null when user has no accounts of that type", async () => {
+        const repo = new InMemoryAccountRepository();
+        await repo.create({ userId: "u1", type: "paper" });
+        const result = await repo.getDefaultForUser("u1", "live");
+        expect(result).toBeNull();
+    });
+
+    test("getDefaultForUser throws when accountType is omitted", async () => {
+        const repo = new InMemoryAccountRepository();
+        await repo.create({ userId: "u1", type: "paper" });
+        await expect(repo.getDefaultForUser("u1")).rejects.toThrow("accountType is required");
+    });
+
+    test("getDefaultForUser throws when accountType is invalid", async () => {
+        const repo = new InMemoryAccountRepository();
+        await repo.create({ userId: "u1", type: "paper" });
+        await expect(repo.getDefaultForUser("u1", "invalid")).rejects.toThrow("accountType is required");
+    });
+
+    test("getDefaultForUser returns correct default per type", async () => {
+        const repo = new InMemoryAccountRepository();
+        const paper = await repo.create({ userId: "u1", type: "paper" });
+        const live = await repo.create({ userId: "u1", type: "live", brokerBinding: { adapter: "metaapi", credentialRef: "r1" } });
+        const paperDefault = await repo.getDefaultForUser("u1", "paper");
+        const liveDefault = await repo.getDefaultForUser("u1", "live");
+        expect(paperDefault.accountId).toBe(paper.account.accountId);
+        expect(liveDefault.accountId).toBe(live.account.accountId);
+        expect(paperDefault.accountId).not.toBe(liveDefault.accountId);
+    });
+
+    test("setDefault changes which account is default", async () => {
+        const repo = new InMemoryAccountRepository();
+        const first = await repo.create({ userId: "u1", type: "paper" });
+        const second = await repo.create({ userId: "u1", type: "paper" });
+        expect(first.account.isDefault).toBe(true);
+        expect(second.account.isDefault).toBe(false);
+
+        const result = await repo.setDefault("u1", second.account.accountId);
+        expect(result.ok).toBe(true);
+        expect(result.account.isDefault).toBe(true);
+
+        const newDefault = await repo.getDefaultForUser("u1", "paper");
+        expect(newDefault.accountId).toBe(second.account.accountId);
+    });
+
+    test("setDefault on a live account does not change the paper default", async () => {
+        const repo = new InMemoryAccountRepository();
+        const paper1 = await repo.create({ userId: "u1", type: "paper" });
+        const paper2 = await repo.create({ userId: "u1", type: "paper" });
+        const live1 = await repo.create({ userId: "u1", type: "live", brokerBinding: { adapter: "metaapi", credentialRef: "r1" } });
+        const live2 = await repo.create({ userId: "u1", type: "live", brokerBinding: { adapter: "metaapi", credentialRef: "r2" } });
+        expect(paper1.account.isDefault).toBe(true);
+        expect(paper2.account.isDefault).toBe(false);
+        expect(live1.account.isDefault).toBe(true);
+        expect(live2.account.isDefault).toBe(false);
+
+        // Set a different live account as default.
+        const result = await repo.setDefault("u1", live2.account.accountId);
+        expect(result.ok).toBe(true);
+
+        // Paper defaults must be untouched.
+        const paperDefault = await repo.getDefaultForUser("u1", "paper");
+        expect(paperDefault.accountId).toBe(paper1.account.accountId);
+        const paper1Reload = await repo.getByAccountId(paper1.account.accountId);
+        const paper2Reload = await repo.getByAccountId(paper2.account.accountId);
+        expect(paper1Reload.isDefault).toBe(true);
+        expect(paper2Reload.isDefault).toBe(false);
+
+        // Live default changed.
+        const liveDefault = await repo.getDefaultForUser("u1", "live");
+        expect(liveDefault.accountId).toBe(live2.account.accountId);
+    });
+
+    test("setDefault returns NOT_FOUND for account belonging to different user", async () => {
+        const repo = new InMemoryAccountRepository();
+        const acc = await repo.create({ userId: "u1", type: "paper" });
+        const result = await repo.setDefault("u2", acc.account.accountId);
+        expect(result.ok).toBe(false);
+        expect(result.reasonCode).toBe("NOT_FOUND");
+    });
 });
 
 describe("MessageEnvelope new types", () => {

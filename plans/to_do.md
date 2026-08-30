@@ -31,13 +31,22 @@
 
 ## Next
 
-### Extract corex-gateway package
-- Socket_X (SocketXServer/SocketXConnection/MessageEnvelope/RiskGateway), Account model + repository, and account REST controller currently live in `corex-broker-contract`
-- These are transport/gateway logic, not broker execution contract — they *use* the broker contract, not part of it
-- **Target:** New `corex-gateway` (or `corex-server`) package owning all Socket_X + account + REST controller code
-- **Depends on:** `corex-broker-contract` (for BrokerContract/adapters), `corex-auth` (for ownership verification)
-- **Do not start until:** The three open blockers above are closed — moving files now adds motion without fixing the safety/security gaps
+### corex-gateway extraction — COMPLETED
+- [x] Socket_X protocol + Account model + REST controller moved to `packages/corex-gateway/`
+- [x] Engine wiring updated to import SocketXServer/RiskGateway via `@broker/corex-gateway`
+- [x] Commit 31c1faf pushed to `origin/main`
 
 ### Package 3 — corex-auth extraction
 - Extract authService.js + secretsVault.js to packages/corex-auth/
 - Keep DB/Express-coupled code in engine/ with re-export shims
+
+### corex-accounts extraction — IN PROGRESS
+- [x] Create plans/corex-accounts-implementation.md
+- [x] Implement corex-accounts package structure and services (scaffolded)
+- [x] Create database migration for accounts/connections tables
+- [x] Implement accountsService and connectionsService
+- [x] Implement re-export shims for brokerPersistence/connectorSettingsService (initial scaffold)
+- [ ] Verify bug fix with tests: multiple accounts per user, independent connection credentials
+- [ ] Ensure no forbidden files were touched (verify with git status)
+
+

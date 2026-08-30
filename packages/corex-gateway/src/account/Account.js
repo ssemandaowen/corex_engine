@@ -13,12 +13,13 @@ const DEFAULT_LIMITS = {
 };
 
 class Account {
-    constructor({ accountId, userId, type, label, brokerBinding = null, status = "active" }) {
+    constructor({ accountId, userId, type, label, brokerBinding = null, isDefault = false, status = "active" }) {
         this.accountId = accountId;
         this.userId = userId;
         this.type = type;
         this.label = label;
         this.brokerBinding = brokerBinding;
+        this.isDefault = isDefault;
         this.status = status;
     }
 
@@ -84,6 +85,7 @@ class Account {
             type: this.type,
             label: this.label,
             brokerBinding: this.brokerBinding,
+            isDefault: this.isDefault,
             status: this.status,
         };
     }

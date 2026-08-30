@@ -1,0 +1,38 @@
+{
+  "name": "corex-accounts",
+  "version": "2026.1.27",
+  "description": "CoreX Accounts Layer — account identity, connection credential management",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "jest --passWithNoTests --testTimeout=20000"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "module-alias": "^2.2.3"
+  },
+  "_moduleAliases": {
+    "@root": "../..",
+    "@core": "../../engine",
+    "@utils": "../../utils",
+    "@events": "../../events",
+    "@config": "../../config"
+  },
+  "jest": {
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^@root/(.*)$": "<rootDir>/../../$1",
+      "^@core/(.*)$": "<rootDir>/../../engine/$1",
+      "^@utils/(.*)$": "<rootDir>/../../utils/$1",
+      "^@events/(.*)$": "<rootDir>/../../events/$1",
+      "^@config/(.*)$": "<rootDir>/../../config/$1"
+    }
+  }
+}

@@ -5,8 +5,11 @@ const pgStore = require("@core/services/pgStore");
 const connectorSettingsService = require("@core/services/connectorSettingsService");
 const userEngineSettingsService = require("@core/services/userEngineSettingsService");
 const historicalCache = require("@core/services/historicalCache");
+const { TradingAccountRepository } = require("../../packages/corex-gateway/src/account/TradingAccountRepository");
 const logger = require("@utils/logger");
 const log = logger.createModuleLogger("SETTINGS_CONTROLLER");
+
+const accountRepository = new TradingAccountRepository();
 
 function sanitizeUser(user) {
     return {
@@ -15,7 +18,7 @@ function sanitizeUser(user) {
         name: user.name,
         role: user.role,
         status: user.status,
-        lastLoginAt: user.last_login_at || user.lastLoginAt || null,
+        lastLoginAt: user.last_login_at || userLoginAt || null,
         createdAt: user.created_at || user.createdAt || null,
         updatedAt: user.updated_at || user.updatedAt || null
     };
@@ -38,6 +41,7 @@ const validateBody = (schema) => (req, res, next) => {
 };
 
 const router = require("express").Router();
+const accountConnectorRouter = require("express").Router();
 
 // Health / public
 router.get("/health", (req, res) => {
@@ -51,15 +55,82 @@ router.get("/health", (req, res) => {
     });
 });
 
-// Connector settings
+// Account-scoped connector settings (new addressing scheme).
+// PUT requires accountId explicitly — no fallback.
+accountConnectorRouter.put("/:accountId/connectors/:type", async (req, res) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const accountId = String(req.params.accountId || "");
+        if (!accountId) return res.status(400).json({ success: false, error: "ACCOUNT_ID_REQUIRED" });
+
+        const type = String(req.params.type || "").toLowerCase();
+        const schema = connectorSettingsService.getSchema(type);
+        if (!schema) return res.status(404).json({ success: false, error: "UNKNOWN_CONNECTOR_TYPE" });
+
+        const config = req.body?.config || {};
+        const secrets = req.body?.secrets || {};
+        await connectorSettingsService.saveConnectorConfig(accountId, type, config, secrets);
+        res.json({ success: true, message: "Connector config saved" });
+    } catch (err) {
+        const status = err.message.includes("missing required field") ? 400 : 500;
+        res.status(status).json({ success: false, error: "CONNECTOR_SAVE_FAILED", message: err.message });
+    }
+});
+
+accountConnectorRouter.get("/:accountId/connectors/:type", async (req, res) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const accountId = String(req.params.accountId || "");
+        if (!accountId) return res.status(400).json({ success: false, error: "ACCOUNT_ID_REQUIRED" });
+
+        const type = String(req.params.type || "").toLowerCase();
+        const result = await connectorSettingsService.getConnectorConfig(accountId, type);
+        res.json({ success: true, payload: result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "CONNECTOR_READ_FAILED", message: err.message });
+    }
+});
+
+// Convenience read-only route: GET /api/settings/connectors/:type resolves via default account.
+// Requires ?mode=paper|live. No PUT fallback exists — writes must always specify accountId explicitly.
+router.get("/connectors/:type", async (req, res) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+        const type = String(req.params.type || "").toLowerCase();
+        const mode = String(req.query.mode || "").toLowerCase();
+        if (!mode || !["paper", "live"].includes(mode)) {
+            return res.status(400).json({ success: false, error: "mode query param required (paper|live)" });
+        }
+
+        const defaultAccount = await accountRepository.getDefaultForUser(userId, mode);
+        if (!defaultAccount) return res.status(404).json({ success: false, error: "NO_DEFAULT_ACCOUNT" });
+
+        const result = await connectorSettingsService.getConnectorConfig(defaultAccount.accountId, type);
+        res.json({ success: true, payload: result });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "CONNECTOR_READ_FAILED", message: err.message });
+    }
+});
+
 router.get("/connectors", async (req, res) => {
     try {
         const userId = req.user?.sub;
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-        const types = connectorSettingsService.listForUser(userId);
+        const mode = String(req.query.mode || "").toLowerCase();
+        if (!mode || !["paper", "live"].includes(mode)) {
+            return res.status(400).json({ success: false, error: "mode query param required (paper|live)" });
+        }
+
+        const defaultAccount = await accountRepository.getDefaultForUser(userId, mode);
+        if (!defaultAccount) return res.json({ success: true, payload: [] });
+
+        const types = connectorSettingsService.listForUser();
         const out = [];
         for (const t of types) {
-            const pub = await connectorSettingsService.getPublicConfig(userId, t.connectorType);
+            const pub = await connectorSettingsService.getPublicConfig(defaultAccount.accountId, t.connectorType);
             out.push({
                 connectorType: t.connectorType,
                 schema: t.schema,
@@ -72,36 +143,6 @@ router.get("/connectors", async (req, res) => {
         res.json({ success: true, payload: out });
     } catch (err) {
         res.status(500).json({ success: false, error: "CONNECTORS_READ_FAILED", message: err.message });
-    }
-});
-
-router.put("/connectors/:type", async (req, res) => {
-    try {
-        const userId = req.user?.sub;
-        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-        const type = String(req.params.type || "").toLowerCase();
-        const schema = connectorSettingsService.getSchema(type);
-        if (!schema) return res.status(404).json({ success: false, error: "UNKNOWN_CONNECTOR_TYPE" });
-
-        const config = req.body?.config || {};
-        const secrets = req.body?.secrets || {};
-        await connectorSettingsService.saveConnectorConfig(userId, type, config, secrets);
-        res.json({ success: true, message: "Connector config saved" });
-    } catch (err) {
-        const status = err.message.includes("missing required field") ? 400 : 500;
-        res.status(status).json({ success: false, error: "CONNECTOR_SAVE_FAILED", message: err.message });
-    }
-});
-
-router.post("/connectors/:type/test", async (req, res) => {
-    try {
-        const userId = req.user?.sub;
-        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
-        const type = String(req.params.type || "").toLowerCase();
-        const result = await connectorSettingsService.testConnector(userId, type);
-        res.json({ success: true, payload: result });
-    } catch (err) {
-        res.status(500).json({ success: false, error: "CONNECTOR_TEST_FAILED", message: err.message });
     }
 });
 
@@ -250,3 +291,4 @@ router.post("/account/:mode/reset", async (req, res) => {
 });
 
 module.exports = router;
+module.exports.accountConnectorRouter = accountConnectorRouter;

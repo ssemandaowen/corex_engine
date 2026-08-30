@@ -20,6 +20,7 @@ const authRoutes = require("@core/routes/authController");
 const authGuard = require("@core/middleware/authGuard");
 const rateLimit = require("@core/middleware/rateLimit");
 const settingsRoutes = require("@core/routes/settingsController");
+const { accountConnectorRouter } = require("@core/routes/settingsController");
 const dataRoutes     = require("@core/routes/dataController");
 
 // 2. Services
@@ -68,6 +69,7 @@ function registerRoutes() {
     app.use("/api/bridge", bridgeRoutes);
     app.use("/api/mt5", mt5Routes);
     app.use("/api/settings", authGuard, userLimiter, settingsRoutes);
+    app.use("/api/accounts", authGuard, userLimiter, accountConnectorRouter);
     app.use("/api/data",     authGuard, userLimiter, dataRoutes);
 
     // Health check (Public)
