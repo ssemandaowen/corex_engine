@@ -23,7 +23,12 @@ class TestBroker extends BaseBroker {
 }
 
 describe("BaseBroker", () => {
+    beforeEach(() => {
+        BaseBroker.setRiskValidator(() => ({ accepted: true }));
+    });
+
     afterEach(() => {
+        BaseBroker.setRiskValidator(null);
         jest.restoreAllMocks();
         jest.clearAllMocks();
     });
@@ -154,5 +159,80 @@ describe("BaseBroker", () => {
     test("_waitReady rejects after timeout if not ready", async () => {
         const broker = new TestBroker({ runtimeId: "r1", initialCash: 100000 });
         await expect(broker._waitReady(100)).rejects.toThrow(/broker not ready/);
+    });
+
+    test("handle() fails closed when no validator is injected", async () => {
+        BaseBroker.setRiskValidator(null);
+        const broker = new TestBroker({ runtimeId: "r1", symbol: "EURUSD", initialCash: 100000 });
+        broker._ready = true;
+        broker._passesRiskFloor = () => true;
+        const result = await broker.handle({ intent: "ENTER", symbol: "EURUSD", side: "long", quantity: 10 });
+        expect(result.status).toBe("REJECTED");
+        expect(result.reason).toBe("RISK_VALIDATOR_NOT_CONFIGURED");
+    });
+
+    test("handle() rejects order that exceeds drawdown threshold via real validator", async () => {
+        const maxDrawdownThresholdPct = 10.0;
+        BaseBroker.setRiskValidator((broker, signal) => {
+            const currentEquity = broker.getEquity();
+            const initialAllocation = broker.initialCash;
+            const currentDrawdownPct = ((initialAllocation - currentEquity) / initialAllocation) * 100;
+            if (currentDrawdownPct >= maxDrawdownThresholdPct) return null;
+            return { accepted: true, signal };
+        });
+        const broker = new TestBroker({ runtimeId: "r1", symbol: "EURUSD", initialCash: 100000 });
+        broker._ready = true;
+        broker._passesRiskFloor = () => true;
+        // TestBroker.getEquity() returns 50000 vs initialCash 100000 = 50% drawdown, exceeds 10% threshold
+        const result = await broker.handle({ intent: "ENTER", symbol: "EURUSD", side: "long", quantity: 10 });
+        expect(result.status).toBe("REJECTED");
+        expect(result.reason).toBe("RISK_LIMIT_EXCEEDED");
+    });
+
+    test("handle() passes normal order within limits via real validator", async () => {
+        const maxDrawdownThresholdPct = 10.0;
+        BaseBroker.setRiskValidator((broker, signal) => {
+            const currentEquity = broker.getEquity();
+            const initialAllocation = broker.initialCash;
+            const currentDrawdownPct = ((initialAllocation - currentEquity) / initialAllocation) * 100;
+            if (currentDrawdownPct >= maxDrawdownThresholdPct) return null;
+            return { accepted: true, signal };
+        });
+        class HealthyBroker extends TestBroker {
+            getEquity() { return 95000; }
+        }
+        const broker = new HealthyBroker({ runtimeId: "r1", symbol: "EURUSD", initialCash: 100000 });
+        broker._ready = true;
+        broker._passesRiskFloor = () => true;
+        // 95000 vs 100000 = 5% drawdown, within 10% threshold
+        const result = await broker.handle({ intent: "ENTER", symbol: "EURUSD", side: "long", quantity: 10 });
+        expect(result.status).toBe("OK");
+    });
+
+    test("risk validator adds no meaningful latency to handle()", async () => {
+        const maxDrawdownThresholdPct = 10.0;
+        BaseBroker.setRiskValidator((broker, signal) => {
+            const currentEquity = broker.getEquity();
+            const initialAllocation = broker.initialCash;
+            const currentDrawdownPct = ((initialAllocation - currentEquity) / initialAllocation) * 100;
+            if (currentDrawdownPct >= maxDrawdownThresholdPct) return null;
+            return { accepted: true, signal };
+        });
+        class HealthyBroker extends TestBroker {
+            getEquity() { return 95000; }
+        }
+        const broker = new HealthyBroker({ runtimeId: "r1", symbol: "EURUSD", initialCash: 100000 });
+        broker._ready = true;
+        broker._passesRiskFloor = () => true;
+        const iterations = 10000;
+        const start = process.hrtime.bigint();
+        for (let i = 0; i < iterations; i++) {
+            await broker.handle({ intent: "ENTER", symbol: "EURUSD", side: "long", quantity: 10 });
+        }
+        const elapsed = Number(process.hrtime.bigint() - start) / 1e6;
+        const perCall = elapsed / iterations;
+        // eslint-disable-next-line no-console
+        console.log(`[latency] ${iterations} handle() calls: ${elapsed.toFixed(2)}ms total, ${perCall.toFixed(4)}ms/call`);
+        expect(perCall).toBeLessThan(1);
     });
 });

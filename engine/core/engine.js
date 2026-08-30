@@ -20,6 +20,7 @@ const SignalProcessingEngine = require("@core/core/pipeline/SignalProcessingEngi
 const SignalExecutionEngine = require("@core/core/pipeline/SignalExecutionEngine");
 const SocketXRiskEngine = require("@core/core/pipeline/SocketXRiskEngine");
 const { RiskGateway, SocketXServer } = require("@broker/corex-gateway");
+const BaseBroker = require("../../packages/corex-broker-contract/src/base/BaseBroker");
 const { verifyToken } = require("@auth/corex-auth");
 const strategyRuntime = require("@core/modules/strategyRuntime");
 const RuntimeRegistry = require("@core/core/runtime/RuntimeRegistry");
@@ -128,9 +129,13 @@ class CoreXEngine {
             registry: RuntimeRegistry,
             onStrategyCrash: (id, err) => this.handleStrategyCrash(id, err),
         });
+        BaseBroker.setRiskValidator((broker, signal, runtimeId) =>
+            SignalProcessingEngine.validateForCommand({ broker, intent: signal, runtimeId })
+        );
         log.info("Socket_X risk engine wired: SignalProcessingEngine");
         log.info("Socket_X auth verifier wired: corex-auth");
         log.info("MarketFeed deps wired: RuntimeRegistry + strategy crash handler");
+        log.info("BaseBroker risk validator wired: SignalProcessingEngine (universal gate)");
     }
 
     async _sanitizeCacheDirectory(cacheDir) {

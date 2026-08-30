@@ -7,7 +7,17 @@ const StrategyPositionManager = require("@utils/strategy/StrategyPositionManager
 const { BrokerContract, UnsupportedOperationError } = require("./BrokerContract");
 const SymbolNormalizer = require("../utils/SymbolNormalizer");
 
+let _riskValidator = null;
+
 class BaseBroker extends EventEmitter {
+    static setRiskValidator(fn) {
+        _riskValidator = fn;
+    }
+
+    static _getRiskValidator() {
+        return _riskValidator;
+    }
+
     constructor(config = {}) {
         super();
 
@@ -96,8 +106,19 @@ class BaseBroker extends EventEmitter {
         if (!this._ready) await this._waitReady();
 
         if (!this._passesRiskFloor()) {
-            logger.error(`[${this.mode}] RISK FLOOR HIT for ${this.runtimeId} â€” signal blocked`);
+            logger.error(`[${this.mode}] RISK FLOOR HIT for ${this.runtimeId} — signal blocked`);
             return { status: "REJECTED", reason: "RISK_FLOOR" };
+        }
+
+        const validator = BaseBroker._getRiskValidator();
+        if (!validator) {
+            logger.error(`[${this.mode}] RISK VALIDATOR NOT CONFIGURED for ${this.runtimeId} — signal blocked (fail closed)`);
+            return { status: "REJECTED", reason: "RISK_VALIDATOR_NOT_CONFIGURED" };
+        }
+        const riskResult = validator(this, signal, this.runtimeId);
+        if (!riskResult || !riskResult.accepted) {
+            logger.error(`[${this.mode}] RISK VALIDATOR BLOCKED for ${this.runtimeId} — signal blocked`);
+            return { status: "REJECTED", reason: "RISK_LIMIT_EXCEEDED" };
         }
 
         const intent = String(signal.intent || "").toUpperCase();

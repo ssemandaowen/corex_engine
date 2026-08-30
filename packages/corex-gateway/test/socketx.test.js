@@ -4,7 +4,16 @@ const { MessageEnvelope, REASON_CODES } = require("../src/socketx/MessageEnvelop
 const { SocketXConnection, TokenBucket } = require("../src/socketx/SocketXConnection");
 const { SocketXServer } = require("../src/socketx/SocketXServer");
 const { RiskGateway } = require("../src/socketx/RiskGateway");
+const BaseBroker = require("../../corex-broker-contract/src/base/BaseBroker");
 const { signToken } = require("../../corex-auth/src/AuthService");
+
+beforeEach(() => {
+    BaseBroker.setRiskValidator(() => ({ accepted: true }));
+});
+
+afterEach(() => {
+    BaseBroker.setRiskValidator(null);
+});
 
 function _createMockSocket() {
     const handlers = {};

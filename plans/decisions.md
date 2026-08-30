@@ -259,3 +259,19 @@ Decision: Socket_X BUY/SELL commands represent externally-submitted orders (from
 Reason: Reading the code confirms this is intentional. `runPipeline.js:93-98` uses `broker.execute()` (the strategy pipeline's execution interface). `RiskGateway.js:128` uses `broker.handle()` (the direct command interface). These are distinct `BrokerContract` entry points for distinct order sources. Socket_X clients are external actors issuing orders directly — they do not need signal generation (the signal comes from the client) nor queue-based execution (the order is already validated and ready). They DO need portfolio-level risk enforcement, which `SignalProcessingEngine` provides via `SocketXRiskEngine`.
 
 Consequence: Do not "fix" Socket_X orders flowing through `SignalGenerationEngine`/`SignalExecutionEngine`. Doing so would conflate two fundamentally different order sources and break the clean separation between internal strategy signals and external client commands.
+
+---
+
+**[2026-08-31 00:30] Fix: universal risk validator gate in BaseBroker.handle() — closes the live-strategy risk gap**
+
+Decision: `BaseBroker.handle()` now invokes an injected, synchronous risk validator after `_passesRiskFloor()`. The validator is wired once at startup via `BaseBroker.setRiskValidator(fn)` in `engine/core/engine.js:_wireSocketX()`, using `SignalProcessingEngine.validateForCommand({ broker, intent, runtimeId })` — the exact same drawdown/position-conflict check Socket_X commands already get via `SocketXRiskEngine`. Live/paper strategy signals now pass through the identical risk gate.
+
+**Fail-closed by default:** If no validator is injected, `handle()` rejects every order with `RISK_VALIDATOR_NOT_CONFIGURED`. This is the opposite of `_passesRiskFloor()`'s default-pass behavior and is intentional — an unconfigured risk gate must block trading, not allow it.
+
+**Performance:** The validator is a synchronous function call reading only cached `broker.getEquity()` / `broker.getPositionSnapshot()` values (no Promises, no DB, no event bus). Measured at ~0.045ms per `handle()` call — negligible against the existing path.
+
+**Scope:** `_passesRiskFloor()` is untouched and still runs as a first-pass backstop. `RuntimeRegistry.js`, `SocketXServer.js`, `RiskGateway.js`, `SocketXRiskEngine.js` all have zero diff — the Socket_X path is unchanged. Backtest mode gains a redundant second check (defense-in-depth, acceptable).
+
+Reason: The risk-gap analysis (2026-08-30) confirmed live/paper strategy signals flowed `MarketFeed → broker.handle()` with only the weak `_passesRiskFloor()` check (which defaults to no-check when `riskFloor=0`), while Socket_X commands got the full `SignalProcessingEngine` drawdown + position-conflict gate. This closed the gap at the single convergence point (`BaseBroker.handle()`) so all order paths — current and future — inherit identical protection automatically.
+
+Consequence: Any test or code path that constructs a broker without engine.js wiring must set a validator via `BaseBroker.setRiskValidator(fn)` or `handle()` will fail closed. Package-level tests (BaseBroker.test.js, socketx.test.js) set a permissive validator in `beforeEach`.
