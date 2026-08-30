@@ -216,3 +216,46 @@ Decision: `getDefaultForUser(userId, accountType)` now requires `accountType` (n
 Reason: Migration 029 corrected the data model so every user has at most one default per type (one paper, one live). The application code still assumed one default total per user — `getDefaultForUser(userId)` with no type was ambiguous when two valid defaults exist. The fix closes the remaining application-code half of the split-brain: reads and writes of `is_default` are now correctly scoped to `(user, type)`.
 
 Consequence: Any caller that previously invoked `getDefaultForUser(userId)` without a type now throws — all such callers (the two convenience routes) were updated. Account-scoped routes (`/api/accounts/:accountId/connectors/:type`) were already accountId-based and required no change. Backfill from migration 029 already populated correct per-type defaults, so no new migration is needed.
+
+---
+
+**[2026-08-30 18:03] Phase 1 — Remove dead broker/oanda.js and broken broker/connectors/RestConnector.js**
+
+Decision: Delete `broker/oanda.js` (53 lines, full OANDA WebSocket broker) and `broker/connectors/RestConnector.js` (broken shim requiring a non-existent path in `corex-broker-contract`). Both were already unplugged from `CONNECTOR_SCHEMAS` but never deleted. The locked prohibition against `mt5_bridge`/`oanda` as live-selectable connector types (decisions.md 2026-08-23) remains in force — this removal enforces it at the file level.
+
+Reason: Previous sessions removed these from the connector schema but left the files on disk, creating drift between the documented prohibition and the actual codebase. Grep confirmed zero code imports either file before deletion.
+
+Consequence: `@oanda/v20` npm dependency in package.json is now unused but left in place (harmless; removable in a separate cleanup). No code references removed files.
+
+---
+
+**[2026-08-30 18:12] Phase 2 — Invert MarketFeed.js reverse dependency on engine/**
+
+Decision: `packages/corex-market-data/src/MarketFeed.js` no longer requires `@core/core/runtime/RuntimeRegistry` or `@core/core/engine` directly. Dependencies are injected at startup via `marketFeed.setDeps({ registry, onStrategyCrash })`, following the same pattern as `RiskGateway.setRiskEngine()` and `SocketXServer.setAuthVerifier()`. `engine/core/engine.js` wires `RuntimeRegistry` and `handleStrategyCrash` in `_wireSocketX()`. Test environment falls back to no-op stubs with a warning; production throws if not injected.
+
+Reason: Every other package depends on engine/ one-directionally. MarketFeed was the exception — it reached back into engine/ for `RuntimeRegistry.forSymbol()` / `.get()` and `engine.handleStrategyCrash()`. The inversion makes the dependency explicit and matches the established injection pattern.
+
+Consequence: `corex-market-data` now follows the same dependency rule as all other packages. The singleton export (`module.exports = new MarketFeed()`) is unchanged — `setDeps` is an instance method, not static.
+
+---
+
+**[2026-08-30 18:21] Phase 3 — Resolve brokerPersistenceService duplication**
+
+Decision: `packages/corex-accounts/src/brokerPersistenceService.js` now holds the real, live implementation (using `pgStore.upsertBrokerSettingsForUser()` — the centralized data access path). The orphaned class-based stub with raw `pg` Pool SQL is gone. `engine/services/brokerPersistence.js` is now a re-export shim pointing at the package, preserving the `{ persistBrokerSettings }` function signature. `engine/routes/systemController.js` has zero diff.
+
+Reason: Two parallel implementations existed: the live engine version (function-based, used `pgStore`) and an orphaned package stub (class-based, raw `pg` Pool, zero consumers). The package stub was stale and duplicated logic. Following the established shim pattern (authService, secretsVault, etc.), the package now owns the logic and engine re-exports it.
+
+Consequence: `corex-accounts/index.js` exports `persistBrokerSettings` (function) instead of `BrokerPersistenceService` (class instance). No caller changes required.
+
+---
+
+**[2026-08-30 18:30] Phase 4 — Socket_X commands bypass SignalGenerationEngine/SignalExecutionEngine (intentional, locked)**
+
+Decision: Socket_X BUY/SELL commands represent externally-submitted orders (from clients), not strategy-generated signals. They are NOT a bug or missing integration. The two order paths are intentionally separate:
+
+1. **Strategy pipeline** (`runPipeline.js`): For strategy-generated signals. Flows through all three stages — `SignalGenerationEngine` (strategy's `next()`) → `SignalProcessingEngine` (risk/filter) → `SignalExecutionEngine` (queue) → `broker.execute()`.
+2. **Socket_X direct path** (`RiskGateway.submit()`): For client-submitted commands. Routes through `broker.handle()` → `driver.submit()`. Only `SignalProcessingEngine` (via `SocketXRiskEngine`) is invoked — for portfolio risk validation (drawdown, position checks) only. Generation and execution engines are correctly bypassed.
+
+Reason: Reading the code confirms this is intentional. `runPipeline.js:93-98` uses `broker.execute()` (the strategy pipeline's execution interface). `RiskGateway.js:128` uses `broker.handle()` (the direct command interface). These are distinct `BrokerContract` entry points for distinct order sources. Socket_X clients are external actors issuing orders directly — they do not need signal generation (the signal comes from the client) nor queue-based execution (the order is already validated and ready). They DO need portfolio-level risk enforcement, which `SignalProcessingEngine` provides via `SocketXRiskEngine`.
+
+Consequence: Do not "fix" Socket_X orders flowing through `SignalGenerationEngine`/`SignalExecutionEngine`. Doing so would conflate two fundamentally different order sources and break the clean separation between internal strategy signals and external client commands.
