@@ -124,8 +124,13 @@ class CoreXEngine {
             }
             return { ok: true, userId: payload.userId };
         });
+        MarketFeed.setDeps({
+            registry: RuntimeRegistry,
+            onStrategyCrash: (id, err) => this.handleStrategyCrash(id, err),
+        });
         log.info("Socket_X risk engine wired: SignalProcessingEngine");
         log.info("Socket_X auth verifier wired: corex-auth");
+        log.info("MarketFeed deps wired: RuntimeRegistry + strategy crash handler");
     }
 
     async _sanitizeCacheDirectory(cacheDir) {

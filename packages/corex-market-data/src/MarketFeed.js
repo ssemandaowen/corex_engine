@@ -15,9 +15,12 @@
  *          - feed broker._lastPrice (via onTick)
  *          - instance.onMarketData(tick, {source:"tick"}) -> signal | null
  *          - if signal: broker.handle(signal)
+ *
+ * Dependencies (RuntimeRegistry, crash handler) are injected by engine/ at
+ * startup via MarketFeed.setDeps() — the package never reaches back into
+ * engine/. See engine/core/engine.js _wireMarketFeed().
  */
 
-const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const DataProviderFactory = require("../DataProviderFactory");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
@@ -26,12 +29,31 @@ const log = logger.createModuleLogger("MARKET_FEED");
 
 class MarketFeed {
     constructor() {
+        this._deps = null;
+        this._depsInjected = false;
         this._started = false;
         this._startedAt = null;
         this._subscribers = new Map();
         this._symbolStats = new Map();
         this._totalTicks = 0;
         this._lastTickAt = 0;
+    }
+
+    setDeps({ registry, onStrategyCrash }) {
+        this._deps = { registry, onStrategyCrash };
+        this._depsInjected = true;
+    }
+
+    _resolveDeps() {
+        if (this._deps) return this._deps;
+        const env = String(process.env.NODE_ENV || "").trim().toLowerCase();
+        const isJest = !!process.env.JEST_WORKER_ID;
+        const isTest = env === "test" || env === "testing" || isJest;
+        if (isTest) {
+            console.warn("[MarketFeed] no deps injected — using no-op fallback. Wire registry + onStrategyCrash at startup in production.");
+            return { registry: { forSymbol: () => [], get: () => null }, onStrategyCrash: () => {} };
+        }
+        throw new Error("MarketFeed: no deps injected. Call marketFeed.setDeps({ registry, onStrategyCrash }) at startup.");
     }
 
     start() {
@@ -92,7 +114,8 @@ class MarketFeed {
         const symbol = String(tick.symbol).toUpperCase();
         this._recordTick(symbol);
 
-        const runtimes = runtimeRegistry.forSymbol(symbol)
+        const { registry } = this._resolveDeps();
+        const runtimes = registry.forSymbol(symbol)
             .filter((r) => r.mode === "PAPER" || r.mode === "LIVE");
 
         if (!runtimes.length) return;
@@ -131,7 +154,8 @@ class MarketFeed {
     }
 
     async feedBar(runtimeId, bar) {
-        const entry = runtimeRegistry.get(runtimeId);
+        const { registry } = this._resolveDeps();
+        const entry = registry.get(runtimeId);
         if (!entry) return;
         await this._feedRuntime(entry, {
             symbol: bar.symbol,
@@ -185,8 +209,10 @@ class MarketFeed {
         } catch (e) {
             log.error(`[STRATEGY:${entry.runtimeId}] onMarketData threw: ${e.message}`);
             try {
-                const engine = require("@core/core/engine");
-                engine.handleStrategyCrash(entry.runtimeId, e);
+                const { onStrategyCrash } = this._resolveDeps();
+                if (typeof onStrategyCrash === "function") {
+                    onStrategyCrash(entry.runtimeId, e);
+                }
             } catch (_) { /* best effort */ }
             return;
         }
