@@ -21,7 +21,7 @@
  * engine/. See engine/core/engine.js _wireMarketFeed().
  */
 
-const DataProviderFactory = require("../DataProviderFactory");
+const DataProviderFactory = require("./DataProviderFactory");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 
