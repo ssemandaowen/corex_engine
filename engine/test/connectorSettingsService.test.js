@@ -8,12 +8,53 @@ jest.mock("pg", () => ({
     }))
 }));
 
-// Mock secretsVault
-jest.mock("@core/services/secretsVault", () => ({
-    encryptString: jest.fn((s) => `enc:${s}`),
-    decryptString: jest.fn((s) => s.replace("enc:", "")),
-    isEncryptedString: jest.fn((s) => s.startsWith("enc:"))
-}));
+// Mock secretsVault — real maskSecrets implementation
+jest.mock("@core/services/secretsVault", () => {
+    const DEFAULT_SECRET_PATHS = [
+        "ui.integrations.marketData.twelveDataApiKey",
+        "ui.integrations.metaApi.token",
+        "ui.integrations.mt5Bridge.bridgeToken",
+        "ui.integrations.mt5Bridge.httpToken",
+        "ui.integrations.mt5Bridge.http_token"
+    ];
+    function _getAtPath(obj, dotPath) {
+        if (!obj || typeof obj !== "object") return undefined;
+        const parts = String(dotPath).split(".");
+        let cur = obj;
+        for (const p of parts) {
+            if (cur == null || typeof cur !== "object" || !(p in cur)) return undefined;
+            cur = cur[p];
+        }
+        return cur;
+    }
+    function _setAtPath(obj, dotPath, value) {
+        const parts = String(dotPath).split(".");
+        let cur = obj;
+        for (let i = 0; i < parts.length - 1; i++) {
+            if (cur == null || typeof cur !== "object") return;
+            if (!(parts[i] in cur) || cur[parts[i]] == null || typeof cur[parts[i]] !== "object") {
+                cur[parts[i]] = {};
+            }
+            cur = cur[parts[i]];
+        }
+        if (cur != null) cur[parts[parts.length - 1]] = value;
+    }
+    return {
+        encryptString: jest.fn((s) => `enc:${s}`),
+        decryptString: jest.fn((s) => s.replace("enc:", "")),
+        isEncryptedString: jest.fn((s) => s.startsWith("enc:")),
+        maskSecrets: (obj, secretPaths = DEFAULT_SECRET_PATHS) => {
+            if (!obj || typeof obj !== "object") return obj;
+            const cloned = JSON.parse(JSON.stringify(obj));
+            for (const p of secretPaths || []) {
+                const v = _getAtPath(cloned, p);
+                if (typeof v !== "string" || !v) continue;
+                _setAtPath(cloned, p, "<redacted>");
+            }
+            return cloned;
+        }
+    };
+});
 
 // Mock corex-accounts to avoid BrokerPersistenceService instantiating a real pg Pool at module load
 jest.mock("corex-accounts", () => {
@@ -127,5 +168,49 @@ describe("connectorSettingsService (accountId-based)", () => {
         const list = connectorSettingsService.listForUser();
         const types = list.map(l => l.connectorType);
         expect(types).toEqual(["twelvedata", "metaapi"]);
+    });
+
+    test("getPublicConfig returns hasSecrets=true and masked token for metaapi with secret saved", async () => {
+        const accId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        const RAW_TOKEN = "sk-raw-secret-token-DO-NOT-LEAK-12345";
+        mockQuery.mockResolvedValueOnce({ rows: [{ credentials: { token: RAW_TOKEN } }] });
+        const result = await connectorSettingsService.getPublicConfig(accId, "metaapi");
+        expect(result.hasSecrets).toBe(true);
+        expect(result.maskedKeys.token).toBe("<redacted>");
+        // Raw value must not appear anywhere in the serialized result.
+        const serialized = JSON.stringify(result);
+        expect(serialized.includes(RAW_TOKEN)).toBe(false);
+    });
+
+    test("getPublicConfig returns hasSecrets=true and masked apiKey for twelvedata with secret saved", async () => {
+        const accId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        const RAW_KEY = "twelvedata-raw-key-DO-NOT-LEAK-67890";
+        mockQuery.mockResolvedValueOnce({ rows: [{ credentials: { apiKey: RAW_KEY } }] });
+        const result = await connectorSettingsService.getPublicConfig(accId, "twelvedata");
+        expect(result.hasSecrets).toBe(true);
+        expect(result.maskedKeys.apiKey).toBe("<redacted>");
+        const serialized = JSON.stringify(result);
+        expect(serialized.includes(RAW_KEY)).toBe(false);
+    });
+
+    test("getPublicConfig returns hasSecrets=false and empty maskedKeys when no connection exists", async () => {
+        const accId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        mockQuery.mockResolvedValueOnce({ rows: [] });
+        const result = await connectorSettingsService.getPublicConfig(accId, "metaapi");
+        expect(result.hasSecrets).toBe(false);
+        expect(result.maskedKeys).toEqual({});
+        expect(result.config).toEqual({});
+    });
+
+    test("getPublicConfig uses the connector's specific secret schema, not DEFAULT_SECRET_PATHS", async () => {
+        const accId = "cx_pap_01HZX89K329RVTNABCDEF1234";
+        const RAW_TOKEN = "metaapi-token-DO-NOT-LEAK-abcdef";
+        mockQuery.mockResolvedValueOnce({ rows: [{ credentials: { token: RAW_TOKEN, apiKey: "not-a-twelvedata-key-just-noise" } }] });
+        const result = await connectorSettingsService.getPublicConfig(accId, "metaapi");
+        // metaapi schema declares only ["token"] as secrets — apiKey should NOT be masked here
+        // because it's not part of the metaapi schema. The schema is the source of truth.
+        expect(result.maskedKeys.token).toBe("<redacted>");
+        const serialized = JSON.stringify(result);
+        expect(serialized.includes(RAW_TOKEN)).toBe(false);
     });
 });

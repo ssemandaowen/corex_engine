@@ -75,20 +75,25 @@ describe("settingsController GET /connectors/:type convenience route", () => {
 
     test("passes mode through to getDefaultForUser as accountType", async () => {
         mockGetDefaultForUser.mockResolvedValue({ accountId: "cx_pap_abc123" });
-        mockGetConnectorConfig.mockResolvedValue({ config: {}, secrets: {} });
+        mockGetPublicConfig.mockResolvedValue({ hasSecrets: true, maskedKeys: { token: "<redacted>" }, config: {} });
         const { req, res, getResult } = makeReqRes({ params: { type: "metaapi" }, query: { mode: "paper" } });
         await convenienceRoute.route.stack[0].handle(req, res);
         const r = getResult();
         expect(r.status).toBe(200);
         expect(mockGetDefaultForUser).toHaveBeenCalledWith("u1", "paper");
+        expect(mockGetPublicConfig).toHaveBeenCalledWith("cx_pap_abc123", "metaapi");
     });
 
-    test("?mode=paper and ?mode=live return different connector configs", async () => {
+    test("?mode=paper and ?mode=live return different connector configs (masked)", async () => {
         mockGetDefaultForUser.mockImplementation((userId, mode) =>
             Promise.resolve(mode === "paper" ? { accountId: "cx_pap_abc" } : { accountId: "cx_liv_xyz" })
         );
-        mockGetConnectorConfig.mockImplementation((accountId) =>
-            Promise.resolve({ config: { accountId }, secrets: { token: accountId === "cx_pap_abc" ? "paper-token" : "live-token" } })
+        mockGetPublicConfig.mockImplementation((accountId) =>
+            Promise.resolve({
+                hasSecrets: true,
+                maskedKeys: { token: "<redacted>" },
+                config: { accountId }
+            })
         );
         const paper = makeReqRes({ params: { type: "metaapi" }, query: { mode: "paper" } });
         const live = makeReqRes({ params: { type: "metaapi" }, query: { mode: "live" } });
@@ -100,8 +105,11 @@ describe("settingsController GET /connectors/:type convenience route", () => {
         expect(liveR.status).toBe(200);
         expect(paperR.body.payload.config.accountId).toBe("cx_pap_abc");
         expect(liveR.body.payload.config.accountId).toBe("cx_liv_xyz");
-        expect(paperR.body.payload.secrets.token).toBe("paper-token");
-        expect(liveR.body.payload.secrets.token).toBe("live-token");
+        // Both responses must be masked, not raw tokens.
+        expect(paperR.body.payload.maskedKeys.token).toBe("<redacted>");
+        expect(liveR.body.payload.maskedKeys.token).toBe("<redacted>");
+        expect(paperR.body.payload.secrets).toBeUndefined();
+        expect(liveR.body.payload.secrets).toBeUndefined();
     });
 
     test("returns 404 NO_DEFAULT_ACCOUNT when no default for that type", async () => {

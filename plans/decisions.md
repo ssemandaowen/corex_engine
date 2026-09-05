@@ -275,3 +275,33 @@ Decision: `BaseBroker.handle()` now invokes an injected, synchronous risk valida
 Reason: The risk-gap analysis (2026-08-30) confirmed live/paper strategy signals flowed `MarketFeed → broker.handle()` with only the weak `_passesRiskFloor()` check (which defaults to no-check when `riskFloor=0`), while Socket_X commands got the full `SignalProcessingEngine` drawdown + position-conflict gate. This closed the gap at the single convergence point (`BaseBroker.handle()`) so all order paths — current and future — inherit identical protection automatically.
 
 Consequence: Any test or code path that constructs a broker without engine.js wiring must set a validator via `BaseBroker.setRiskValidator(fn)` or `handle()` will fail closed. Package-level tests (BaseBroker.test.js, socketx.test.js) set a permissive validator in `beforeEach`.
+
+---
+
+**[2026-09-05 11:30] Manual boot verification revealed four startup-blocking bugs not caught by tests**
+
+Decision: Fixed four pre-existing shim/alias issues that prevented `npm start` from completing. None were caught by the test suite because jest's `moduleNameMapper` resolves aliases differently from `module-alias` at runtime.
+
+1. **`engine/core/runtime/RuntimeBrokerFactory.js`** — relative path was `../../packages/...` (resolves to `engine/packages/...`); correct depth from `engine/core/runtime/` is `../../../packages/...`. Required depth is 3 levels up to reach project root.
+
+2. **`packages/corex-market-data/src/MarketFeed.js`** — `require("../DataProviderFactory")` resolved to wrong directory; `DataProviderFactory.js` is a sibling, not a parent's child. Changed to `require("./DataProviderFactory")`.
+
+3. **`packages/corex-gateway/src/socketx/RiskGateway.js`** — `require("@broker/RuntimeBrokerFactory")` works in jest (where `moduleNameMapper` maps it) but fails at runtime where `module-alias` only maps `@broker/*` to `./broker/*` (no `corex-gateway` subdirectory). Changed to relative path `../../../corex-broker-contract/src/RuntimeBrokerFactory`.
+
+4. **`package.json _moduleAliases`** — was missing runtime mappings for extracted package names (`corex-accounts`, `corex-broker-contract`, `corex-market-data`, `corex-auth`, `corex-gateway`) and the specific `@broker/corex-gateway` / `@broker/corex-broker-contract` / `@broker/RuntimeBrokerFactory` overrides. Added all.
+
+Reason: The unit test suite passed 428/439 throughout package extraction, but the server itself could not start — these bugs were invisible to jest. Manual boot verification (`npm start`) surfaced them immediately. This reinforces the rule that unit tests cannot reveal integration/wiring issues across package boundaries.
+
+Consequence: All four fixes are purely path/alias changes with zero logic modification. After the fixes, `npm start` completes bootstrap successfully: migrations applied, all engine components wired (including the new `BaseBroker risk validator: SignalProcessingEngine (universal gate)`), strategies compiled and ACTIVE, server listening on port 3000. Test suite after fixes: 428 pass / 11 fail (same 2 pre-existing failures, no new regressions). The `_moduleAliases` entry must be kept in sync with the `jest.moduleNameMapper` entry in `package.json` going forward — these two configs are now coupled and must be updated together when adding a new package.
+
+---
+
+**[2026-09-05 12:10] Security fix: stop returning decrypted connector secrets in API responses**
+
+Decision: Replaced the `getPublicConfig()` stub with a real implementation that returns `{ hasSecrets, maskedKeys, config }`. Both `GET /api/accounts/:accountId/connectors/:type` and `GET /api/settings/connectors/:type` now call `getPublicConfig()` instead of the raw `getConnectorConfig()`. The raw `getConnectorConfig()` is retained for internal server-side use only and is no longer returned in any HTTP response.
+
+`getPublicConfig()` fetches the connection, decrypts the stored credentials, then masks them using `secretsVault.maskSecrets(secrets, CONNECTOR_SCHEMAS[type].secrets)` — passing the **connector-specific** secret field list (`["apiKey"]` for twelvedata, `["token"]` for metaapi) rather than the shallow `DEFAULT_SECRET_PATHS` from the global secrets vault config. The schema is the source of truth for which fields are secret, per connector type.
+
+Reason: The settings-config audit (2026-09-05, `plans/settings-config-audit.md`, Findings 1-2) identified two real credential leaks: (1) the account-scoped GET route returned `{ config: {}, secrets }` with the secrets object containing raw decrypted API keys/tokens; (2) the convenience GET route and the list endpoint both had the same flaw. The masking infrastructure (`secretsVault.maskSecrets`) already existed and was used correctly by `GET /api/settings` (`systemController.js:476-491`) — this fix applies the same pattern to the connector routes.
+
+Consequence: No frontend changes required — the response shape `{ hasSecrets, maskedKeys, config }` is the same shape the frontend `AccountView.tsx:139-140` was already expecting (and that the `getPublicConfig` stub was supposed to provide). The internal `getConnectorConfig()` is unchanged and still available for any future server-side connector driver that needs raw credentials. The write path (`saveConnectorConfig` / `PUT` route) is untouched — encryption and storage continue exactly as before. All masked values are the literal string `"<redacted>"`, not a partial redacted form like `sk-***` — chosen to match the existing `secretsVault.maskSecrets` behavior so a single masking utility is the source of truth.

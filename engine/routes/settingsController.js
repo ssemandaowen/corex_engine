@@ -86,7 +86,7 @@ accountConnectorRouter.get("/:accountId/connectors/:type", async (req, res) => {
         if (!accountId) return res.status(400).json({ success: false, error: "ACCOUNT_ID_REQUIRED" });
 
         const type = String(req.params.type || "").toLowerCase();
-        const result = await connectorSettingsService.getConnectorConfig(accountId, type);
+        const result = await connectorSettingsService.getPublicConfig(accountId, type);
         res.json({ success: true, payload: result });
     } catch (err) {
         res.status(500).json({ success: false, error: "CONNECTOR_READ_FAILED", message: err.message });
@@ -108,7 +108,7 @@ router.get("/connectors/:type", async (req, res) => {
         const defaultAccount = await accountRepository.getDefaultForUser(userId, mode);
         if (!defaultAccount) return res.status(404).json({ success: false, error: "NO_DEFAULT_ACCOUNT" });
 
-        const result = await connectorSettingsService.getConnectorConfig(defaultAccount.accountId, type);
+        const result = await connectorSettingsService.getPublicConfig(defaultAccount.accountId, type);
         res.json({ success: true, payload: result });
     } catch (err) {
         res.status(500).json({ success: false, error: "CONNECTOR_READ_FAILED", message: err.message });
