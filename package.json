@@ -49,7 +49,8 @@
     "corex-broker-contract": "./packages/corex-broker-contract",
     "corex-market-data": "./packages/corex-market-data",
     "corex-auth": "./packages/corex-auth",
-    "corex-gateway": "./packages/corex-gateway"
+    "corex-gateway": "./packages/corex-gateway",
+    "corex-portfolio": "./packages/corex-portfolio"
   },
   "author": "Ssemanda Owen (Apex Trait Ltd)",
   "license": "UNLICENSED",
@@ -97,6 +98,7 @@
       "^@broker/(.*)$": "<rootDir>/broker/$1",
       "^@data/(.*)$": "<rootDir>/packages/corex-market-data/$1",
       "^@auth/(.*)$": "<rootDir>/packages/corex-auth/$1",
+      "^@portfolio/(.*)$": "<rootDir>/packages/corex-portfolio/$1",
       "^@events/(.*)$": "<rootDir>/events/$1",
       "^@config/(.*)$": "<rootDir>/config/$1"
     }

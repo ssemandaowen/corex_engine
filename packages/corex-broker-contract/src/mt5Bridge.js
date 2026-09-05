@@ -173,7 +173,7 @@ class MT5Bridge {
 
         await db.withTransaction(async (tx) => {
             const lockRes = await tx.query(
-                "SELECT id, quantity FROM orders WHERE id = $1 FOR UPDATE",
+                "SELECT id, quantity, account_id FROM orders WHERE id = $1 FOR UPDATE",
                 [orderId]
             );
             const row = lockRes.rows?.[0];
@@ -211,9 +211,9 @@ class MT5Bridge {
             }
 
             await tx.query(
-                `INSERT INTO order_fills (order_id, external_deal_id, fill_price, fill_quantity, commission, filled_at)
-                 VALUES ($1, $2, $3, $4, $5, NOW())`,
-                [orderId, dealId, fillPrice, fillQty, Number.isFinite(commission) ? commission : 0]
+                `INSERT INTO order_fills (order_id, external_deal_id, fill_price, fill_quantity, commission, filled_at, account_id)
+                 VALUES ($1, $2, $3, $4, $5, NOW(), $6)`,
+                [orderId, dealId, fillPrice, fillQty, Number.isFinite(commission) ? commission : 0, row.account_id]
             );
         });
     }

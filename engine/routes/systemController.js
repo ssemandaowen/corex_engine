@@ -783,10 +783,11 @@ router.post("/mt5/push-test", async (req, res) => {
         return res.status(400).json({ success: false, error: "INVALID_PAYLOAD" });
     }
     try {
+        const accountId = String(req.body?.accountId || "").trim() || null;
         await db.query(
-            `INSERT INTO orders (strategy_id, strategy_name, user_id, symbol, side, order_type, quantity, status, environment, terminal_id)
+            `INSERT INTO orders (strategy_id, strategy_name, user_id, account_id, symbol, side, order_type, quantity, status, environment, terminal_id)
              VALUES ($1, $2, $3, $4, $5, 'MARKET', $6, 'PENDING', 'LIVE', $7)`,
-            [null, null, userId, symbol, side, quantity, terminalId]
+            [null, null, userId, accountId, symbol, side, quantity, terminalId]
         );
         res.json({ success: true });
     } catch (err) {

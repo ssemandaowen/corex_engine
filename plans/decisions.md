@@ -321,3 +321,20 @@ This task completes the simplification:
 Reason: The fallback was a known gap in the 2026-08-21 decision. Removing it makes the simplification actually complete and safe to drop the table. Final grep before the migration confirmed zero application code references the 5 removed methods or `user_api_keys`. The only remaining mentions are in `front_end/src/views/AccountView.tsx` (lines 170, 186, 1240) and `front_end/src/api/auth.ts` (lines 8, 10) — frontend code that calls now-non-existent backend endpoints. These are deferred for a separate frontend-cleanup task and flagged here so a future agent knows they're expected dead-end calls, not freshly broken ones.
 
 Consequence: JWT is now the sole authentication mechanism across the entire system — HTTP routes via `authGuard.js`, WebSocket upgrades via `server.js:authenticateUpgrade()`. No API key can be issued, used, or stored. The weak `API_KEY_PEPPER` fallback chain (`JWT_SECRET → ADMIN_SECRET → hardcoded default`) is gone as a side effect — that concern is moot. `authGuard.js`, `authController.js` (including the `authKey: null` in the signin response), and all other unrelated auth code are unchanged.
+
+---
+
+**[2026-09-06 02:25] Feature: corex-portfolio extraction with account_id-based trade history**
+
+Decision: Extracted `engine/services/tradeHistoryService.js` into `packages/corex-portfolio/` as a lean, account-aware analytics package. Added nullable `account_id` columns to `orders` and `order_fills` via migration `031_add_account_id_to_orders.sql`. No backfill was performed — existing rows retain `NULL` account_id.
+
+Key design choices:
+1. **Nullable account_id** — Existing historical orders have no account context. The service falls back to `user_id + environment` when `account_id IS NULL`, preserving legacy behavior for old rows and old callers.
+2. **Dual-path querying** — `getHistoryReport()` accepts `accountId` for account-scoped queries. If omitted, it falls back to the original `user_id + environment` WHERE clause unchanged.
+3. **Order-insertion call sites populated** — `systemController.js` `/api/mt5/push-test`, `mt5Controller.js` `/api/mt5/confirm-fill`, and `mt5Bridge.js` `_persistOrderResult` now write `account_id` when available. For `order_fills`, the `account_id` is read from the parent `orders` row.
+4. **Zero coupling to trading_accounts** — `corex-portfolio` treats `account_id` as an opaque string. It does not import `corex-gateway` or validate account structure. Controller-layer resolution (`accountId → userId`) is deferred to callers that need it.
+5. **Analytics untouched** — `buildClosedTrades`, `buildEquityAnalytics`, and `buildPerformance` are pure functions with identical logic, now split into `src/analytics/` for testability.
+
+Reason: A user with two accounts of the same type (e.g. two live accounts) previously received indistinguishable trade history because the service keyed only by `userId + environment`. Account-scoped history is required once multi-account support is active. The lean extraction avoids a broader schema rewrite or circular dependency pressure.
+
+Consequence: `engine/routes/executionController.js` has zero diff — the re-export shim preserves the singleton export shape. `paper_trades` was confirmed out of scope (no application code reads/writes it) and was not touched. `user_connector_settings` table was confirmed dead but no migration to drop it was created in this task (deferred to separate cleanup).

@@ -115,7 +115,7 @@ router.post("/confirm-fill", async (req, res) => {
     try {
         const result = await db.withTransaction(async (tx) => {
             const { rows } = await tx.query(
-                "SELECT id, quantity FROM orders WHERE id = $1 FOR UPDATE",
+                "SELECT id, quantity, account_id FROM orders WHERE id = $1 FOR UPDATE",
                 [orderId]
             );
             if (!rows[0]) {
@@ -128,9 +128,9 @@ router.post("/confirm-fill", async (req, res) => {
             );
 
             await tx.query(
-                `INSERT INTO order_fills (order_id, external_deal_id, fill_price, fill_quantity, commission, filled_at)
-                 VALUES ($1, $2, $3, $4, 0, NOW())`,
-                [orderId, dealId, fillPrice, rows[0].quantity]
+                `INSERT INTO order_fills (order_id, external_deal_id, fill_price, fill_quantity, commission, filled_at, account_id)
+                 VALUES ($1, $2, $3, $4, 0, NOW(), $5)`,
+                [orderId, dealId, fillPrice, rows[0].quantity, rows[0].account_id]
             );
 
             return { status: 200, payload: { success: true } };

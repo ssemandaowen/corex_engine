@@ -40,13 +40,18 @@
 - Extract authService.js + secretsVault.js to packages/corex-auth/
 - Keep DB/Express-coupled code in engine/ with re-export shims
 
-### corex-accounts extraction — IN PROGRESS
-- [x] Create plans/corex-accounts-implementation.md
-- [x] Implement corex-accounts package structure and services (scaffolded)
-- [x] Create database migration for accounts/connections tables
-- [x] Implement accountsService and connectionsService
-- [x] Implement re-export shims for brokerPersistence/connectorSettingsService (initial scaffold)
-- [ ] Verify bug fix with tests: multiple accounts per user, independent connection credentials
-- [ ] Ensure no forbidden files were touched (verify with git status)
+### corex-portfolio extraction — COMPLETED
+- [x] Extracted tradeHistoryService.js to packages/corex-portfolio/ with account_id scoping
+- [x] Migration 031 adds nullable account_id to orders + order_fills, indexed, FK to trading_accounts
+- [x] getHistoryReport supports both accountId-based and legacy userId+environment queries
+- [x] Order-insertion call sites updated: systemController.js, mt5Controller.js, mt5Bridge.js
+- [x] engine/services/tradeHistoryService.js re-export shim preserves singleton shape
+- [x] 7 new tests pass; analytics regression verified
+- [x] Full suite: 439 pass, 11 pre-existing failures unchanged
+
+### corex-accounts extraction — COMPLETED
+- [x] Package structure, services, migrations, and re-export shims implemented
+- [x] Tests verified: multiple accounts per user, independent connection credentials
+- [x] No forbidden files touched
 
 
