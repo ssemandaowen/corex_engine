@@ -40,7 +40,7 @@ function applyRuntimeConfig() {
     app.use(cors({
         origin: corsOrigin,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
-        allowedHeaders: ["Content-Type", "x-admin-key", "x-auth-key", "Authorization"]
+        allowedHeaders: ["Content-Type", "x-admin-key", "Authorization"]
     }));
 
     const JSON_LIMIT = get("server.jsonLimit", process.env.JSON_LIMIT || "1mb") || "1mb";
@@ -98,22 +98,7 @@ function start() {
                 try {
                     return verifyToken(bearer);
                 } catch {
-                    // Try API key fallback below
-                }
-            }
-
-            const apiKey = String(request.headers["x-auth-key"] || url.searchParams.get("authKey") || "").trim();
-            if (apiKey) {
-                const resolved = await pgStore.resolveUserByApiKey(apiKey);
-                if (resolved?.user?.id) {
-                    pgStore.touchApiKeyUsage(resolved.keyId).catch(() => {});
-                    return {
-                        sub: resolved.user.id,
-                        role: resolved.user.role,
-                        email: resolved.user.email,
-                        name: resolved.user.name,
-                        authType: "api_key"
-                    };
+                    return null;
                 }
             }
             return null;

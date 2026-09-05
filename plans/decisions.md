@@ -305,3 +305,19 @@ Decision: Replaced the `getPublicConfig()` stub with a real implementation that 
 Reason: The settings-config audit (2026-09-05, `plans/settings-config-audit.md`, Findings 1-2) identified two real credential leaks: (1) the account-scoped GET route returned `{ config: {}, secrets }` with the secrets object containing raw decrypted API keys/tokens; (2) the convenience GET route and the list endpoint both had the same flaw. The masking infrastructure (`secretsVault.maskSecrets`) already existed and was used correctly by `GET /api/settings` (`systemController.js:476-491`) — this fix applies the same pattern to the connector routes.
 
 Consequence: No frontend changes required — the response shape `{ hasSecrets, maskedKeys, config }` is the same shape the frontend `AccountView.tsx:139-140` was already expecting (and that the `getPublicConfig` stub was supposed to provide). The internal `getConnectorConfig()` is unchanged and still available for any future server-side connector driver that needs raw credentials. The write path (`saveConnectorConfig` / `PUT` route) is untouched — encryption and storage continue exactly as before. All masked values are the literal string `"<redacted>"`, not a partial redacted form like `sk-***` — chosen to match the existing `secretsVault.maskSecrets` behavior so a single masking utility is the source of truth.
+
+---
+
+**[2026-09-05 13:25] Complete 2026-08-21 auth-simplification: remove WS API-key fallback, drop user_api_keys**
+
+Decision: The 2026-08-21 "Auth simplification" decision removed API-key auth from `authGuard.js` (HTTP middleware) and the issuance routes, but **left an unreported gap**: `engine/server.js`'s `authenticateUpgrade()` function — used only by the `/ws` WebSocket upgrade handler — still had a live API-key fallback (`x-auth-key` header or `authKey` query param) calling `pgStore.resolveUserByApiKey()`. This was unreachable in practice (no issuance endpoint existed, no client sent `x-auth-key`, the table was always empty) but it was live code, not dead code, which is why the 2026-08-21 decision couldn't drop `user_api_keys` as it intended.
+
+This task completes the simplification:
+1. Stripped the API-key fallback from `authenticateUpgrade()` (`server.js:92-120`) — now JWT-only. The JWT path is unchanged: valid Bearer token in Authorization header or `?token=` query param authenticates; anything else returns `null` and the upgrade is rejected with `socket.destroy()`.
+2. Removed `x-auth-key` from CORS `allowedHeaders` (`server.js:43`).
+3. Deleted the 5 now-fully-unused pgStore methods (`createApiKey`, `listApiKeysForUser`, `revokeApiKey`, `resolveUserByApiKey`, `touchApiKeyUsage`) at `pgStore.js:204-315` plus the `hashApiKey` helper and `API_KEY_PEPPER` constant.
+4. New migration `030_drop_user_api_keys.sql` drops the table.
+
+Reason: The fallback was a known gap in the 2026-08-21 decision. Removing it makes the simplification actually complete and safe to drop the table. Final grep before the migration confirmed zero application code references the 5 removed methods or `user_api_keys`. The only remaining mentions are in `front_end/src/views/AccountView.tsx` (lines 170, 186, 1240) and `front_end/src/api/auth.ts` (lines 8, 10) — frontend code that calls now-non-existent backend endpoints. These are deferred for a separate frontend-cleanup task and flagged here so a future agent knows they're expected dead-end calls, not freshly broken ones.
+
+Consequence: JWT is now the sole authentication mechanism across the entire system — HTTP routes via `authGuard.js`, WebSocket upgrades via `server.js:authenticateUpgrade()`. No API key can be issued, used, or stored. The weak `API_KEY_PEPPER` fallback chain (`JWT_SECRET → ADMIN_SECRET → hardcoded default`) is gone as a side effect — that concern is moot. `authGuard.js`, `authController.js` (including the `authKey: null` in the signin response), and all other unrelated auth code are unchanged.

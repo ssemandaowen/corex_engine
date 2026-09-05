@@ -4,7 +4,6 @@ const crypto = require("crypto");
 const db = require("@core/services/postgres");
 const { sanitizeUserId } = require("@core/services/userScope");
 const newId = () => crypto.randomUUID();
-const API_KEY_PEPPER = String(process.env.AUTH_KEY_PEPPER || process.env.JWT_SECRET || process.env.ADMIN_SECRET || "corex-auth-key-pepper");
 
 const toUserPayload = (row) => ({
     id: row.id,
@@ -74,11 +73,6 @@ const toBacktestDatasetPayload = (row) => ({
     updatedAt: row.updated_at ? new Date(row.updated_at).getTime() : Date.now(),
     lastUsedAt: row.last_used_at ? new Date(row.last_used_at).getTime() : null
 });
-
-const hashApiKey = (rawKey) => crypto
-    .createHash("sha256")
-    .update(`${API_KEY_PEPPER}:${String(rawKey || "").trim()}`)
-    .digest("hex");
 
 class PgStore {
     async listUsers() {
@@ -205,119 +199,6 @@ class PgStore {
         `;
         const { rows } = await db.query(sql, [id, userId, plan, signalsPerDay, signalsUsedToday, resetAt, now]);
         return toQuotaPayload(rows[0]);
-    }
-
-    async createApiKey(userId, payload = {}) {
-        const uid = sanitizeUserId(userId);
-        if (!uid) throw new Error("USER_ID_REQUIRED");
-
-        const rawKey = `cxk_${crypto.randomBytes(24).toString("base64url")}`;
-        const keyHash = hashApiKey(rawKey);
-        const id = payload.id || newId();
-        const label = String(payload.label || "default").trim() || "default";
-        const status = "active";
-        const expiresAt = payload.expiresAt ? new Date(payload.expiresAt) : null;
-        const expiresIso = expiresAt instanceof Date && Number.isFinite(expiresAt.getTime())
-            ? expiresAt.toISOString()
-            : null;
-
-        const { rows } = await db.query(
-            `INSERT INTO user_api_keys (id, user_id, label, key_hash, status, expires_at, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
-             RETURNING id, user_id, label, status, expires_at, last_used_at, created_at, updated_at`,
-            [id, uid, label, keyHash, status, expiresIso]
-        );
-        const row = rows[0];
-        return {
-            id: row.id,
-            userId: row.user_id,
-            label: row.label,
-            status: row.status,
-            key: rawKey,
-            expiresAt: row.expires_at,
-            lastUsedAt: row.last_used_at,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at
-        };
-    }
-
-    async listApiKeysForUser(userId) {
-        const uid = sanitizeUserId(userId);
-        if (!uid) return [];
-        const { rows } = await db.query(
-            `SELECT id, user_id, label, status, expires_at, last_used_at, created_at, updated_at
-             FROM user_api_keys
-             WHERE user_id = $1
-             ORDER BY created_at DESC`,
-            [uid]
-        );
-        return (rows || []).map((row) => ({
-            id: row.id,
-            userId: row.user_id,
-            label: row.label,
-            status: row.status,
-            expiresAt: row.expires_at,
-            lastUsedAt: row.last_used_at,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at
-        }));
-    }
-
-    async revokeApiKey(userId, keyId) {
-        const uid = sanitizeUserId(userId);
-        if (!uid) return false;
-        const { rowCount } = await db.query(
-            `UPDATE user_api_keys
-             SET status = 'revoked', updated_at = NOW()
-             WHERE id = $1 AND user_id = $2`,
-            [String(keyId || ""), uid]
-        );
-        return rowCount > 0;
-    }
-
-    async resolveUserByApiKey(rawKey) {
-        const token = String(rawKey || "").trim();
-        if (!token) return null;
-        const keyHash = hashApiKey(token);
-        const { rows } = await db.query(
-            `SELECT
-                k.id AS key_id,
-                k.user_id,
-                k.label,
-                k.status AS key_status,
-                k.expires_at,
-                u.email,
-                u.name,
-                u.role,
-                u.status AS user_status
-             FROM user_api_keys k
-             JOIN users u ON u.id = k.user_id
-             WHERE k.key_hash = $1
-             LIMIT 1`,
-            [keyHash]
-        );
-        const row = rows[0];
-        if (!row) return null;
-        if (String(row.key_status || "").toLowerCase() !== "active") return null;
-        if (String(row.user_status || "").toLowerCase() !== "active") return null;
-        if (row.expires_at && (new Date(row.expires_at).getTime() < Date.now())) return null;
-        return {
-            keyId: row.key_id,
-            user: {
-                id: row.user_id,
-                email: row.email,
-                name: row.name,
-                role: row.role
-            }
-        };
-    }
-
-    async touchApiKeyUsage(keyId) {
-        if (!keyId) return;
-        await db.query(
-            "UPDATE user_api_keys SET last_used_at = NOW(), updated_at = NOW() WHERE id = $1",
-            [String(keyId)]
-        );
     }
 
     async getSystemSettingsForUser(userId) {
