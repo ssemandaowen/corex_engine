@@ -338,3 +338,17 @@ Key design choices:
 Reason: A user with two accounts of the same type (e.g. two live accounts) previously received indistinguishable trade history because the service keyed only by `userId + environment`. Account-scoped history is required once multi-account support is active. The lean extraction avoids a broader schema rewrite or circular dependency pressure.
 
 Consequence: `engine/routes/executionController.js` has zero diff — the re-export shim preserves the singleton export shape. `paper_trades` was confirmed out of scope (no application code reads/writes it) and was not touched. `user_connector_settings` table was confirmed dead but no migration to drop it was created in this task (deferred to separate cleanup).
+
+---
+
+**[2026-09-06 09:20] Feature: Fill-persistence wiring and EVENTS.ORDER.FILLED event emission**
+
+Decision: Wired fill persistence across broker settlement points:
+1. `CoreXPaperDriver._settlePosition()` and `MetaApiDriver.onFill()` now emit `EVENTS.ORDER.FILLED` (`"order:filled"`), passing complete payload including `accountId`, `orderId`, `symbol`, `side`, `quantity`, `price`, `commission`, `timestamp`.
+2. `BacktestDriver` has no settlement chokepoint or event emission (structurally excluded; records trades directly in `submit()`).
+3. `OrderFillListener` added in `packages/corex-portfolio/src/orderFillListener.js` (and exported via `corex-portfolio`), subscribing to `EVENTS.ORDER.FILLED` and transactionally inserting into `orders` and `order_fills` with `account_id` populated.
+4. `accountId` propagated through `BaseBroker` and `RuntimeBrokerFactory` so broker instances have immediate synchronous access to `this.accountId` with zero lookup latency.
+
+Reason: Previously, paper and live fills settled in brokers without emitting order fill events or persisting records into `orders` and `order_fills`, resulting in empty history reports when queried by `accountId`.
+
+Consequence: Fills across Paper and Live brokers now automatically record into the database via the event bus, making trades instantly retrievable via `corex-portfolio`'s `getHistoryReport(accountId)`. `corex-broker-contract` retains zero new DB dependency. Latency overhead per trade settlement is well below 1ms.

@@ -36,6 +36,7 @@ class BaseBroker extends EventEmitter {
         this.pipScale = normalized.pipScale;
         this.digits = normalized.digits;
         this.userId = config.userId || "system";
+        this.accountId = config.accountId || config.brokerConfig?.accountId || null;
         this.mode = config.mode || "PAPER";
         this.initialCash = Number(config.initialCash || 100000);
         this.cash = this.initialCash;

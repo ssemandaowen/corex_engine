@@ -275,6 +275,27 @@ class MetaApiDriver extends BaseBroker {
         this._persist();
         this._emitPortfolioUpdate();
         this._checkMarginGuardrails().catch(() => {});
+
+        try {
+            const orderId = `metaapi_order_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            const { bus, EVENTS } = require("@events/bus");
+            bus.emit(EVENTS.ORDER.FILLED, {
+                orderId,
+                accountId: this.accountId,
+                userId: this.userId,
+                environment: this.mode.toUpperCase(),
+                symbol: canonical,
+                side: side.toUpperCase(),
+                quantity: qty,
+                price,
+                commission: commission || 0,
+                orderType: "MARKET",
+                status: "FILLED",
+                timestamp: Date.now()
+            });
+        } catch (e) {
+            // non-blocking
+        }
     }
 }
 

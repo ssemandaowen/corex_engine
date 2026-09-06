@@ -137,6 +137,26 @@ class CoreXPaperDriver extends BaseBroker {
         }
 
         this._emitPortfolioUpdate();
+
+        try {
+            const orderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+            bus.emit(EVENTS.ORDER.FILLED, {
+                orderId,
+                accountId: this.accountId,
+                userId: this.userId,
+                environment: this.mode.toUpperCase(),
+                symbol,
+                side: isBuy ? "BUY" : "SELL",
+                quantity,
+                price,
+                commission: commission || 0,
+                orderType: "MARKET",
+                status: "FILLED",
+                timestamp: timestamp || Date.now()
+            });
+        } catch (e) {
+            // non-blocking
+        }
     }
 
     async modify(orderId, changes) {
