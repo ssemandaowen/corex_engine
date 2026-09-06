@@ -34,9 +34,10 @@ Before starting development work, the agent must inspect the relevant project gu
 3. Check `/KNOWN_ISSUES.md`.
 4. Check `/plans/to_do.md`.
 5. Check `/plans/decisions.md`.
-6. If working inside a package containing its own `AGENTS.md`, read that file before modifying the package.
-7. Check the relevant GitHub Issue or task specification before implementing the requested work.
-8. Inspect the existing configuration, environment, database, and migration patterns before adding new configurable behavior.
+6. Check the GitHub Project Board **CoreX Modularization** for current package extraction status.
+7. If working inside a package containing its own `AGENTS.md`, read that file before modifying the package.
+8. Check the relevant GitHub Issue or task specification before implementing the requested work.
+9. Inspect the existing configuration, environment, database, and migration patterns before adding new configurable behavior.
 
 ### Important
 
@@ -957,6 +958,7 @@ Use the appropriate location:
 | Feature implementation plan | `/plans/`                      |
 | Architectural decision      | `/plans/decisions.md`          |
 | Active work                 | `/plans/to_do.md`              |
+| Architecture / settings / system audit | `/plans/Audit/` |
 
 Keep issue entries concise, preferably one line.
 
