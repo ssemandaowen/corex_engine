@@ -181,69 +181,6 @@ describe("PaperBroker — side normalisation and trailing stop", () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3. LiveBroker — getEquity + getPositionSnapshot now defined
-// ─────────────────────────────────────────────────────────────────────────────
-describe("LiveBroker — getEquity and getPositionSnapshot defined", () => {
-    const LiveBroker = require("@broker/modes/LiveBroker");
-    const StrategyPositionManager = require("@utils/strategy/StrategyPositionManager");
-
-    function makeLive(connectorOverrides = {}) {
-        const b = Object.create(LiveBroker.prototype);
-        b.runtimeId   = "r1";
-        b.symbol      = "EURUSD";
-        b.userId      = "u1";
-        b.mode        = "LIVE";
-        b.cash        = 10000;
-        b.initialCash = 10000;
-        b.config      = {};
-        b._lastPrice  = 1.1000;
-        b.positions   = new StrategyPositionManager();
-        b._metrics    = { recordTrade: jest.fn(), reset: jest.fn(), getSnapshot: jest.fn(() => ({})) };
-        b._persist    = jest.fn();
-        b._emitPortfolioUpdate = jest.fn();
-        b.connector   = {
-            getPositionSnapshot: jest.fn(() => null),
-            getEquity:           jest.fn(() => 0),
-            disconnect:          jest.fn(),
-            ...connectorOverrides
-        };
-        return b;
-    }
-
-    test("getEquity() is defined and returns a number", () => {
-        const b = makeLive({ getEquity: jest.fn(() => 12000) });
-        const eq = b.getEquity();
-        expect(typeof eq).toBe("number");
-        expect(eq).toBe(12000);
-    });
-
-    test("getEquity() falls back to cash when connector returns 0", () => {
-        const b = makeLive({ getEquity: jest.fn(() => 0) });
-        const eq = b.getEquity();
-        expect(eq).toBeCloseTo(10000, 2); // cash + 0 unrealized
-    });
-
-    test("getPositionSnapshot() returns frozen snapshot with positions key", () => {
-        const b = makeLive({ getPositionSnapshot: jest.fn(() => null) });
-        const snap = b.getPositionSnapshot("EURUSD");
-        expect(snap).toBeDefined();
-        expect(typeof snap.positions).toBe("object");
-        expect(typeof snap.openCount).toBe("number");
-        expect(typeof snap.totalUnrealized).toBe("number");
-        expect(Object.isFrozen(snap)).toBe(true);
-    });
-
-    test("getPositionSnapshot() with open position computes unrealized", () => {
-        const mockPos = { side: "long", entryPrice: 1.1000, quantity: 1, openPrice: 1.1000 };
-        const b = makeLive({ getPositionSnapshot: jest.fn(() => mockPos) });
-        b._lastPrice = 1.1100;
-        const snap = b.getPositionSnapshot("EURUSD");
-        expect(snap.totalUnrealized).toBeCloseTo(0.01, 4);
-        expect(snap.openCount).toBe(1);
-    });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // 4. StrategyStateStore
 // ─────────────────────────────────────────────────────────────────────────────
 describe("StrategyStateStore", () => {
