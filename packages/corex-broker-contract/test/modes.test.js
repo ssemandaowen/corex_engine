@@ -258,6 +258,36 @@ describe("MetaApiDriver", () => {
         expect(driver.getEquity()).toBeCloseTo(-12, 6);
     });
 
+    test("onFill emits BROKER.STATE_CHANGED and EVENTS.ORDER.FILLED", () => {
+        const { bus, EVENTS } = require("@events/bus");
+        const emitSpy = jest.spyOn(bus, "emit");
+        const driver = new MetaApiDriver({
+            runtimeId: "r1",
+            symbol: "EURUSD",
+            userId: "u1",
+            accountId: "cx_liv_123456789012345678901234",
+            mode: "LIVE"
+        });
+
+        driver.onFill({ symbol: "EURUSD", fillPrice: 1.10, fillQty: 10, side: "BUY", commission: 1 });
+
+        expect(emitSpy).toHaveBeenCalledWith(
+            EVENTS.BROKER.STATE_CHANGED,
+            expect.objectContaining({ userId: "u1", mode: "LIVE" })
+        );
+        expect(emitSpy).toHaveBeenCalledWith(
+            EVENTS.ORDER.FILLED,
+            expect.objectContaining({
+                accountId: "cx_liv_123456789012345678901234",
+                symbol: "EURUSD",
+                quantity: 10,
+                price: 1.10,
+                status: "FILLED"
+            })
+        );
+        emitSpy.mockRestore();
+    });
+
     test("getPositionSnapshot returns frozen object", () => {
         const driver = new MetaApiDriver({ runtimeId: "r1", symbol: "EURUSD", userId: "u1", initialCash: 100000, connectorType: "metaapi" });
         const snap = driver.getPositionSnapshot("EURUSD");
