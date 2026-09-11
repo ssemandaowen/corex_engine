@@ -36,9 +36,10 @@
 - [x] Engine wiring updated to import SocketXServer/RiskGateway via `@broker/corex-gateway`
 - [x] Commit 31c1faf pushed to `origin/main`
 
-### Package 3 — corex-auth extraction
-- Extract authService.js + secretsVault.js to packages/corex-auth/
-- Keep DB/Express-coupled code in engine/ with re-export shims
+### Declarative Strategy Base Class
+- [x] DeclarativeStrategy base class with incremental indicators (EMA, RSI, ATR) and TA / util helpers
+- [x] Dynamic parameter re-seeding without strategy restart
+- [x] Comprehensive test coverage in `test/DeclarativeStrategy.test.js`
 
 ### corex-portfolio extraction — COMPLETED
 - [x] Extracted tradeHistoryService.js to packages/corex-portfolio/ with account_id scoping
