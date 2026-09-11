@@ -1,51 +1,7 @@
 "use strict";
 
 const { DEFAULT_STRATEGY_CONFIG } = require("@config/constants");
-
-/**
- * Optimized CircularBuffer: Uses a fixed-size array to prevent 
- * V8 re-indexing and avoids unnecessary allocations.
- */
-class CircularBuffer {
-    constructor(capacity) {
-        this.capacity = capacity;
-        this.buffer = new Array(capacity);
-        this.size = 0;
-        this.writeIndex = 0;
-    }
-
-    push(value) {
-        this.buffer[this.writeIndex] = value;
-        this.writeIndex = (this.writeIndex + 1) % this.capacity;
-        if (this.size < this.capacity) this.size++;
-    }
-
-    // Returns the element at index i (0 = oldest, size-1 = newest)
-    get(i) {
-        if (i < 0 || i >= this.size) return null;
-        const idx = (this.writeIndex - this.size + i + this.capacity) % this.capacity;
-        return this.buffer[idx];
-    }
-
-    // Returns the N most recent items without creating a full array copy
-    last(n = 1) {
-        const count = Math.min(n, this.size);
-        if (count <= 0) return [];
-        
-        const result = new Array(count);
-        for (let i = 0; i < count; i++) {
-            const idx = (this.writeIndex - count + i + this.capacity) % this.capacity;
-            result[i] = this.buffer[idx];
-        }
-        return result;
-    }
-
-    toArray() {
-        return this.last(this.size);
-    }
-}
-
-
+const SoACandleStore = require("./SoACandleStore");
 
 class StrategyDataManager {
     constructor({ symbols = [], maxHistory = DEFAULT_STRATEGY_CONFIG.MAX_DATA_HISTORY } = {}) {
@@ -58,7 +14,7 @@ class StrategyDataManager {
         let store = this.data.get(symbol);
         if (!store) {
             store = {
-                candles: new CircularBuffer(this.maxHistory),
+                candles: new SoACandleStore(this.maxHistory),
                 activeCandle: null
             };
             this.data.set(symbol, store);
@@ -106,8 +62,7 @@ class StrategyDataManager {
      */
     ingestBar(bar) {
         const store = this.ensureSymbol(bar.symbol);
-        // Ensure we don't hold a reference to the source object if it might change
-        store.candles.push({ ...bar }); 
+        store.candles.push(bar); 
         store.activeCandle = null;
     }
 
