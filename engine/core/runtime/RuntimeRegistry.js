@@ -48,11 +48,33 @@ class RuntimeRegistry {
             symbol:       String(entry.symbol || "").toUpperCase(),
             mode:         String(entry.mode   || "PAPER").toUpperCase(),
             userId:       entry.userId       || "system",
+            accountId:    entry.accountId    || entry.userId || "system",
             strategyName: entry.strategyName || runtimeId,
             actualState:  entry.actualState  || "ACTIVE",
             params:       entry.params       || {},
             startedAt:    entry.startedAt    || Date.now(),
         });
+    }
+
+    /**
+     * Check if an active runtime already exists for the given account/user, symbol, and mode.
+     */
+    hasActiveForAccountSymbolMode({ accountId, userId, symbol, mode, excludeRuntimeId = null }) {
+        if (!symbol || !mode) return false;
+        const canonicalSymbol = String(symbol).toUpperCase();
+        const canonicalMode = String(mode).toUpperCase();
+        const identifier = String(accountId || userId || "system");
+
+        for (const entry of this._runtimes.values()) {
+            if (entry.runtimeId === excludeRuntimeId) continue;
+            if (entry.actualState === "ACTIVE" &&
+                entry.symbol === canonicalSymbol &&
+                entry.mode === canonicalMode &&
+                (entry.userId === identifier || entry.accountId === identifier)) {
+                return entry;
+            }
+        }
+        return null;
     }
 
     get(runtimeId) {

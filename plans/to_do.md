@@ -36,10 +36,9 @@
 - [x] Engine wiring updated to import SocketXServer/RiskGateway via `@broker/corex-gateway`
 - [x] Commit 31c1faf pushed to `origin/main`
 
-### Declarative Strategy Base Class
-- [x] DeclarativeStrategy base class with incremental indicators (EMA, RSI, ATR) and TA / util helpers
-- [x] Dynamic parameter re-seeding without strategy restart
-- [x] Comprehensive test coverage in `test/DeclarativeStrategy.test.js`
+### Symbol-Level Runtime Exclusivity
+- [x] Enforced symbol-level exclusivity per account+mode at the session coordinator layer (`RuntimeLifecycle`, `RuntimeRegistry`, `RuntimeBrokerFactory`)
+- [x] Verified all 4 test scenarios (different strategies same symbol/account/mode rejected, different timeframes rejected, different accounts succeed, different modes succeed) in `test/runtimeExclusivity.test.js`
 
 ### corex-portfolio extraction — COMPLETED
 - [x] Extracted tradeHistoryService.js to packages/corex-portfolio/ with account_id scoping

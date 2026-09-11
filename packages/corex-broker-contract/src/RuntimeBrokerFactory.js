@@ -17,6 +17,13 @@ class RuntimeBrokerFactory {
         this._sessions = new Map();
     }
 
+    _getSessionKey(mode, opts = {}) {
+        const normalizedMode = String(mode).toUpperCase();
+        const assetSymbol = String(opts.symbol || "").toUpperCase();
+        const accountId = opts.accountId || opts.userId || opts.brokerConfig?.accountId || "system";
+        return `${accountId}::${normalizedMode}::${assetSymbol}`;
+    }
+
     createBroker(mode, opts = {}) {
         if (!opts.runtimeId) {
             throw new Error("[BrokerFactory] Allocation aborted: runtimeId parameter is strictly required.");
@@ -24,19 +31,20 @@ class RuntimeBrokerFactory {
 
         const normalizedMode = String(mode).toUpperCase();
         const assetSymbol = String(opts.symbol || "").toUpperCase();
+        const driverType = this._resolveDriverType(normalizedMode, opts);
 
         if (assetSymbol) {
-            const existing = this._sessions.get(assetSymbol);
-            if (existing && existing.driverType !== this._resolveDriverType(normalizedMode, opts)) {
+            const sessionKey = this._getSessionKey(normalizedMode, opts);
+            const existing = this._sessions.get(sessionKey);
+            if (existing && existing.driverType !== driverType) {
                 throw new Error(
                     `[BrokerFactory] Session creation rejected: symbol '${assetSymbol}' already has an active ` +
-                    `session with driver '${existing.driverType}'. Same symbol cannot run two drivers simultaneously.`
+                    `session with driver '${existing.driverType}' for this account and mode. Same symbol cannot run two conflicting drivers simultaneously.`
                 );
             }
         }
 
         const DriverClass = this._resolveDriver(normalizedMode, opts);
-        const driverType = this._resolveDriverType(normalizedMode, opts);
 
         let broker;
 
@@ -88,9 +96,12 @@ class RuntimeBrokerFactory {
         }
 
         if (assetSymbol) {
-            this._sessions.set(assetSymbol, {
+            const sessionKey = this._getSessionKey(normalizedMode, opts);
+            this._sessions.set(sessionKey, {
                 driverType,
                 mode: normalizedMode,
+                accountId: opts.accountId || opts.userId || opts.brokerConfig?.accountId || "system",
+                symbol: assetSymbol,
                 instance: broker,
                 createdAt: Date.now()
             });
@@ -124,27 +135,37 @@ class RuntimeBrokerFactory {
         return DriverClass;
     }
 
-    getSession(symbol) {
-        return this._sessions.get(String(symbol || "").toUpperCase());
+    getSession(symbol, opts = {}) {
+        const options = typeof opts === "string" ? { symbol: opts } : opts;
+        const sessionKey = this._getSessionKey(options.mode || "PAPER", { symbol, ...options });
+        const direct = this._sessions.get(sessionKey);
+        if (direct) return direct;
+        const canonical = String(symbol || "").toUpperCase();
+        for (const session of this._sessions.values()) {
+            if (session.symbol === canonical) return session;
+        }
+        return null;
     }
 
-    hasSession(symbol) {
-        return this._sessions.has(String(symbol || "").toUpperCase());
+    hasSession(symbol, opts = {}) {
+        return !!this.getSession(symbol, opts);
     }
 
-    destroySession(symbol) {
-        const key = String(symbol || "").toUpperCase();
-        const session = this._sessions.get(key);
-        if (session) {
-            if (typeof session.instance.destroy === "function") {
-                session.instance.destroy().catch(() => {});
+    destroySession(symbol, opts = {}) {
+        const options = typeof opts === "string" ? { symbol: opts } : opts;
+        const canonical = String(symbol || "").toUpperCase();
+        for (const [key, session] of this._sessions.entries()) {
+            if (session.symbol === canonical && (!options.mode || session.mode === String(options.mode).toUpperCase())) {
+                if (typeof session.instance.destroy === "function") {
+                    session.instance.destroy().catch(() => {});
+                }
+                this._sessions.delete(key);
             }
-            this._sessions.delete(key);
         }
     }
 
     destroyAll() {
-        for (const [symbol, session] of this._sessions) {
+        for (const [key, session] of this._sessions) {
             if (typeof session.instance.destroy === "function") {
                 session.instance.destroy().catch(() => {});
             }

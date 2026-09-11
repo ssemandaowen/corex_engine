@@ -46,6 +46,24 @@ class RuntimeLifecycle {
             );
         }
 
+        const accountId = profile.accountId || profile.userId || "system";
+        const symbol = profile.symbol;
+        const mode = profile.mode;
+
+        const conflict = runtimeRegistry.hasActiveForAccountSymbolMode({
+            accountId,
+            symbol,
+            mode,
+            excludeRuntimeId: runtimeId
+        });
+
+        if (conflict) {
+            throw new Error(
+                `[RuntimeLifecycle] Exclusivity Violation: Symbol '${symbol}' is already actively traded by strategy '${conflict.strategyName}' ` +
+                `for account '${accountId}' in mode '${mode}'. Only one runtime per symbol is allowed per account and mode.`
+            );
+        }
+
         log.info(`Booting runtime: ${runtimeId}`);
 
         try {
@@ -103,6 +121,7 @@ class RuntimeLifecycle {
                 symbol:       profile.symbol,
                 mode:         profile.mode.toUpperCase(),
                 userId:       profile.userId,
+                accountId:    profile.accountId || profile.userId,
                 strategyName: profile.strategyName,
                 actualState:  "ACTIVE",
                 params:       profile.params || {},
