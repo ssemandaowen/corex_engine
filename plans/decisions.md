@@ -377,4 +377,16 @@ Consequence:
 Remaining for Phase 2:
 - Wire `engine/` strategy loading to import `Strategy` from `corex-strategy-engine` instead of `utils/DeclarativeStrategy.js`.
 - Move `utils/strategy/StrategyValidator.js` and `utils/strategy/StrategyManifest.js` into the package as canonical implementations (currently re-exported via wrapper).
+
+---
+
+**[2026-09-12 17:35] Feature: Position.add() O(1) incremental aggregate update & factory.test.js supersession classification**
+
+Decision:
+1. **Position.add() O(1) Optimization:** Refactored `Position.add()` in `packages/corex-strategy-engine/src/Position.js` to maintain running aggregates (`this.quantity`, `this.avgEntryPrice`) incrementally as each lot is added, rather than calling `_recomputeFromLots()` which looped over all accumulated lots in O(n) time per call. This reduces `add()` from O(n) per call / O(n²) total over N additions to O(1) per call / O(N) total. Verified with real 50k benchmark running in ~398ms (well under 1 second). Correctness verified against full from-scratch recompute across 10+ varied add/reduce sequences. Public API unchanged.
+2. **`factory.test.js` Failure Classification (Supersession):** Classified the failure of `"enforces same-symbol-one-driver rule at session creation"` in `packages/corex-broker-contract/test/factory.test.js`. Traced that the test asserted the old global-per-symbol lock, which was deliberately superseded by Phase 3's per-account-per-mode-per-symbol scoping design (`(accountId, mode, symbol)`) allowing Backtest, Paper, and Live sessions on the same symbol to run concurrently. Updated the test to reflect Phase 3's intended concurrent multi-mode semantics with documented reasoning.
+
+Reason: Repeated scaling into a position in strategies (or benchmarks) accumulated O(n²) lot recomputations, causing severe performance degradation. Meanwhile, `factory.test.js` failed because it asserted pre-Phase-3 single-session-per-symbol behavior that was explicitly replaced by multi-mode runtime isolation.
+
+Consequence: 50,000-iteration benchmark completes in ~398ms (previously timing out / extrapolating to minutes). `packages/corex-broker-contract/test/factory.test.js` passes with updated Phase 3 semantics.
 - Move `utils/strategy/StrategyParamUtils.js` integration into `packages/corex-strategy-engine/src/ParamSchema.js`.

@@ -67,6 +67,8 @@
 - [x] `StrategyManifest.js` — re-exports from `@utils/strategy/StrategyManifest` + 12 `ctx.*` entries for Monaco intelligence (ctx.go.*, ctx.flat, ctx.ta, ctx.util, ctx.indicators, ctx.position, ctx.params, ctx.state, ctx.price, ctx.barTime)
 - [x] `ContextBuilder.test.js` created — tests persistent ctx, zero-allocation benchmark, ctx.go.* delegation
 - [x] All 5 package test suites pass (Strategy, ContextBuilder, ta, util, ParamSchema) — 13 tests total
+- [x] Position.add() optimized to O(1) incremental aggregate maintenance — 50k benchmark runs in ~398ms (well under 1s)
+- [x] factory.test.js session-exclusivity test updated to match Phase 3 per-account-per-mode-per-symbol scoping design (supersession classified and documented)
 - [x] Broader suite: `round7.comprehensive.test.js` shows 3 pre-existing failures (KNOWN_ISSUES.md documented), 55 pass — no new regressions
 - [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
 

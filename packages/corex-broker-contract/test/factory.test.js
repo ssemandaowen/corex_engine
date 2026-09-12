@@ -66,16 +66,20 @@ describe("RuntimeBrokerFactory", () => {
             .toThrow(/No driver registered for type 'INVALID'/);
     });
 
-    test("enforces same-symbol-one-driver rule at session creation", () => {
+    test("allows different modes on same symbol concurrently per Phase 3 design", () => {
+        // Phase 3 superseded global-per-symbol locking with (accountId, mode, symbol) scoping,
+        // allowing BACKTEST and PAPER on EURUSD to coexist.
         factory.createBroker(MODES.BACKTEST, {
             runtimeId: "u1::strat::EURUSD::BACKTEST",
             symbol: "EURUSD"
         });
 
-        expect(() => factory.createBroker(MODES.PAPER, {
+        const broker = factory.createBroker(MODES.PAPER, {
             runtimeId: "u2::strat::EURUSD::PAPER",
-            symbol: "EURUSD"
-        })).toThrow(/already has an active session/);
+            symbol: "EURUSD",
+            userId: "system"
+        });
+        expect(broker).toBeInstanceOf(CoreXPaperDriver);
     });
 
     test("allows different symbols to run different drivers concurrently", () => {

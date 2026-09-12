@@ -84,7 +84,17 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
     });
 
     test("ContextBuilder hot-path allocation benchmark (zero-allocation verification)", () => {
-        const strategy = new TestEngineStrategy({ symbols: ["EURUSD"], timeframe: "1m" });
+        class BenchmarkStrategy extends Strategy {
+            static symbols = ["EURUSD"];
+            static timeframe = "1m";
+            static indicators = {
+                ema: { type: "EMA", period: 5, source: "close" },
+                rsi: { type: "RSI", period: 14, source: "close" },
+                atr: { type: "ATR", period: 3, source: "close" }
+            };
+            onBar(ctx, bar) { return null; }
+        }
+        const strategy = new BenchmarkStrategy({ symbols: ["EURUSD"], timeframe: "1m" });
         strategy.onBar({
             symbol: "EURUSD",
             time: 1000,
@@ -120,7 +130,7 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
 
         console.log(`[Benchmark] ContextBuilder processed ${iterations} ticks in ${durationMs.toFixed(2)}ms (${(durationMs / iterations * 1000).toFixed(3)} µs/tick). Heap growth: ${(heapGrowth / 1024 / 1024).toFixed(2)} MB`);
 
-        expect(durationMs).toBeLessThan(2000);
+        expect(durationMs).toBeLessThan(1000);
         strategy.destroy();
     });
 

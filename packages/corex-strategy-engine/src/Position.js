@@ -32,7 +32,10 @@ class Position {
             price: px,
             timestamp: Number.isFinite(Number(timestamp)) ? Number(timestamp) : Date.now()
         });
-        this._recomputeFromLots();
+        const weighted = (this.quantity || 0) * (this.avgEntryPrice || 0) + q * px;
+        this.quantity = (this.quantity || 0) + q;
+        this.avgEntryPrice = this.quantity > 0 ? (weighted / this.quantity) : 0;
+        this.entryPrice = this.avgEntryPrice;
         this.timestamp = Date.now();
         this.status = "open";
         return this;
