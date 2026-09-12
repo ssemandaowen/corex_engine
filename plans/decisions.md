@@ -352,3 +352,29 @@ Decision: Wired fill persistence across broker settlement points:
 Reason: Previously, paper and live fills settled in brokers without emitting order fill events or persisting records into `orders` and `order_fills`, resulting in empty history reports when queried by `accountId`.
 
 Consequence: Fills across Paper and Live brokers now automatically record into the database via the event bus, making trades instantly retrievable via `corex-portfolio`'s `getHistoryReport(accountId)`. `corex-broker-contract` retains zero new DB dependency. Latency overhead per trade settlement is well below 1ms.
+
+---
+
+**[2026-09-12 10:30] Feature: corex-strategy-engine package extraction (Phase 1) — shims, validation, manifest, ContextBuilder**
+
+Decision: The `corex-strategy-engine` package was populated with extracted strategy engine modules from the monolithic `utils/strategy/` tree, following the Strangler Fig pattern established by prior package extractions:
+
+1. **`utils/DeclarativeStrategy.js`** reduced from 343 lines to a 4-line shim: `module.exports = require("corex-strategy-engine").Strategy`.
+2. **`utils/strategy/` shims created** for moved files: `Position.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `StrategyIntrospection.js` — all re-export from `packages/corex-strategy-engine/src/`.
+3. **`utils/strategy/StrategyPluginRegistry.js`** deleted — dead code (0 DB strategies use it, confirmed via DB audit).
+4. **`validation/StrategyValidator.js`** (package) replaced stub with re-export wrapper around `@utils/strategy/StrategyValidator` — preserves all 535 lines of existing validation logic (property/method/schema checks, anti-pattern detection, best-practice scoring) while making it accessible through the package surface.
+5. **`validation/StrategyManifest.js`** (package) replaced stub with re-export from `@utils/strategy/StrategyManifest` — adds 12 new `ctx.*` method entries (`ctx.go.long`, `ctx.go.short`, `ctx.go.scale`, `ctx.go.protect`, `ctx.flat`, `ctx.ta`, `ctx.util`, `ctx.indicators.*`, `ctx.position`, `ctx.params`, `ctx.state`, `ctx.price`, `ctx.barTime`) for Monaco editor autocomplete of declarative strategy API.
+6. **`ContextBuilder.test.js`** created — verifies persistent ctx mutation, zero-allocation hot path (50k ticks: 0.873 µs/tick, negative heap growth confirmed), and `ctx.go.*` command delegation.
+
+Reason: The legacy `utils/strategy/` modules were monolithic and the hot-path `_buildCtx()` in `DeclarativeStrategy.js` allocated ~16 objects per tick (per `plans/Audit/corex-strategy-engine-gap-analysis.md`). The new package fixes this via `ContextBuilder` with persistent object structures and in-place scalar updates. Shims preserve backward compatibility for engine code still referencing `@utils/strategy/*` paths during the transition period.
+
+Consequence:
+- Package tests: 5 suites, 13 tests pass (Strategy, ContextBuilder, ta, util, ParamSchema).
+- Root test suite: no new regressions (round7.comprehensive.test.js 3 pre-existing failures documented in KNOWN_ISSUES.md remain unchanged).
+- `@events` alias added to package's jest config + `_moduleAliases` to resolve transitive dependency on `corex-broker-contract`'s `BaseBroker.js`.
+- `corex-broker-contract` mapping added to package's jest config for test imports.
+
+Remaining for Phase 2:
+- Wire `engine/` strategy loading to import `Strategy` from `corex-strategy-engine` instead of `utils/DeclarativeStrategy.js`.
+- Move `utils/strategy/StrategyValidator.js` and `utils/strategy/StrategyManifest.js` into the package as canonical implementations (currently re-exported via wrapper).
+- Move `utils/strategy/StrategyParamUtils.js` integration into `packages/corex-strategy-engine/src/ParamSchema.js`.

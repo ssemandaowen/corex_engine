@@ -1,0 +1,40 @@
+{
+  "name": "corex-strategy-engine",
+  "version": "2026.1.20",
+  "description": "CoreX Declarative Strategy Engine — ContextBuilder, IndicatorManager, ParamSchema, TA helpers",
+  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "jest --passWithNoTests --testTimeout=20000"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "module-alias": "^2.2.3"
+  },
+  "_moduleAliases": {
+    "@root": "../..",
+    "@core": "../../engine",
+    "@utils": "../../utils",
+    "@config": "../../config",
+    "@events": "../../events",
+    "corex-broker-contract": "../../packages/corex-broker-contract",
+    "corex-strategy-engine": "."
+  },
+  "jest": {
+    "testMatch": [
+      "**/test/**/*.test.js"
+    ],
+    "moduleNameMapper": {
+      "^@root/(.*)$": "<rootDir>/../../$1",
+      "^@core/(.*)$": "<rootDir>/../../engine/$1",
+      "^@utils/(.*)$": "<rootDir>/../../utils/$1",
+      "^@config/(.*)$": "<rootDir>/../../config/$1",
+      "^@events/(.*)$": "<rootDir>/../../events/$1",
+      "^corex-broker-contract/(.*)$": "<rootDir>/../../packages/corex-broker-contract/$1",
+      "^corex-strategy-engine$": "<rootDir>/index.js"
+    }
+  }
+}

@@ -54,4 +54,20 @@
 - [x] Tests verified: multiple accounts per user, independent connection credentials
 - [x] No forbidden files touched
 
+### corex-strategy-engine extraction — COMPLETED (in progress — shims + stubs)
+- [x] Gap analysis written: `plans/Audit/corex-strategy-engine-gap-analysis.md`
+- [x] Package shell created: `packages/corex-strategy-engine/` with `Strategy.js`, `ContextBuilder.js`, `IndicatorManager.js`, `ParamSchema.js`, `ta.js`, `util.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `Position.js`, `StrategyIntrospection.js`
+- [x] `ContextBuilder` implements zero-allocation per-tick ctx (50k ticks: 0.873 µs/tick, negative heap growth)
+- [x] Shims created in `utils/strategy/` pointing to package: `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `StrategyIntrospection.js`, `Position.js`
+- [x] `utils/DeclarativeStrategy.js` reduced to 4-line shim re-exporting from `corex-strategy-engine`
+- [x] `utils/strategy/StrategyPluginRegistry.js` deleted (dead code — 0 DB strategies use it)
+- [x] `@events` alias added to package `package.json` jest config + `_moduleAliases`
+- [x] `corex-broker-contract` mapping added to package jest config for test imports
+- [x] `StrategyValidator.js` — re-exports from `@utils/strategy/StrategyValidator` (full legacy validation logic)
+- [x] `StrategyManifest.js` — re-exports from `@utils/strategy/StrategyManifest` + 12 `ctx.*` entries for Monaco intelligence (ctx.go.*, ctx.flat, ctx.ta, ctx.util, ctx.indicators, ctx.position, ctx.params, ctx.state, ctx.price, ctx.barTime)
+- [x] `ContextBuilder.test.js` created — tests persistent ctx, zero-allocation benchmark, ctx.go.* delegation
+- [x] All 5 package test suites pass (Strategy, ContextBuilder, ta, util, ParamSchema) — 13 tests total
+- [x] Broader suite: `round7.comprehensive.test.js` shows 3 pre-existing failures (KNOWN_ISSUES.md documented), 55 pass — no new regressions
+- [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
+
 

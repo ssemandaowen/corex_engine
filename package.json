@@ -50,7 +50,8 @@
     "corex-market-data": "./packages/corex-market-data",
     "corex-auth": "./packages/corex-auth",
     "corex-gateway": "./packages/corex-gateway",
-    "corex-portfolio": "./packages/corex-portfolio"
+    "corex-portfolio": "./packages/corex-portfolio",
+    "corex-strategy-engine": "./packages/corex-strategy-engine"
   },
   "author": "Ssemanda Owen (Apex Trait Ltd)",
   "license": "UNLICENSED",
@@ -100,7 +101,8 @@
       "^@auth/(.*)$": "<rootDir>/packages/corex-auth/$1",
       "^@portfolio/(.*)$": "<rootDir>/packages/corex-portfolio/$1",
       "^@events/(.*)$": "<rootDir>/events/$1",
-      "^@config/(.*)$": "<rootDir>/config/$1"
+      "^@config/(.*)$": "<rootDir>/config/$1",
+      "^corex-strategy-engine$": "<rootDir>/packages/corex-strategy-engine/index.js"
     }
   }
 }
