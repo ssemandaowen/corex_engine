@@ -390,3 +390,57 @@ Reason: Repeated scaling into a position in strategies (or benchmarks) accumulat
 
 Consequence: 50,000-iteration benchmark completes in ~398ms (previously timing out / extrapolating to minutes). `packages/corex-broker-contract/test/factory.test.js` passes with updated Phase 3 semantics.
 - Move `utils/strategy/StrategyParamUtils.js` integration into `packages/corex-strategy-engine/src/ParamSchema.js`.
+
+---
+
+**[2026-09-12 20:55] Feature: Phase A — Removal of legacy BaseStrategy and deletion of legacy DB strategies**
+
+Decision: Queried the `strategies` table in `corex_engine` database and deleted all 7 legacy strategies that relied on the old `utils/BaseStrategy.js` path (`Demo`, `PairTrading`, `ADXFilteredTSLCoreX`, `Test`, `test_strategy`, `rapid`, `ema_crossover`), pursuant to Owen's explicit decision to execute a full cutover to `corex-strategy-engine`.
+
+Reason: Existing strategies based on the legacy `BaseStrategy` architecture are being fully replaced by the declarative `corex-strategy-engine` strategy architecture.
+
+Consequence: 7 legacy strategy rows removed from DB. `utils/BaseStrategy.js` and all legacy shims are now cleared for complete deletion.
+
+---
+
+**[2026-09-12 21:05] Feature: Phase A & B — Complete Cutover to corex-strategy-engine and Internalization of Infrastructure**
+
+Decision:
+1. **Legacy Removal (Phase A):** Deleted `utils/BaseStrategy.js` and all legacy shims (`utils/DeclarativeStrategy.js`, `utils/strategy/Position.js`, `utils/strategy/StrategyPositionManager.js`, `utils/strategy/StrategyRuntimeUtils.js`, `utils/strategy/StrategyIntrospection.js`). Updated all remaining callers across tests and engine services to import directly from `corex-strategy-engine`.
+2. **Internalization (Phase B):** Moved all previously-shared infrastructure modules (`StrategyStateStore.js`, `StrategyDataManager.js`, `SoACandleStore.js`, `StrategyParamUtils.js`, `StrategyValidator.js`, `StrategyManifest.js`, etc.) fully into `packages/corex-strategy-engine/src/` (with validation modules under `src/validation/`). Removed `utils/strategy/` entirely.
+
+Reason: With legacy `BaseStrategy` deleted, keeping strategy infrastructure in root `utils/` no longer served any purpose. Full package ownership of all strategy execution, state, parameter, and validation logic improves modularity.
+
+Consequence: Zero references to `utils/BaseStrategy.js` or `utils/strategy/` remain in the codebase. All strategy infrastructure is now fully self-contained inside `packages/corex-strategy-engine`.
+
+---
+
+**[2026-09-13 01:10] Feature: Phase C — Indicator Registry & Expanded Indicator Suite**
+
+Decision: Implemented a comprehensive indicator registry and 40+ indicator classes in `packages/corex-strategy-engine/src/indicators/`, all self-contained with no external dependencies.
+
+1. **IndicatorRegistry**: Created `IndicatorRegistry.js` with `globalIndicatorRegistry` that registers all indicator constructors by type name. `IndicatorManager._createIndicator()` now looks up the registry instead of using a hard-coded if/else chain.
+2. **Indicators implemented (41 total)**: SMA, EMA, WMA, HMA, McGinley, ALMA, KAMA, VIDYA, ParabolicSAR, SuperTrend, LinearRegression, StandardDeviation, MACD, ROC, Momentum, WilliamsR, UltimateOscillator, CCI, TSI, CMO, STC, Fisher, LaguerreRSI, RVI, ConnorsRSI, BollingerBands, KeltnerChannels, DonchianChannels, Stochastic, VWAP, AnchoredVWAP, OBV, MFI, CMF, AD, EoM, ADX, Vortex, Choppiness, Hurst, FDI, ZScore, DPO, Coppock, Fibonacci, InstantTrend, SuperSmoother, IchimokuCloud.
+3. **IndicatorManager update**: `updateIndicators()` now uses a `MULTI_ARG_INDICATORS` Set to dispatch multi-argument indicators (update(high, low, close)) vs single-argument indicators (update(price)). Removed the `@utils/strategy/IncrementalIndicators` import.
+4. **Exports**: All indicators exported from package `index.js` via `indicators` object and registered in `globalIndicatorRegistry`.
+5. **Tests**: `Indicators.test.js` with 40+ tests covering calculation correctness for all indicators.
+
+Indicators deliberately out of scope (require broker connectivity, order book depth, or external data providers):
+- Volume Profile (VPIN, Amihud Illiquidity Ratio, Order Flow Imbalance) — require tick-level microstructure data not available to the strategy engine
+- Kalman Filter — requires matrix library, complex filter math deferred
+
+Reason: The indicator suite was previously limited to EMA, RSI, and ATR. The strategy engine now provides a complete set of trading indicators following the existing incremental class pattern (update(), reseed(), ready, value, prev), self-contained with zero external dependencies.
+
+Consequence: All indicator definitions in strategy `static indicators = {}` can now reference any of the 41 registered types. The MULTI_ARG_INDICATORS Set in IndicatorManager.js must be kept in sync when adding new multi-argument indicators.
+
+---
+
+**[2026-09-13 01:15] Phase D/D/E: Remaining TODO items for strategy engine extraction**
+
+Not implemented in this session — placed on the todo list for future work:
+
+1. **Delete `utils/strategy/IncrementalIndicators.js`** and remaining Phase B shim files (`StrategySignalUtils.js`, `StrategyDevHelpers.js`, `IndicatorAdapter.js`, `RuleChain.js`, `index.js`). All functionality now lives in `packages/corex-strategy-engine/src/indicators/`.
+2. **Update `Strategy.js` imports** — replace `require("@utils/strategy/StrategyStateStore")` with `require("./StrategyStateStore")` and similar for `StrategyDataManager`. Phase B moved these files into the package but Strategy.js imports were not updated.
+3. **Phase D: Spatial-culling gate** in Strategy.js — performance optimization to skip indicator updates when price hasn't changed meaningfully.
+4. **Phase E: Package documentation** — AGENTS.md and README.md for the package (already written, verify completeness).
+

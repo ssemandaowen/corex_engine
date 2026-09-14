@@ -70,6 +70,11 @@
 - [x] Position.add() optimized to O(1) incremental aggregate maintenance — 50k benchmark runs in ~398ms (well under 1s)
 - [x] factory.test.js session-exclusivity test updated to match Phase 3 per-account-per-mode-per-symbol scoping design (supersession classified and documented)
 - [x] Broader suite: `round7.comprehensive.test.js` shows 3 pre-existing failures (KNOWN_ISSUES.md documented), 55 pass — no new regressions
+- [x] Phase C: Indicator Registry implemented — `IndicatorRegistry.js` with `globalIndicatorRegistry`
+- [x] Indicators implemented: SMA, EMA, ATR, RSI, WMA, HMA, McGinley, ALMA, KAMA, VIDYA, ParabolicSAR, SuperTrend, LinearRegressionCurve, StandardDeviation, MACD, ROC, Momentum, WilliamsR, UltimateOscillator, CCI, TSI, CMO, STC, FisherTransform, LaguerreRSI, RVI, ConnorsRSI, BollingerBands, KeltnerChannels, DonchianChannels, Stochastic, VWAP, AnchoredVWAP, OBV, MFI, CMF, AD, EoM, ADX, Vortex, Choppiness, Hurst, FDI, ZScore, DPO, CoppockCurve, Fibonacci, InstantaneousTrendline, SuperSmoother, IchimokuCloud
+- [x] `IndicatorManager.js` refactored to use `globalIndicatorRegistry` instead of if/else chain and `@utils/strategy/IncrementalIndicators`
+- [x] Indicators exported from package `index.js`
+- [x] `Indicators.test.js` created with 40+ tests covering all indicators
 - [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
 
 
