@@ -1,6 +1,9 @@
 "use strict";
 
 class IncrementalRSI {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+
     constructor(period = 14) {
         if (!period || period < 1) throw new Error("RSI period must be >= 1");
         this.period = period;

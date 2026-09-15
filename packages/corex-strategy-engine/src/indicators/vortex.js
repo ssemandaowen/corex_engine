@@ -1,6 +1,9 @@
 "use strict";
 
 class VortexIndicator {
+    static updateMode = "multi";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+
     constructor(period = 14) {
         if (!period || period < 1) throw new Error("Vortex period must be >= 1");
         this.period = period;

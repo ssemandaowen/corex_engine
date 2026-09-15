@@ -1,6 +1,9 @@
 "use strict";
 
 class StochasticOscillator {
+    static updateMode = "multi";
+    static resolveParams = (indDef) => [Number(indDef.kPeriod || 14), Number(indDef.dPeriod || 3)];
+
     constructor(kPeriod = 14, dPeriod = 3) {
         if (!kPeriod || kPeriod < 1) throw new Error("StochasticOscillator kPeriod must be >= 1");
         if (!dPeriod || dPeriod < 1) throw new Error("StochasticOscillator dPeriod must be >= 1");

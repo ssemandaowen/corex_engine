@@ -1,6 +1,9 @@
 "use strict";
 
 class FibonacciRetracement {
+    static updateMode = "single";
+    static resolveParams = () => [];
+
     constructor() {
         this.levels = [];
         this.ready = false;

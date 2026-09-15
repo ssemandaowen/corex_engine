@@ -1,6 +1,9 @@
 "use strict";
 
 class WeightedMA {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+
     constructor(period) {
         if (!period || period < 1) throw new Error("WMA period must be >= 1");
         this.period = period;

@@ -3,6 +3,9 @@
 const IncrementalEMA = require("./ema");
 
 class STC {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.cycle || 10), Number(indDef.entry || 0.3), Number(indDef.signal || 5)];
+
     constructor(cyclePeriod = 10, entryPercentage = 0.3, signalPeriod = 5) {
         if (!cyclePeriod || cyclePeriod < 1) throw new Error("STC cyclePeriod must be >= 1");
         if (!signalPeriod || signalPeriod < 1) throw new Error("STC signalPeriod must be >= 1");

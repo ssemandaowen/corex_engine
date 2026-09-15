@@ -3,6 +3,9 @@
 const IncrementalSMA = require("./sma");
 
 class DPO {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
+
     constructor(period = 20) {
         if (!period || period < 1) throw new Error("DPO period must be >= 1");
         this.period = period;

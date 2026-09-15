@@ -3,6 +3,9 @@
 const IncrementalEMA = require("./ema");
 
 class MACD {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.fast || 12), Number(indDef.slow || 26), Number(indDef.signal || 9)];
+
     constructor(fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
         if (!fastPeriod || fastPeriod < 1) throw new Error("MACD fastPeriod must be >= 1");
         if (!slowPeriod || slowPeriod < 1) throw new Error("MACD slowPeriod must be >= 1");

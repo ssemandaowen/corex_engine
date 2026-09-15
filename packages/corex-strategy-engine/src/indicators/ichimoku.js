@@ -1,6 +1,9 @@
 "use strict";
 
 class IchimokuCloud {
+    static updateMode = "multi";
+    static resolveParams = (indDef) => [Number(indDef.conversion || 9), Number(indDef.base || 26), Number(indDef.lagging || 52), Number(indDef.displacement || 26)];
+
     constructor(conversionPeriod = 9, basePeriod = 26, laggingPeriod = 52, cloudDisplacement = 26) {
         if (!conversionPeriod || conversionPeriod < 1) throw new Error("Ichimoku conversionPeriod must be >= 1");
         if (!basePeriod || basePeriod < 1) throw new Error("Ichimoku basePeriod must be >= 1");

@@ -3,6 +3,9 @@
 const IncrementalRSI = require("./rsi");
 
 class ConnorsRSI {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.rsi || 3), Number(indDef.streak || 2), Number(indDef.roc || 2)];
+
     constructor(rsiPeriod = 3, streakPeriod = 2, rocPeriod = 2) {
         if (!rsiPeriod || rsiPeriod < 1) throw new Error("CRSI rsiPeriod must be >= 1");
         if (!streakPeriod || streakPeriod < 1) throw new Error("CRSI streakPeriod must be >= 1");

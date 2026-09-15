@@ -1,6 +1,9 @@
 "use strict";
 
 class SuperSmootherFilter {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.alpha || 0.2)];
+
     constructor(alpha = 0.2) {
         if (alpha < 0.01 || alpha > 1) throw new Error("SuperSmootherFilter alpha must be between 0.01 and 1");
         this.alpha = alpha;

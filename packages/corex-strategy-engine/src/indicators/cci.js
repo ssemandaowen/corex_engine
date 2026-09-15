@@ -1,6 +1,9 @@
 "use strict";
 
 class CCI {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
+
     constructor(period = 20) {
         if (!period || period < 1) throw new Error("CCI period must be >= 1");
         this.period = period;

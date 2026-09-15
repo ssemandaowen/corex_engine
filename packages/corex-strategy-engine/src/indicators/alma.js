@@ -1,6 +1,9 @@
 "use strict";
 
 class ALMA {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14), Number(indDef.offset || 6), Number(indDef.sigma || 3)];
+
     constructor(period = 14, offset = 6, sigma = 3) {
         if (!period || period < 1) throw new Error("ALMA period must be >= 1");
         this.period = period;

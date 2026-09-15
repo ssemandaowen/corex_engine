@@ -1,6 +1,9 @@
 "use strict";
 
 class LaguerreRSI {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.gamma || 0.5)];
+
     constructor(gamma = 0.5) {
         if (gamma < 0 || gamma > 1) throw new Error("Laguerre filter gamma must be between 0 and 1");
         this.gamma = gamma;

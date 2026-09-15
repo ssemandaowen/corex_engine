@@ -4,6 +4,9 @@ const IncrementalSMA = require("./sma");
 const StandardDeviation = require("./stddev");
 
 class ZScore {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
+
     constructor(period = 20) {
         if (!period || period < 1) throw new Error("ZScore period must be >= 1");
         this.period = period;

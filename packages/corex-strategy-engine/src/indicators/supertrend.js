@@ -4,6 +4,9 @@ const IncrementalATR = require("./atr");
 const IncrementalEMA = require("./ema");
 
 class SuperTrend {
+    static updateMode = "multi";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 10), Number(indDef.multiplier || 3)];
+
     constructor(period = 10, multiplier = 3) {
         if (!period || period < 1) throw new Error("SuperTrend period must be >= 1");
         this.period = period;

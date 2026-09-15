@@ -1,6 +1,9 @@
 "use strict";
 
 class Momentum {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 10)];
+
     constructor(period = 10) {
         if (!period || period < 1) throw new Error("Momentum period must be >= 1");
         this.period = period;

@@ -3,6 +3,9 @@
 const IncrementalEMA = require("./ema");
 
 class VIDYA {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14), Number(indDef.fast || 2), Number(indDef.slow || 30)];
+
     constructor(period = 14, nFast = 2, nSlow = 30) {
         if (!period || period < 1) throw new Error("VIDYA period must be >= 1");
         this.period = period;

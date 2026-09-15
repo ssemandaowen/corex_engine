@@ -1,6 +1,9 @@
 "use strict";
 
 class CoppockCurve {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 11), Number(indDef.period2 || 14)];
+
     constructor(period1 = 11, period2 = 14) {
         if (!period1 || period1 < 1) throw new Error("CoppockCurve period1 must be >= 1");
         if (!period2 || period2 < 1) throw new Error("CoppockCurve period2 must be >= 1");

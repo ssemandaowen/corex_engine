@@ -1,6 +1,9 @@
 "use strict";
 
 class AccumulationDistribution {
+    static updateMode = "volume";
+    static resolveParams = () => [];
+
     constructor() {
         this.value = 0;
         this.prev = 0;

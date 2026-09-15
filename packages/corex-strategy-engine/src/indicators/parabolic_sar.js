@@ -1,6 +1,9 @@
 "use strict";
 
 class ParabolicSAR {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.step || 0.02), Number(indDef.maxStep || 0.2)];
+
     constructor(step = 0.02, maxStep = 0.2) {
         this.AF = step;
         this.maxAF = maxStep;

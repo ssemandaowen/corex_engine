@@ -1,6 +1,9 @@
 "use strict";
 
 class UltimateOscillator {
+    static updateMode = "multi";
+    static resolveParams = (indDef) => [Number(indDef.period1 || 7), Number(indDef.period2 || 14), Number(indDef.period3 || 28)];
+
     constructor(period1 = 7, period2 = 14, period3 = 28) {
         if (!period1 || period1 < 1) throw new Error("UltimateOscillator period1 must be >= 1");
         if (!period2 || period2 < 1) throw new Error("UltimateOscillator period2 must be >= 1");

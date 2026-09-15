@@ -4,6 +4,9 @@ const IncrementalSMA = require("./sma");
 const StandardDeviation = require("./stddev");
 
 class BollingerBands {
+    static updateMode = "multi";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20), Number(indDef.multiplier || 2)];
+
     constructor(period = 20, stdDevMultiplier = 2) {
         if (!period || period < 1) throw new Error("BollingerBands period must be >= 1");
         this.period = period;

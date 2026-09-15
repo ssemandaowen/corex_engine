@@ -1,6 +1,9 @@
 "use strict";
 
 class DonchianChannels {
+    static updateMode = "multi";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
+
     constructor(period = 20) {
         if (!period || period < 1) throw new Error("DonchianChannels period must be >= 1");
         this.period = period;

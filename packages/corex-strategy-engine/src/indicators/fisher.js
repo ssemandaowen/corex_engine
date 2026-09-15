@@ -1,6 +1,9 @@
 "use strict";
 
 class FisherTransform {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 9)];
+
     constructor(period = 9) {
         if (!period || period < 1) throw new Error("FisherTransform period must be >= 1");
         this.period = period;

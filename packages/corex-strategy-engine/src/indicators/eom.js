@@ -1,6 +1,9 @@
 "use strict";
 
 class EaseOfMovement {
+    static updateMode = "volume";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14), Number(indDef.scale || 10000)];
+
     constructor(period = 14, scale = 10000) {
         if (!period || period < 1) throw new Error("EaseOfMovement period must be >= 1");
         this.period = period;

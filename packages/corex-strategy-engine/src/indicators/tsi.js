@@ -1,6 +1,9 @@
 "use strict";
 
 class TSI {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.shortPeriod || 25), Number(indDef.longPeriod || 13)];
+
     constructor(shortPeriod = 25, longPeriod = 13) {
         if (!shortPeriod || shortPeriod < 1) throw new Error("TSI shortPeriod must be >= 1");
         if (!longPeriod || longPeriod < 1) throw new Error("TSI longPeriod must be >= 1");

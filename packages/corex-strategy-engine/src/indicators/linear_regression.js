@@ -1,6 +1,9 @@
 "use strict";
 
 class LinearRegressionCurve {
+    static updateMode = "single";
+    static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+
     constructor(period = 14) {
         if (!period || period < 2) throw new Error("LinearRegression period must be >= 2");
         this.period = period;

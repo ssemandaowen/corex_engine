@@ -1,6 +1,9 @@
 "use strict";
 
 class InstantaneousTrendline {
+    static updateMode = "single";
+    static resolveParams = (indDef) => [Number(indDef.alpha || 0.07)];
+
     constructor(alpha = 0.07) {
         if (alpha < 0.01 || alpha > 1) throw new Error("InstantaneousTrendline alpha must be between 0.01 and 1");
         this.alpha = alpha;
