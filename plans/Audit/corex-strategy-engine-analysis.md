@@ -43,6 +43,7 @@ packages/corex-strategy-engine/
     ├── ContextBuilder.test.js   # Zero-allocation benchmark & context validation
     ├── Indicators.test.js       # Calculation correctness unit tests across all 41 indicators
     ├── ParamSchema.test.js      # Parameter validation and schema serialization tests
+    ├── PluggableRegistry.test.js # Pluggable indicator registry & zero core-file edit tests
     ├── Position.test.js         # O(1) incremental lot aggregation correctness tests
     ├── Strategy.test.js         # End-to-end lifecycle and order placement tests
     ├── ta.test.js               # TA helper unit tests

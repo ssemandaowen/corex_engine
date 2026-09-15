@@ -54,7 +54,7 @@ class VIDYA {
         const sc = Math.pow(cmi * (this._fastestSC - this._slowestSC) + this._slowestSC, 2);
 
         if (!this.ready) {
-            if (this._prices.length === this.period) {
+            if (this._prices.length >= this.period) {
                 let sum = 0;
                 for (let i = 0; i < this.period; i++) {
                     sum += this._prices[i];

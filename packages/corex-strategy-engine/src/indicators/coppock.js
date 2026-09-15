@@ -15,7 +15,7 @@ class CoppockCurve {
         this._prevClose = null;
         this._window = period1 + period2;
         this._prices = [];
-        this._roc1Buffer = [];
+        this._roc11Buffer = [];
         this._roc11Period = Math.floor((period1 + period2) / 2);
     }
 

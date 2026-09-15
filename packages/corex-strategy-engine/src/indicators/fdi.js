@@ -53,7 +53,7 @@ class FractalDimensionIndex {
                     }
                 }
                 count++;
-                startIdx = endIdx > startIdx ? endIdx - 1 : startIdx + 1;
+                startIdx = endIdx > startIdx + 1 ? endIdx - 1 : startIdx + 1;
             }
 
             this.value = (maxCountLog - Math.log10(count)) / maxCountLog;

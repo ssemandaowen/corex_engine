@@ -132,11 +132,14 @@ packages/corex-strategy-engine/
 │       ├── StrategyValidator.js # Extended validator supporting declarative syntax
 │       └── StrategyManifest.js  # Monaco editor manifest generator updated for ctx.*
 └── test/
-    ├── Strategy.test.js         # Integration tests through execution pipeline
     ├── ContextBuilder.test.js   # Benchmarks verifying zero-allocation hot path
+    ├── Indicators.test.js       # Calculation correctness unit tests across all 41 indicators
+    ├── ParamSchema.test.js      # Parameter validation and schema serialization tests
+    ├── PluggableRegistry.test.js # Pluggable indicator registry & zero core-file edit tests
+    ├── Position.test.js         # O(1) incremental lot aggregation correctness tests
+    ├── Strategy.test.js         # Integration tests through execution pipeline
     ├── ta.test.js               # Unit tests for TA math and crossover detection
-    ├── util.test.js             # Unit tests for position sizing and rounding
-    └── ParamSchema.test.js      # Parameter validation and schema serialization tests
+    └── util.test.js             # Unit tests for position sizing and rounding
 ```
 
 ### Module Responsibilities
