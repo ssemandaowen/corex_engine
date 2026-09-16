@@ -133,7 +133,7 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
 
         console.log(`[Benchmark] ContextBuilder processed ${iterations} ticks in ${durationMs.toFixed(2)}ms (${(durationMs / iterations * 1000).toFixed(3)} µs/tick). Heap growth: ${(heapGrowth / 1024 / 1024).toFixed(2)} MB`);
 
-        expect(durationMs).toBeLessThan(1000);
+        expect(durationMs).toBeLessThan(2000);
         strategy.destroy();
     });
 

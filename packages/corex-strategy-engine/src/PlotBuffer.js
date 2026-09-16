@@ -7,6 +7,8 @@ class PlotBuffer {
         this.maxMarks = maxMarks;
 
         this.seriesMap = new Map();
+        this._lastName = null;
+        this._lastSeries = null;
         
         this.marks = new Array(maxMarks);
         this.marksSize = 0;
@@ -16,6 +18,9 @@ class PlotBuffer {
     }
 
     _getOrCreateSeries(name) {
+        if (name === this._lastName && this._lastSeries) {
+            return this._lastSeries;
+        }
         let series = this.seriesMap.get(name);
         if (!series) {
             if (this.seriesMap.size >= this.maxSeriesCount) {
@@ -31,6 +36,8 @@ class PlotBuffer {
             };
             this.seriesMap.set(name, series);
         }
+        this._lastName = name;
+        this._lastSeries = series;
         return series;
     }
 
