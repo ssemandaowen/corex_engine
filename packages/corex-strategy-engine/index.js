@@ -10,6 +10,7 @@ const { ContextBuilder } = require("./src/ContextBuilder");
 const StrategyValidator = require("./src/validation/StrategyValidator");
 const StrategyManifest = require("./src/validation/StrategyManifest");
 const Position = require("./src/Position");
+const PlotBuffer = require("./src/PlotBuffer");
 
 module.exports = {
     Strategy,
@@ -24,4 +25,5 @@ module.exports = {
     StrategyValidator,
     StrategyManifest,
     Position,
+    PlotBuffer,
 };

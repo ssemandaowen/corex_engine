@@ -81,6 +81,18 @@ class ContextBuilder {
             return true;
         };
 
+        ctx.plot = (name, value) => {
+            if (s.plotBuffer && typeof s.plotBuffer.plot === "function") {
+                s.plotBuffer.plot(name, value, ctx.time || Date.now());
+            }
+        };
+
+        ctx.mark = (name, message) => {
+            if (s.plotBuffer && typeof s.plotBuffer.mark === "function") {
+                s.plotBuffer.mark(name, message, ctx.time || Date.now());
+            }
+        };
+
         this._ctx = ctx;
     }
 

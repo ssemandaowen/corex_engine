@@ -92,7 +92,10 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
                 rsi: { type: "RSI", period: 14, source: "close" },
                 atr: { type: "ATR", period: 3, source: "close" }
             };
-            onBar(ctx, bar) { return null; }
+            onBar(ctx, bar) { 
+                ctx.plot("metric", bar.close);
+                return null; 
+            }
         }
         const strategy = new BenchmarkStrategy({ symbols: ["EURUSD"], timeframe: "1m" });
         strategy.onBar({

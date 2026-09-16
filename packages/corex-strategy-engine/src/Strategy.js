@@ -10,6 +10,7 @@ const StrategyRuntimeUtils = require("./StrategyRuntimeUtils");
 const ParamSchema = require("./ParamSchema");
 const { IndicatorManager } = require("./IndicatorManager");
 const { ContextBuilder } = require("./ContextBuilder");
+const PlotBuffer = require("./PlotBuffer");
 
 let _sharedMath = null;
 const getSharedMath = () => {
@@ -197,6 +198,7 @@ class Strategy {
         this._flipNext = null;
         this.positions = new StrategyPositionManager();
         this.state = new StrategyStateStore(this.runtimeId);
+        this.plotBuffer = new PlotBuffer(config.plotBufferOptions || {});
 
         this._declarativeInitialized = false;
         this._started = false;
@@ -282,6 +284,10 @@ class Strategy {
     series(symbol, field = "close", n = null) {
         const window = this.dataManager.getLookbackWindow(symbol || this.symbols[0], n || undefined);
         return window.map(b => b[field]);
+    }
+
+    getPlotDelta() {
+        return this.plotBuffer ? this.plotBuffer.getPlotDelta() : { series: {}, marks: [] };
     }
 
     resetState() {
