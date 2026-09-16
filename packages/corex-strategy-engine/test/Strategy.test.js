@@ -1,6 +1,6 @@
 "use strict";
 
-const { Strategy } = require("../index");
+const { Strategy, StrategyValidator } = require("../index");
 const CoreXPaperDriver = require("corex-broker-contract/src/drivers/CoreXPaperDriver");
 const BaseBroker = require("corex-broker-contract/src/base/BaseBroker");
 
@@ -145,5 +145,65 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
         expect(strategy.params.threshold).toBe(1.1200);
 
         strategy.destroy();
+    });
+
+    test("Hook binding ensures this.state, this.log, and custom methods are accessible", () => {
+        class BoundHookStrategy extends Strategy {
+            static symbols = ["EURUSD"];
+            static timeframe = "1m";
+            customMethod() { return "custom_ok"; }
+            onBar(ctx, bar) {
+                this.state.set("visited", true);
+                this.log.info("hook test");
+                const res = this.customMethod();
+                expect(res).toBe("custom_ok");
+                expect(this.state).toBeDefined();
+                expect(this.log).toBeDefined();
+                return null;
+            }
+        }
+        const strategy = new BoundHookStrategy({ symbols: ["EURUSD"], timeframe: "1m" });
+        strategy.onBar({ symbol: "EURUSD", time: 1000, close: 1.1000, high: 1.1050, low: 1.0950, volume: 100 });
+        strategy.destroy();
+    });
+
+    test("Context warmup and readiness guards (hasBars and requireBars)", () => {
+        class GuardStrategy extends Strategy {
+            static symbols = ["EURUSD"];
+            static timeframe = "1m";
+            static indicators = {
+                ema: { type: "EMA", period: 5, source: "close" }
+            };
+            onBar(ctx, bar) {
+                if (!ctx.hasBars(3)) return null;
+                if (!ctx.requireBars(5, "ema")) return null;
+                return ctx.go.long(1, bar.close);
+            }
+        }
+        const strategy = new GuardStrategy({ symbols: ["EURUSD"], timeframe: "1m" });
+        
+        const bar1 = { symbol: "EURUSD", time: 1000, close: 1.1000, high: 1.1050, low: 1.0950, volume: 100 };
+        expect(strategy.onBar(bar1)).toBeNull();
+
+        strategy.destroy();
+    });
+
+    test("Strategy validation guardrails enforce valid lookback bounds", () => {
+        class InvalidLookbackStrategy extends Strategy {
+            static symbols = ["EURUSD"];
+            static timeframe = "1m";
+            static lookback = -5;
+        }
+        expect(() => new InvalidLookbackStrategy({ symbols: ["EURUSD"], timeframe: "1m" })).toThrow();
+
+        class ExcessiveLookbackStrategy extends Strategy {
+            static symbols = ["EURUSD"];
+            static timeframe = "1m";
+            static lookback = 200000;
+        }
+        expect(() => new ExcessiveLookbackStrategy({ symbols: ["EURUSD"], timeframe: "1m" })).toThrow();
+
+        const validationResult = StrategyValidator.validate(ExcessiveLookbackStrategy);
+        expect(validationResult.valid).toBe(false);
     });
 });

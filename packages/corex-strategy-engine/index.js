@@ -7,8 +7,8 @@ const ParamSchema = require("./src/ParamSchema");
 const { IndicatorManager } = require("./src/IndicatorManager");
 const { IndicatorRegistry, globalIndicatorRegistry, indicators } = require("./src/IndicatorRegistry");
 const { ContextBuilder } = require("./src/ContextBuilder");
-const { StrategyValidator } = require("./src/validation/StrategyValidator");
-const { StrategyManifest } = require("./src/validation/StrategyManifest");
+const StrategyValidator = require("./src/validation/StrategyValidator");
+const StrategyManifest = require("./src/validation/StrategyManifest");
 const Position = require("./src/Position");
 
 module.exports = {

@@ -26,35 +26,53 @@ const ta = {
     },
 
     highest(arr, length) {
-        if (!Array.isArray(arr) || arr.length === 0) return 0;
-        const slice = arr.slice(-length);
-        return Math.max(...slice);
+        if (!arr || typeof arr.length !== "number" || arr.length === 0) return 0;
+        const len = Math.min(length, arr.length);
+        if (len <= 0) return 0;
+        let max = -Infinity;
+        const start = arr.length - len;
+        for (let i = start; i < arr.length; i++) {
+            const val = arr[i];
+            if (val > max) max = val;
+        }
+        return max === -Infinity ? 0 : max;
     },
 
     lowest(arr, length) {
-        if (!Array.isArray(arr) || arr.length === 0) return 0;
-        const slice = arr.slice(-length);
-        return Math.min(...slice);
+        if (!arr || typeof arr.length !== "number" || arr.length === 0) return 0;
+        const len = Math.min(length, arr.length);
+        if (len <= 0) return 0;
+        let min = Infinity;
+        const start = arr.length - len;
+        for (let i = start; i < arr.length; i++) {
+            const val = arr[i];
+            if (val < min) min = val;
+        }
+        return min === Infinity ? 0 : min;
     },
 
     rising(arr, length = 1) {
-        if (!Array.isArray(arr) || arr.length <= length) return false;
-        for (let i = arr.length - length; i < arr.length; i++) {
+        if (!arr || typeof arr.length !== "number" || arr.length <= length) return false;
+        const len = Math.min(length, arr.length - 1);
+        const start = arr.length - len;
+        for (let i = start; i < arr.length; i++) {
             if (arr[i] <= arr[i - 1]) return false;
         }
         return true;
     },
 
     falling(arr, length = 1) {
-        if (!Array.isArray(arr) || arr.length <= length) return false;
-        for (let i = arr.length - length; i < arr.length; i++) {
+        if (!arr || typeof arr.length !== "number" || arr.length <= length) return false;
+        const len = Math.min(length, arr.length - 1);
+        const start = arr.length - len;
+        for (let i = start; i < arr.length; i++) {
             if (arr[i] >= arr[i - 1]) return false;
         }
         return true;
     },
 
     change(arr, length = 1) {
-        if (!Array.isArray(arr) || arr.length <= length) return 0;
+        if (!arr || typeof arr.length !== "number" || arr.length <= length) return 0;
         return arr[arr.length - 1] - arr[arr.length - 1 - length];
     }
 };

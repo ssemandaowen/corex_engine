@@ -56,7 +56,30 @@ class ContextBuilder {
         ctx.go = {};
         this._wireGoCommands(ctx);
 
-        ctx.flat = this._createFlatHandler(ctx);
+        ctx.hasBars = (count = 1, symbol = ctx.symbol) => {
+            const sym = symbol || ctx.symbol;
+            if (s.dataManager && typeof s.dataManager.isWarmedUp === "function") {
+                return s.dataManager.isWarmedUp(sym, count);
+            }
+            const series = typeof s.series === "function" ? s.series(sym, "close", count) : [];
+            return series.length >= count;
+        };
+
+        ctx.requireBars = (count = 1, indicatorName = null, symbol = ctx.symbol) => {
+            const sym = symbol || ctx.symbol;
+            if (!ctx.hasBars(count, sym)) return false;
+            if (indicatorName) {
+                const ind = ctx.indicators && ctx.indicators[indicatorName];
+                if (!ind || ind.ready !== true) return false;
+            } else if (ctx.indicators) {
+                for (const ind of Object.values(ctx.indicators)) {
+                    if (ind && typeof ind.ready === "boolean" && !ind.ready) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        };
 
         this._ctx = ctx;
     }

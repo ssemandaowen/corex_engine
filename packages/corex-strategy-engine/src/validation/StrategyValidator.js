@@ -117,10 +117,16 @@ class StrategyValidator {
             info.push(this._issue("TIMEFRAME_OK", `Strategy timeframe: ${instance.timeframe}`, "info"));
         }
 
-        if (!Number.isFinite(instance.lookback)) {
-            warnings.push(
-                this._issue("MISSING_LOOKBACK", "Strategy should define a lookback period", "warning", {
+        if (!Number.isFinite(instance.lookback) || instance.lookback <= 0) {
+            errors.push(
+                this._issue("INVALID_LOOKBACK", "Strategy lookback must be a positive finite number", "error", {
                     fix: "lookback: 100",
+                })
+            );
+        } else if (instance.lookback > 100000) {
+            errors.push(
+                this._issue("EXCESSIVE_LOOKBACK", `Strategy lookback (${instance.lookback}) exceeds maximum allowed limit (100000)`, "error", {
+                    fix: "Reduce lookback to <= 100000",
                 })
             );
         } else if (instance.lookback < 10) {
@@ -307,11 +313,7 @@ class StrategyValidator {
             );
         }
 
-        if (/this\.series\s*\(/.test(src) && !/safeSeries\s*\(/.test(src)) {
-            warnings.push(
-                this._issue("UNSAFE_SERIES_ACCESS", "Strategy uses series() without safeSeries wrapper", "warning")
-            );
-        }
+
 
         if (/while\s*\(\s*true\s*\)|for\s*\(\s*;\s*;\s*\)/.test(src)) {
             errors.push(

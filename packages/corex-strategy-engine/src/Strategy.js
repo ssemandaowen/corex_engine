@@ -131,7 +131,15 @@ class Strategy {
             throw new Error("Strategy requires at least one symbol");
         }
 
-        this.lookback = Math.max(10, config.lookback || 100);
+        const rawLookback = config.lookback !== undefined ? config.lookback : (this.constructor.lookback !== undefined ? this.constructor.lookback : 100);
+        const MAX_ALLOWED_LOOKBACK = 100000;
+        if (!Number.isFinite(Number(rawLookback)) || Number(rawLookback) <= 0) {
+            throw new Error(`[Strategy] Invalid lookback window: ${rawLookback}. Lookback must be a positive finite number.`);
+        }
+        if (Number(rawLookback) > MAX_ALLOWED_LOOKBACK) {
+            throw new Error(`[Strategy] Lookback window ${rawLookback} exceeds maximum allowed limit (${MAX_ALLOWED_LOOKBACK}).`);
+        }
+        this.lookback = Number(rawLookback);
         this.candleBased = config.candleBased !== false;
         this.timeframe = config.timeframe || "1m";
 
@@ -242,7 +250,7 @@ class Strategy {
         for (const hook of hooks) {
             const fn = this[hook];
             if (typeof fn === "function" && fn !== Strategy.prototype[hook]) {
-                this._userHooks[hook] = fn;
+                this._userHooks[hook] = fn.bind(this);
                 if (hook === "onBar") {
                     this.onBar = (packet) => this._processData(packet, { source: "bar" });
                 } else if (hook === "onTick") {
