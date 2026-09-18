@@ -67,6 +67,9 @@ class RuntimeRegistry {
                 // non-fatal
             }
         }, PLOT_INTERVAL_MS);
+        if (plotInterval && typeof plotInterval.unref === "function") {
+            plotInterval.unref();
+        }
 
         this._runtimes.set(runtimeId, {
             runtimeId,
