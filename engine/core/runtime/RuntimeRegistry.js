@@ -41,6 +41,33 @@ class RuntimeRegistry {
             );
         }
 
+        // Clear any existing interval for this runtimeId if re-registering
+        const existing = this._runtimes.get(runtimeId);
+        if (existing && existing.plotInterval) {
+            clearInterval(existing.plotInterval);
+        }
+
+        const { bus, EVENTS } = require("@events/bus");
+        const PLOT_INTERVAL_MS = Number(process.env.COREX_WS_PLOT_INTERVAL_MS || 2000);
+
+        const plotInterval = setInterval(() => {
+            const ent = this._runtimes.get(runtimeId);
+            if (!ent || !ent.instance || typeof ent.instance.getPlotDelta !== "function") return;
+            try {
+                const delta = ent.instance.getPlotDelta();
+                if (delta && ((delta.series && Object.keys(delta.series).length > 0) || (delta.marks && delta.marks.length > 0))) {
+                    bus.emit(EVENTS.STRATEGY.PLOT_UPDATE, {
+                        runtimeId,
+                        series: delta.series || {},
+                        marks: delta.marks || [],
+                        ts: Date.now()
+                    }, { userId: ent.userId, ts: Date.now() });
+                }
+            } catch (e) {
+                // non-fatal
+            }
+        }, PLOT_INTERVAL_MS);
+
         this._runtimes.set(runtimeId, {
             runtimeId,
             instance:     entry.instance,
@@ -53,6 +80,7 @@ class RuntimeRegistry {
             actualState:  entry.actualState  || "ACTIVE",
             params:       entry.params       || {},
             startedAt:    entry.startedAt    || Date.now(),
+            plotInterval,
         });
     }
 
@@ -86,10 +114,19 @@ class RuntimeRegistry {
     }
 
     delete(runtimeId) {
+        const entry = this._runtimes.get(runtimeId);
+        if (entry && entry.plotInterval) {
+            clearInterval(entry.plotInterval);
+        }
         this._runtimes.delete(runtimeId);
     }
 
     clear() {
+        for (const entry of this._runtimes.values()) {
+            if (entry.plotInterval) {
+                clearInterval(entry.plotInterval);
+            }
+        }
         this._runtimes.clear();
     }
 

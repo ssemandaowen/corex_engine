@@ -71,7 +71,8 @@ const EVENTS = {
         SIGNAL: "strategy:signal",
         SIGNAL_EXECUTED: "strategy:signal_executed",
         PARAMS_UPDATED: "strategy:params_updated",
-        METRICS_TICK: "strategy:metrics_tick"
+        METRICS_TICK: "strategy:metrics_tick",
+        PLOT_UPDATE: "strategy:plot_update"
     },
     RUNTIME: {
         MEMORY_WARNING: "runtime:memory_warning",
@@ -122,6 +123,7 @@ const WS_EVENT_TYPES = {
     STRATEGY_STATE: "STRATEGY_STATE",
     STRATEGY_PARAMS_UPDATED: "STRATEGY_PARAMS_UPDATED",
     STRATEGY_METRICS_TICK: "STRATEGY_METRICS_TICK",
+    STRATEGY_PLOT_UPDATE: "STRATEGY_PLOT_UPDATE",
     WORKER_STATE: "WORKER_STATE",
     BACKTEST_PROGRESS: "BACKTEST_PROGRESS",
     RUNTIME_MEMORY_WARNING: "RUNTIME_MEMORY_WARNING",
@@ -164,6 +166,7 @@ const BUS_EVENT_TO_WS = [
     { event: EVENTS.SYSTEM.SETTINGS_UPDATED, type: WS_EVENT_TYPES.PARAM_UPDATE, category: "system" },
     { event: EVENTS.STRATEGY.PARAMS_UPDATED, type: WS_EVENT_TYPES.STRATEGY_PARAMS_UPDATED, category: "strategy" },
     { event: EVENTS.STRATEGY.METRICS_TICK, type: WS_EVENT_TYPES.STRATEGY_METRICS_TICK, category: "strategy" },
+    { event: EVENTS.STRATEGY.PLOT_UPDATE, type: WS_EVENT_TYPES.STRATEGY_PLOT_UPDATE, category: "strategy" },
     { event: EVENTS.RUNTIME.MEMORY_WARNING, type: WS_EVENT_TYPES.RUNTIME_MEMORY_WARNING, category: "runtime" },
     { event: EVENTS.MT5.CONNECTED, type: WS_EVENT_TYPES.MT5_CONNECTED, category: "mt5" },
     { event: EVENTS.MT5.DISCONNECTED, type: WS_EVENT_TYPES.MT5_DISCONNECTED, category: "mt5" },
