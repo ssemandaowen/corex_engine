@@ -11,8 +11,8 @@ describe("Declarative Strategy Base Class & Pipeline Integration", () => {
         static timeframe = "1m";
 
         static params = {
-            threshold: { default: 1.1000 },
-            rsiPeriod: { default: 14 }
+            threshold: { type: "number", default: 1.1000 },
+            rsiPeriod: { type: "integer", default: 14 }
         };
 
         static indicators = {

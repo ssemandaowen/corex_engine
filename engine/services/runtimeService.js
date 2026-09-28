@@ -6,6 +6,7 @@ const eventBus = require("@events/bus");
 const { EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 const analytics = require("@utils/analytics");
+const { ParamSchema } = require("corex-strategy-engine");
 
 const log = logger.createModuleLogger("RUNTIME_SERVICE");
 
@@ -79,6 +80,17 @@ class RuntimeService {
         }
         const meta = loader.getMeta(strategyId);
         if (!meta) throw new Error(`Strategy ${strategyId} not found in registry`);
+
+        const currentParams = meta.runtimeParams || {};
+        const schema = meta.schema || {};
+        const validation = ParamSchema.applyPatch(currentParams, patch, schema);
+        if (!validation.valid) {
+            return {
+                success: false,
+                error: "VALIDATION_FAILED",
+                errors: validation.errors
+            };
+        }
 
         const userId = strategyId.split("::")[0] || "system";
         const activeRuntimes = loader.getRuntimes(strategyId, userId);

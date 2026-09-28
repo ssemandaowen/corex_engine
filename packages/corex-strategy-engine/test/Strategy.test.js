@@ -10,8 +10,8 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
         static timeframe = "1m";
 
         static params = {
-            threshold: { default: 1.1000 },
-            rsiPeriod: { default: 14 }
+            threshold: { type: "number", default: 1.1000 },
+            rsiPeriod: { type: "integer", default: 14 }
         };
 
         static indicators = {
@@ -208,5 +208,32 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
 
         const validationResult = StrategyValidator.validate(ExcessiveLookbackStrategy);
         expect(validationResult.valid).toBe(false);
+    });
+
+    test("Strategy.updateParams enforces schema validation atomically", () => {
+        class ParamValidatedStrategy extends Strategy {
+            static symbols = ["EURUSD"];
+            static timeframe = "1m";
+            static params = {
+                period: { type: "integer", default: 14, min: 1, max: 100 },
+                mode: { type: "string", default: "fast", enum: ["fast", "slow"] }
+            };
+        }
+        const strategy = new ParamValidatedStrategy({ symbols: ["EURUSD"], timeframe: "1m" });
+        expect(strategy.params.period).toBe(14);
+        expect(strategy.params.mode).toBe("fast");
+
+        const invalidRes = strategy.updateParams({ period: 500, mode: "invalid_mode" });
+        expect(invalidRes.valid).toBe(false);
+        expect(invalidRes.errors).toBeDefined();
+        expect(strategy.params.period).toBe(14);
+        expect(strategy.params.mode).toBe("fast");
+
+        const validRes = strategy.updateParams({ period: 20, mode: "slow" });
+        expect(validRes.valid).toBe(true);
+        expect(strategy.params.period).toBe(20);
+        expect(strategy.params.mode).toBe("slow");
+
+        strategy.destroy();
     });
 });

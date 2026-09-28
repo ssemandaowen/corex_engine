@@ -679,6 +679,9 @@ router.patch("/params/:id", async (req, res) => {
             return res.status(400).json({ success: false, error: "INVALID_PARAMS" });
         }
         const result = await runtimeService.patchParams(id, params);
+        if (result && result.success === false) {
+            return res.status(400).json(result);
+        }
         res.json({ success: true, ...result });
     } catch (err) {
         const status = err.message.includes("not found") ? 404 : 500;

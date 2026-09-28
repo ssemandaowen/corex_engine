@@ -460,10 +460,17 @@ class Strategy {
 
     updateParams(newParams = {}) {
         this._ensureInitialized();
-        if (!newParams || typeof newParams !== "object" || Array.isArray(newParams)) return;
+        if (!newParams || typeof newParams !== "object" || Array.isArray(newParams)) {
+            return { valid: false, errors: { patch: "Patch must be an object" } };
+        }
+
+        const result = ParamSchema.applyPatch(this.params, newParams, this.schema);
+        if (!result.valid) {
+            return result;
+        }
 
         let changed = false;
-        for (const [key, val] of Object.entries(newParams)) {
+        for (const [key, val] of Object.entries(result.applied)) {
             if (this.params[key] !== val) {
                 this.params[key] = val;
                 changed = true;
@@ -473,6 +480,8 @@ class Strategy {
         if (changed && this._indicatorManager) {
             this._indicatorManager.reseedIndicators();
         }
+
+        return result;
     }
 
     onStart(ctx) {}
