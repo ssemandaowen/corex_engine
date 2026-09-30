@@ -4,7 +4,7 @@ const IncrementalSMA = require("./sma");
 const StandardDeviation = require("./stddev");
 
 class BollingerBands {
-    static updateMode = "multi";
+    static updateMode = "single";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20), Number(indDef.multiplier || 2)];
 
     constructor(period = 20, stdDevMultiplier = 2) {

@@ -1,7 +1,7 @@
 "use strict";
 
 class MFI {
-    static updateMode = "volume";
+    static updateMode = "mfi";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
 
     constructor(period = 14) {

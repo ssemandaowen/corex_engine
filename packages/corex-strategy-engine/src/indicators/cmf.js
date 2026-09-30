@@ -1,7 +1,7 @@
 "use strict";
 
 class CMF {
-    static updateMode = "volume";
+    static updateMode = "hlcv";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
 
     constructor(period = 20) {

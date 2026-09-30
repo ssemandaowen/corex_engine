@@ -7,7 +7,7 @@ const {
     getIndicatorNameSet,
     getIndicatorNameLowerSet
 } = require("./StrategyManifest");
-const { Strategy } = require("../Strategy");
+const { Strategy, MAX_ALLOWED_LOOKBACK } = require("../Strategy");
 
 const NUMERIC_TYPES = new Set(["integer", "number", "float"]);
 
@@ -123,10 +123,10 @@ class StrategyValidator {
                     fix: "lookback: 100",
                 })
             );
-        } else if (instance.lookback > 100000) {
+        } else if (instance.lookback > MAX_ALLOWED_LOOKBACK) {
             errors.push(
-                this._issue("EXCESSIVE_LOOKBACK", `Strategy lookback (${instance.lookback}) exceeds maximum allowed limit (100000)`, "error", {
-                    fix: "Reduce lookback to <= 100000",
+                this._issue("EXCESSIVE_LOOKBACK", `Strategy lookback (${instance.lookback}) exceeds maximum allowed limit (${MAX_ALLOWED_LOOKBACK})`, "error", {
+                    fix: `Reduce lookback to <= ${MAX_ALLOWED_LOOKBACK}`,
                 })
             );
         } else if (instance.lookback < 10) {

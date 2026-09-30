@@ -1,7 +1,7 @@
 "use strict";
 
 class AccumulationDistribution {
-    static updateMode = "volume";
+    static updateMode = "hlcv";
     static resolveParams = () => [];
 
     constructor() {

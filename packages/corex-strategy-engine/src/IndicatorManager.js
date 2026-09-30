@@ -2,6 +2,41 @@
 
 const { globalIndicatorRegistry } = require("./IndicatorRegistry");
 
+/**
+ * Dispatch modes.
+ *
+ * Each indicator module declares `static updateMode`, which selects the argument
+ * shape `updateIndicators()` passes on every live tick. `arity` is the number of
+ * arguments that mode dispatches and is asserted against the module's actual
+ * `update()` arity at strategy initialization — a mismatch would otherwise feed
+ * the wrong fields (or `undefined`) into the indicator silently.
+ *
+ *   single  -> update(value)                            (def.source resolved)
+ *   hl      -> update(high, low)
+ *   volume  -> update(close, volume)
+ *   multi   -> update(high, low, close)
+ *   hlv     -> update(high, low, volume)
+ *   rvi     -> update(close, open, high, low)
+ *   hlcv    -> update(high, low, close, volume)
+ *   mfi     -> update(typicalPrice, typicalPrice * volume, volume)
+ */
+const DISPATCH_MODES = {
+    single: { arity: 1 },
+    hl:     { arity: 2 },
+    volume: { arity: 2 },
+    multi:  { arity: 3 },
+    hlv:    { arity: 3 },
+    rvi:    { arity: 4 },
+    hlcv:   { arity: 4 },
+    mfi:    { arity: 3 },
+};
+
+/**
+ * Modes whose `reseed()` consumes full candle objects rather than a flat
+ * value series.
+ */
+const CANDLE_DISPATCH_MODES = new Set(["hl", "volume", "multi", "hlv", "rvi", "hlcv", "mfi"]);
+
 function collectStaticIndicators(StrategyClass, stopAt) {
     let curr = StrategyClass;
     let result = {};
@@ -26,9 +61,10 @@ class IndicatorManager {
             const type = String(indDef.type || "").toUpperCase();
             const Cls = globalIndicatorRegistry.get(type);
             if (!Cls) continue;
+            const updateMode = this._classifyUpdate(Cls);
+            this._assertDispatchArity(type, updateMode, Cls);
             const instance = this._createIndicator(indDef, Cls);
             if (instance) {
-                const updateMode = this._classifyUpdate(Cls);
                 this._indicators.set(name, { instance, def: indDef, type, updateMode });
             }
         }
@@ -39,6 +75,35 @@ class IndicatorManager {
             return Cls.updateMode;
         }
         return "single";
+    }
+
+    /**
+     * Fail loudly at strategy load time when a module's declared updateMode
+     * disagrees with its real `update()` signature. Without this, a mismatch
+     * only shows up as NaN or wrong values in live trading.
+     */
+    _assertDispatchArity(type, updateMode, Cls) {
+        const spec = DISPATCH_MODES[updateMode];
+        const known = Object.keys(DISPATCH_MODES).join(", ");
+        if (!spec) {
+            throw new Error(
+                `[IndicatorManager] Indicator '${type}' declares unknown updateMode '${updateMode}'. Known modes: ${known}.`
+            );
+        }
+
+        const updateFn = Cls && Cls.prototype ? Cls.prototype.update : null;
+        if (typeof updateFn !== "function") {
+            throw new Error(
+                `[IndicatorManager] Indicator '${type}' declares updateMode '${updateMode}' but has no update() method to dispatch to.`
+            );
+        }
+
+        const actual = updateFn.length;
+        if (actual !== spec.arity) {
+            throw new Error(
+                `[IndicatorManager] Indicator '${type}' dispatch mismatch: updateMode '${updateMode}' dispatches ${spec.arity} argument(s) but update() accepts ${actual}.`
+            );
+        }
     }
 
     _createIndicator(indDef, Cls) {
@@ -85,10 +150,19 @@ class IndicatorManager {
 
             if (mode === "multi") {
                 instance.update(high, low, close);
+            } else if (mode === "hlv") {
+                instance.update(high, low, volume);
+            } else if (mode === "hlcv") {
+                instance.update(high, low, close, volume);
             } else if (mode === "volume") {
                 instance.update(close, volume);
             } else if (mode === "rvi") {
                 instance.update(close, open, high, low);
+            } else if (mode === "hl") {
+                instance.update(high, low);
+            } else if (mode === "mfi") {
+                const typicalPrice = (high + low + close) / 3;
+                instance.update(typicalPrice, typicalPrice * volume, volume);
             } else {
                 instance.update(val);
             }
@@ -117,7 +191,7 @@ class IndicatorManager {
             if (history && history.length > 0) {
                 const candles = this.strategy.dataManager.getLookbackWindow(this.strategy.symbols[0]);
 
-                if (mode === "multi" || mode === "volume" || mode === "rvi") {
+                if (CANDLE_DISPATCH_MODES.has(mode)) {
                     instance.reseed(candles);
                 } else {
                     instance.reseed(history);
@@ -145,4 +219,4 @@ class IndicatorManager {
     }
 }
 
-module.exports = { IndicatorManager, collectStaticIndicators };
+module.exports = { IndicatorManager, collectStaticIndicators, DISPATCH_MODES };

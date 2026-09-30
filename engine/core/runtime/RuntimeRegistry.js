@@ -1,6 +1,12 @@
 "use strict";
 
 /**
+ * Plot broadcaster cadence. Floor-clamped and resolved once at module load so a
+ * bad env value cannot degrade into a sub-second loop per registered runtime.
+ */
+const PLOT_INTERVAL_MS = Math.max(1000, Number(process.env.COREX_WS_PLOT_INTERVAL_MS || 2000));
+
+/**
  * CoreX Runtime Registry
  *
  * Stores ONLY active running strategy workspaces.
@@ -48,7 +54,6 @@ class RuntimeRegistry {
         }
 
         const { bus, EVENTS } = require("@events/bus");
-        const PLOT_INTERVAL_MS = Number(process.env.COREX_WS_PLOT_INTERVAL_MS || 2000);
 
         const plotInterval = setInterval(() => {
             const ent = this._runtimes.get(runtimeId);

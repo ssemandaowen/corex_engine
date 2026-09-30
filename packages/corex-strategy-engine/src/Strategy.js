@@ -12,6 +12,13 @@ const { IndicatorManager } = require("./IndicatorManager");
 const { ContextBuilder } = require("./ContextBuilder");
 const PlotBuffer = require("./PlotBuffer");
 
+/**
+ * Immutable architectural invariant: the largest lookback window a strategy may
+ * request. Shared with StrategyValidator so validation and enforcement can never
+ * disagree on the limit.
+ */
+const MAX_ALLOWED_LOOKBACK = 100000;
+
 let _sharedMath = null;
 const getSharedMath = () => {
     if (_sharedMath) return _sharedMath;
@@ -133,7 +140,6 @@ class Strategy {
         }
 
         const rawLookback = config.lookback !== undefined ? config.lookback : (this.constructor.lookback !== undefined ? this.constructor.lookback : 100);
-        const MAX_ALLOWED_LOOKBACK = 100000;
         if (!Number.isFinite(Number(rawLookback)) || Number(rawLookback) <= 0) {
             throw new Error(`[Strategy] Invalid lookback window: ${rawLookback}. Lookback must be a positive finite number.`);
         }
@@ -493,4 +499,4 @@ Object.assign(Strategy.prototype, SignalHelpers);
 Object.assign(Strategy.prototype, StrategyRuntimeUtils);
 StrategyContract.adapt(Strategy.prototype);
 
-module.exports = { Strategy };
+module.exports = { Strategy, MAX_ALLOWED_LOOKBACK };

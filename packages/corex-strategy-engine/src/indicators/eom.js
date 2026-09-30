@@ -1,7 +1,7 @@
 "use strict";
 
 class EaseOfMovement {
-    static updateMode = "volume";
+    static updateMode = "hlv";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14), Number(indDef.scale || 10000)];
 
     constructor(period = 14, scale = 10000) {
