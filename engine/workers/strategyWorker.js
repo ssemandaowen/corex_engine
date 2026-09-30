@@ -119,11 +119,17 @@ const HANDLERS = {
         const entry = activeStrategies.get(strategyId);
         if (!entry) throw new Error("STRATEGY_NOT_LOADED");
 
-        // Best-effort warmup; errors are caught to prevent worker crash
+        // Warmup is best-effort in the sense that a strategy that legitimately
+        // produces no signal while it is still priming is a normal, recoverable
+        // condition and must NOT fail the warmup. A thrown exception is a
+        // different matter entirely: the strategy threw while warming up, its
+        // internal state is unknown/untrustworthy, and reporting ok:true would
+        // hide a genuine failure from the caller.
         try {
             execStrategy(entry.instance, bar, { source: "bar", isWarmup: true });
         } catch (e) {
             log.warn(`Warmup error for ${strategyId}: ${e.message}`);
+            return { strategyId, ok: false, error: e.message };
         }
         return { strategyId, ok: true };
     }
