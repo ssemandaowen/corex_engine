@@ -470,6 +470,22 @@ class Strategy {
             return { valid: false, errors: { patch: "Patch must be an object" } };
         }
 
+        // No-op fast path. This runs on every packet via the runtime's param
+        // hot-swap, so an unchanged patch must not reach the schema validator or
+        // allocate a result/errors/applied object set. Values are compared
+        // raw (pre-coercion), so any value that still needs coercion is never
+        // treated as unchanged.
+        let isNoOp = true;
+        for (const key in newParams) {
+            if (this.params[key] !== newParams[key]) {
+                isNoOp = false;
+                break;
+            }
+        }
+        if (isNoOp) {
+            return { valid: true, applied: null, changed: false };
+        }
+
         const result = ParamSchema.applyPatch(this.params, newParams, this.schema);
         if (!result.valid) {
             return result;

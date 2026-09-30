@@ -56,6 +56,8 @@ class ContextBuilder {
         ctx.go = {};
         this._wireGoCommands(ctx);
 
+        ctx.flat = this._createFlatHandler(ctx);
+
         ctx.hasBars = (count = 1, symbol = ctx.symbol) => {
             const sym = symbol || ctx.symbol;
             if (s.dataManager && typeof s.dataManager.isWarmedUp === "function") {

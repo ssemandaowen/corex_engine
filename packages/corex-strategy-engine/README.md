@@ -61,10 +61,10 @@ The `ctx` object passed into lifecycle hooks is a persistent, zero-allocation co
 - `ctx.requireBars(count = 1, indicatorName = null, symbol = ctx.symbol)`: Guard returning true only if `hasBars(count)` passes AND specified (or all) indicators report `ready: true`.
 - `ctx.plot(name, value)`: Records a time-series plot data point into `PlotBuffer`.
 - `ctx.mark(name, message)`: Records an event marker into `PlotBuffer`.
+- `ctx.flat(qty?, price?)`: Closes the strategy's open exposure for the current symbol via `this.close({ symbol, quantity, price })`. Wired in `ContextBuilder._buildPersistentCtx()`.
 
 #### Discrepancy Note (StrategyManifest vs Actual Wiring)
 `StrategyManifest.js` includes metadata descriptors for IDE completion that are **not** attached to `ctx` or `this` in actual runtime execution:
-- `ctx.flat`: **Unwired**. (`_createFlatHandler` exists as a private method in `ContextBuilder.js` but is never attached to `ctx`). Strategies close exposure via `ctx.go` or `this.close()` / `this.exitAll()`.
 - `oncePerBar`, `safeRule`, `describe`, `logDecision`, `logSignal`, `logGuard`: Listed in `StrategyManifest.js` as manifest helper descriptors, but are not methods on `Strategy.prototype` or `ctx`.
 - `above`, `below`, `between`, `pctChange`: Listed in `StrategyManifest.js`, but not exported by `ta.js` or `ctx.ta`.
 

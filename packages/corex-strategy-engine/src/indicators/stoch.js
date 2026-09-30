@@ -2,7 +2,7 @@
 
 class StochasticOscillator {
     static updateMode = "multi";
-    static resolveParams = (indDef) => [Number(indDef.kPeriod || 14), Number(indDef.dPeriod || 3)];
+    static resolveParams = (indDef, rp) => [Number(indDef.kPeriod ?? (rp ? rp(indDef) : 14)), Number(indDef.dPeriod || 3)];
 
     constructor(kPeriod = 14, dPeriod = 3) {
         if (!kPeriod || kPeriod < 1) throw new Error("StochasticOscillator kPeriod must be >= 1");

@@ -26,13 +26,6 @@ const CORE_METHOD_MANIFEST = [
         signature: "requireBars(symbol, n = 1, context = 'requireBars')",
         documentation: "Guard helper that returns false when not enough bars are available."
     },
-    { 
-        label: "series", 
-        category: "helper", 
-        detail: "Raw series accessor", 
-        signature: "series(symbol, field = 'close', n?)", 
-        documentation: "Returns numeric historical lookback series for calculations." 
-    }, 
     {
         label: "oncePerBar",
         category: "helper",
@@ -128,7 +121,7 @@ const CORE_METHOD_MANIFEST = [
         label: "series",
         category: "data",
         detail: "Raw series accessor",
-        signature: "series(symbol, field = 'close')",
+        signature: "series(symbol, field = 'close', n?)",
         documentation: "Returns raw numeric lookback series for indicators."
     },
     {

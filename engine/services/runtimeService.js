@@ -95,17 +95,24 @@ class RuntimeService {
         const userId = strategyId.split("::")[0] || "system";
         const activeRuntimes = loader.getRuntimes(strategyId, userId);
 
-        await loader.saveParams(strategyId, patch);
+        // Persist and broadcast the validated/coerced values, not the raw request
+        // body. The live instance receives coerced params via ParamSchema, so
+        // storing the raw patch would let the database and the running strategy
+        // disagree (e.g. "1.5" persisted as a string, live as a number) and the
+        // strategy would reload with the wrong type after a restart.
+        const applied = validation.applied;
+
+        await loader.saveParams(strategyId, applied);
 
         if (activeRuntimes.length) {
             eventBus.bus.emit(EVENTS.SYSTEM.SETTINGS_UPDATED, {
                 id: strategyId,
-                params: patch,
+                params: applied,
             });
 
             eventBus.bus.emit(EVENTS.STRATEGY.PARAMS_UPDATED, {
                 strategyId,
-                changed: patch,
+                changed: applied,
                 ts: Date.now(),
             });
 
