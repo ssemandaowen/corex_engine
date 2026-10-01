@@ -1,11 +1,21 @@
 "use strict";
 
+/**
+ * Fractal Dimension Index (FDI)
+ *
+ * Measures market complexity and trendiness:
+ * - FDI ≈ 1.5: Random walk / Gaussian noise
+ * - FDI < 1.5: Trending market (persistent)
+ * - FDI > 1.5: Mean-reverting / choppiness (anti-persistent)
+ *
+ * Algorithm complexity: O(period)
+ */
 class FractalDimensionIndex {
-    constructor(period = 14) {
+    constructor(period = 30) {
         if (!period || period < 1) throw new Error("FDI period must be >= 1");
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
+        this.value = 1.5;
+        this.prev = 1.5;
         this.ready = false;
         this._buffer = [];
     }
@@ -21,47 +31,41 @@ class FractalDimensionIndex {
             const n = this.period;
             const data = this._buffer.slice(-n - 1);
 
-            const maxCount = n / 2;
-            const maxCountLog = Math.log10(maxCount);
+            let maxP = -Infinity;
+            let minP = Infinity;
+            for (let i = 0; i <= n; i++) {
+                const p = data[i];
+                if (p > maxP) maxP = p;
+                if (p < minP) minP = p;
+            }
 
-            let boxSize = (data[n] - data[0]) / maxCount;
-            if (Math.abs(boxSize) < 1e-10) {
-                this.value = 0;
+            const range = maxP - minP;
+            if (range < 1e-12) {
+                this.value = 1.0;
                 this.ready = true;
                 return this.value;
             }
-            boxSize = Math.abs(boxSize);
 
-            let count = 0;
-            let startIdx = 0;
-            while (startIdx < n) {
-                let endIdx = startIdx + 1;
-                let boxStart = data[startIdx];
-                let found = true;
-                while (found && endIdx <= n) {
-                    found = false;
-                    for (let i = endIdx; i <= n; i++) {
-                        if (data[i] >= boxStart && data[i] < boxStart + boxSize) {
-                            endIdx = i + 1;
-                            boxStart = data[i];
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                count++;
-                startIdx = endIdx > startIdx ? endIdx - 1 : startIdx + 1;
+            let len = 0;
+            const dx = 1 / n;
+            for (let i = 0; i < n; i++) {
+                const dy = (data[i + 1] - data[i]) / range;
+                len += Math.sqrt(dy * dy + dx * dx);
             }
 
-            this.value = (maxCountLog - Math.log10(count)) / maxCountLog;
+            if (len > 0) {
+                this.value = 1 + (Math.log(len) + Math.log(2)) / Math.log(2 * n);
+            } else {
+                this.value = 1.0;
+            }
             this.ready = true;
         }
         return this.value;
     }
 
     reseed(values) {
-        this.value = 0;
-        this.prev = 0;
+        this.value = 1.5;
+        this.prev = 1.5;
         this.ready = false;
         this._buffer = [];
         for (let i = 0; i < values.length; i++) {
