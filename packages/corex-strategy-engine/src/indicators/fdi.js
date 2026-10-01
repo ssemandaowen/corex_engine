@@ -29,7 +29,7 @@ class FractalDimensionIndex {
 
         if (this._buffer.length >= this.period + 1) {
             const n = this.period;
-            const data = this._buffer;
+            const data = this._buffer.slice(-n - 1);
 
             let maxP = -Infinity;
             let minP = Infinity;
