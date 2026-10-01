@@ -2,7 +2,7 @@
 
 ## Current Structure
 
-CoreX is currently in an active state of modularization. Six domain packages have been extracted into `packages/`:
+CoreX is currently in an active state of modularization. Seven domain packages have been extracted into `packages/`:
 
 1. `packages/corex-accounts` (Account creation, trading account credentials, persistence)
 2. `packages/corex-auth` (JWT tokens, password hashing, auth verification)
@@ -25,7 +25,7 @@ However, significant amounts of legacy code remain in root directories (`utils/`
 | `utils/data/fastQueue.js` | `utils/data/fastQueue.js` | `KEEP` | Genuine domain-neutral bounded ring-buffer queue |
 | `utils/metrics.js` | `utils/metrics.js` | `KEEP` | Genuine domain-neutral CPU/memory/event-loop metrics collector |
 | `utils/BaseStrategy.js` | `packages/corex-strategy-engine` | `MOVE` | Abstract strategy base class; belongs in strategy engine package |
-| `utils/DeclarativeStrategy.js` | `packages/corex-strategy-engine` | `SHIM` | 4-line re-export shim pointing to `corex-strategy-engine` |
+| `utils/DeclarativeStrategy.js` | `packages/corex-strategy-engine` | `SHIM` | Re-export shim pointing to `corex-strategy-engine` |
 | `utils/security.js` | `packages/corex-strategy-engine` | `MOVE` | Acorn AST scanner specifically validating user strategy code |
 | `utils/analytics.js` | `packages/corex-portfolio` | `MOVE` | Sharpe, Sortino, max drawdown, win rate, expectancy calculations |
 | `utils/stateController.js` | `engine/core/` | `MOVE` | CoreX application engine state machine |
@@ -50,26 +50,29 @@ However, significant amounts of legacy code remain in root directories (`utils/`
 | `broker/connectors/*` | `packages/corex-broker-contract` | `SHIM` | Connector shims re-exporting from `@broker/corex-broker-contract` |
 | `broker/liveStore.js` | `packages/corex-accounts` | `MOVE` | Live account credentials store |
 | `broker/paperStore.js` | `packages/corex-accounts` | `MOVE` | Paper account state store |
-| `broker/twelvedata.js` | `packages/corex-market-data` | `MOVE` | Legacy TwelveData bridge file |
+| `broker/twelvedata.js` | `packages/corex-market-data` | `MOVE` | Legacy TwelveData bridge file imported by `@broker/twelvedata` |
 
 ---
 
 ## Dependency Problems
 
+Static import graph analysis across 264 JS source files revealed the following cross-boundary dependency problems:
+
 1. **Package → Root Engine Leakage (`packages/*` → `engine/` / `@core/`):**
-   - `packages/corex-accounts` imports `@core/services/pgStore` and `@core/services/secretsVault`.
-   - `packages/corex-broker-contract` imports `@core/services/postgres`.
-   - `packages/corex-market-data` imports `@core/services/configService`.
-   - `packages/corex-strategy-engine` imports `@core/core/strategy/StrategyContract`.
-   *Problem:* Lower-level domain packages depend on top-level orchestration services in `engine/`.
+   - `packages/corex-accounts/src/brokerPersistenceService.js` imports `@core/services/pgStore`.
+   - `packages/corex-accounts/src/connectionsService.js` imports `@core/services/secretsVault`.
+   - `packages/corex-broker-contract/src/mt5Bridge.js` imports `@core/services/postgres`.
+   - `packages/corex-market-data/src/legacy/twelvedata.js` imports `@core/services/configService`.
+   - `packages/corex-strategy-engine/src/Strategy.js` imports `@core/core/strategy/StrategyContract`.
+   *Problem:* Lower-level domain packages import application orchestration singletons from `engine/`.
 
 2. **Package → Root Utils Leakage (`packages/*` → `utils/`):**
-   - Extracted packages rely on `@utils/logger` and `@config/constants`.
-   - `packages/corex-broker-contract` imports `@utils/strategy/StrategyPositionManager`.
-   - `packages/corex-strategy-engine` imports `@utils/strategy/StrategyParamUtils`.
+   - Extracted packages rely heavily on `@utils/logger` (35 call sites across packages).
+   - `packages/corex-broker-contract/src/base/BaseBroker.js` imports `@utils/strategy/StrategyPositionManager`.
+   - `packages/corex-strategy-engine/src/ParamSchema.js` imports `@utils/strategy/StrategyParamUtils`.
 
-3. **Duplicated Indicator Systems:**
-   - Legacy `utils/strategy/IncrementalIndicators.js` duplicates indicator logic now provided by `packages/corex-strategy-engine/src/IndicatorRegistry.js`.
+3. **Inter-Package Relative Paths:**
+   - `packages/corex-market-data/src/providers/FileDataProvider.js` imports `../../../corex-broker-contract/src/utils/SymbolNormalizer` via relative path traversal rather than scoped package exports.
 
 ---
 
