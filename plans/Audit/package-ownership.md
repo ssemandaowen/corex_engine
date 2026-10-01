@@ -1,25 +1,30 @@
-# Package Ownership Audit
+# Package Ownership Audit & Staged Modularization Roadmap
 
-## Current Structure
-
-CoreX is currently in an active state of modularization. Seven domain packages have been extracted into `packages/`:
-
-1. `packages/corex-accounts` (Account creation, trading account credentials, persistence)
-2. `packages/corex-auth` (JWT tokens, password hashing, auth verification)
-3. `packages/corex-broker-contract` (BaseBroker, broker modes, drivers, execution adapters)
-4. `packages/corex-gateway` (Socket_X WebSocket protocol, connection lifecycle, risk gateway)
-5. `packages/corex-market-data` (DataProviderFactory, TwelveData, YahooFinance, OANDA)
-6. `packages/corex-portfolio` (Trade history service, order fill listeners, PnL analytics)
-7. `packages/corex-strategy-engine` (Strategy execution base class, 50 indicators, ContextBuilder)
-
-However, significant amounts of legacy code remain in root directories (`utils/`, `engine/`, `broker/`), creating backwards imports from extracted packages into root folders.
+> **Repository:** CoreX Engine
+> **Date:** September 2026
 
 ---
 
-## Proposed Ownership
+## 1. Current Architecture & Package Scope
 
-| Current Path | Proposed Owner | Classification | Reason |
-|--------------|-----------------|----------------|--------|
+CoreX is structured into seven domain packages in `packages/` alongside top-level application orchestration in `engine/` and shared utilities in `utils/`:
+
+| Domain Package | Extracted Scope & Responsibilities | Status |
+|---|---|---|
+| **`corex-auth`** | JWT authentication, password hashing, secret vault | Extracted & Complete |
+| **`corex-accounts`** | Account creation, trading account credentials, Postgres persistence | Extracted & Complete |
+| **`corex-broker-contract`** | `BaseBroker`, broker modes, drivers (`BacktestDriver`, `CoreXPaperDriver`, `MetaApiDriver`), fill simulation | Extracted & Complete |
+| **`corex-gateway`** | Socket_X WebSocket protocol, envelope validation, connection lifecycle, `RiskGateway` | Extracted & Complete |
+| **`corex-market-data`** | Data providers (`TwelveData`, `YahooFinance`, `FileDataProvider`, `OANDA`), `DataProviderFactory`, `MarketFeed` | Extracted & Complete |
+| **`corex-portfolio`** | Trade history service, order fill listeners, account-scoped PnL analytics | Extracted & Complete |
+| **`corex-strategy-engine`** | Strategy base class, `ContextBuilder`, `IndicatorManager`, 50 indicators, `ParamSchema`, `ta`/`util` helpers | Extracted & Audited |
+
+---
+
+## 2. Proposed Module Ownership Matrix
+
+| Current Path | Proposed Owner Package / Module | Classification | Reason |
+|--------------|--------------------------------|----------------|--------|
 | `utils/logger.js` | `utils/logger.js` | `KEEP` | Genuine domain-neutral logging utility wrapper (Winston) |
 | `utils/linkedList.js` | `utils/linkedList.js` | `KEEP` | Genuine domain-neutral $O(1)$ doubly linked list data structure |
 | `utils/data/fastQueue.js` | `utils/data/fastQueue.js` | `KEEP` | Genuine domain-neutral bounded ring-buffer queue |
@@ -54,7 +59,7 @@ However, significant amounts of legacy code remain in root directories (`utils/`
 
 ---
 
-## Dependency Problems
+## 3. Dependency Problems & Legacy Imports
 
 Static import graph analysis across 264 JS source files revealed the following cross-boundary dependency problems:
 
@@ -76,7 +81,7 @@ Static import graph analysis across 264 JS source files revealed the following c
 
 ---
 
-## Legacy Shims
+## 4. Legacy Shims
 
 The repository contains two categories of legacy shims:
 
@@ -94,7 +99,7 @@ The repository contains two categories of legacy shims:
 
 ---
 
-## Duplicate Implementations
+## 5. Duplicate Implementations
 
 1. **Technical Indicators:**
    - `utils/strategy/IncrementalIndicators.js` vs `packages/corex-strategy-engine/src/indicators/`. `IncrementalIndicators.js` should be deprecated in favor of `IndicatorRegistry`.
@@ -103,7 +108,7 @@ The repository contains two categories of legacy shims:
 
 ---
 
-## corex-strategy-engine Dependencies
+## 6. corex-strategy-engine Dependencies
 
 Legacy dependencies currently imported by `packages/corex-strategy-engine`:
 
@@ -114,30 +119,32 @@ Legacy dependencies currently imported by `packages/corex-strategy-engine`:
 
 ---
 
-## Recommended Migration Order
+## 7. Staged Migration Roadmap (Phased Order)
 
-To safely complete modularization without breaking runtime behavior:
+To complete modularization safely in incremental stages without breaking runtime behavior:
 
-1. **Step 1: Move Strategy Validation & Schema Utilities into `corex-strategy-engine`**
-   - Move `StrategyValidator.js`, `StrategyManifest.js`, `StrategyParamUtils.js` into `packages/corex-strategy-engine/src/validation/`.
-   - Leave 1-line re-export shims in `utils/strategy/`.
+### Phase 1: Complete Strategy Engine Internalization (Next Stage)
+- Move `StrategyValidator.js`, `StrategyManifest.js`, `StrategyParamUtils.js` from `utils/strategy/` into `packages/corex-strategy-engine/src/validation/`.
+- Move `utils/security.js` into `packages/corex-strategy-engine/src/security.js`.
+- Leave 1-line re-export shims in `utils/strategy/` and `utils/` to ensure zero breaking changes for existing strategy files.
+- Wire `engine/strategyLoader.js` and `strategyCompiler.js` to import strategy validation directly from `corex-strategy-engine`.
 
-2. **Step 2: Move Strategy Security Scanner into `corex-strategy-engine`**
-   - Move `utils/security.js` into `packages/corex-strategy-engine/src/security.js`.
-   - Re-export shim in `utils/security.js`.
+### Phase 2: Decouple Database Pool Injection
+- Replace direct imports of `@core/services/postgres` or `@core/services/pgStore` in `corex-accounts` and `corex-broker-contract` with injected database pool parameters.
 
-3. **Step 3: Decouple Database Connection Injection in `corex-accounts` and `corex-broker-contract`**
-   - Replace direct imports of `@core/services/postgres` or `@core/services/pgStore` with injected database pool parameters.
+### Phase 3: Move Analytics and Storage Utilities
+- Move `utils/analytics.js` into `packages/corex-portfolio`.
+- Move `utils/storageManager.js` into `engine/services/storageManager.js`.
 
-4. **Step 4: Deprecate `utils/strategy/IncrementalIndicators.js`**
-   - Update any remaining callers to use `IndicatorRegistry` from `corex-strategy-engine`.
+### Phase 4: Deprecate Legacy Strategy Shims
+- Deprecate `utils/strategy/IncrementalIndicators.js` in favor of `IndicatorRegistry`.
 
 ---
 
-## Risks
+## 8. Risks & Mitigations
 
-1. **Dynamic Strategy Loading:** `strategyCompiler.js` dynamically compiles user code string imports. Changing module resolution aliases or removing shims in `utils/strategy/` could break third-party user strategies that import relative paths.
-2. **Database Connection Coupling:** Extracted packages currently import global database singletons from `@core/services/postgres`. Refactoring database access requires injecting pool parameters across all controller wiring.
-3. **Module Alias Mapping:** Monaco IDE in the frontend relies on `utils/strategy/StrategyManifest.js` for auto-complete. Any file relocation must update `scripts/sync-strategy-manifest.js` and path aliases in `package.json`.
+1. **Dynamic Strategy Loading:** `strategyCompiler.js` dynamically compiles user code string imports. Changing module resolution aliases or removing shims in `utils/strategy/` could break third-party user strategies that import relative paths. *Mitigation:* Retain 1-line re-export shims in `utils/strategy/`.
+2. **Database Connection Coupling:** Extracted packages currently import global database singletons from `@core/services/postgres`. Refactoring database access requires injecting pool parameters across all controller wiring. *Mitigation:* Pass db pool via constructor options.
+3. **Module Alias Mapping:** Monaco IDE in the frontend relies on `utils/strategy/StrategyManifest.js` for auto-complete. Any file relocation must update `scripts/sync-strategy-manifest.js` and path aliases in `package.json`. *Mitigation:* Keep re-export shim in `utils/strategy/StrategyManifest.js`.
 
 ---
