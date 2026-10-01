@@ -9,7 +9,10 @@
   "scripts": {
     "test": "jest --passWithNoTests --testTimeout=20000"
   },
-  "dependencies": {},
+  "dependencies": {
+    "mathjs": "^15.1.0",
+    "technicalindicators": "^3.1.0"
+  },
   "devDependencies": {
     "jest": "^29.7.0",
     "module-alias": "^2.2.3"
