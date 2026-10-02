@@ -47,7 +47,9 @@ Do not ignore project guidance simply because a task appears small.
 
 ---
 
-## 3. Project Stack
+# 3. Project Stack and Architecture
+
+## 3.1 Project Stack
 
 ### Backend
 
@@ -78,6 +80,443 @@ The project uses path aliases including:
 ```
 
 Agents must inspect the existing project configuration before assuming an alias, package location, configuration source, or architectural dependency.
+
+## 3.2 Architectural Ownership Model
+
+CoreX is organized by **ownership and responsibility**, not by historical folder location.
+
+The repository must evolve toward the following conceptual structure:
+
+```text
+corex/
+│
+├── packages/
+│   ├── corex-strategy-engine/
+│   ├── corex-market-data/
+│   ├── corex-broker/
+│   ├── corex-backtest/
+│   ├── corex-execution/
+│   ├── corex-risk/
+│   └── other domain packages/
+│
+├── engine/
+│   ├── boot/
+│   ├── runtime/
+│   ├── connections/
+│   ├── services/
+│   └── workers/
+│
+├── adapters/
+│   ├── brokers/
+│   ├── market-data/
+│   ├── persistence/
+│   └── external-services/
+│
+├── utils/
+│   └── genuinely domain-neutral primitives
+│
+├── api/
+├── config/
+└── tests/
+```
+
+The exact directory names may evolve, but the ownership principles are mandatory.
+
+---
+
+## 3.3 Package Ownership
+
+A package owns the implementation of the domain for which it exists.
+
+For example:
+
+```text
+corex-strategy-engine
+    ├── Strategy
+    ├── Context
+    ├── Params
+    ├── Indicators
+    ├── Data
+    ├── Position
+    ├── State
+    ├── Plotting
+    └── Validation
+```
+
+Strategy-specific implementations must not remain in a generic global `utils` directory merely because the legacy repository placed them there.
+
+Examples include:
+
+```text
+StrategyDataManager
+StrategyStateStore
+StrategyPositionManager
+IndicatorManager
+StrategyValidator
+Strategy-specific helpers
+```
+
+These should be owned by the strategy package or by an explicitly designated domain package.
+
+The same principle applies to other packages.
+
+**Do not preserve legacy ownership merely to avoid moving files.**
+
+---
+
+## 3.4 Engine Ownership
+
+The `engine/` directory owns **application orchestration**, not domain implementation.
+
+Engine responsibilities include:
+
+```text
+boot
+initialization
+dependency wiring
+runtime lifecycle
+runtime supervision
+application services
+connection coordination
+worker supervision
+system-level orchestration
+```
+
+Engine code should answer:
+
+> When and how does the system run?
+
+It should not become the owner of domain concepts that belong to packages.
+
+For example:
+
+```text
+engine/runtime/
+    RuntimeRegistry
+    RuntimeLifecycle
+    RuntimeRouter
+    RuntimeSupervisor
+```
+
+is appropriate.
+
+However, the engine should not contain the implementation of:
+
+```text
+Strategy
+Indicator
+Position
+Broker
+Market-data provider
+Risk model
+Backtest algorithm
+```
+
+unless that implementation is explicitly an engine-level orchestration concern.
+
+---
+
+## 3.5 Boot and Loader Responsibilities
+
+Application construction and loading responsibilities belong under the engine boot/bootstrap layer.
+
+Examples include:
+
+```text
+ConfigurationLoader
+DatabaseLoader
+StrategyLoader
+MarketDataLoader
+BrokerLoader
+RuntimeLoader
+PluginLoader
+```
+
+A loader is responsible for:
+
+```text
+discover
+validate
+construct
+wire
+initialize
+start
+```
+
+A loader must not duplicate or absorb the implementation of the component it loads.
+
+For example:
+
+```text
+StrategyLoader
+        │
+        └── loads/configures
+                    │
+                    ▼
+          corex-strategy-engine
+```
+
+rather than placing strategy implementation inside `StrategyLoader`.
+
+---
+
+## 3.6 Connections and External Adapters
+
+Application-level connection management may live under:
+
+```text
+engine/connections/
+```
+
+Examples:
+
+```text
+database connections
+WebSocket connections
+application-level external connections
+connection lifecycle management
+```
+
+External technology integrations should normally live under adapters or their owning packages.
+
+For example:
+
+```text
+adapters/brokers/metaapi/
+adapters/market-data/twelve-data/
+```
+
+rather than making external providers part of the CoreX engine itself.
+
+External providers must be translated into CoreX interfaces/contracts at the appropriate boundary.
+
+---
+
+## 3.7 Utils Ownership Rule
+
+`utils/` is intentionally restricted.
+
+A utility belongs in `utils/` only when it is:
+
+1. domain-neutral,
+2. reusable across multiple independent packages,
+3. not responsible for application orchestration,
+4. not specific to a strategy, broker, market-data provider, runtime, backtest, or other domain,
+5. small enough that its ownership is obvious.
+
+Appropriate examples may include:
+
+```text
+time utilities
+ID generation
+generic mathematical primitives
+serialization helpers
+generic collection helpers
+pure validation primitives
+```
+
+Do not use `utils/` as a general repository for code that has no obvious home.
+
+The following are generally inappropriate:
+
+```text
+utils/strategy/
+utils/broker/
+utils/runtime/
+utils/backtest/
+utils/market-data/
+utils/position/
+utils/execution/
+```
+
+unless the code is genuinely domain-neutral and the ownership decision is documented.
+
+### Important
+
+**Shared does not automatically mean `utils`.**
+
+If multiple packages need a shared domain concept, identify the package that owns that concept or create an explicit shared domain package.
+
+Do not move code into `utils/` merely to break an import cycle.
+
+---
+
+## 3.8 Dependency Direction
+
+CoreX dependencies should form a deliberate graph rather than an uncontrolled web of imports.
+
+Prefer:
+
+```text
+Application / Engine
+        │
+        ├──────────────┐
+        ▼              ▼
+    Domain          Adapters
+    Packages       / External
+        │
+        ▼
+   Domain-neutral
+     Primitives
+```
+
+Avoid:
+
+```text
+strategy → utils → engine → broker → strategy
+```
+
+and avoid packages reaching through unrelated packages to obtain internal implementation details.
+
+A package should depend on:
+
+1. its own internal modules,
+2. stable public contracts,
+3. explicitly approved shared primitives,
+4. external adapters through defined interfaces where necessary.
+
+A package must not depend on the internal implementation of another package merely because that implementation happens to be accessible.
+
+---
+
+## 3.9 Public Package API
+
+Each package must distinguish between:
+
+```text
+public API
+internal implementation
+```
+
+Internal files must not become public merely because another package imports them directly.
+
+Prefer:
+
+```text
+package
+   │
+   └── public API
+          │
+          └── internal modules
+```
+
+rather than:
+
+```text
+package A
+   ├── imports random file from package B
+   ├── imports random file from package B
+   └── imports another internal file from package B
+```
+
+When cross-package functionality is required, expose a deliberate contract.
+
+---
+
+## 3.10 Legacy Code, Shims, and Migration
+
+Legacy repository code must be treated as migration material rather than permanent architecture.
+
+Temporary shims are allowed when they reduce migration risk.
+
+A shim should follow:
+
+```text
+legacy path
+     │
+     ▼
+temporary shim
+     │
+     ▼
+new owning package
+```
+
+A shim must not become a new permanent dependency.
+
+When a legacy module is replaced:
+
+1. identify all consumers,
+2. establish the new owner,
+3. move or reimplement the functionality,
+4. update imports,
+5. add or update tests,
+6. verify integration,
+7. remove the old dependency,
+8. remove the shim when no longer required.
+
+Do not create a new implementation while leaving the old implementation silently active.
+
+If a shim must remain temporarily, document:
+
+```text
+purpose
+current consumers
+target replacement
+removal condition
+```
+
+Legacy `utils` modules should therefore be progressively classified as:
+
+```text
+KEEP
+MOVE
+REPLACE
+REMOVE
+SHIM TEMPORARILY
+```
+
+Do not perform a blind bulk migration.
+
+---
+
+## 3.11 Package Extraction Rule
+
+When extracting functionality from the legacy repository:
+
+```text
+old global location
+        │
+        ▼
+identify ownership
+        │
+        ▼
+move implementation
+        │
+        ▼
+define package API
+        │
+        ▼
+update consumers
+        │
+        ▼
+test
+        │
+        ▼
+remove legacy path/shim
+```
+
+The goal is not simply to create more directories.
+
+The goal is to create **clear ownership and predictable dependency boundaries**.
+
+---
+
+## 3.12 Architecture Review Before Adding Dependencies
+
+Before adding a dependency between packages, an agent must answer:
+
+1. Who owns this functionality?
+2. Why can't the consuming package use its own implementation?
+3. Is the dependency through a public contract?
+4. Does this introduce a circular dependency?
+5. Does this create a new global utility?
+6. Could the dependency be inverted through an interface?
+7. Does this dependency belong in an adapter?
+8. Does the dependency make the package less portable?
+9. Does it affect the hot path?
+10. Is the dependency permanent or transitional?
+
+If the answer is unclear, document the issue before proceeding.
 
 ---
 
@@ -642,6 +1081,134 @@ If the limit must change, identify and update all three gates consistently.
 
 If this limit becomes configurable in the future, it must be managed through a validated configuration source and all three enforcement gates must resolve the same effective value.
 
+
+## 7.9 Domain Ownership
+
+CoreX code must live with the package or layer that owns its responsibility.
+
+Do not place domain-specific code into global utility directories merely because it is reused.
+
+Ownership must be determined before extracting shared code.
+
+---
+
+## 7.10 Package Independence
+
+A package should be as self-contained as reasonably practical.
+
+In particular, domain packages must not depend on unrelated repository-level implementation folders when an explicit package API or contract should exist.
+
+Package portability should be evaluated by inspecting:
+
+```text
+imports
+aliases
+runtime dependencies
+configuration dependencies
+database dependencies
+filesystem dependencies
+environment dependencies
+```
+
+A package is not considered architecturally independent merely because it has its own `package.json`.
+
+---
+
+## 7.11 Hot-Path Isolation
+
+Runtime-sensitive paths must remain explicit and minimal.
+
+Agents must distinguish between:
+
+```text
+hot path
+cold path
+initialization path
+persistence path
+administrative path
+```
+
+Examples of likely hot-path operations include:
+
+```text
+market-data reception
+tick routing
+strategy execution
+indicator updates
+signal generation
+position updates
+```
+
+Do not place unnecessary:
+
+```text
+database operations
+parameter reconciliation
+configuration loading
+filesystem operations
+serialization
+large allocations
+worker IPC
+```
+
+inside a hot path without measurement and justification.
+
+---
+
+## 7.12 No False Performance Claims
+
+Agents must not describe an implementation as:
+
+```text
+zero-allocation
+O(1)
+incremental
+lock-free
+real-time safe
+high-performance
+```
+
+unless the relevant implementation and execution path support the claim.
+
+Where necessary, benchmark representative workloads.
+
+Distinguish:
+
+```text
+data structure allocation behavior
+indicator update complexity
+context allocation behavior
+strategy allocation behavior
+IPC cost
+database cost
+end-to-end tick latency
+```
+
+---
+
+## 7.13 Security Boundary
+
+Static validation or source inspection must not be treated as a complete sandbox for untrusted strategy code.
+
+When strategy code is considered untrusted, evaluate the actual runtime boundary against:
+
+```text
+filesystem access
+environment access
+process creation
+module loading
+network access
+memory exhaustion
+CPU exhaustion
+infinite execution
+process crashes
+sandbox escape
+```
+
+The appropriate isolation mechanism must be selected according to the actual threat model.
+
+Do not weaken runtime isolation merely to simplify implementation.
+
 ---
 
 # 8. Repository Structure and Scope
@@ -841,6 +1408,97 @@ next: <what should happen next>
 ```
 
 Also update `/plans/to_do.md` and `/plans/decisions.md` where applicable.
+
+
+## 9.6 Multi-Agent Development
+
+CoreX may be developed and reviewed using multiple AI systems.
+
+Examples include:
+
+```text
+Claude / Kilo Code
+Codex / ChatGPT
+Gemini Jules
+other approved coding agents
+```
+
+No AI agent is automatically considered the architectural authority.
+
+An implementation produced by one agent must be evaluated against:
+
+```text
+AGENTS.md
+package-level guidance
+architecture
+public contracts
+tests
+performance requirements
+security boundaries
+existing decisions
+```
+
+Another agent may independently review the implementation.
+
+### Implementation vs Review
+
+Agents should distinguish:
+
+```text
+implementation
+review
+verification
+```
+
+An agent may implement a change without that change being considered architecturally approved.
+
+When reviewing another agent's work:
+
+1. inspect the actual diff,
+2. identify the stated problem,
+3. determine whether the change solves that problem,
+4. inspect adjacent behavior,
+5. check for duplicated implementations,
+6. check package ownership,
+7. check dependency direction,
+8. check hot-path impact,
+9. run relevant tests,
+10. identify regressions or unresolved issues.
+
+Do not approve an implementation merely because:
+
+```text
+tests pass
+the implementing agent claims it is fixed
+the code looks cleaner
+another AI recommended it
+```
+
+Passing tests establish evidence for the tested behavior, not automatic architectural correctness.
+
+---
+
+## 9.7 Jules / External Coding Agents
+
+Gemini Jules and other external coding agents may be used for small implementation tasks.
+
+Before accepting their changes into the architecture:
+
+```text
+inspect → understand → test → review → accept or modify
+```
+
+Small implementation tasks must not silently introduce:
+
+* new architectural layers,
+* duplicate abstractions,
+* new global utilities,
+* alternative execution paths,
+* bypasses around protected contracts,
+* package boundary violations,
+* unapproved configuration systems.
+
+The repository remains the source of truth.
 
 ---
 
@@ -1044,6 +1702,19 @@ Agents working on CoreX should:
 * respect protected boundaries
 * distinguish implementation from verification
 * leave the repository in a state another agent can continue from
+* classify code by ownership before moving it
+* prefer package ownership over legacy location
+* keep `utils/` small and domain-neutral
+* treat shims as temporary migration mechanisms
+* expose package functionality through deliberate public APIs
+* inspect dependency direction before adding imports
+* distinguish engine orchestration from domain implementation
+* distinguish adapters from domain packages
+* distinguish hot-path and cold-path operations
+* independently review AI-generated implementations
+* verify changes against the actual repository rather than an agent's description
+* remove obsolete implementations after migration
+* avoid creating duplicate sources of truth
 
 Agents should not:
 
@@ -1060,6 +1731,15 @@ Agents should not:
 * mark unverified functionality as verified
 * silently ignore known issues
 * work directly on `main`
+* use `utils/` as a dumping ground
+* copy strategy-specific logic into global utilities
+* import another package's internal files without an explicit reason
+* create circular package dependencies
+* preserve legacy architecture solely because it is already present
+* assume an AI-generated patch is architecturally correct
+* introduce a second implementation without identifying which implementation is authoritative
+* call a package modular merely because it has a separate directory
+* introduce infrastructure merely to hide an unresolved ownership problem
 
 ---
 
@@ -1088,6 +1768,6 @@ Before declaring a task complete, confirm:
 
 ---
 
-## 17. Core Principle
+# 17. Core Principle
 
-> **Understand the existing system before changing it. Minimize hardcoded values, place configuration at the correct scope, use the database for persistent and runtime-manageable behavior, preserve architectural guarantees, make focused changes, verify what can be verified, document what cannot, and leave the repository easier for the next agent to understand than you found it.**
+> **Understand the existing system before changing it. Organize CoreX by ownership rather than historical folder location. Keep domain logic inside the package that owns it, keep the engine responsible for orchestration, keep adapters responsible for external systems, keep `utils` genuinely domain-neutral, treat shims as temporary migration mechanisms, use explicit package APIs and dependency boundaries, minimize hardcoded values, preserve architectural guarantees, independently review AI-generated changes, verify what can be verified, document what cannot, and leave the repository easier for the next agent to understand than you found it.**
