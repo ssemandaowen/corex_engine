@@ -6,13 +6,11 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const db = require("@core/services/postgres");
-const {
-    getStrategyManifestPayload
-} = require("@utils/strategy/StrategyManifest");
+const { StrategyManifest } = require("corex-strategy-engine");
 
 function writeManifest() {
     const outputPath = path.resolve(__dirname, "../corex-ui/src/monaco/strategyManifest.generated.json");
-    const payload = getStrategyManifestPayload();
+    const payload = StrategyManifest.getStrategyManifestPayload();
     fs.writeFileSync(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
     process.stdout.write(`[corex] strategy manifest synced -> ${outputPath}\n`);
 }

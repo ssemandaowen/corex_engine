@@ -22,6 +22,17 @@ class IndicatorRegistry {
         const key = String(type || "").toUpperCase();
         return this._registry.has(key);
     }
+
+    /**
+     * Registered indicator types, in registration order.
+     *
+     * This is the authoritative runtime set: `this.indicators.<Name>` only
+     * resolves for types registered here, so validation must check against this
+     * rather than against an external library's export list.
+     */
+    listTypes() {
+        return Array.from(this._registry.keys());
+    }
 }
 
 const indicators = {

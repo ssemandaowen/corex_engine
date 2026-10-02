@@ -4,8 +4,9 @@ const path = require("path");
 const {
     ENTRYPOINT_METHODS,
     CORE_METHOD_MANIFEST,
-    getIndicatorNameSet,
-    getIndicatorNameLowerSet
+    hasRegisteredIndicator,
+    getTechnicalIndicatorNameSet,
+    getTechnicalIndicatorNameLowerSet
 } = require("./StrategyManifest");
 const { Strategy, MAX_ALLOWED_LOOKBACK } = require("../Strategy");
 
@@ -188,10 +189,18 @@ class StrategyValidator {
         if (indicatorMatches.length === 0) return;
 
         const used = Array.from(new Set(indicatorMatches.map((m) => m[1])));
-        const known = getIndicatorNameSet();
-        const knownLower = getIndicatorNameLowerSet();
+        // `this.indicators.<Name>` resolves through the IndicatorRegistry at runtime,
+        // so the registry — not the technicalindicators export list — decides whether
+        // an indicator is usable. Registry lookup is case-insensitive, so any casing
+        // of a registered indicator is valid and must not be flagged.
+        const known = getTechnicalIndicatorNameSet();
+        const knownLower = getTechnicalIndicatorNameLowerSet();
 
         used.forEach((name) => {
+            if (hasRegisteredIndicator(name)) {
+                info.push(this._issue("INDICATOR_USED", `Uses indicator: ${name}`, "info"));
+                return;
+            }
             if (known.has(name)) {
                 info.push(this._issue("INDICATOR_USED", `Uses indicator: ${name}`, "info"));
                 return;
@@ -206,7 +215,7 @@ class StrategyValidator {
                 return;
             }
             warnings.push(
-                this._issue("UNKNOWN_INDICATOR", `Indicator '${name}' is not exported by technicalindicators`, "warning", {
+                this._issue("UNKNOWN_INDICATOR", `Indicator '${name}' is not registered in the IndicatorRegistry and cannot be resolved at runtime`, "warning", {
                     fix: "Use a valid indicator name.",
                 })
             );

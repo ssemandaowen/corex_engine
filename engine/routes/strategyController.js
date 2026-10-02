@@ -11,7 +11,7 @@ const db = require("@core/services/postgres");
 const stateManager = require("@utils/stateController");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
-const { getStrategyManifestPayload } = require("@utils/strategy/StrategyManifest");
+const { StrategyManifest } = require("corex-strategy-engine");
 const { toScopedId, fromScopedId, scopedLikePrefix } = require("@core/services/userScope");
 
 // HELPER: Check if strategy is untouchable
@@ -84,7 +84,7 @@ router.get("/", (req, res) => {
 // 1b. STRATEGY MANIFEST (must be before /:id route)
 router.get("/manifest", (_req, res) => {
     try {
-        return res.json({ success: true, payload: getStrategyManifestPayload() });
+        return res.json({ success: true, payload: StrategyManifest.getStrategyManifestPayload() });
     } catch (err) {
         return res.status(500).json({ success: false, error: "MANIFEST_FAILED", message: err.message });
     }

@@ -497,6 +497,9 @@ describe("backtestManager._checkProtections", () => {
 describe("security.js — loop guards", () => {
     const { validateStrategyCode } = require("@utils/security");
 
+    // Each case is spliced in as a single statement inside next(). Expression
+    // statements must be terminated, otherwise acorn throws a SyntaxError before
+    // the scanner runs and the assertion below never exercises the scanner.
     const wrap = (code) => `
         const BaseStrategy = require("BaseStrategy");
         class S extends BaseStrategy {
@@ -539,15 +542,15 @@ describe("security.js — loop guards", () => {
     });
 
     test("eval is blocked", () => {
-        expect(() => validateStrategyCode(wrap("eval('1+1')"))).toThrow(/eval/i);
+        expect(() => validateStrategyCode(wrap("eval('1+1');"))).toThrow(/eval/i);
     });
 
     test("require('fs') is blocked", () => {
-        expect(() => validateStrategyCode(wrap("require('fs')"))).toThrow(/fs/i);
+        expect(() => validateStrategyCode(wrap("require('fs');"))).toThrow(/fs/i);
     });
 
     test("process access is blocked", () => {
-        expect(() => validateStrategyCode(wrap("process.exit()"))).toThrow(/process/i);
+        expect(() => validateStrategyCode(wrap("process.exit();"))).toThrow(/process/i);
     });
 
     test("valid strategy passes scanner", () => {

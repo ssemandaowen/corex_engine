@@ -1,6 +1,7 @@
 "use strict";
 
 const technicalIndicators = require("technicalindicators");
+const { globalIndicatorRegistry } = require("../IndicatorRegistry");
 
 const ENTRYPOINT_METHODS = ["next", "generateSignal", "onMarketData", "onTick", "onBar", "_processData"];
 
@@ -284,6 +285,20 @@ const CORE_METHOD_MANIFEST = [
         detail: "Context current bar timestamp",
         signature: "ctx.barTime",
         documentation: "Current bar timestamp attached to ctx."
+    },
+    {
+        label: "ctx.plot",
+        category: "ctx",
+        detail: "Context plot series recorder",
+        signature: "ctx.plot(name, value)",
+        documentation: "Appends a named value to the bounded PlotBuffer series for this strategy. No-op when plotting is unavailable."
+    },
+    {
+        label: "ctx.mark",
+        category: "ctx",
+        detail: "Context event marker",
+        signature: "ctx.mark(name, message)",
+        documentation: "Records a named point-in-time event marker on the chart. No-op when plotting is unavailable."
     }
 ];
 
@@ -344,6 +359,33 @@ function getIndicatorNameLowerSet() {
     return indicatorNameSetLowerCache;
 }
 
+/**
+ * Whether the runtime can resolve `name` through the IndicatorRegistry.
+ *
+ * The registry normalises keys to upper case, so resolution is case-insensitive:
+ * `SuperTrend`, `supertrend` and `SUPERTREND` are the same indicator and all work.
+ * Callers must therefore not treat a casing difference as an error.
+ */
+function hasRegisteredIndicator(name) {
+    return globalIndicatorRegistry.has(name);
+}
+
+/**
+ * Indicator names that are valid but not registry-backed.
+ *
+ * `technicalindicators` exports (kst, beartish, wema, ...) are not registered in
+ * the IndicatorRegistry, so `this.indicators.<name>` does not resolve for them.
+ * They are retained in the accepted set to preserve existing validation behaviour;
+ * they resolve through `ctx.ta` rather than `this.indicators`.
+ */
+function getTechnicalIndicatorNameSet() {
+    return getIndicatorNameSet();
+}
+
+function getTechnicalIndicatorNameLowerSet() {
+    return getIndicatorNameLowerSet();
+}
+
 function getStrategyManifestPayload() {
     return {
         generatedAt: new Date().toISOString(),
@@ -373,5 +415,8 @@ module.exports = {
     getIndicatorManifest,
     getIndicatorNameSet,
     getIndicatorNameLowerSet,
+    hasRegisteredIndicator,
+    getTechnicalIndicatorNameSet,
+    getTechnicalIndicatorNameLowerSet,
     getStrategyManifestPayload
 };
