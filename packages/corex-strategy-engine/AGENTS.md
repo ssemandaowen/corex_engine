@@ -38,3 +38,9 @@ Package: `corex-strategy-engine` — Declarative strategy base class, ContextBui
   - **Intended future scope:** reserved specifically for **untrusted / third-party strategy execution sandboxing** (crash isolation and resource containment for untrusted user code). It is **not** a general mechanism for scaling out trusted live/paper runtimes, which stay in-process by design.
   - **Open precondition:** `engine/workers/strategyWorker.js` keeps its own private `activeStrategies` Map, separate from the live `engine/core/runtime/RuntimeRegistry.js` — two unconnected sources of truth for the same concept. This **must be resolved before this mechanism is ever wired to anything real**; see `plans/Audit/worker-pool-dual-registry-note.md`.
 - **Multi-Symbol Cross-Pair Live Execution**: Execution across multiple concurrent live symbol feeds requires human verification with live broker feeds.
+
+## Migration Shims (Remove by 2026-12-31)
+- `utils/strategy/StrategyParamUtils.js` → `packages/corex-strategy-engine/src/StrategyParamUtils.js` (Owner: corex-strategy-engine)
+- `utils/strategy/StrategyStateStore.js` → `packages/corex-strategy-engine/src/StrategyStateStore.js` (Owner: corex-strategy-engine)
+- `utils/strategy/StrategyDataManager.js` → `packages/corex-strategy-engine/src/StrategyDataManager.js` (Owner: corex-strategy-engine)
+- `utils/strategy/StrategyIntrospection.js` → `packages/corex-strategy-engine/src/StrategyIntrospection.js` (Owner: corex-strategy-engine)
