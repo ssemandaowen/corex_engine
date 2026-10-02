@@ -4,3 +4,8 @@ data/cache/
 data/backtests/
 
 repomix-output.xml
+
+# Local environment / secrets - never commit
+.env
+.env.*
+!.env.example
