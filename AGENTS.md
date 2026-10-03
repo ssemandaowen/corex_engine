@@ -72,7 +72,6 @@ The project uses path aliases including:
 @root
 @core
 @engine
-@strategies
 @utils
 @broker
 @events
