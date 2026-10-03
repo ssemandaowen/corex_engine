@@ -8,7 +8,7 @@ const path = require("path");
 const db = require("@core/services/postgres");
 const {
     getStrategyManifestPayload
-} = require("@utils/strategy/StrategyManifest");
+} = require("corex-strategy-engine").StrategyManifest;
 
 function writeManifest() {
     const outputPath = path.resolve(__dirname, "../corex-ui/src/monaco/strategyManifest.generated.json");
