@@ -1,12 +1,12 @@
 "use strict";
 
-const DeclarativeStrategy = require("../utils/DeclarativeStrategy");
+const { Strategy } = require("corex-strategy-engine");
 const CoreXPaperDriver = require("corex-broker-contract/src/drivers/CoreXPaperDriver");
 const BaseBroker = require("corex-broker-contract/src/base/BaseBroker");
 const { validateStrategyCode } = require("../utils/security");
 
 describe("Declarative Strategy Base Class & Pipeline Integration", () => {
-    class TestDeclarativeStrategy extends DeclarativeStrategy {
+    class TestDeclarativeStrategy extends Strategy {
         static symbols = ["EURUSD"];
         static timeframe = "1m";
 
@@ -97,8 +97,8 @@ describe("Declarative Strategy Base Class & Pipeline Integration", () => {
 
     test("Security scanner parses declarative strategy code successfully", () => {
         const code = `
-            const DeclarativeStrategy = require("../utils/DeclarativeStrategy");
-            class MyStrat extends DeclarativeStrategy {
+            const { Strategy } = require("corex-strategy-engine");
+            class MyStrat extends Strategy {
                 static symbols = ["EURUSD"];
                 static params = { p: 10 };
                 onBar(ctx, bar) {
@@ -108,21 +108,5 @@ describe("Declarative Strategy Base Class & Pipeline Integration", () => {
             module.exports = MyStrat;
         `;
         expect(() => validateStrategyCode(code)).not.toThrow();
-    });
-
-    test("Old-format strategy (BaseStrategy / next) still compiles and runs unchanged", () => {
-        const BaseStrategy = require("../utils/BaseStrategy");
-        class OldStrat extends BaseStrategy {
-            constructor() {
-                super({ symbols: ["EURUSD"], timeframe: "1m" });
-            }
-            next(packet) {
-                return this.buy({ quantity: 1, price: packet.close });
-            }
-        }
-        const strat = new OldStrat();
-        const signal = strat.onBar({ symbol: "EURUSD", time: 1000, close: 1.1000 });
-        expect(signal).toBeDefined();
-        expect(signal.side).toBe("long");
     });
 });

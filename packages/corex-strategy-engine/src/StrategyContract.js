@@ -148,7 +148,7 @@ class StrategyContract {
 
         if (!instance.__corexApi) {
             try {
-                const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
+                const { getStrategyApi } = require("./StrategyIntrospection");
                 instance.__corexApi = Object.freeze(getStrategyApi(instance));
             } catch (_) {
                 instance.__corexApi = [];
