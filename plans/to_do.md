@@ -77,4 +77,18 @@
 - [x] `Indicators.test.js` created with 40+ tests covering all indicators
 - [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
 
+### Legacy deletion branch (`chore/legacy-deletion`) — COMPLETED
+- [x] Step 0: Boot fix — `engine/services/tradeHistoryService.js` alias `@portfolio/corex-portfolio` → `corex-portfolio` (the `@portfolio/*` alias exists only in Jest moduleNameMapper, not in `package.json _moduleAliases`); added `test/bootSmoke.test.js` (commit 4b61e26)
+- [x] Step 1: Deleted orphan `broker/backtest/SignalGenerationEngine.js`, `broker/backtest/BacktestFeed.js`, and dangling `@strategies` alias (commit 4a94d18)
+- [x] Step 2: Deleted `utils/strategy/StrategyManifest.js` + `utils/strategy/StrategyValidator.js` shims; rewired `engine/routes/strategyController.js`, `scripts/sync-strategy-manifest.js`, `scripts/validate-strategy.js` to `corex-strategy-engine` (commit 39b9f5b)
+- [x] Step 3: Moved `engine/core/strategy/StrategyContract.js` into `packages/corex-strategy-engine/src/`; repointed 6 engine consumers; added `StrategyContractOwnership.test.js` (commit 2b951b7)
+- [x] Step 4: Made `corex-strategy-engine` self-contained — `Strategy.js`/`ParamSchema.js` now import package-local `StrategyStateStore`/`StrategyDataManager`/`StrategyParamUtils`; rewired `engine/services/strategyCompiler.js`, `test/SoACandleStore.test.js` (commit 5c68400)
+- [x] Phase 1 DB evidence: read-only audit (`scripts/phase1-db-audit.js`) confirmed dev `corex_engine` DB has 0 rows extending/requiring BaseStrategy, 0 using DeclarativeStrategy, 0 legacy `next` definitions, 0 legacy metadata keys. Evidence: `plans/Audit/db-legacy-strategy-evidence.md`. GATE PASSED for audited environment; OPEN DECISION recorded for external environments (commit 3793776)
+- [x] Deleted `test/round7.comprehensive.test.js` (legacy test depending on BaseStrategy internals)
+- [x] Step 5: BaseStrategy cascade — deleted `utils/BaseStrategy.js`, `utils/DeclarativeStrategy.js`, `utils/strategy/RuleChain.js`, `utils/strategy/IncrementalIndicators.js`; removed RuleChain export from `utils/strategy/index.js`; rewrote `test/runtimeExclusivity.test.js`, `test/DeclarativeStrategy.test.js`, `test/IncrementalIndicators.test.js`, `scripts/bench/engine-micro-bench.js` onto `corex-strategy-engine` `Strategy` and package indicators; security scanner now allows `corex-strategy-engine` and blocks legacy `BaseStrategy` allowlist; updated stale comments in `strategyCompiler.js`/`RuntimeRegistry.js`/`RuntimeLifecycle.js` (commit 7c709df)
+- [x] Full suite green after cascade: 52 suites, 521 tests passed
+- [next] Open PR into `main` (do not merge)
+- [next] Owen to confirm external environments contain no legacy `script_body` before deploying (OPEN DECISION in `plans/Audit/db-legacy-strategy-evidence.md`)
+- [next] Out of scope (separate decisions): `packages/corex-broker-contract/src/base/BaseBroker.js:6` still imports `@utils/strategy/StrategyPositionManager` (domain leakage); remaining `utils/strategy/` files (Position, StrategyDataManager, StrategyPositionManager, StrategySignalUtils, StrategyDevHelpers, StrategyParamUtils, StrategyRuntimeUtils, StrategyStateStore, StrategyIntrospection, IndicatorAdapter, SoACandleStore, index.js) are still consumed by BaseBroker and must not be deleted yet
+
 

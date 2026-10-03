@@ -444,3 +444,15 @@ Not implemented in this session — placed on the todo list for future work:
 3. **Phase D: Spatial-culling gate** in Strategy.js — performance optimization to skip indicator updates when price hasn't changed meaningfully.
 4. **Phase E: Package documentation** — AGENTS.md and README.md for the package (already written, verify completeness).
 
+---
+
+**[2026-10-04 02:10] Feature: Legacy deletion branch — BaseStrategy cascade (Phase 2 step 5)**
+
+Decision: Deleted the legacy `utils/BaseStrategy.js` class and its exclusive dependents (`utils/DeclarativeStrategy.js`, `utils/strategy/RuleChain.js`, `utils/strategy/IncrementalIndicators.js`), and migrated all consumers to `corex-strategy-engine`'s `Strategy` class and package-local indicators (`src/indicators/ema.js`, `rsi.js`, `atr.js`).
+
+Reason: The package `Strategy` class is a full superset of `BaseStrategy` (same SignalHelpers, same constructor signature, same `buy/sell/long/short/exit/close/pos` helpers, same lifecycle). `rule()`/`chain()` (RuleChain DSL) had zero external consumers. The package indicators are API-compatible (same class names, constructor, `update()`/`ready`). The security scanner's legacy `isBaseStrategy` allowlist was replaced by an explicit `corex-strategy-engine` allowlist entry, so persisted legacy strategy code doing `require("BaseStrategy")` is now rejected at compile time rather than failing at runtime.
+
+Consequence: 862 lines deleted, 19 inserted. Full suite green (52 suites, 521 tests). `utils/strategy/` retains files still consumed by `packages/corex-broker-contract/src/base/BaseBroker.js` (`StrategyPositionManager` etc.) — that domain leakage is a separate decision and was intentionally preserved. Gate condition: dev DB proven clean (0 legacy `script_body` rows) via read-only audit; external environments remain an OPEN DECISION requiring Owen's confirmation before deploy.
+
+---
+
