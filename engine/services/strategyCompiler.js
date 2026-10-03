@@ -100,7 +100,7 @@ class StrategyCompiler {
      *
     /**
      * @deprecated Use StrategyCompiler.compile() instead.
-     * This method creates a throwaway instance which triggers the BaseStrategy
+     * This method creates a throwaway instance which triggers the Strategy
      * constructor fully (including StrategyStateStore init) and was never
      * called by any internal code path after Round 6. Kept for API compat only.
      *

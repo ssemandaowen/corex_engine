@@ -16,7 +16,7 @@
  * - Buffer / SharedArrayBuffer / ArrayBuffer (memory bombs)
  *
  * Allows:
- * - require('BaseStrategy') and require path-relative imports
+ * - require('corex-strategy-engine') and require path-relative imports
  * - require('mathjs') and require('technicalindicators')
  * - Standard class definitions, closures, and ES2022 features
  * - for...of and for...in loops (bounded by data structure size)
@@ -59,6 +59,7 @@ const DANGEROUS_MODULES = new Set([
 const ALLOWED_MODULES = new Set([
     "mathjs",
     "technicalindicators",
+    "corex-strategy-engine",
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,12 +118,11 @@ function validateStrategyCode(code) {
                         return;
                     }
 
-                    // Allow only: relative imports, BaseStrategy, and explicitly safe packages
+                    // Allow only: relative imports and explicitly safe packages
                     const isRelative    = mod.startsWith("./") || mod.startsWith("../");
-                    const isBaseStrategy = mod.toLowerCase().includes("basestrategy");
                     const isAllowed     = ALLOWED_MODULES.has(base);
 
-                    if (!isRelative && !isBaseStrategy && !isAllowed) {
+                    if (!isRelative && !isAllowed) {
                         violations.push(`Unauthorized require: "${mod}"`);
                     }
                 } else if (!arg || arg.type !== "Literal") {

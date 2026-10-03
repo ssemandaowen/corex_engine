@@ -1,7 +1,9 @@
 "use strict";
 
 const ti = require("technicalindicators");
-const { IncrementalEMA, IncrementalRSI, IncrementalATR } = require("../utils/strategy/IncrementalIndicators");
+const IncrementalEMA = require("../packages/corex-strategy-engine/src/indicators/ema");
+const IncrementalRSI = require("../packages/corex-strategy-engine/src/indicators/rsi");
+const IncrementalATR = require("../packages/corex-strategy-engine/src/indicators/atr");
 
 describe("Stateful Incremental Indicators (EMA, RSI, ATR)", () => {
     test("EMA incremental update matches technicalindicators batch output", () => {
