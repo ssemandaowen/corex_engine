@@ -3,8 +3,8 @@
 const rootLogger = require("@utils/logger");
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
 const { StrategyContract } = require("./StrategyContract");
-const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
-const StrategyDataManager = require("@utils/strategy/StrategyDataManager");
+const StrategyStateStore = require("./StrategyStateStore");
+const StrategyDataManager = require("./StrategyDataManager");
 const StrategyPositionManager = require("./StrategyPositionManager");
 const StrategyRuntimeUtils = require("./StrategyRuntimeUtils");
 const ParamSchema = require("./ParamSchema");
