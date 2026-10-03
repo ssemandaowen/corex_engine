@@ -26,7 +26,7 @@ const { bus, EVENTS } = require("@events/bus");
 const logger  = require("@utils/logger");
 const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
 const { TIME } = require("@config/constants");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { StrategyContract } = require("corex-strategy-engine");
 
 const log = logger.createModuleLogger("STRATEGY_COMPILER", {
     category: "strategy",

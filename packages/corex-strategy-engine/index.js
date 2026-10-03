@@ -9,6 +9,7 @@ const { IndicatorRegistry, globalIndicatorRegistry, indicators } = require("./sr
 const { ContextBuilder } = require("./src/ContextBuilder");
 const StrategyValidator = require("./src/validation/StrategyValidator");
 const StrategyManifest = require("./src/validation/StrategyManifest");
+const { StrategyContract } = require("./src/StrategyContract");
 const Position = require("./src/Position");
 const PlotBuffer = require("./src/PlotBuffer");
 
@@ -24,6 +25,7 @@ module.exports = {
     ContextBuilder,
     StrategyValidator,
     StrategyManifest,
+    StrategyContract,
     Position,
     PlotBuffer,
 };

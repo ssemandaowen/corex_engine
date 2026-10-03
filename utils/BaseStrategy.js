@@ -12,7 +12,7 @@ const getSharedMath = () => {
     } 
     return _sharedMath; 
 }; 
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { StrategyContract } = require("corex-strategy-engine");
 const IndicatorAdapter = require("./strategy/IndicatorAdapter");
 const {
     StrategyDataManager,
