@@ -7,7 +7,7 @@
  * Re-exports all providers, contract, factory, and the MarketFeed singleton.
  *
  * On load, auto-registers the default TwelveDataProvider (wrapping the
- * legacy @broker/twelvedata singleton) as the active provider so that
+ * legacy twelvedata singleton) as the active provider so that
  * integration points calling DataProviderFactory.fetchHistorical() work
  * without explicit setup.
  */
@@ -18,6 +18,12 @@ const { TwelveDataProvider } = require("./src/providers/TwelveDataProvider");
 const { FileDataProvider } = require("./src/providers/FileDataProvider");
 const { YahooFinanceProvider } = require("./src/providers/YahooFinanceProvider");
 const { fetchGuardedHistory, MAX_BARS_LIMIT } = require("./src/backtestDataResolver");
+// Legacy TwelveData transport singleton (WebSocket + REST fallback).
+// Exported so engine consumers that need the raw transport
+// (searchSymbols, getStatus, applyRuntimeConfig, updateSymbols)
+// can require corex-market-data directly instead of the retired
+// @broker/twelvedata alias.
+const twelvedata = require("./src/legacy/twelvedata");
 
 // Auto-register default provider
 try {
@@ -39,5 +45,6 @@ module.exports = {
     FileDataProvider,
     YahooFinanceProvider,
     fetchGuardedHistory,
-    MAX_BARS_LIMIT
+    MAX_BARS_LIMIT,
+    twelvedata
 };

@@ -1,5 +1,5 @@
 const { bus, EVENTS } = require("@events/bus");
-const BacktestBrokerClass = require("@broker/modes/BacktestBroker");
+const BacktestBrokerClass = require("corex-broker-contract/src/modes/BacktestBroker");
 const { MetricsAccumulator } = require("@utils/metrics");
 
 describe("BacktestBroker event emissions", () => {

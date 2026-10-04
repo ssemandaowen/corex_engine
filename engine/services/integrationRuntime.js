@@ -49,7 +49,15 @@ async function refresh() {
         applyEnvVar("COREX_MT5_BRIDGE_PORT", mt5Bridge.port);
         applyEnvVar("COREX_MT5_HEARTBEAT_MS", mt5Bridge.heartbeatMs);
 
-        const marketBroker = require("@broker/twelvedata");
+        const marketBroker = require("corex-market-data").twelvedata;
+        // Inject the engine's config service so the legacy
+        // twelvedata broker reads persisted config (API key, WS
+        // toggle, endpoints) instead of relying on a @core
+        // require of its own. This is the existing wiring spot
+        // for the market-data provider.
+        if (typeof marketBroker.configure === "function") {
+            marketBroker.configure({ configService });
+        }
         if (typeof marketBroker.applyRuntimeConfig === "function") {
             marketBroker.applyRuntimeConfig({
                 apiKey: marketData.twelveDataApiKey,
