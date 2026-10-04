@@ -1,6 +1,6 @@
 "use strict";
 
-const { DEFAULT_STRATEGY_CONFIG } = require("@config/constants");
+const { DEFAULT_STRATEGY_CONFIG } = require("./constants");
 const SoACandleStore = require("./SoACandleStore");
 
 class StrategyDataManager {
