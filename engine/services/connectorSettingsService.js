@@ -1,7 +1,24 @@
 "use strict";
 
-const { connectionsService, CONNECTOR_SCHEMAS } = require("corex-accounts");
+const accounts = require("corex-accounts");
+const pgStore = require("@core/services/pgStore");
 const secretsVault = require("@core/services/secretsVault");
+const logger = require("@utils/logger");
+const { bus } = require("@events/bus");
+
+// Wire the corex-accounts services with the engine's real dependencies
+// (pg store, secrets vault, logger, event bus). This is the single
+// wiring spot for the accounts package — the package itself carries no
+// @core / @utils / @events requires.
+const wired = accounts.createAccounts({
+    db: pgStore,
+    secretsVault,
+    logger,
+    bus,
+});
+
+const connectionsService = wired.connectionsService;
+const CONNECTOR_SCHEMAS = wired.CONNECTOR_SCHEMAS;
 
 // Shim class to maintain backward compatibility with original ConnectorSettingsService.
 // All functions take accountId directly — no userId-based resolution or fallback logic.

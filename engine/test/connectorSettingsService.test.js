@@ -59,8 +59,10 @@ jest.mock("@core/services/secretsVault", () => {
 // Mock corex-accounts to avoid BrokerPersistenceService instantiating a real pg Pool at module load
 jest.mock("corex-accounts", () => {
     class ConnectionsService {
-        constructor({ pool } = {}) {
+        constructor({ pool, secretsVault, logger } = {}) {
             this._pool = pool || { query: async () => ({ rows: [] }) };
+            this._secretsVault = secretsVault || require("@core/services/secretsVault");
+            this._log = logger || { warn: () => {}, error: () => {} };
         }
         async getConnection(accountId, connectorType) {
             const { rows } = await this._pool.query(
@@ -83,13 +85,13 @@ jest.mock("corex-accounts", () => {
             const out = {};
             for (const [key, value] of Object.entries(secrets)) {
                 if (value === undefined || value === null || value === "") continue;
-                out[key] = require("@core/services/secretsVault").encryptString(String(value));
+                out[key] = this._secretsVault.encryptString(String(value));
             }
             return out;
         }
         _decryptSecrets(encryptedObj = {}) {
             const out = {};
-            const vault = require("@core/services/secretsVault");
+            const vault = this._secretsVault;
             for (const [key, value] of Object.entries(encryptedObj)) {
                 if (!value || typeof value !== "string") continue;
                 if (!vault.isEncryptedString(value)) { out[key] = value; continue; }
@@ -98,18 +100,30 @@ jest.mock("corex-accounts", () => {
             return out;
         }
     }
-    return {
-        connectionsService: new ConnectionsService({ pool: { query: mockQuery } }),
-        CONNECTOR_SCHEMAS: {
-            twelvedata: {
-                config: { wsEnabled: { type: "boolean", default: true }, restFallback: { type: "boolean", default: true }, rateLimit: { type: "number", default: 8 } },
-                secrets: ["apiKey"]
-            },
-            metaapi: {
-                config: { accountId: { type: "string", required: true }, region: { type: "string", default: "mt4-us-01" } },
-                secrets: ["token"]
-            }
+    const CONNECTOR_SCHEMAS = {
+        twelvedata: {
+            config: { wsEnabled: { type: "boolean", default: true }, restFallback: { type: "boolean", default: true }, rateLimit: { type: "number", default: 8 } },
+            secrets: ["apiKey"]
+        },
+        metaapi: {
+            config: { accountId: { type: "string", required: true }, region: { type: "string", default: "mt4-us-01" } },
+            secrets: ["token"]
         }
+    };
+    // createAccounts factory: wires the mocked ConnectionsService with the
+    // injected deps (the test injects the mocked pg pool + mocked secretsVault).
+    function createAccounts({ db, secretsVault, logger, bus } = {}) {
+        const pool = db && typeof db.query === "function" ? db : (db && db.pool) || { query: mockQuery };
+        return {
+            connectionsService: new ConnectionsService({ pool, secretsVault, logger }),
+            persistBrokerSettings: async () => ({}),
+            CONNECTOR_SCHEMAS,
+        };
+    }
+    return {
+        createAccounts,
+        ConnectionsService,
+        CONNECTOR_SCHEMAS,
     };
 });
 
