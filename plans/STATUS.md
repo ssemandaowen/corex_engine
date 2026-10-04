@@ -7,7 +7,7 @@
 
 | Task | Owner agent | Branch | State | Last update |
 |------|-------------|--------|-------|-------------|
-| J1 — Tracking refresh (docs only) | Jules | `jules/j1-status-refresh` | in-progress | 2026-10-04 |
+| J1 — Tracking refresh (docs only) | Jules | `jules/j1-status-refresh` | PR open (#17) | 2026-10-04 |
 | J2 — Scanner characterization tests | Jules | `jules/j2-scanner-tests` | todo | 2026-10-04 |
 | J3 — Package dependency and README sweep | Jules | `jules/j3-package-deps-docs` | todo | 2026-10-04 |
 | J4 — Dependency-direction ratchet test and size report | Jules | `jules/j4-ratchet-test` | todo | 2026-10-04 |
