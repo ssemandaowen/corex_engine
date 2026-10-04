@@ -1,8 +1,10 @@
 # CoreX — Active Task Tracking
 
+> Status board lives in `plans/STATUS.md`. This file tracks completed work and the real remaining backlog.
+
 ## Done
 
-### Socket_X Protocol Layer — corex-broker-contract
+### Socket_X Protocol Layer — corex-broker-contract / corex-gateway
 - [x] MessageEnvelope.js — schema validation + factory methods (including ACK, FILL.originalMessageId)
 - [x] SocketXConnection.js — per-connection state
 - [x] RiskGateway.js — routes through broker.handle() for risk enforcement
@@ -16,65 +18,69 @@
 - [x] BROKER_UNAUTHORIZED handling (connection stays open)
 - [x] Migration: db/migrations/025_trading_accounts.sql (applied)
 - [x] TradingAccountRepository tested against real Postgres (28 tests pass)
+- [x] Portfolio-level risk enforcement — `RiskGateway.setRiskEngine(SocketXRiskEngine)` injects `SignalProcessingEngine`
+- [x] Account ownership verification — `_handleHello` validates authToken via injected verifier
+- [x] Account CRUD endpoints — `createAccountRouter()` with POST/GET/PATCH
+- [x] Auth verifier injection — `SocketXServer.setAuthVerifier()`; old `tokenVerifier.js` removed
+- [x] Socket_X + Account model + REST controller moved to `packages/corex-gateway/`; engine wiring via `@broker/corex-gateway` (commit 31c1faf)
 
-### Socket_X Blockers — RESOLVED
-- [x] **Portfolio-level risk enforcement** — `RiskGateway.setRiskEngine(SocketXRiskEngine)` injects `SignalProcessingEngine` for full portfolio risk checks
-- [x] **Account ownership verification** — `_handleHello` validates authToken via injected verifier and verifies `accountId.userId === authResult.userId`
-- [x] **Account CRUD endpoints** — `createAccountRouter()` with POST/GET/PATCH endpoints
-- [x] **Auth verifier injection** — `SocketXServer.setAuthVerifier()` eliminates duplicate auth path; old `tokenVerifier.js` removed
-
-### Package 2 (corex-market-data)
-- [x] Merged to main — 70 tests, 6 suites
-
-### Auth simplification
-- [x] JWT TTL 30 days, API key system removed, 300 tests pass
-
-## Next
-
-### corex-gateway extraction — COMPLETED
-- [x] Socket_X protocol + Account model + REST controller moved to `packages/corex-gateway/`
-- [x] Engine wiring updated to import SocketXServer/RiskGateway via `@broker/corex-gateway`
-- [x] Commit 31c1faf pushed to `origin/main`
+### Package extractions (merged to main)
+- [x] corex-market-data — 70 tests, 6 suites
+- [x] corex-portfolio — tradeHistoryService.js extracted with account_id scoping; migration 031; 7 new tests; analytics regression verified
+- [x] corex-accounts — package structure, services, migrations, re-export shims; multiple accounts per user, independent connection credentials
+- [x] corex-auth — JWT TTL 30 days, API key system removed, 300 tests pass
 
 ### Symbol-Level Runtime Exclusivity
 - [x] Enforced symbol-level exclusivity per account+mode at the session coordinator layer (`RuntimeLifecycle`, `RuntimeRegistry`, `RuntimeBrokerFactory`)
-- [x] Verified all 4 test scenarios (different strategies same symbol/account/mode rejected, different timeframes rejected, different accounts succeed, different modes succeed) in `test/runtimeExclusivity.test.js`
+- [x] Verified all 4 test scenarios in `test/runtimeExclusivity.test.js`
 
-### corex-portfolio extraction — COMPLETED
-- [x] Extracted tradeHistoryService.js to packages/corex-portfolio/ with account_id scoping
-- [x] Migration 031 adds nullable account_id to orders + order_fills, indexed, FK to trading_accounts
-- [x] getHistoryReport supports both accountId-based and legacy userId+environment queries
-- [x] Order-insertion call sites updated: systemController.js, mt5Controller.js, mt5Bridge.js
-- [x] engine/services/tradeHistoryService.js re-export shim preserves singleton shape
-- [x] 7 new tests pass; analytics regression verified
-- [x] Full suite: 439 pass, 11 pre-existing failures unchanged
-
-### corex-accounts extraction — COMPLETED
-- [x] Package structure, services, migrations, and re-export shims implemented
-- [x] Tests verified: multiple accounts per user, independent connection credentials
-- [x] No forbidden files touched
-
-### corex-strategy-engine extraction — COMPLETED (in progress — shims + stubs)
-- [x] Gap analysis written: `plans/Audit/corex-strategy-engine-gap-analysis.md`
-- [x] Package shell created: `packages/corex-strategy-engine/` with `Strategy.js`, `ContextBuilder.js`, `IndicatorManager.js`, `ParamSchema.js`, `ta.js`, `util.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `Position.js`, `StrategyIntrospection.js`
-- [x] `ContextBuilder` implements zero-allocation per-tick ctx (50k ticks: 0.873 µs/tick, negative heap growth)
-- [x] Shims created in `utils/strategy/` pointing to package: `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `StrategyIntrospection.js`, `Position.js`
-- [x] `utils/DeclarativeStrategy.js` reduced to 4-line shim re-exporting from `corex-strategy-engine`
+### corex-strategy-engine extraction — COMPLETED
+- [x] Gap analysis: `plans/Audit/corex-strategy-engine-gap-analysis.md`
+- [x] Package shell: `Strategy.js`, `ContextBuilder.js`, `IndicatorManager.js`, `ParamSchema.js`, `ta.js`, `util.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `Position.js`, `StrategyIntrospection.js`
+- [x] `ContextBuilder` zero-allocation per-tick ctx (50k ticks: 0.873 µs/tick, negative heap growth)
 - [x] `utils/strategy/StrategyPluginRegistry.js` deleted (dead code — 0 DB strategies use it)
-- [x] `@events` alias added to package `package.json` jest config + `_moduleAliases`
-- [x] `corex-broker-contract` mapping added to package jest config for test imports
-- [x] `StrategyValidator.js` — re-exports from `@utils/strategy/StrategyValidator` (full legacy validation logic)
-- [x] `StrategyManifest.js` — re-exports from `@utils/strategy/StrategyManifest` + 12 `ctx.*` entries for Monaco intelligence (ctx.go.*, ctx.flat, ctx.ta, ctx.util, ctx.indicators, ctx.position, ctx.params, ctx.state, ctx.price, ctx.barTime)
-- [x] `ContextBuilder.test.js` created — tests persistent ctx, zero-allocation benchmark, ctx.go.* delegation
+- [x] `@events` alias added to package jest config + `_moduleAliases`; `corex-broker-contract` mapping added for test imports
+- [x] `ContextBuilder.test.js` — persistent ctx, zero-allocation benchmark, ctx.go.* delegation
 - [x] All 8 package test suites pass (ContextBuilder, Indicators, ParamSchema, PluggableRegistry, Position, Strategy, ta, util) — 67 tests total
-- [x] Position.add() optimized to O(1) incremental aggregate maintenance — 50k benchmark runs in ~398ms (well under 1s)
-- [x] factory.test.js session-exclusivity test updated to match Phase 3 per-account-per-mode-per-symbol scoping design (supersession classified and documented)
-- [x] Broader suite: `round7.comprehensive.test.js` shows 3 pre-existing failures (KNOWN_ISSUES.md documented), 55 pass — no new regressions
-- [x] Phase C: Indicator Registry implemented — `IndicatorRegistry.js` with `globalIndicatorRegistry`
-- [x] Indicators implemented: SMA, EMA, ATR, RSI, WMA, HMA, McGinley, ALMA, KAMA, VIDYA, ParabolicSAR, SuperTrend, LinearRegressionCurve, StandardDeviation, MACD, ROC, Momentum, WilliamsR, UltimateOscillator, CCI, TSI, CMO, STC, FisherTransform, LaguerreRSI, RVI, ConnorsRSI, BollingerBands, KeltnerChannels, DonchianChannels, Stochastic, VWAP, AnchoredVWAP, OBV, MFI, CMF, AD, EoM, ADX, Vortex, Choppiness, Hurst, FDI, ZScore, DPO, CoppockCurve, Fibonacci, InstantaneousTrendline, SuperSmoother, IchimokuCloud
-- [x] `IndicatorManager.js` refactored to use `globalIndicatorRegistry` instead of if/else chain and `@utils/strategy/IncrementalIndicators`
-- [x] Indicators exported from package `index.js`
-- [x] `Indicators.test.js` created with 40+ tests covering all indicators
-- [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
+- [x] Position.add() O(1) incremental aggregate maintenance — 50k benchmark ~398ms
+- [x] factory.test.js session-exclusivity test updated to Phase 3 per-account-per-mode-per-symbol scoping
+- [x] Phase C: Indicator Registry — `IndicatorRegistry.js` with `globalIndicatorRegistry`; 41 indicators implemented and exported from package `index.js`; `Indicators.test.js` with 40+ tests
+- [x] `IndicatorManager.js` uses `globalIndicatorRegistry` instead of if/else chain
 
+### Legacy deletion (`chore/legacy-deletion`, PR #16 — OPEN, do not merge)
+- [x] Step 0: Boot fix — `engine/services/tradeHistoryService.js` alias `@portfolio/corex-portfolio` → `corex-portfolio`; added `test/bootSmoke.test.js` (4b61e26)
+- [x] Step 1: Deleted orphan `broker/backtest/SignalGenerationEngine.js`, `broker/backtest/BacktestFeed.js`, dangling `@strategies` alias (4a94d18)
+- [x] Step 2: Deleted `utils/strategy/StrategyManifest.js` + `utils/strategy/StrategyValidator.js` shims; rewired 3 consumers (39b9f5b)
+- [x] Step 3: Moved `engine/core/strategy/StrategyContract.js` into `packages/corex-strategy-engine/src/`; repointed 6 consumers; ownership test (2b951b7)
+- [x] Step 4: Made `corex-strategy-engine` self-contained — package-local `StrategyStateStore`/`StrategyDataManager`/`StrategyParamUtils` (5c68400)
+- [x] Phase 1 DB evidence: read-only audit (`scripts/phase1-db-audit.js`) — dev `corex_engine` DB has 0 legacy `script_body` rows. Evidence: `plans/Audit/db-legacy-strategy-evidence.md` (3793776)
+- [x] Deleted `test/round7.comprehensive.test.js`
+- [x] Step 5: BaseStrategy cascade — deleted `utils/BaseStrategy.js`, `utils/DeclarativeStrategy.js`, `utils/strategy/RuleChain.js`, `utils/strategy/IncrementalIndicators.js`; migrated consumers to `corex-strategy-engine` `Strategy` and package indicators; security scanner allows `corex-strategy-engine`, blocks legacy `BaseStrategy` (7c709df)
+- [x] Full suite green after cascade: 52 suites, 521 tests passed
 
+## Next (real remaining backlog)
+
+### (a) Position/Order shared-type ownership — needs Owen decision
+`packages/corex-broker-contract/src/base/BaseBroker.js:6` imports `@utils/strategy/StrategyPositionManager` (domain leakage). Decide whether the shared Position/Order/Signal types move to a shared package or stay in `corex-strategy-engine` with `corex-broker-contract` depending on it. Blocked on Owen — not for unattended agents.
+
+### (b) corex-risk consolidation — needs Owen decision
+Issue #4. Touches risk enforcement, a protected boundary. Held for Owen/Kilo Code.
+
+### (c) Broadcaster extraction — needs Owen decision
+Issue #7. 787 lines, tied to the frontend event contract. Held for Owen/Kilo Code.
+
+### (d) corex-jobs and the stuck-in-queued bug — ready
+Issue #8. J9 investigates the job-queue lifecycle (enqueue → pick up → run → complete/fail) and reproduces the most likely cause with a failing test.
+
+### (e) Engine kernel/boot/runtime design — needs Owen decision
+Issue #9. Design comparison with ChatGPT pending. Held for Owen/Kilo Code.
+
+### (f) Frontend modularization — needs Owen decision
+Issue #10. Held for Owen/Kilo Code.
+
+### (g) External-environment legacy-strategy confirmation — needs Owen decision
+PR #16's gate: dev DB proven clean (0 legacy `script_body` rows), but other environments cannot be proven absent. Owen to confirm before deploying `chore/legacy-deletion`. See `plans/Audit/db-legacy-strategy-evidence.md`.
+
+## Stale GitHub issues (created 2026-08-18) — do not edit the issues themselves
+- #5 (corex-strategy-engine) is **complete** — package extracted and self-contained; the issue was never closed.
+- #6 (corex-state) is **superseded** — `StrategyStateStore` now lives in `corex-strategy-engine`.
