@@ -1,0 +1,22 @@
+{
+  "_comment": "J4 boundary-ratchet allowlist. Generated 2026-10-04 from a scan of packages/*/src and packages/*/index.js on origin/main (dfb1b24). The ratchet test (test/architectureBoundaries.test.js) fails if a violation appears that is NOT in this list, AND fails if a listed entry no longer occurs (so the list can only shrink). Paths use forward slashes. Each entry: file, line, module, kind.",
+  "violations": [
+    { "file": "packages/corex-accounts/src/brokerPersistenceService.js", "line": 4, "module": "@core/services/pgStore", "kind": "@core" },
+    { "file": "packages/corex-accounts/src/connectionsService.js", "line": 4, "module": "@core/services/secretsVault", "kind": "@core" },
+    { "file": "packages/corex-broker-contract/src/base/BaseBroker.js", "line": 6, "module": "@utils/strategy/StrategyPositionManager", "kind": "@utils (non-foundation)" },
+    { "file": "packages/corex-broker-contract/src/mt5Bridge.js", "line": 6, "module": "@core/services/postgres", "kind": "@core" },
+    { "file": "packages/corex-gateway/src/http/accountRoutes.js", "line": 5, "module": "../../../corex-auth/src/AuthService", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-gateway/src/socketx/RiskGateway.js", "line": 3, "module": "../../../corex-broker-contract/src/RuntimeBrokerFactory", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-gateway/src/socketx/SocketXServer.js", "line": 409, "module": "../../../corex-auth/src/AuthService", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-market-data/src/DataProviderFactory.js", "line": 17, "module": "../../corex-broker-contract/src/utils/DataPaginationLayer", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-market-data/src/legacy/twelvedata.js", "line": 9, "module": "@core/services/configService", "kind": "@core" },
+    { "file": "packages/corex-market-data/src/providers/FileDataProvider.js", "line": 27, "module": "../../../corex-broker-contract/src/utils/SymbolNormalizer", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-market-data/src/providers/TwelveDataProvider.js", "line": 24, "module": "@broker/twelvedata", "kind": "@broker (legacy)" },
+    { "file": "packages/corex-market-data/src/providers/TwelveDataProvider.js", "line": 25, "module": "../../../corex-broker-contract/src/utils/SymbolNormalizer", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-market-data/src/providers/YahooFinanceProvider.js", "line": 20, "module": "../../../corex-broker-contract/src/utils/SymbolNormalizer", "kind": "relative-leaves-package" },
+    { "file": "packages/corex-strategy-engine/src/ParamSchema.js", "line": 3, "module": "@utils/strategy/StrategyParamUtils", "kind": "@utils (non-foundation)" },
+    { "file": "packages/corex-strategy-engine/src/Strategy.js", "line": 5, "module": "@core/core/strategy/StrategyContract", "kind": "@core" },
+    { "file": "packages/corex-strategy-engine/src/Strategy.js", "line": 6, "module": "@utils/strategy/StrategyStateStore", "kind": "@utils (non-foundation)" },
+    { "file": "packages/corex-strategy-engine/src/Strategy.js", "line": 7, "module": "@utils/strategy/StrategyDataManager", "kind": "@utils (non-foundation)" }
+  ]
+}
