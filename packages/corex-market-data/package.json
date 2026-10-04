@@ -11,8 +11,8 @@
   },
   "dependencies": {
     "ws": "^8.18.3",
-    "winston": "^3.19.0",
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "yahoo-finance2": "^4.0.2"
   },
   "devDependencies": {
     "jest": "^29.7.0",
