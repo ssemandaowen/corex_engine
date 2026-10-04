@@ -21,7 +21,7 @@
  *   twelvedata.js directly, except symbols are canonicalized first.
  */
 
-const twelvedata = require("@broker/twelvedata");
+const twelvedata = require("../legacy/twelvedata");
 const SymbolNormalizer = require("../../../corex-broker-contract/src/utils/SymbolNormalizer");
 const {
     DataProviderContract,

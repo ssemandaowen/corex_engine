@@ -18,7 +18,7 @@
 // 1. BacktestBroker
 // ─────────────────────────────────────────────────────────────────────────────
 describe("BacktestBroker — realism fills", () => {
-    const BacktestBroker = require("@broker/modes/BacktestBroker");
+    const BacktestBroker = require("corex-broker-contract/src/modes/BacktestBroker");
     const MetricsAccumulator = require("@utils/metrics").MetricsAccumulator;
 
     function makeBroker(brokerConfig = {}) {
@@ -104,7 +104,7 @@ describe("BacktestBroker — realism fills", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("PaperBroker — side normalisation and trailing stop", () => {
     const { bus, EVENTS } = require("@events/bus");
-    const PaperBroker = require("@broker/modes/PaperBroker");
+    const PaperBroker = require("corex-broker-contract/src/modes/PaperBroker");
     const MetricsAccumulator = require("@utils/metrics").MetricsAccumulator;
 
     function makePaper(friction = {}) {
