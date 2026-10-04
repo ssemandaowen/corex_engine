@@ -6,7 +6,6 @@ const http = require("http");
 const https = require("https");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
-const configService = require("@core/services/configService");
 
 // Translates CoreX timeframes to TwelveData format
 const INTERVAL_MAP = {
@@ -63,12 +62,36 @@ class TwelveDataBroker {
         this._lastPriceBySymbol = new Map();
         this._lastPriceAtBySymbol = new Map();
 
+        // Config service is injected by the engine via configure({ configService }).
+        // Until then, _loadConfig() falls back to defaults (getSync returns undefined).
+        this._configService = null;
+
         this._loadConfig();
         bus.on(EVENTS.SYSTEM.CONFIG_REFRESH, () => this._loadConfig());
     }
 
+    /**
+     * Inject the config service. Called by the engine at boot
+     * (the existing wiring spot) so this module carries no
+     * @core require of its own. Re-runs _loadConfig() so
+     * persisted config (API key, WS toggle, endpoints) is
+     * picked up immediately.
+     * @param {object} opts
+     * @param {object} [opts.configService] - { getSync(key, default) }.
+     */
+    configure({ configService } = {}) {
+        if (configService) this._configService = configService;
+        this._loadConfig();
+    }
+
+    _configGet() {
+        return typeof this._configService?.getSync === "function"
+            ? this._configService.getSync
+            : () => undefined;
+    }
+
     _loadConfig() {
-        const get = typeof configService.getSync === "function" ? configService.getSync : () => undefined;
+        const get = this._configGet();
         const restBase = get("broker.twelvedata.restBase", "https://api.twelvedata.com") || "https://api.twelvedata.com";
         const wsBase = get("broker.twelvedata.wsBase", "wss://ws.twelvedata.com/v1/quotes/price") || "wss://ws.twelvedata.com/v1/quotes/price";
         const heartbeatMs = Number(get("broker.twelvedata.heartbeatMs", 10000));
