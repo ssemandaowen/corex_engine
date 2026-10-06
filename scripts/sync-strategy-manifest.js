@@ -6,9 +6,8 @@ require("dotenv").config();
 const fs = require("fs");
 const path = require("path");
 const db = require("@core/services/postgres");
-const {
-    getStrategyManifestPayload
-} = require("@utils/strategy/StrategyManifest");
+const { StrategyManifest } = require("corex-strategy-engine");
+const { getStrategyManifestPayload } = StrategyManifest;
 
 function writeManifest() {
     const outputPath = path.resolve(__dirname, "../corex-ui/src/monaco/strategyManifest.generated.json");
