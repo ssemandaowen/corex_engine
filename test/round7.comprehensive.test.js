@@ -184,7 +184,7 @@ describe("PaperBroker — side normalisation and trailing stop", () => {
 // 4. StrategyStateStore
 // ─────────────────────────────────────────────────────────────────────────────
 describe("StrategyStateStore", () => {
-    const { StrategyStateStore } = require("corex-strategy-engine");
+    const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
 
     afterEach(() => jest.useRealTimers());
 
@@ -273,7 +273,7 @@ describe("StrategyStateStore", () => {
 // 5. BaseStrategy — _attachRuntime, _syncPositionSnapshot, this.env, this.state
 // ─────────────────────────────────────────────────────────────────────────────
 describe("BaseStrategy — runtime injection", () => {
-    const { StrategyStateStore } = require("corex-strategy-engine");
+    const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
 
     // Minimal BaseStrategy-like object simulating what strategyLoader creates
     function makeInstance() {
@@ -367,8 +367,7 @@ describe("BaseStrategy — runtime injection", () => {
 // 6. StrategyRuntimeUtils._resolveProtectionLevels — trailPct
 // ─────────────────────────────────────────────────────────────────────────────
 describe("StrategyRuntimeUtils._resolveProtectionLevels — trailPct", () => {
-    const { StrategyRuntimeUtils } = require("corex-strategy-engine");
-    const utils = StrategyRuntimeUtils;
+    const utils = require("@utils/strategy/StrategyRuntimeUtils");
 
     test("returns trailPct from params", () => {
         const result = utils._resolveProtectionLevels({ side: "long", price: 1.1, params: { trailPct: 2.0 } });

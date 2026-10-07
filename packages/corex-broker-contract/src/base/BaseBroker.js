@@ -3,7 +3,7 @@
 const EventEmitter = require("events");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
-const { StrategyPositionManager } = require("corex-strategy-engine");
+const StrategyPositionManager = require("@utils/strategy/StrategyPositionManager");
 const { BrokerContract, UnsupportedOperationError } = require("./BrokerContract");
 const SymbolNormalizer = require("../utils/SymbolNormalizer");
 

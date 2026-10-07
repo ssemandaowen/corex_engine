@@ -24,8 +24,7 @@
 const Module  = require("module");
 const { bus, EVENTS } = require("@events/bus");
 const logger  = require("@utils/logger");
-const { StrategyIntrospection } = require("corex-strategy-engine");
-const { getStrategyApi } = StrategyIntrospection;
+const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
 const { TIME } = require("@config/constants");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
 

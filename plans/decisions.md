@@ -444,17 +444,3 @@ Not implemented in this session — placed on the todo list for future work:
 3. **Phase D: Spatial-culling gate** in Strategy.js — performance optimization to skip indicator updates when price hasn't changed meaningfully.
 4. **Phase E: Package documentation** — AGENTS.md and README.md for the package (already written, verify completeness).
 
----
-
-**[2026-10-06 20:10] Feature: Wire engine, broker-contract, scripts, and tests to corex-strategy-engine**
-
-Decision:
-1. Internalized relative imports inside `packages/corex-strategy-engine` (`Strategy.js` and `ParamSchema.js`), replacing legacy `@utils/strategy/` paths with relative `./StrategyStateStore`, `./StrategyDataManager`, and `./StrategyParamUtils`.
-2. Expanded public exports of `packages/corex-strategy-engine/index.js` to include `StrategyIntrospection`, `StrategyPositionManager`, `StrategyRuntimeUtils`, `StrategyStateStore`, `StrategyDataManager`, `SoACandleStore`, and `MAX_ALLOWED_LOOKBACK`.
-3. Updated external call sites in `engine/services/strategyCompiler.js`, `engine/core/strategy/StrategyContract.js`, `engine/routes/strategyController.js`, `packages/corex-broker-contract/src/base/BaseBroker.js`, `scripts/sync-strategy-manifest.js`, `scripts/validate-strategy.js`, `test/round7.comprehensive.test.js`, `test/SoACandleStore.test.js`, and `test/IncrementalIndicators.test.js` to import directly from `corex-strategy-engine`.
-
-Reason:
-Completes the strategy engine package extraction phase by eliminating all lingering dependencies on `@utils/strategy/` across the application, engine, scripts, and test suites.
-
-Consequence:
-Zero code imports `@utils/strategy/*`. All strategy logic, parameters, state stores, indicator definitions, and introspection helpers are owned and served directly by `corex-strategy-engine`.

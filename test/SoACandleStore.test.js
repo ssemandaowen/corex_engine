@@ -1,6 +1,7 @@
 "use strict";
 
-const { SoACandleStore, StrategyDataManager } = require("corex-strategy-engine");
+const SoACandleStore = require("../utils/strategy/SoACandleStore");
+const StrategyDataManager = require("../utils/strategy/StrategyDataManager");
 
 describe("SoACandleStore & StrategyDataManager SoA Migration", () => {
     test("round-trip correctness: write N candles, read back, values match exactly", () => {

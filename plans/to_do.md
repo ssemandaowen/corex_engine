@@ -54,7 +54,7 @@
 - [x] Tests verified: multiple accounts per user, independent connection credentials
 - [x] No forbidden files touched
 
-### corex-strategy-engine extraction — COMPLETED
+### corex-strategy-engine extraction — COMPLETED (in progress — shims + stubs)
 - [x] Gap analysis written: `plans/Audit/corex-strategy-engine-gap-analysis.md`
 - [x] Package shell created: `packages/corex-strategy-engine/` with `Strategy.js`, `ContextBuilder.js`, `IndicatorManager.js`, `ParamSchema.js`, `ta.js`, `util.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `Position.js`, `StrategyIntrospection.js`
 - [x] `ContextBuilder` implements zero-allocation per-tick ctx (50k ticks: 0.873 µs/tick, negative heap growth)
@@ -75,4 +75,4 @@
 - [x] `IndicatorManager.js` refactored to use `globalIndicatorRegistry` instead of if/else chain and `@utils/strategy/IncrementalIndicators`
 - [x] Indicators exported from package `index.js`
 - [x] `Indicators.test.js` created with 40+ tests covering all indicators
-- [x] Wire `engine/`, `corex-broker-contract`, scripts, and test suites to import directly from `corex-strategy-engine`
+- [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
