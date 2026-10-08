@@ -9,15 +9,53 @@ try {
     require("module-alias/register");
 } catch (_) {}
 
+// Replace comments with spaces (newlines kept) so line numbers stay correct and
+// string contents such as "http://x" are left untouched.
+function _stripComments(src) {
+    let out = "";
+    let i = 0;
+    const n = src.length;
+    let quote = null;
+    while (i < n) {
+        const c = src[i];
+        const d = src[i + 1];
+        if (quote) {
+            out += c;
+            if (c === "\\" && i + 1 < n) { out += d; i += 2; continue; }
+            if (c === quote) quote = null;
+            i++;
+            continue;
+        }
+        if (c === "\"" || c === "'" || c === "`") { quote = c; out += c; i++; continue; }
+        if (c === "/" && d === "/") {
+            while (i < n && src[i] !== "\n") { out += " "; i++; }
+            continue;
+        }
+        if (c === "/" && d === "*") {
+            out += "  "; i += 2;
+            while (i < n && !(src[i] === "*" && src[i + 1] === "/")) {
+                out += src[i] === "\n" ? "\n" : " ";
+                i++;
+            }
+            if (i < n) { out += "  "; i += 2; }
+            continue;
+        }
+        out += c;
+        i++;
+    }
+    return out;
+}
+
 function _scanFileForAliasRequires(filePath) {
     try {
-        const content = fs.readFileSync(filePath, "utf8");
+        const content = _stripComments(fs.readFileSync(filePath, "utf8"));
         // Regex matching require("@...") or require("corex-...")
         const regex = /require\s*\(\s*["'](@[a-zA-Z0-9_\-\/]+|corex-[a-zA-Z0-9_\-\/]+)["']\s*\)/g;
         const matches = [];
         let match;
         while ((match = regex.exec(content)) !== null) {
-            matches.push(match[1]);
+            const line = content.slice(0, match.index).split("\n").length;
+            matches.push({ specifier: match[1], line });
         }
         return matches;
     } catch (_) {
@@ -75,7 +113,7 @@ async function runPreflight({ config = {}, root = null, db = null, scanDirs = nu
             const specifiers = _scanFileForAliasRequires(filePath);
             const fileDir = path.dirname(filePath);
 
-            for (const specifier of specifiers) {
+            for (const { specifier, line } of specifiers) {
                 try {
                     require.resolve(specifier, { paths: [fileDir, rootDir] });
                 } catch (err) {
@@ -85,7 +123,7 @@ async function runPreflight({ config = {}, root = null, db = null, scanDirs = nu
                         id: "check_alias_resolution",
                         status: "fail",
                         what: `Unresolved alias specifier '${specifier}'`,
-                        where: relPath,
+                        where: `${relPath}:${line}`,
                         fix: `Add mapping for '${specifier}' to package.json _moduleAliases or correct require statement`
                     });
                 }

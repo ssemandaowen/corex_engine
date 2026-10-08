@@ -1,6 +1,7 @@
 "use strict";
 
 const { Strategy } = require("./src/Strategy");
+const { StrategyContract } = require("./src/StrategyContract");
 const ta = require("./src/ta");
 const util = require("./src/util");
 const ParamSchema = require("./src/ParamSchema");
@@ -14,6 +15,7 @@ const PlotBuffer = require("./src/PlotBuffer");
 
 module.exports = {
     Strategy,
+    StrategyContract,
     ta,
     util,
     ParamSchema,

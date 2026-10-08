@@ -73,4 +73,63 @@ describe("engine/kernel/Preflight", () => {
         expect(dbWarn.status).toBe("warn");
         expect(dbWarn.what).toContain("unconfigured");
     });
+
+    describe("comment-safe scanning and line numbers", () => {
+        const scan = async (name, source) => {
+            const dir = path.join(tmpDir, name);
+            fs.mkdirSync(dir, { recursive: true });
+            fs.writeFileSync(path.join(dir, "file.js"), source, "utf8");
+            return runPreflight({
+                config: { port: 39998, folders: { testData: tmpDir } },
+                db: { configured: false },
+                scanDirs: [dir]
+            });
+        };
+        const aliasFails = (r) => r.checks.filter((c) => c.id === "check_alias_resolution" && c.status === "fail");
+
+        test("ignores require() written inside comments", async () => {
+            const r = await scan("comments", [
+                "/**",
+                ' *   const f = require("@nonexistent/in-block-comment");',
+                " */",
+                '// const g = require("@nonexistent/in-line-comment");',
+                "module.exports = 1;"
+            ].join("\n"));
+            expect(aliasFails(r)).toHaveLength(0);
+        });
+
+        test("still detects a real require after a string containing //", async () => {
+            const r = await scan("strings", [
+                'const url = "http://example.com/a";',
+                'const x = require("@nonexistent/after-string");'
+            ].join("\n"));
+            const fails = aliasFails(r);
+            expect(fails).toHaveLength(1);
+            expect(fails[0].where).toMatch(/file\.js:2$/);
+        });
+
+        test("reports the line number of an unresolved alias", async () => {
+            const r = await scan("lines", "\n\n\nconst x = require(\"@nonexistent/line4\");");
+            const fails = aliasFails(r);
+            expect(fails).toHaveLength(1);
+            expect(fails[0].where).toMatch(/file\.js:4$/);
+        });
+    });
+
+    test("repository source has no unresolved alias requires (real Node resolution)", () => {
+        // Jest's own resolver ignores module-alias, so run the doctor in plain Node,
+        // the same way `npm run doctor` and `npm start` resolve modules.
+        const { spawnSync } = require("child_process");
+        const doctor = path.join(__dirname, "..", "scripts", "doctor.js");
+        const r = spawnSync(process.execPath, [doctor], {
+            cwd: path.join(__dirname, ".."),
+            encoding: "utf8",
+            timeout: 60000,
+            env: { ...process.env, PORT: "0" }
+        });
+        const out = `${r.stdout || ""}${r.stderr || ""}`;
+        const unresolved = out.split("\n").filter((l) => l.includes("Unresolved alias specifier"));
+        expect(unresolved).toEqual([]);
+        expect(out).toMatch(/All module alias require specifiers resolve successfully/);
+    });
 });
