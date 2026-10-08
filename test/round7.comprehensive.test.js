@@ -501,7 +501,7 @@ describe("security.js — loop guards", () => {
         const BaseStrategy = require("BaseStrategy");
         class S extends BaseStrategy {
             constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 10 }); }
-            next(bar) { ${code} return null; }
+            next(bar) { ${code}; return null; }
         }
         module.exports = S;
     `;
