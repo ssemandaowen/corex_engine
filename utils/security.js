@@ -17,7 +17,7 @@
  *
  * Allows:
  * - require('BaseStrategy') and require path-relative imports
- * - require('mathjs') and require('technicalindicators')
+ * - require('mathjs'), require('technicalindicators'), require('corex-strategy-engine')
  * - Standard class definitions, closures, and ES2022 features
  * - for...of and for...in loops (bounded by data structure size)
  */
@@ -59,6 +59,7 @@ const DANGEROUS_MODULES = new Set([
 const ALLOWED_MODULES = new Set([
     "mathjs",
     "technicalindicators",
+    "corex-strategy-engine",
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────

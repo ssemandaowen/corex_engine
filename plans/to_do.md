@@ -76,5 +76,3 @@
 - [x] Indicators exported from package `index.js`
 - [x] `Indicators.test.js` created with 40+ tests covering all indicators
 - [next] Wire `engine/` to import from `corex-strategy-engine` for strategy loading path
-
-
