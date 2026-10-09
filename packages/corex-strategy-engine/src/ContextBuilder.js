@@ -74,7 +74,10 @@ class ContextBuilder {
                 const ind = ctx.indicators && ctx.indicators[indicatorName];
                 if (!ind || ind.ready !== true) return false;
             } else if (ctx.indicators) {
-                for (const ind of Object.values(ctx.indicators)) {
+                // Bolt performance optimization: Iterate with for...in instead of Object.values()
+                // to avoid allocating a temporary values array on every strategy tick/bar evaluation.
+                for (const key in ctx.indicators) {
+                    const ind = ctx.indicators[key];
                     if (ind && typeof ind.ready === "boolean" && !ind.ready) {
                         return false;
                     }

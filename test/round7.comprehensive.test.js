@@ -539,15 +539,15 @@ describe("security.js — loop guards", () => {
     });
 
     test("eval is blocked", () => {
-        expect(() => validateStrategyCode(wrap("eval('1+1')"))).toThrow(/eval/i);
+        expect(() => validateStrategyCode(wrap("eval('1+1');"))).toThrow(/eval/i);
     });
 
     test("require('fs') is blocked", () => {
-        expect(() => validateStrategyCode(wrap("require('fs')"))).toThrow(/fs/i);
+        expect(() => validateStrategyCode(wrap("require('fs');"))).toThrow(/fs/i);
     });
 
     test("process access is blocked", () => {
-        expect(() => validateStrategyCode(wrap("process.exit()"))).toThrow(/process/i);
+        expect(() => validateStrategyCode(wrap("process.exit();"))).toThrow(/process/i);
     });
 
     test("valid strategy passes scanner", () => {
