@@ -11,7 +11,8 @@ const db = require("@core/services/postgres");
 const stateManager = require("@utils/stateController");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
-const { getStrategyManifestPayload } = require("@utils/strategy/StrategyManifest");
+const { StrategyManifest } = require("corex-strategy-engine");
+const { getStrategyManifestPayload } = StrategyManifest;
 const { toScopedId, fromScopedId, scopedLikePrefix } = require("@core/services/userScope");
 
 // HELPER: Check if strategy is untouchable

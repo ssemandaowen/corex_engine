@@ -31,7 +31,7 @@ class RuntimeLifecycle {
      *
      * @param {object} config
      * @param {string} config.runtimeId        - Composite ID "userId::strategy::SYMBOL::MODE"
-     * @param {object} config.strategyInstance - Pre-instantiated BaseStrategy subclass
+     * @param {object} config.strategyInstance - Pre-instantiated Strategy subclass
      * @param {object} config.profile          - Runtime profile (mode, symbol, userId, etc.)
      */
     async boot({ runtimeId, strategyInstance, profile }) {

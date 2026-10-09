@@ -30,7 +30,8 @@
     "sync:strategy-manifest": "node scripts/sync-strategy-manifest.js",
     "worker:jobs": "node engine/workers/jobWorker.js",
     "maintenance:prune": "node scripts/maintenance/prune-runtime-artifacts.js",
-    "maintenance:prune:apply": "node scripts/maintenance/prune-runtime-artifacts.js --apply"
+    "maintenance:prune:apply": "node scripts/maintenance/prune-runtime-artifacts.js --apply",
+    "doctor": "node scripts/doctor.js"
   },
   "_moduleAliases": {
     "@root": ".",

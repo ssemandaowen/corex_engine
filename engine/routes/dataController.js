@@ -260,7 +260,7 @@ router.get("/candles", async (req, res) => {
 router.get("/symbols", async (req, res) => {
     const q = String(req.query.q || "").trim();
     try {
-        const twelvedata = require("@broker/twelvedata");
+        const twelvedata = require("corex-market-data").twelvedata;
         if (typeof twelvedata.searchSymbols === "function") {
             const results = await twelvedata.searchSymbols(q);
             return res.json({ success: true, payload: results });

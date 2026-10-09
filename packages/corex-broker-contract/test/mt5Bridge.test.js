@@ -124,8 +124,29 @@ describe("MT5Bridge", () => {
     });
 
     test("_audit does not crash when db has no config", () => {
-        const db = require("@core/services/postgres");
-        expect(db.hasDbConfig()).toBe(false);
+        // No db injected (this._db === null) — _audit must no-op.
+        mt5Bridge.configure({ db: null });
+        expect(() => mt5Bridge._audit("IN", { test: "data" }, "order123")).not.toThrow();
+
+        // db injected but hasDbConfig() === false — _audit must no-op.
+        const fakeDb = { hasDbConfig: () => false, query: jest.fn(), withTransaction: jest.fn() };
+        mt5Bridge.configure({ db: fakeDb });
+        expect(() => mt5Bridge._audit("IN", { test: "data" }, "order123")).not.toThrow();
+        expect(fakeDb.query).not.toHaveBeenCalled();
+    });
+
+    test("_audit writes a row when db is configured", async () => {
+        const fakeQuery = jest.fn().mockResolvedValue({ rowCount: 1 });
+        const fakeDb = { hasDbConfig: () => true, query: fakeQuery, withTransaction: jest.fn() };
+        mt5Bridge.configure({ db: fakeDb });
         mt5Bridge._audit("IN", { test: "data" }, "order123");
+        // _audit fires the query without awaiting; flush the microtask queue.
+        await new Promise((r) => setImmediate(r));
+        expect(fakeQuery.mock.calls.length).toBeGreaterThan(0);
+        const call = fakeQuery.mock.calls[0];
+        expect(call[0]).toContain("INSERT INTO mt5_messages");
+        expect(call[1][0]).toBe("order123");
+        expect(call[1][1]).toBe("IN");
+        expect(typeof call[1][2]).toBe("string");
     });
 });

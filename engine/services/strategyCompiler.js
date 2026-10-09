@@ -24,9 +24,10 @@
 const Module  = require("module");
 const { bus, EVENTS } = require("@events/bus");
 const logger  = require("@utils/logger");
-const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
+const { StrategyIntrospection } = require("corex-strategy-engine");
+const { getStrategyApi } = StrategyIntrospection;
 const { TIME } = require("@config/constants");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { StrategyContract } = require("corex-strategy-engine");
 
 const log = logger.createModuleLogger("STRATEGY_COMPILER", {
     category: "strategy",
@@ -99,7 +100,7 @@ class StrategyCompiler {
      *
     /**
      * @deprecated Use StrategyCompiler.compile() instead.
-     * This method creates a throwaway instance which triggers the BaseStrategy
+     * This method creates a throwaway instance which triggers the Strategy
      * constructor fully (including StrategyStateStore init) and was never
      * called by any internal code path after Round 6. Kept for API compat only.
      *
