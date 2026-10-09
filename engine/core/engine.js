@@ -2,7 +2,7 @@
 
 require("module-alias/register");
 
-const broker = require("@broker/twelvedata");
+const broker = require("corex-market-data").twelvedata;
 const DataProviderFactory = require("@data/src/DataProviderFactory");
 const loader = require("@core/strategyLoader");
 const { bus, EVENTS } = require("@events/bus");

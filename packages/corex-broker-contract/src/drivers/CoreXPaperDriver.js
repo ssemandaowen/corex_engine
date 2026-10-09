@@ -206,7 +206,7 @@ class CoreXPaperDriver extends BaseBroker {
 
         if (dsType === "file") {
             try {
-                const { FileDataProvider } = require("@data/providers/FileDataProvider");
+                const { FileDataProvider } = require("@data/src/providers/FileDataProvider");
                 this._fileProvider = new FileDataProvider(ds);
                 await this._fileProvider.connect();
                 // Ticks emitted on bus -> MarketFeed -> this driver via onTick

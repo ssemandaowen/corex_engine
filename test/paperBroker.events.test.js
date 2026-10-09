@@ -1,5 +1,5 @@
 const { bus, EVENTS } = require("@events/bus");
-const PaperBrokerClass = require("@broker/modes/PaperBroker");
+const PaperBrokerClass = require("corex-broker-contract/src/modes/PaperBroker");
 
 describe("PaperBroker event emissions", () => {
     let broker;

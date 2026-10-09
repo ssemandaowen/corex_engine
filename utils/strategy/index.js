@@ -8,6 +8,5 @@ module.exports = {
     StrategyDevHelpers: require("./StrategyDevHelpers"),
     StrategyParamUtils: require("./StrategyParamUtils"),
     StrategyRuntimeUtils: require("./StrategyRuntimeUtils"),
-    RuleChain: require("./RuleChain"),
     StrategyIntrospection: require("./StrategyIntrospection")
 };

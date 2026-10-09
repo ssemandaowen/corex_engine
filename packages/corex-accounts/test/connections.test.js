@@ -8,15 +8,27 @@ jest.mock("pg", () => ({
     }))
 }));
 
-// Mock secretsVault
-jest.mock("@core/services/secretsVault", () => ({
-    encryptString: jest.fn((s) => `enc:${s}`),
-    decryptString: jest.fn((s) => s.replace("enc:", "")),
-    isEncryptedString: jest.fn((s) => s.startsWith("enc:"))
-}));
+// Fakes passed through the factory instead of mocking the
+// @core/services/secretsVault module path.
+const fakeSecretsVault = {
+    encryptString: (s) => `enc:${s}`,
+    decryptString: (s) => s.replace("enc:", ""),
+    isEncryptedString: (s) => s.startsWith("enc:"),
+};
+const fakeLogger = {
+    error: jest.fn(),
+    warn: jest.fn(),
+    info: jest.fn(),
+};
 
 // Import AFTER mocks
-const { connectionsService, CONNECTOR_SCHEMAS } = require("../index");
+const { createAccounts, CONNECTOR_SCHEMAS } = require("../index");
+
+const { connectionsService } = createAccounts({
+    db: { query: mockQuery },
+    secretsVault: fakeSecretsVault,
+    logger: fakeLogger,
+});
 
 describe("corex-accounts connectionsService", () => {
     beforeEach(() => {

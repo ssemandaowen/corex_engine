@@ -23,12 +23,12 @@ const dataForge = require("data-forge");
 
 const logger    = require("@utils/logger");
 const DataProviderFactory = require("@data/src/DataProviderFactory");
-const BacktestBroker = require("@broker/modes/BacktestBroker");
+const BacktestBroker = require("corex-broker-contract/src/modes/BacktestBroker");
 const { fetchGuardedHistory, MAX_BARS_LIMIT } = require("@core/core/backtestDataResolver");
 const db        = require("@core/services/postgres");
 const pgStore   = require("@core/services/pgStore");
 const storage   = require("@utils/storageManager");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { StrategyContract } = require("corex-strategy-engine");
 const { BACKTEST }      = require("@config/constants");
 const { parseScopedId } = require("@core/services/userScope");
 const { trades: tradeAnalytics, series, format } = require("@utils/analytics");

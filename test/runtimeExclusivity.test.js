@@ -2,13 +2,13 @@
 
 const RuntimeLifecycle = require("../engine/core/runtime/RuntimeLifecycle");
 const runtimeRegistry = require("../engine/core/runtime/RuntimeRegistry");
-const BaseStrategy = require("../utils/BaseStrategy");
+const { Strategy } = require("corex-strategy-engine");
 
 describe("Symbol-Level Runtime Exclusivity", () => {
-    class StratA extends BaseStrategy {
+    class StratA extends Strategy {
         constructor() { super({ symbols: ["EURUSD"], timeframe: "1m" }); }
     }
-    class StratB extends BaseStrategy {
+    class StratB extends Strategy {
         constructor() { super({ symbols: ["EURUSD"], timeframe: "5m" }); }
     }
 

@@ -1,7 +1,6 @@
 "use strict";
 
 const { Pool } = require("pg");
-const secretsVault = require("@core/services/secretsVault");
 const logger = require("@utils/logger");
 const log = logger.createModuleLogger("CONNECTOR_SETTINGS");
 
@@ -24,8 +23,19 @@ const CONNECTOR_SCHEMAS = {
 };
 
 class ConnectionsService {
-    constructor({ pool } = {}) {
+    /**
+     * @param {object} opts
+     * @param {object} [opts.pool]        - pg Pool (created from env if omitted).
+     * @param {object} opts.secretsVault  - { encryptString, decryptString, isEncryptedString }.
+     * @param {object} [opts.logger]      - module logger (defaults to the package logger).
+     */
+    constructor({ pool, secretsVault, logger: injectedLogger } = {}) {
+        if (!secretsVault) {
+            throw new Error("ConnectionsService requires a secretsVault ({ encryptString, decryptString, isEncryptedString })");
+        }
         this._pool = pool || this._createPool();
+        this._secretsVault = secretsVault;
+        this._log = injectedLogger || log;
     }
 
     _createPool() {
@@ -64,7 +74,7 @@ class ConnectionsService {
                 ? this._decryptSecrets(creds)
                 : {};
         } catch (err) {
-            log.warn(`Failed to decrypt secrets for ${accountId}/${connectorType}: ${err.message}`);
+            this._log.warn(`Failed to decrypt secrets for ${accountId}/${connectorType}: ${err.message}`);
         }
 
         return {
@@ -77,9 +87,9 @@ class ConnectionsService {
         if (!accountId || !connectorType) {
             throw new Error("accountId and connectorType are required");
         }
-        
+
         const encryptedCredentials = this._encryptSecrets(credentials);
-        
+
         const sql = `
             INSERT INTO connections (connection_id, account_id, connector_type, credentials)
             VALUES ($1, $2, $3, $4)
@@ -96,7 +106,7 @@ class ConnectionsService {
         for (const [key, value] of Object.entries(secrets)) {
             if (value === undefined || value === null || value === "") continue;
             const strVal = String(value);
-            out[key] = secretsVault.encryptString(strVal);
+            out[key] = this._secretsVault.encryptString(strVal);
         }
         return out;
     }
@@ -105,21 +115,21 @@ class ConnectionsService {
         const out = {};
         for (const [key, value] of Object.entries(encryptedObj)) {
             if (!value || typeof value !== "string") continue;
-            if (!secretsVault.isEncryptedString(value)) {
+            if (!this._secretsVault.isEncryptedString(value)) {
                 out[key] = value;
                 continue;
             }
             try {
-                out[key] = secretsVault.decryptString(value);
+                out[key] = this._secretsVault.decryptString(value);
             } catch (err) {
-                log.warn(`Decryption failed for ${key}: ${err.message}`);
+                this._log.warn(`Decryption failed for ${key}: ${err.message}`);
             }
         }
         return out;
     }
 }
 
-module.exports = { 
-    ConnectionsService: new ConnectionsService(),
-    CONNECTOR_SCHEMAS 
+module.exports = {
+    ConnectionsService,
+    CONNECTOR_SCHEMAS
 };

@@ -2,7 +2,7 @@
 
 require("module-alias/register");
 
-const BaseStrategy = require("@utils/BaseStrategy");
+const { Strategy } = require("corex-strategy-engine");
 
 class ArrayShiftQueue {
     constructor() {
@@ -32,7 +32,7 @@ class PointerQueue {
     }
 }
 
-class BenchStrategy extends BaseStrategy {
+class BenchStrategy extends Strategy {
     constructor(cfg = {}) {
         super({
             id: "bench_strategy",

@@ -16,7 +16,7 @@ const PLOT_INTERVAL_MS = Math.max(1000, Number(process.env.COREX_WS_PLOT_INTERVA
  * Entry shape:
  * {
  *   runtimeId:    string,   "userId::strategyName::SYMBOL::MODE"
- *   instance:     object,   BaseStrategy subclass instance (live)
+ *   instance:     object,   Strategy subclass instance (live)
  *   broker:       object,   BaseBroker subclass instance (live)
  *   symbol:       string,
  *   mode:         string,   'PAPER' | 'LIVE' | 'BACKTEST'

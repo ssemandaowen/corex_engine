@@ -7,7 +7,7 @@
  * PAPER/LIVE runtimes in RuntimeRegistry.
  *
  * Rewired: subscription management now goes through DataProviderFactory
- * instead of calling @broker/twelvedata.updateSymbols() directly.
+ * instead of calling corex-market-data twelvedata.updateSymbols() directly.
  *
  * Flow:
  *   Data provider tick (EVENTS.MARKET.TICK: {symbol, time, price})

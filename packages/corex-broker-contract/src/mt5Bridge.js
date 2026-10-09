@@ -3,10 +3,14 @@
 const WebSocket = require("ws");
 const logger = require("@utils/logger");
 const { bus, EVENTS } = require("@events/bus");
-const db = require("@core/services/postgres");
 
 class MT5Bridge {
-    constructor() {
+    /**
+     * @param {object} [opts]
+     * @param {object} [opts.db] - postgres module ({ hasDbConfig, query, withTransaction }).
+     *   Injected by the engine via configure({ db }) or the constructor.
+     */
+    constructor({ db } = {}) {
         this.wss = null;
         this.clients = new Set();
         this.clientMeta = new WeakMap(); // ws -> { authorized, receiverId, terminal, accountId, connectedAt, ip }
@@ -15,6 +19,7 @@ class MT5Bridge {
         this.positions = [];
         this.lastHeartbeat = 0;
         this.lastAuthFailure = 0;
+        this._db = db || null;
         this.runtimeConfig = {
             bridgeToken: process.env.MT5_BRIDGE_TOKEN || "",
             httpToken: process.env.COREX_MT5_HTTP_TOKEN || "",
@@ -22,6 +27,21 @@ class MT5Bridge {
             port: process.env.COREX_MT5_BRIDGE_PORT || "",
             heartbeatMs: Number(process.env.COREX_MT5_HEARTBEAT_MS || 0) || 0
         };
+    }
+
+    /**
+     * Inject the postgres module. Called by the engine at boot
+     * (the existing wiring spot) so this package carries no
+     * @core require of its own.
+     * @param {object} opts
+     * @param {object} opts.db - postgres module ({ hasDbConfig, query, withTransaction }).
+     */
+    configure({ db } = {}) {
+        if (db) this._db = db;
+    }
+
+    _dbModule() {
+        return this._db;
     }
 
     initServer(server) {
@@ -160,7 +180,8 @@ class MT5Bridge {
     }
 
     async _persistOrderResult(msg = {}) {
-        if (!db.hasDbConfig()) return;
+        const db = this._dbModule();
+        if (!db || !db.hasDbConfig()) return;
         const payload = msg?.payload && typeof msg.payload === "object" ? msg.payload : {};
         const orderId = String(payload.orderId || payload.order_id || payload.id || "").trim();
         if (!orderId) return;
@@ -435,7 +456,8 @@ class MT5Bridge {
     }
 
     _audit(direction, payload, orderId = null) {
-        if (!db.hasDbConfig()) return;
+        const db = this._dbModule();
+        if (!db || !db.hasDbConfig()) return;
         const dir = String(direction || "").toUpperCase();
         if (!dir) return;
         const order = orderId ? String(orderId) : null;

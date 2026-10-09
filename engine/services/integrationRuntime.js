@@ -49,7 +49,10 @@ async function refresh() {
         applyEnvVar("COREX_MT5_BRIDGE_PORT", mt5Bridge.port);
         applyEnvVar("COREX_MT5_HEARTBEAT_MS", mt5Bridge.heartbeatMs);
 
-        const marketBroker = require("@broker/twelvedata");
+        const marketBroker = require("corex-market-data").twelvedata;
+        if (typeof marketBroker.configure === "function") {
+            marketBroker.configure({ configService });
+        }
         if (typeof marketBroker.applyRuntimeConfig === "function") {
             marketBroker.applyRuntimeConfig({
                 apiKey: marketData.twelveDataApiKey,
@@ -92,4 +95,3 @@ module.exports = {
     init,
     refresh
 };
-

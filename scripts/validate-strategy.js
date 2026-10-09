@@ -19,7 +19,7 @@ async function main(args) {
         process.exit(0);
     }
 
-    const StrategyValidator = require("../utils/strategy/StrategyValidator");
+    const StrategyValidator = require("corex-strategy-engine").StrategyValidator;
     const path = require("path");
     const fs = require("fs");
     const colors = {

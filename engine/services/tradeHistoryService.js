@@ -1,7 +1,7 @@
 "use strict";
 
 const postgres = require("@core/services/postgres");
-const { TradeHistoryService } = require("@portfolio/corex-portfolio");
+const { TradeHistoryService } = require("corex-portfolio");
 
 if (!postgres.hasDbConfig()) {
     module.exports = {
