@@ -53,10 +53,13 @@ class IndicatorManager {
     constructor(strategy) {
         this.strategy = strategy;
         this._indicators = new Map();
+        this._entriesList = []; // Optimized flat array for hot-path per-tick updates
         this._staticIndicators = collectStaticIndicators(strategy.constructor, null);
     }
 
     initialize() {
+        this._indicators.clear();
+        this._entriesList = [];
         for (const [name, indDef] of Object.entries(this._staticIndicators)) {
             const type = String(indDef.type || "").toUpperCase();
             const Cls = globalIndicatorRegistry.get(type);
@@ -65,7 +68,9 @@ class IndicatorManager {
             this._assertDispatchArity(type, updateMode, Cls);
             const instance = this._createIndicator(indDef, Cls);
             if (instance) {
-                this._indicators.set(name, { instance, def: indDef, type, updateMode });
+                const entry = { instance, def: indDef, type, updateMode };
+                this._indicators.set(name, entry);
+                this._entriesList.push(entry);
             }
         }
     }
@@ -136,7 +141,11 @@ class IndicatorManager {
         const open = packet.open ?? price;
         const volume = packet.volume ?? 0;
 
-        for (const [, entry] of this._indicators) {
+        // Bolt performance optimization: Iterate flat _entriesList array with an indexed for-loop
+        // to avoid Map iterator destructuring array allocation ([key, val]) on every per-tick update.
+        const entries = this._entriesList;
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
             const def = entry.def;
             const instance = entry.instance;
             if (!instance) continue;
