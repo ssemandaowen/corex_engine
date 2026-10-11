@@ -140,6 +140,30 @@ function validateStrategyCode(code) {
             }
         },
 
+        // ── Block dynamic import(...) expressions ────────────────────────
+        ImportExpression(node) {
+            const arg = node.source;
+            if (arg?.type === "Literal" && typeof arg.value === "string") {
+                const mod = arg.value.trim();
+                const base = mod.split("/")[0].toLowerCase();
+
+                if (DANGEROUS_MODULES.has(base)) {
+                    violations.push(`Forbidden import: "${mod}" is a dangerous module`);
+                    return;
+                }
+
+                const isRelative = mod.startsWith("./") || mod.startsWith("../");
+                const isBaseStrategy = mod.toLowerCase().includes("basestrategy");
+                const isAllowed = ALLOWED_MODULES.has(base);
+
+                if (!isRelative && !isBaseStrategy && !isAllowed) {
+                    violations.push(`Unauthorized import: "${mod}"`);
+                }
+            } else {
+                violations.push("Dynamic import() with non-literal argument is forbidden");
+            }
+        },
+
         // ── Block new Function(...), new Buffer(...), etc. ────────────────
         NewExpression(node) {
             if (node.callee.type === "Identifier") {
