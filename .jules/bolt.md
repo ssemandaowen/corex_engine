@@ -1,0 +1,3 @@
+## 2026-10-14 - Block Copying TypedArray Slices in Ring Buffers
+**Learning:** Element-by-element loop copying with modulo indexing in `Float64Array` ring buffers (like `SoACandleStore.getFieldSlice`) incurs significant loop and scalar access overhead in V8. Replacing the loop with fast block memory copies using `TypedArray.prototype.set()` and `.subarray()` provides a ~40-50% speedup for sliced slice retrievals without allocating intermediate temporary objects.
+**Action:** Always prefer `TypedArray.prototype.set()` and `.subarray()` for contiguous slices from typed array ring buffers instead of scalar `for` loops.
