@@ -248,6 +248,15 @@ function validateStrategyCode(code) {
         LabeledStatement() {
             violations.push("Forbidden: labeled statements are not allowed in strategy code");
         },
+
+        // ── Block import() expressions and import declarations ──────────
+        ImportExpression() {
+            violations.push("Forbidden: dynamic import() expression is not allowed in strategy code");
+        },
+
+        ImportDeclaration() {
+            violations.push("Forbidden: import declarations are not allowed in strategy code");
+        },
     });
 
     if (violations.length > 0) {
