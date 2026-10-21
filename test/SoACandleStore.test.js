@@ -29,6 +29,36 @@ describe("SoACandleStore & StrategyDataManager SoA Migration", () => {
         expect(closes[1]).toBe(1.1070);
     });
 
+    test("getFieldSlice correctness for non-wrapped and wrapped slices", () => {
+        const EngineSoACandleStore = require("../packages/corex-strategy-engine/src/SoACandleStore");
+        for (const StoreClass of [SoACandleStore, EngineSoACandleStore]) {
+            const capacity = 5;
+            const store = new StoreClass(capacity);
+
+            // Fill 3 items (non-wrapped)
+            store.push({ time: 10, open: 1, high: 2, low: 0.5, close: 1.5, volume: 100 });
+            store.push({ time: 20, open: 2, high: 3, low: 1.5, close: 2.5, volume: 200 });
+            store.push({ time: 30, open: 3, high: 4, low: 2.5, close: 3.5, volume: 300 });
+
+            const nonWrappedCloses = store.getCloses(3);
+            expect(Array.from(nonWrappedCloses)).toEqual([1.5, 2.5, 3.5]);
+
+            // Fill 4 more items so it wraps around capacity (total 7 pushes on cap 5)
+            store.push({ time: 40, open: 4, high: 5, low: 3.5, close: 4.5, volume: 400 });
+            store.push({ time: 50, open: 5, high: 6, low: 4.5, close: 5.5, volume: 500 });
+            store.push({ time: 60, open: 6, high: 7, low: 5.5, close: 6.5, volume: 600 });
+            store.push({ time: 70, open: 7, high: 8, low: 6.5, close: 7.5, volume: 700 });
+
+            // Store now contains times [30, 40, 50, 60, 70] and closes [3.5, 4.5, 5.5, 6.5, 7.5]
+            const wrappedCloses = store.getCloses(5);
+            expect(Array.from(wrappedCloses)).toEqual([3.5, 4.5, 5.5, 6.5, 7.5]);
+
+            // Partial slice of wrapped store
+            const partialWrappedCloses = store.getCloses(3);
+            expect(Array.from(partialWrappedCloses)).toEqual([5.5, 6.5, 7.5]);
+        }
+    });
+
     test("wrap-around correctness at capacity boundary", () => {
         const capacity = 3;
         const store = new SoACandleStore(capacity);
