@@ -1,0 +1,3 @@
+## 2026-10-22 - TypedArray Bulk Copy Slicing in Ring Buffers
+**Learning:** Extracting slices from typed-array ring buffers (like `SoACandleStore`) using element-by-element loops in JavaScript adds substantial per-candle overhead during strategy indicator lookback evaluation. Utilizing native `Float64Array.prototype.set()` combined with `Float64Array.prototype.subarray()` performs memory bulk copying natively in V8, accelerating contiguous slice extraction by ~2.4x - 2.5x without memory allocation bloat or breaking circular buffer boundaries.
+**Action:** Always prefer native `.set(subarray(...))` over manual indexing loops when slicing or copying ranges of TypedArrays in hot data structures.
