@@ -44,12 +44,12 @@ export default function Sidebar({
   };
 
   const navItems = [
-    { id: 'home', icon: Home },
-    { id: 'strategies', icon: Code2 },
-    { id: 'run', icon: Play },
-    { id: 'data', icon: BarChart2 },
-    { id: 'account', icon: Wallet },
-    { id: 'settings', icon: Settings2 },
+    { id: 'home', label: 'Home', icon: Home },
+    { id: 'strategies', label: 'Strategies', icon: Code2 },
+    { id: 'run', label: 'Run', icon: Play },
+    { id: 'data', label: 'Data', icon: BarChart2 },
+    { id: 'account', label: 'Account', icon: Wallet },
+    { id: 'settings', label: 'Settings', icon: Settings2 },
   ];
 
   return (
@@ -62,8 +62,10 @@ export default function Sidebar({
       }}
     >
       {/* Sidebar Header */}
-      <div 
-        className="flex items-center h-12 border-b px-2.5 justify-between relative cursor-pointer select-none group/header" 
+      <button
+        type="button"
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        className="w-full flex items-center h-12 border-b px-2.5 justify-between relative cursor-pointer select-none group/header focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none"
         style={{ borderColor: 'var(--ui-border)' }}
         onMouseEnter={() => setIsHeaderHovered(true)}
         onMouseLeave={() => setIsHeaderHovered(false)}
@@ -94,7 +96,7 @@ export default function Sidebar({
             </div>
           </div>
         )}
-      </div>
+      </button>
 
       {/* Engine Status Indicator */}
       {!collapsed && (
@@ -110,7 +112,7 @@ export default function Sidebar({
       )}
 
       {/* Navigation Items */}
-      <nav className="flex-1 py-3 flex flex-col gap-0.5 px-1.5 overflow-y-auto overflow-x-hidden">
+      <nav aria-label="Main Navigation" className="flex-1 py-3 flex flex-col gap-0.5 px-1.5 overflow-y-auto overflow-x-hidden">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeTab === item.id;
@@ -122,13 +124,16 @@ export default function Sidebar({
               onMouseLeave={() => setHoveredItem(null)}
             >
               <button
+                type="button"
                 onClick={() => setActiveTab(item.id)}
-                className="w-full flex items-center justify-center py-2 rounded transition-all duration-200 cursor-pointer relative"
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
+                className="w-full flex items-center justify-center py-2 rounded transition-all duration-200 cursor-pointer relative focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none"
                 style={{
                   backgroundColor: isActive ? 'var(--ui-panel-soft)' : 'transparent',
                   color: isActive ? 'var(--ui-accent)' : 'var(--ui-muted)',
                 }}
-                title={item.id}
+                title={item.label}
               >
                 {isActive && (
                   <span 
@@ -150,7 +155,7 @@ export default function Sidebar({
                     color: 'var(--ui-text)'
                   }}
                 >
-                  {item.id}
+                  {item.label}
                 </div>
               )}
             </div>
