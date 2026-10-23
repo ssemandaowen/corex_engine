@@ -303,7 +303,7 @@ export default function WorkspaceView({
   return (
     <div className="flex flex-col h-full overflow-hidden select-none bg-[var(--ui-bg)]">
       {/* View Header */}
-      <div className="p-4 border-b border-[var(--ui-border)] shrink-0 bg-[#070e20] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="p-4 border-b border-[var(--ui-border)] shrink-0 bg-[var(--bg-panel)] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-sm font-display font-black uppercase tracking-wider text-white flex items-center gap-2">
             <Cpu size={16} className="text-[var(--ui-accent)]" />
@@ -323,7 +323,7 @@ export default function WorkspaceView({
               placeholder="Filter by strategy name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs py-1.5 pl-8 pr-3 rounded border focus:outline-none bg-[#020617] text-white transition-colors"
+              className="w-full text-xs py-1.5 pl-8 pr-3 border focus:outline-none bg-[var(--bg)] text-white"
               style={{ borderColor: 'var(--ui-border)', fontFamily: 'var(--font-sans)' }}
             />
           </div>
@@ -335,10 +335,10 @@ export default function WorkspaceView({
               fetchActiveRuntimes();
               fetchLiveConnectorSettings();
             }}
-            className="p-1.5 rounded border border-[var(--ui-border)] hover:bg-[var(--ui-panel-soft)] text-white transition-all cursor-pointer flex items-center justify-center active:scale-95 self-end sm:self-auto"
+            className="p-1.5 border border-[var(--ui-border)] hover:bg-[var(--ui-panel-soft)] text-white cursor-pointer flex items-center justify-center self-end sm:self-auto"
             title="Refresh workspace telemetry"
           >
-            <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
+            <RefreshCw size={12} className={loading ? "" : ""} />
           </button>
         </div>
       </div>
@@ -347,13 +347,13 @@ export default function WorkspaceView({
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {loading ? (
           <div className="h-48 flex flex-col items-center justify-center gap-3">
-            <Loader2 className="animate-spin text-[var(--ui-accent)]" size={24} />
+            <Loader2 className="text-[var(--ui-accent)]" size={24} />
             <span className="text-xs text-[var(--ui-muted)] uppercase font-bold tracking-wider">
               Initializing Strategy Execution Registry...
             </span>
           </div>
         ) : filteredStrategies.length === 0 ? (
-          <div className="h-48 rounded-xl border border-dashed border-[var(--ui-border)] flex flex-col items-center justify-center text-center p-6">
+          <div className="h-48 border border-dashed border-[var(--ui-border)] flex flex-col items-center justify-center text-center p-6">
             <Sliders size={32} className="text-[var(--ui-muted)] mb-3" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300">
               No strategy templates found
@@ -380,39 +380,39 @@ export default function WorkspaceView({
               return (
                 <div 
                   key={strat.id} 
-                  className="border rounded-xl bg-[#070e20] shadow-lg overflow-hidden transition-all duration-300 group"
+                  className="border bg-[var(--bg-panel)] overflow-hidden group"
                   style={{ 
                     borderColor: isExpanded 
                       ? 'var(--ui-accent)' 
                       : isUsed 
-                        ? 'rgba(16, 185, 129, 0.4)' 
+                        ? 'var(--bg-raised)'
                         : 'var(--ui-border)',
-                    boxShadow: isExpanded ? '0 0 15px rgba(30, 144, 255, 0.15)' : 'none'
+                    boxShadow: isExpanded ? '0 0 15px var(--bg-raised)' : 'none'
                   }}
                 >
                   {/* --- PARENT SLOT HEADER RACK --- */}
                   <div 
                     onClick={() => toggleRowExpansion(strat.id)}
-                    className="relative flex flex-col lg:flex-row items-stretch lg:items-center justify-between p-4 cursor-pointer hover:bg-slate-900/40 transition-all gap-4 select-none"
+                    className="relative flex flex-col lg:flex-row items-stretch lg:items-center justify-between p-4 cursor-pointer hover:bg-slate-900/40 gap-4 select-none"
                   >
                     {/* Left Active/Idle Accent Strip */}
                     <div 
-                      className="absolute left-0 top-0 bottom-0 w-1 transition-all duration-300" 
+                      className="absolute left-0 top-0 bottom-0 w-1"
                       style={{ 
                         backgroundColor: isExpanded 
                           ? 'var(--ui-accent)' 
                           : isUsed 
                             ? 'var(--ui-positive)' 
-                            : 'rgba(255, 255, 255, 0.15)' 
+                            : 'var(--bg-raised)'
                       }}
                     />
 
                     {/* Left side info block */}
                     <div className="flex items-center gap-3.5 pl-2 min-w-0 flex-1">
-                      <div className="p-1.5 rounded-lg bg-[#020617] border border-[var(--ui-border)]/60 text-[var(--ui-muted)] group-hover:text-white transition-colors shrink-0">
+                      <div className="p-1.5 bg-[var(--bg)] border border-[var(--ui-border)]/60 text-[var(--ui-muted)] group-hover:text-white shrink-0">
                         <ChevronDown 
                           size={15} 
-                          className={`transition-transform duration-300 ${isExpanded ? 'rotate-180 text-[var(--ui-accent)]' : ''}`} 
+                          className={`  ${isExpanded ? 'rotate-180 text-[var(--ui-accent)]' : ''}`}
                         />
                       </div>
                       
@@ -421,7 +421,7 @@ export default function WorkspaceView({
                           <h3 className="font-display font-black text-xs md:text-sm text-white tracking-wide truncate uppercase">
                             {strat.name}
                           </h3>
-                          <span className={`text-[8px] font-sans font-black px-2 py-0.5 rounded border tracking-wider transition-all duration-300 ${
+                          <span className={`text-[8px] font-sans font-black px-2 py-0.5  border tracking-wider   ${
                             isUsed 
                               ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
                               : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
@@ -456,10 +456,10 @@ export default function WorkspaceView({
                       {isUsed && (
                         <div className="flex flex-col items-start lg:items-end gap-0.5 border-l border-[var(--ui-border)]/30 pl-4">
                           <span className="text-[9px] text-[var(--ui-muted)] uppercase tracking-wider font-bold">Combined Float P&amp;L</span>
-                          <span className={`text-[11px] font-black font-mono px-2 py-0.5 rounded ${
+                          <span className={`text-[11px] font-black font-mono px-2 py-0.5  ${
                             combinedPnl >= 0 
-                              ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_10px_rgba(16,185,129,0.08)]' 
-                              : 'text-red-400 bg-red-500/10 border border-red-500/20 shadow-[0_0_10px_rgba(239,68,68,0.08)]'
+                              ? 'text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 (16,185,129,0.08)]'
+                              : 'text-red-400 bg-red-500/10 border border-red-500/20 (239,68,68,0.08)]'
                           }`}>
                             {combinedPnl >= 0 ? '+' : ''}${combinedPnl.toFixed(2)}
                           </span>
@@ -470,7 +470,7 @@ export default function WorkspaceView({
 
                   {/* --- CHILD SUBSLOTS PANEL --- */}
                   {isExpanded && (
-                    <div className="border-t border-[var(--ui-border)] bg-[#020617]/70 p-4 space-y-5 transition-all duration-300">
+                    <div className="border-t border-[var(--ui-border)] bg-[var(--bg)]/70 p-4 space-y-5">
                       
                       {/* Active Subslots Section */}
                       <div>
@@ -496,19 +496,19 @@ export default function WorkspaceView({
                               return (
                                 <div 
                                   key={runtime.id || idx} 
-                                  className="p-3 rounded-lg border bg-[#070e20]/90 border-[var(--ui-border)]/50 hover:border-[var(--ui-border-strong)] transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group/row"
+                                  className="p-3 border bg-[var(--bg-panel)]/90 border-[var(--ui-border)]/50 hover:border-[var(--ui-border-strong)] flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group/row"
                                 >
                                   {/* Thread ID & Mode & Symbol */}
                                   <div className="flex items-center gap-3 min-w-0">
-                                    <span className="text-[9px] font-mono font-black text-[var(--ui-muted)] bg-[#020617] px-2 py-1 rounded border border-[var(--ui-border)]/40 shrink-0">
+                                    <span className="text-[9px] font-mono font-black text-[var(--ui-muted)] bg-[var(--bg)] px-2 py-1 border border-[var(--ui-border)]/40 shrink-0">
                                       T#{String(idx + 1).padStart(2, '0')}
                                     </span>
 
                                     <div className="min-w-0">
                                       <div className="flex items-center gap-2 flex-wrap">
-                                        <span className={`text-[8px] font-black font-sans px-1.5 py-0.5 rounded border tracking-wider uppercase shrink-0 ${
+                                        <span className={`text-[8px] font-black font-sans px-1.5 py-0.5  border tracking-wider uppercase shrink-0 ${
                                           runtime.mode === 'LIVE' 
-                                            ? 'bg-amber-500/15 border-amber-500/25 text-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.05)]' 
+                                            ? 'bg-amber-500/15 border-amber-500/25 text-amber-500 (245,158,11,0.05)]'
                                             : 'bg-blue-500/15 border-blue-500/25 text-blue-400'
                                         }`}>
                                           {runtime.mode}
@@ -517,7 +517,7 @@ export default function WorkspaceView({
                                           {runtime.symbol}
                                         </span>
                                         <div className="flex items-center gap-1">
-                                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                          <span className="h-1.5 w-1.5 bg-emerald-500" />
                                           <span className="text-[9px] font-bold text-emerald-400 uppercase font-sans">
                                             {rStatus}
                                           </span>
@@ -539,7 +539,7 @@ export default function WorkspaceView({
                                     <div className="flex flex-col items-start md:items-end gap-0.5">
                                       <span className="text-[8px] uppercase font-bold text-[var(--ui-muted)] tracking-wider">Position side</span>
                                       <div className="flex items-center gap-1.5">
-                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5  uppercase tracking-wider ${
                                           rSide === 'LONG' 
                                             ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
                                             : rSide === 'SHORT' 
@@ -569,7 +569,7 @@ export default function WorkspaceView({
                                     {onMonitor && (
                                       <button
                                         onClick={() => onMonitor(runtime.id || runtime.runtimeId)}
-                                        className="flex-1 md:flex-none px-2.5 py-1.5 rounded text-[9px] font-black uppercase tracking-wider bg-[var(--ui-accent)] hover:opacity-90 text-white transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95 shadow-sm"
+                                        className="flex-1 md:flex-none px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider bg-[var(--ui-accent)] hover:opacity-90 text-white cursor-pointer flex items-center justify-center gap-1"
                                         title="Monitor active charting data and logs feed"
                                       >
                                         <Activity size={10} />
@@ -578,7 +578,7 @@ export default function WorkspaceView({
                                     )}
                                     <button
                                       onClick={() => handleStop(runtime.id || runtime.runtimeId, `${strat.name} [T#${idx + 1}]`)}
-                                      className="flex-1 md:flex-none px-2.5 py-1.5 rounded text-[9px] font-black uppercase tracking-wider bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95"
+                                      className="flex-1 md:flex-none px-2.5 py-1.5 text-[9px] font-black uppercase tracking-wider bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 cursor-pointer flex items-center justify-center gap-1"
                                       title="Dispatch emergency stop signal to strategy container"
                                     >
                                       <Square size={10} className="fill-red-400" />
@@ -590,7 +590,7 @@ export default function WorkspaceView({
                             })}
                           </div>
                         ) : (
-                          <div className="p-4 text-center border border-dashed border-[var(--ui-border)]/40 rounded-xl text-[10px] text-[var(--ui-muted)] italic font-mono bg-black/10">
+                          <div className="p-4 text-center border border-dashed border-[var(--ui-border)]/40 text-[10px] text-[var(--ui-muted)] italic font-mono bg-black/10">
                             NO ACTIVE RUNNING THREADS DETECTED IN THIS STRATEGY SLOT
                           </div>
                         )}
@@ -612,16 +612,16 @@ export default function WorkspaceView({
                             <div className="space-y-3.5">
                               <div>
                                 <label className="text-[9px] text-[var(--ui-muted)] uppercase tracking-wider font-bold block mb-1.5">Execution Environment</label>
-                                <div className="flex items-center rounded border border-[var(--ui-border)] bg-[#020617] p-0.5 w-full">
+                                <div className="flex items-center border border-[var(--ui-border)] bg-[var(--bg)] p-0.5 w-full">
                                   <button
                                     onClick={() => setRowModes(prev => ({ ...prev, [strat.id]: 'PAPER' }))}
-                                    className={`flex-1 py-1 rounded text-[9px] font-sans font-black uppercase tracking-wider transition-all cursor-pointer text-center ${activeMode === 'PAPER' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20 shadow-[0_0_8px_rgba(59,130,246,0.08)]' : 'text-[var(--ui-muted)] hover:text-slate-300'}`}
+                                    className={`flex-1 py-1  text-[9px] font-sans font-black uppercase tracking-wider  cursor-pointer text-center ${activeMode === 'PAPER' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20 (59,130,246,0.08)]' : 'text-[var(--ui-muted)] hover:text-slate-300'}`}
                                   >
                                     Sandbox (Paper)
                                   </button>
                                   <button
                                     onClick={() => setRowModes(prev => ({ ...prev, [strat.id]: 'LIVE' }))}
-                                    className={`flex-1 py-1 rounded text-[9px] font-sans font-black uppercase tracking-wider transition-all cursor-pointer text-center ${activeMode === 'LIVE' ? 'bg-amber-500/15 text-amber-500 border border-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.08)]' : 'text-[var(--ui-muted)] hover:text-slate-300'}`}
+                                    className={`flex-1 py-1  text-[9px] font-sans font-black uppercase tracking-wider  cursor-pointer text-center ${activeMode === 'LIVE' ? 'bg-amber-500/15 text-amber-500 border border-amber-500/20 (245,158,11,0.08)]' : 'text-[var(--ui-muted)] hover:text-slate-300'}`}
                                   >
                                     Live Broker
                                   </button>
@@ -630,7 +630,7 @@ export default function WorkspaceView({
 
                               <div>
                                 <label className="text-[9px] text-[var(--ui-muted)] uppercase tracking-wider font-bold block mb-1.5">Target Symbol Ticker</label>
-                                <div className="flex items-center gap-1.5 bg-[#020617] px-2.5 py-1.5 rounded border border-[var(--ui-border)] w-full">
+                                <div className="flex items-center gap-1.5 bg-[var(--bg)] px-2.5 py-1.5 border border-[var(--ui-border)] w-full">
                                   <input 
                                     type="text"
                                     value={activeSymbol}
@@ -646,9 +646,9 @@ export default function WorkspaceView({
                                   <label className="text-[9px] text-[var(--ui-muted)] uppercase tracking-wider font-bold block mb-1.5">Live Connection Credentials</label>
                                   <button
                                     onClick={() => openLiveSettings(strat.id)}
-                                    className={`w-full py-1.5 rounded text-[10px] font-bold uppercase tracking-wide border transition-all cursor-pointer flex items-center justify-center gap-1.5 ${connectorSaved ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20" : "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"}`}
+                                    className={`w-full py-1.5  text-[10px] font-bold uppercase tracking-wide border  cursor-pointer flex items-center justify-center gap-1.5 ${connectorSaved ? "bg-amber-500/10 border-amber-500/30 text-amber-400 hover:bg-amber-500/20" : "bg-red-500/10 border-red-500/30 text-red-400 hover:bg-red-500/20"}`}
                                   >
-                                    <Settings size={11} className={connectorSaved ? "" : "animate-spin"} />
+                                    <Settings size={11} className={connectorSaved ? "" : ""} />
                                     <span>{connectorSaved ? 'Broker Connection Valid' : 'Connect Account Now'}</span>
                                   </button>
                                 </div>
@@ -659,7 +659,7 @@ export default function WorkspaceView({
                           <div className="pt-4 space-y-2 mt-4 lg:mt-0">
                             <button
                               onClick={() => handleStartDispatch(strat.id)}
-                              className={`w-full py-2.5 rounded text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98] shadow-md ${activeMode === 'LIVE' ? "bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25" : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"}`}
+                              className={`w-full py-2.5  text-[10px] font-black uppercase tracking-widest border  cursor-pointer flex items-center justify-center gap-2 ]  ${activeMode === 'LIVE' ? "bg-amber-500/15 border-amber-500/30 text-amber-400 hover:bg-amber-500/25" : "bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25"}`}
                             >
                               <Play size={11} className="fill-current" />
                               <span>
@@ -669,7 +669,7 @@ export default function WorkspaceView({
 
                             <button
                               onClick={() => handleTransportBacktest(strat.id)}
-                              className="w-full py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 text-violet-400 text-[10px] font-black uppercase tracking-wider rounded flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] transition-all"
+                              className="w-full py-2 bg-violet-600/10 hover:bg-violet-600/20 border border-violet-500/20 text-violet-400 text-[10px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer ]"
                               title="Send parameter set to Backtest report simulation panel"
                             >
                               <TrendingUp size={11} />
@@ -692,7 +692,7 @@ export default function WorkspaceView({
                                 const isBoolean = config.type === 'boolean';
 
                                 return (
-                                  <div key={key} className="p-3 rounded border border-[var(--ui-border)]/45 bg-[#070e20] flex flex-col justify-between min-h-[85px] hover:border-[var(--ui-border)]/80 transition-colors">
+                                  <div key={key} className="p-3 border border-[var(--ui-border)]/45 bg-[var(--bg-panel)] flex flex-col justify-between min-h-[85px] hover:border-[var(--ui-border)]/80">
                                     <div className="flex flex-col">
                                       <span className="text-[10px] font-bold text-slate-300 font-mono tracking-wide">{key}</span>
                                       <span className="text-[9px] text-[var(--ui-muted)] leading-tight mt-0.5">{config.description || 'Custom strategy config.'}</span>
@@ -711,13 +711,13 @@ export default function WorkspaceView({
                                                 };
                                               });
                                             }}
-                                            className="w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer"
+                                            className="w-8 h-4 p-0.5 cursor-pointer"
                                             style={{
                                               backgroundColor: val ? 'var(--ui-accent)' : 'var(--ui-border)'
                                             }}
                                           >
                                             <div 
-                                              className="w-3 h-3 rounded-full bg-white transition-transform duration-200"
+                                              className="w-3 h-3 bg-white"
                                               style={{
                                                 transform: val ? 'translateX(16px)' : 'translateX(0)'
                                               }}
@@ -743,7 +743,7 @@ export default function WorkspaceView({
                                               };
                                             });
                                           }}
-                                          className="w-full text-xs p-1.5 rounded border focus:outline-none bg-[#020617] border-[var(--ui-border)] text-white font-mono"
+                                          className="w-full text-xs p-1.5 border focus:outline-none bg-[var(--bg)] border-[var(--ui-border)] text-white font-mono"
                                         />
                                       )}
                                     </div>
@@ -752,7 +752,7 @@ export default function WorkspaceView({
                               })}
                             </div>
                           ) : (
-                            <div className="p-8 rounded-xl border border-dashed border-[var(--ui-border)]/40 bg-black/15 flex flex-col items-center justify-center text-center">
+                            <div className="p-8 border border-dashed border-[var(--ui-border)]/40 bg-black/15 flex flex-col items-center justify-center text-center">
                               <Database size={16} className="text-[var(--ui-muted)] mb-1" />
                               <span className="text-[9px] uppercase font-bold text-[var(--ui-muted)] font-mono">No configurable parameter matrix schema</span>
                               <p className="text-[9px] text-[var(--ui-muted)] mt-1 max-w-xs leading-normal">Use a defineSchema() block inside strategy script code to register parameter controls dynamically.</p>
@@ -771,8 +771,8 @@ export default function WorkspaceView({
 
       {/* MODAL: LIVE ACCOUNT INTEGRATION SETUP */}
       {isLiveModalOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="w-full max-w-md bg-[#0a0f1d] border border-amber-500/20 rounded-xl overflow-hidden shadow-2xl relative flex flex-col">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="w-full max-w-md bg-[var(--bg-raised)] border border-amber-500/20 overflow-hidden relative flex flex-col">
             <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500/40" />
 
             <div className="p-4 border-b border-[var(--ui-border)] bg-slate-900/40 flex items-center justify-between shrink-0">
@@ -795,18 +795,18 @@ export default function WorkspaceView({
             </div>
 
             <div className="p-4 space-y-4">
-              <div className="flex rounded border border-[var(--ui-border)] bg-[#020617] p-0.5 shrink-0">
+              <div className="flex border border-[var(--ui-border)] bg-[var(--bg)] p-0.5 shrink-0">
                 <button
                   type="button"
                   onClick={() => setConnectorType('mt5')}
-                  className={`flex-1 py-1 text-[9px] font-black uppercase rounded transition-all cursor-pointer ${connectorType === 'mt5' ? "bg-amber-500/15 text-amber-500 border border-amber-500/20" : "text-[var(--ui-muted)] hover:text-white"}`}
+                  className={`flex-1 py-1 text-[9px] font-black uppercase   cursor-pointer ${connectorType === 'mt5' ? "bg-amber-500/15 text-amber-500 border border-amber-500/20" : "text-[var(--ui-muted)] hover:text-white"}`}
                 >
                   Direct MT5 Server
                 </button>
                 <button
                   type="button"
                   onClick={() => setConnectorType('metaapi')}
-                  className={`flex-1 py-1 text-[9px] font-black uppercase rounded transition-all cursor-pointer ${connectorType === 'metaapi' ? "bg-amber-500/15 text-amber-500 border border-amber-500/20" : "text-[var(--ui-muted)] hover:text-white"}`}
+                  className={`flex-1 py-1 text-[9px] font-black uppercase   cursor-pointer ${connectorType === 'metaapi' ? "bg-amber-500/15 text-amber-500 border border-amber-500/20" : "text-[var(--ui-muted)] hover:text-white"}`}
                 >
                   MetaAPI Cloud API
                 </button>
@@ -822,7 +822,7 @@ export default function WorkspaceView({
                     value={liveAccountId}
                     onChange={(e) => setLiveAccountId(e.target.value)}
                     placeholder="Enter terminal login credential ID..."
-                    className="w-full text-xs p-2 rounded border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono font-bold"
+                    className="w-full text-xs p-2 border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono font-bold"
                   />
                 </div>
 
@@ -836,7 +836,7 @@ export default function WorkspaceView({
                       value={liveServer}
                       onChange={(e) => setLiveServer(e.target.value)}
                       placeholder="e.g. MetaQuotes-Demo, IC-Markets-Live..."
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono"
+                      className="w-full text-xs p-2 border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono"
                     />
                   </div>
                 ) : (
@@ -849,7 +849,7 @@ export default function WorkspaceView({
                       value={liveToken}
                       onChange={(e) => setLiveToken(e.target.value)}
                       placeholder="Paste your API security token..."
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono"
+                      className="w-full text-xs p-2 border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono"
                     />
                   </div>
                 )}
@@ -859,7 +859,7 @@ export default function WorkspaceView({
             <div className="p-3 bg-slate-950 border-t border-[var(--ui-border)] flex items-center justify-end gap-2.5 shrink-0">
               <button
                 onClick={() => setIsLiveModalOpen(false)}
-                className="px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wide bg-[var(--ui-panel-soft)] text-white hover:bg-slate-800 transition-all cursor-pointer"
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide bg-[var(--ui-panel-soft)] text-white hover:bg-slate-800 cursor-pointer"
                 disabled={isSavingConnector}
               >
                 Cancel
@@ -867,9 +867,9 @@ export default function WorkspaceView({
               <button
                 onClick={handleSaveConnector}
                 disabled={isSavingConnector}
-                className="px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wider bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-500 transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-50"
+                className="px-4 py-1.5 text-xs font-bold uppercase tracking-wider bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-500 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
-                {isSavingConnector ? <Loader2 className="animate-spin" size={12} /> : null}
+                {isSavingConnector ? <Loader2 className="" size={12} /> : null}
                 <span>Verify &amp; Save Connector</span>
               </button>
             </div>

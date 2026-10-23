@@ -111,7 +111,7 @@ export const useDataStore = create<DataState>((set) => ({
   addActivityLog: (level, message) => set((state) => {
     const timestamp = new Date().toLocaleTimeString();
     const newLine: LogLine = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       timestamp,
       level,
       message,
@@ -121,7 +121,7 @@ export const useDataStore = create<DataState>((set) => ({
   addStrategyLog: (strategyId, level, message) => set((state) => {
     const timestamp = new Date().toLocaleTimeString();
     const newLine: LogLine = {
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       timestamp,
       level,
       message,
@@ -528,7 +528,7 @@ export const useDataStore = create<DataState>((set) => ({
           if (!sid) break;
           const timestamp = new Date().toLocaleTimeString();
           const logLine = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             timestamp,
             level: 'INFO' as const,
             message: String(data.payload.signal || data.payload.message || 'Strategy signal'),
@@ -579,7 +579,7 @@ export const useDataStore = create<DataState>((set) => ({
         if (data.payload) {
           const timestamp = new Date().toLocaleTimeString();
           const logLine = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             timestamp,
             level: (data.payload.level || 'INFO').toUpperCase() as any,
             message: String(data.payload.message || ''),
@@ -604,7 +604,7 @@ export const useDataStore = create<DataState>((set) => ({
         if (data.payload) {
           const timestamp = new Date().toLocaleTimeString();
           const logLine = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             timestamp,
             level: 'ERROR' as const,
             message: String(data.payload.message || data.payload.error || 'Unknown system error'),
@@ -619,7 +619,7 @@ export const useDataStore = create<DataState>((set) => ({
         if (data.payload) {
           const timestamp = new Date().toLocaleTimeString();
           const logLine = {
-            id: Math.random().toString(36).substr(2, 9),
+            id: crypto.randomUUID(),
             timestamp,
             level: 'WARN' as const,
             message: String(data.payload.message || 'Runtime memory warning'),
