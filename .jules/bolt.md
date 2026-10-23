@@ -1,0 +1,3 @@
+## 2026-10-23 - Fast Bulk TypedArray Copy for Ring-Buffer Slices
+**Learning:** `SoACandleStore.getFieldSlice()` was iterating per-element with modulo arithmetic `(this.writeIndex - count + i + capacity) % capacity`. Using `Float64Array.prototype.set()` with `subarray()` fast-paths contiguous segments into bulk memory copies (`memcpy`), eliminating per-element JS loop & modulo overhead on hot strategy indicator calculation paths.
+**Action:** When extracting sub-ranges from Structure-of-Arrays (SoA) typed arrays or ring buffers, calculate boundary indices to use `TypedArray.prototype.set()` for contiguous segments (or two `set()` calls when wrapping around capacity).
