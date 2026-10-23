@@ -88,9 +88,18 @@ class SoACandleStore {
         if (!sourceArray) throw new Error(`[SoACandleStore] Invalid field: ${field}`);
 
         const out = new Float64Array(count);
-        for (let i = 0; i < count; i++) {
-            const idx = (this.writeIndex - count + i + this.capacity) % this.capacity;
-            out[i] = sourceArray[idx];
+        const startIdx = (this.writeIndex - count + this.capacity) % this.capacity;
+
+        // Optimization: Fast-path bulk memory copy via TypedArray.prototype.set()
+        // Eliminates per-element loop overhead and modulo arithmetic on hot slice paths
+        if (startIdx + count <= this.capacity) {
+            // Contiguous slice without wrap-around
+            out.set(sourceArray.subarray(startIdx, startIdx + count));
+        } else {
+            // Ring-buffer wrap-around: copy tail segment then head segment
+            const firstSegmentLen = this.capacity - startIdx;
+            out.set(sourceArray.subarray(startIdx, this.capacity), 0);
+            out.set(sourceArray.subarray(0, count - firstSegmentLen), firstSegmentLen);
         }
         return out;
     }
