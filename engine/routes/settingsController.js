@@ -1,3 +1,5 @@
+const { validate: validateSchema, getExposedSchema, SCHEMA } = require("../services/settingsSchemaRegistry");
+const broadcaster = require("../services/broadcaster");
 "use strict";
 
 const db = require("@core/services/postgres");
@@ -287,6 +289,115 @@ router.post("/account/:mode/reset", async (req, res) => {
         });
     } catch (err) {
         res.status(500).json({ success: false, error: "ACCOUNT_RESET_FAILED", message: err.message });
+    }
+});
+
+
+// GET /api/settings/schema
+router.get("/schema", async (req, res) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+
+        const exposedSchema = getExposedSchema();
+        const userSys = await pgStore.getSystemSettingsForUser(userId);
+        const userEngine = await userEngineSettingsService.get(userId);
+        const paperBroker = await pgStore.getBrokerSettingsForUser(userId, "paper");
+        const liveBroker = await pgStore.getBrokerSettingsForUser(userId, "live");
+
+        const sysPayload = userSys?.payload || {};
+        const uiSettings = sysPayload.ui || {};
+        const settingsVersion = Number(sysPayload.settingsVersion || 1);
+
+        // Check ETag / If-None-Match
+        const etag = String(settingsVersion);
+        if (req.headers["if-none-match"] === etag) {
+            res.setHeader("ETag", etag);
+            return res.status(304).end();
+        }
+
+        const values = {};
+        for (const [key, publicMeta] of Object.entries(exposedSchema)) {
+            const meta = SCHEMA[key];
+            if (meta.storage.table === "user_system_settings") {
+                values[key] = uiSettings[key] !== undefined ? uiSettings[key] : meta.default;
+            } else if (meta.storage.table === "user_engine_settings") {
+                values[key] = userEngine[key] !== undefined ? userEngine[key] : meta.default;
+            } else if (meta.storage.table === "user_broker_settings") {
+                const colOrPath = meta.storage.column || (meta.storage.path ? meta.storage.path.replace("config.", "") : null);
+                const paperVal = meta.storage.column ? paperBroker?.[colOrPath] : paperBroker?.config?.[colOrPath];
+                values[key] = paperVal !== undefined && paperVal !== null ? paperVal : meta.default;
+            } else if (meta.storage.table === "system_settings") {
+                values[key] = meta.default;
+            }
+        }
+
+        res.setHeader("ETag", etag);
+        res.json({
+            success: true,
+            payload: {
+                schema: exposedSchema,
+                values,
+                settingsVersion
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "SCHEMA_READ_FAILED", message: err.message });
+    }
+});
+
+// PATCH /api/settings/key
+router.patch("/key", async (req, res) => {
+    try {
+        const userId = req.user?.sub;
+        if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+
+        const { key, value } = req.body || {};
+        if (!key) return res.status(400).json({ success: false, error: "KEY_REQUIRED" });
+
+        const validation = validateSchema(key, value);
+        if (!validation.ok) {
+            return res.status(400).json({
+                success: false,
+                error: "SETTINGS_VALIDATION_FAILED",
+                key,
+                bounds: validation.bounds
+            });
+        }
+
+        const entry = SCHEMA[key];
+        const valToSave = validation.value;
+        let version = 1;
+
+        if (entry.storage.table === "user_system_settings") {
+            const result = await pgStore.updateUISettingAtomic(userId, key, valToSave);
+            version = result.version;
+        } else if (entry.storage.table === "user_engine_settings") {
+            await userEngineSettingsService.update(userId, { [key]: valToSave });
+            const sys = await pgStore.getSystemSettingsForUser(userId);
+            version = Number(sys?.payload?.settingsVersion || 1);
+        } else if (entry.storage.table === "user_broker_settings") {
+            const configPath = entry.storage.path ? entry.storage.path.replace("config.", "") : null;
+            if (configPath) {
+                await pgStore.upsertBrokerSettingsForUser(userId, "paper", { config: { [configPath]: valToSave } });
+            }
+            const sys = await pgStore.getSystemSettingsForUser(userId);
+            version = Number(sys?.payload?.settingsVersion || 1);
+        }
+
+        // Send WS delta targeted to editing user only
+        broadcaster.sendSettingsDelta(userId, key, valToSave, version);
+
+        res.json({
+            success: true,
+            payload: {
+                key,
+                value: valToSave,
+                version
+            }
+        });
+    } catch (err) {
+        res.status(500).json({ success: false, error: "SETTINGS_UPDATE_FAILED", message: err.message });
     }
 });
 

@@ -235,6 +235,23 @@ class PgStore {
         };
     }
 
+    async updateUISettingAtomic(userId, key, value) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+
+        const sql = "INSERT INTO user_system_settings (user_id, payload, updated_at) " +
+            "VALUES ($1, jsonb_build_object('settingsVersion', 2, 'ui', jsonb_build_object($2::text, $3::jsonb)), NOW()) " +
+            "ON CONFLICT (user_id) DO UPDATE SET " +
+            "payload = jsonb_set(jsonb_set(COALESCE(user_system_settings.payload, '{}'::jsonb), '{ui}', COALESCE(user_system_settings.payload->'ui', '{}'::jsonb) || jsonb_build_object($2::text, $3::jsonb)), '{settingsVersion}', to_jsonb(COALESCE((user_system_settings.payload->>'settingsVersion')::int, 1) + 1)), " +
+            "updated_at = NOW() " +
+            "RETURNING payload;";
+
+        const { rows } = await db.query(sql, [uid, String(key), JSON.stringify(value)]);
+        const updatedPayload = rows[0]?.payload || {};
+        const version = Number(updatedPayload.settingsVersion || 1);
+        return { key, value, version, payload: updatedPayload };
+    }
+
     async getBrokerSettingsForUser(userId, mode) {
         const uid = sanitizeUserId(userId);
         const m = String(mode || "").toLowerCase();
