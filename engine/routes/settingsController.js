@@ -293,46 +293,61 @@ router.post("/account/:mode/reset", async (req, res) => {
 });
 
 
+
 // GET /api/settings/schema
 router.get("/schema", async (req, res) => {
     try {
         const userId = req.user?.sub;
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
 
+        const mode = String(req.query.mode || "").toLowerCase();
+        if (!mode || !["paper", "live"].includes(mode)) {
+            return res.status(400).json({ success: false, error: "MODE_REQUIRED", message: "mode query param required (paper|live)" });
+        }
+
         const exposedSchema = getExposedSchema();
         const userSys = await pgStore.getSystemSettingsForUser(userId);
         const userEngine = await userEngineSettingsService.get(userId);
-        const paperBroker = await pgStore.getBrokerSettingsForUser(userId, "paper");
-        const liveBroker = await pgStore.getBrokerSettingsForUser(userId, "live");
+        const brokerSettings = await pgStore.getBrokerSettingsForUser(userId, mode);
 
         const sysPayload = userSys?.payload || {};
         const uiSettings = sysPayload.ui || {};
         const settingsVersion = Number(sysPayload.settingsVersion || 1);
 
-        // Check ETag / If-None-Match
-        const etag = String(settingsVersion);
-        if (req.headers["if-none-match"] === etag) {
-            res.setHeader("ETag", etag);
-            return res.status(304).end();
+        // F7: Format ETag quoted (e.g. "3") and accept If-None-Match in quoted, unquoted, or W/ forms
+        const etagQuoted = `"${settingsVersion}"`;
+        res.setHeader("ETag", etagQuoted);
+
+        const clientEtag = String(req.headers["if-none-match"] || "").trim();
+        if (clientEtag) {
+            const cleanClientEtag = clientEtag.replace(/^W\//i, "").replace(/"/g, "");
+            if (cleanClientEtag === String(settingsVersion)) {
+                return res.status(304).end();
+            }
         }
 
         const values = {};
         for (const [key, publicMeta] of Object.entries(exposedSchema)) {
             const meta = SCHEMA[key];
-            if (meta.storage.table === "user_system_settings") {
+            if (!meta) continue;
+
+            if (meta.storage?.table === "user_system_settings") {
                 values[key] = uiSettings[key] !== undefined ? uiSettings[key] : meta.default;
-            } else if (meta.storage.table === "user_engine_settings") {
-                values[key] = userEngine[key] !== undefined ? userEngine[key] : meta.default;
-            } else if (meta.storage.table === "user_broker_settings") {
-                const colOrPath = meta.storage.column || (meta.storage.path ? meta.storage.path.replace("config.", "") : null);
-                const paperVal = meta.storage.column ? paperBroker?.[colOrPath] : paperBroker?.config?.[colOrPath];
-                values[key] = paperVal !== undefined && paperVal !== null ? paperVal : meta.default;
-            } else if (meta.storage.table === "system_settings") {
+            } else if (meta.storage?.table === "user_engine_settings") {
+                values[key] = userEngine?.[key] !== undefined ? userEngine[key] : meta.default;
+            } else if (meta.storage?.table === "user_broker_settings") {
+                if (key === "initialCash") {
+                    values[key] = brokerSettings?.initialCash !== undefined ? brokerSettings.initialCash : meta.default;
+                } else {
+                    const configPath = meta.storage.path ? meta.storage.path.replace("config.", "") : null;
+                    const val = configPath ? brokerSettings?.config?.[configPath] : brokerSettings?.[meta.storage.column];
+                    values[key] = val !== undefined && val !== null ? val : meta.default;
+                }
+            } else {
                 values[key] = meta.default;
             }
         }
 
-        res.setHeader("ETag", etag);
         res.json({
             success: true,
             payload: {
@@ -352,14 +367,16 @@ router.patch("/key", async (req, res) => {
         const userId = req.user?.sub;
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
 
-        const { key, value } = req.body || {};
+        const { key, value, mode } = req.body || {};
         if (!key) return res.status(400).json({ success: false, error: "KEY_REQUIRED" });
 
-        const validation = validateSchema(key, value);
+        // Validate via schema registry (F2: validates mode if broker setting)
+        const validation = validateSchema(key, value, mode);
         if (!validation.ok) {
-            return res.status(400).json({
+            const status = validation.error === "MODE_REQUIRED" ? 400 : 400;
+            return res.status(status).json({
                 success: false,
-                error: "SETTINGS_VALIDATION_FAILED",
+                error: validation.error === "MODE_REQUIRED" ? "MODE_REQUIRED" : "SETTINGS_VALIDATION_FAILED",
                 key,
                 bounds: validation.bounds
             });
@@ -367,33 +384,37 @@ router.patch("/key", async (req, res) => {
 
         const entry = SCHEMA[key];
         const valToSave = validation.value;
-        let version = 1;
+        const cleanMode = String(mode || "").toLowerCase();
+        let result;
 
         if (entry.storage.table === "user_system_settings") {
-            const result = await pgStore.updateUISettingAtomic(userId, key, valToSave);
-            version = result.version;
+            result = await pgStore.updateUISettingAtomic(userId, key, valToSave);
         } else if (entry.storage.table === "user_engine_settings") {
-            await userEngineSettingsService.update(userId, { [key]: valToSave });
-            const sys = await pgStore.getSystemSettingsForUser(userId);
-            version = Number(sys?.payload?.settingsVersion || 1);
+            result = await pgStore.patchEngineSettingAtomic(userId, key, valToSave);
         } else if (entry.storage.table === "user_broker_settings") {
-            const configPath = entry.storage.path ? entry.storage.path.replace("config.", "") : null;
-            if (configPath) {
-                await pgStore.upsertBrokerSettingsForUser(userId, "paper", { config: { [configPath]: valToSave } });
+            if (key === "initialCash") {
+                result = await pgStore.patchBrokerInitialCashAtomic(userId, cleanMode, valToSave);
+            } else {
+                const configPath = entry.storage.path ? entry.storage.path.replace("config.", "") : null;
+                result = await pgStore.patchBrokerConfigKeyAtomic(userId, cleanMode, configPath || key, valToSave);
             }
-            const sys = await pgStore.getSystemSettingsForUser(userId);
-            version = Number(sys?.payload?.settingsVersion || 1);
+        } else {
+            return res.status(400).json({ success: false, error: "CANNOT_EDIT_SETTING" });
         }
 
-        // Send WS delta targeted to editing user only
-        broadcaster.sendSettingsDelta(userId, key, valToSave, version);
+        if (!result || !result.version) {
+            return res.status(500).json({ success: false, error: "SETTINGS_UPDATE_FAILED" });
+        }
+
+        // F5 & WS: Send WS delta ONLY after successful DB commit
+        broadcaster.sendSettingsDelta(userId, key, valToSave, result.version);
 
         res.json({
             success: true,
             payload: {
                 key,
                 value: valToSave,
-                version
+                version: result.version
             }
         });
     } catch (err) {

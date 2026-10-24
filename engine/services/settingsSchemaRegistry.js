@@ -1,6 +1,6 @@
 "use strict";
 
-const { RISK_DEFAULTS } = require("@config/constants");
+const { RISK_DEFAULTS, DEFAULT_STRATEGY_CONFIG, PAPER_BROKER_DEFAULTS } = require("@config/constants");
 
 /**
  * Settings Schema Registry
@@ -90,7 +90,7 @@ const SCHEMA = {
         group: "Risk Guardrails",
         default: null,
         min: 0.1,
-        max: RISK_DEFAULTS.MAX_POSITION_SIZE * 100, // clamped by RISK_DEFAULTS (25%)
+        max: RISK_DEFAULTS.MAX_POSITION_SIZE * 100, // 25%
         scope: "user",
         readOnly: false,
         restartRequired: false,
@@ -99,7 +99,7 @@ const SCHEMA = {
         storage: { table: "user_engine_settings", column: "risk_max_position_pct" }
     },
 
-    // Broker / Account Settings
+    // Broker / Account Settings (F2: require mode parameter)
     initialCash: {
         key: "initialCash",
         type: "float",
@@ -150,7 +150,7 @@ const SCHEMA = {
         type: "float",
         label: "Slippage (basis points)",
         group: "Account Simulation",
-        default: 5,
+        default: PAPER_BROKER_DEFAULTS.SLIPPAGE_BPS || 5,
         min: 0,
         max: 500,
         scope: "user",
@@ -165,7 +165,7 @@ const SCHEMA = {
         type: "float",
         label: "Spread (basis points)",
         group: "Account Simulation",
-        default: 2,
+        default: PAPER_BROKER_DEFAULTS.SPREAD_BPS || 2,
         min: 0,
         max: 500,
         scope: "user",
@@ -191,7 +191,7 @@ const SCHEMA = {
         storage: { table: "user_broker_settings", path: "config.leverage" }
     },
 
-    // UI / Editor / Display settings (stored under D2: user_system_settings.payload->'ui')
+    // UI / Editor / Display settings (D2: user_system_settings.payload->'ui')
     theme: {
         key: "theme",
         type: "enum",
@@ -333,43 +333,42 @@ const SCHEMA = {
         storage: { table: "user_system_settings", path: "payload.ui.tablePageSize" }
     },
 
-    // Global Server Values (D4)
+    // Global Server Values (F6: reads real broadcaster/config constants, no system_settings claim)
     wsUpdateRateCap: {
         key: "wsUpdateRateCap",
         type: "int",
         label: "WebSocket Update Rate Cap (ms)",
         group: "System Performance",
-        default: 250,
+        default: PAPER_BROKER_DEFAULTS.POSITION_BROADCAST_MIN_MS || 250,
         min: 50,
         max: 5000,
         scope: "global",
         readOnly: true,
         restartRequired: true,
         exposeToFrontend: true,
-        enforced: true,
-        storage: { table: "system_settings", path: "payload.wsUpdateRateCap" }
+        enforced: true
     },
     maxCandleHistory: {
         key: "maxCandleHistory",
         type: "int",
         label: "Max Engine Candle History Cap",
         group: "System Performance",
-        default: 5000,
+        default: DEFAULT_STRATEGY_CONFIG.MAX_DATA_HISTORY || 5000,
         min: 100,
         max: 100000,
         scope: "global",
         readOnly: true,
         restartRequired: true,
         exposeToFrontend: false,
-        enforced: true,
-        storage: { table: "system_settings", path: "payload.maxCandleHistory" }
+        enforced: true
     }
 };
 
 /**
  * Validates a key and proposed value against the schema registry.
+ * F2: Broker settings require mode.
  */
-function validate(key, value) {
+function validate(key, value, mode = null) {
     const entry = SCHEMA[key];
     if (!entry) {
         return { ok: false, error: "UNKNOWN_SETTING_KEY" };
@@ -377,6 +376,13 @@ function validate(key, value) {
 
     if (entry.readOnly || entry.scope === "global") {
         return { ok: false, error: "READ_ONLY_SETTING", bounds: { readOnly: true, scope: entry.scope } };
+    }
+
+    if (entry.storage?.table === "user_broker_settings") {
+        const cleanMode = String(mode || "").toLowerCase();
+        if (!cleanMode || !["paper", "live"].includes(cleanMode)) {
+            return { ok: false, error: "MODE_REQUIRED" };
+        }
     }
 
     if (value === null || value === undefined) {
