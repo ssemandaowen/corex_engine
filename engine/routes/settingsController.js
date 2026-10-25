@@ -1,6 +1,7 @@
+"use strict";
+
 const { validate: validateSchema, getExposedSchema, SCHEMA } = require("../services/settingsSchemaRegistry");
 const broadcaster = require("../services/broadcaster");
-"use strict";
 
 const db = require("@core/services/postgres");
 const pgStore = require("@core/services/pgStore");
@@ -165,7 +166,29 @@ router.patch("/engine", async (req, res) => {
         const userId = req.user?.sub;
         if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
         const patch = req.body?.settings || req.body || {};
-        const result = await userEngineSettingsService.update(userId, patch);
+
+        let result;
+        let version;
+        if (db.hasDbConfig()) {
+            await db.withTransaction(async (tx) => {
+                result = await userEngineSettingsService.update(userId, patch);
+                version = await pgStore.bumpSettingsVersionTransaction(tx, userId);
+            });
+        } else {
+            result = await userEngineSettingsService.update(userId, patch);
+            const sys = await pgStore.getSystemSettingsForUser(userId);
+            const currentVer = Number(sys?.payload?.settingsVersion || 1);
+            version = currentVer + 1;
+            sys.payload.settingsVersion = version;
+        }
+
+        // Broadcast delta for each changed registry key
+        for (const [key, val] of Object.entries(patch)) {
+            if (SCHEMA[key]) {
+                broadcaster.sendSettingsDelta(userId, key, val, version);
+            }
+        }
+
         res.json({ success: true, payload: result });
     } catch (err) {
         res.status(500).json({ success: false, error: "ENGINE_SETTINGS_UPDATE_FAILED", message: err.message });
@@ -236,16 +259,27 @@ router.patch("/account/:mode", async (req, res) => {
         const patch = req.body || {};
         const existing = await pgStore.getBrokerSettingsForUser(userId, mode);
         const initialCash = patch.initialCapital ?? patch.initialCash ?? existing?.initialCash ?? getAccountDefaults(mode).initialCash;
-        // Everything except cash/initialCash is freeform broker config —
-        // merged and read live by PaperBroker/LiveBroker's config getters.
         const { initialCapital, initialCash: _ic, cash, ...configPatch } = patch;
         const nextConfig = { ...(existing?.config || {}), ...configPatch };
 
-        const result = await pgStore.upsertBrokerSettingsForUser(userId, mode, {
-            cash: cash ?? existing?.cash ?? initialCash,
-            initialCash,
-            config: nextConfig
+        let result;
+        let version;
+        await db.withTransaction(async (tx) => {
+            result = await pgStore.upsertBrokerSettingsForUser(userId, mode, {
+                cash: cash ?? existing?.cash ?? initialCash,
+                initialCash,
+                config: nextConfig
+            });
+            version = await pgStore.bumpSettingsVersionTransaction(tx, userId);
         });
+
+        // Broadcast delta for each changed broker key
+        for (const [key, val] of Object.entries(patch)) {
+            if (SCHEMA[key]) {
+                broadcaster.sendSettingsDelta(userId, key, val, version);
+            }
+        }
+
         res.json({
             success: true,
             payload: {
@@ -271,11 +305,20 @@ router.post("/account/:mode/reset", async (req, res) => {
             return res.status(400).json({ success: false, error: "INVALID_MODE" });
         }
         const defaults = getAccountDefaults(mode);
-        const result = await pgStore.upsertBrokerSettingsForUser(userId, mode, {
-            cash: defaults.initialCash,
-            initialCash: defaults.initialCash,
-            config: {}
+
+        let result;
+        let version;
+        await db.withTransaction(async (tx) => {
+            result = await pgStore.upsertBrokerSettingsForUser(userId, mode, {
+                cash: defaults.initialCash,
+                initialCash: defaults.initialCash,
+                config: {}
+            });
+            version = await pgStore.bumpSettingsVersionTransaction(tx, userId);
         });
+
+        broadcaster.sendSettingsDelta(userId, "account_reset", mode, version);
+
         res.json({
             success: true,
             message: "Account reset to defaults",
