@@ -235,6 +235,135 @@ class PgStore {
         };
     }
 
+
+    async bumpSettingsVersionTransaction(tx, uid) {
+        const sql = "INSERT INTO user_system_settings (user_id, payload, updated_at) " +
+            "VALUES ($1, jsonb_build_object('settingsVersion', 2), NOW()) " +
+            "ON CONFLICT (user_id) DO UPDATE SET " +
+            "payload = jsonb_set(COALESCE(user_system_settings.payload, '{}'::jsonb), '{settingsVersion}', to_jsonb(COALESCE((user_system_settings.payload->>'settingsVersion')::int, 1) + 1)), " +
+            "updated_at = NOW() " +
+            "RETURNING payload;";
+        const client = tx || db;
+        const { rows } = await client.query(sql, [uid]);
+        return Number(rows[0]?.payload?.settingsVersion || 2);
+    }
+
+    async patchBrokerConfigKeyAtomic(userId, mode, key, value) {
+        const uid = sanitizeUserId(userId);
+        const m = String(mode || "").toLowerCase();
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+        if (!["paper", "live"].includes(m)) throw new Error("MODE_REQUIRED");
+
+        return await db.withTransaction(async (tx) => {
+            const checkRes = await tx.query(
+                "SELECT 1 FROM user_broker_settings WHERE user_id = $1 AND mode = $2",
+                [uid, m]
+            );
+            if (checkRes.rowCount === 0) {
+                const defaultInitialCash = 100000;
+                await tx.query(
+                    "INSERT INTO user_broker_settings (user_id, mode, cash, initial_cash, config, updated_at) VALUES ($1, $2, $3, $3, '{}'::jsonb, NOW()) ON CONFLICT (user_id, mode) DO NOTHING",
+                    [uid, m, defaultInitialCash]
+                );
+            }
+
+            const patchSql = "UPDATE user_broker_settings SET " +
+                "config = jsonb_set(COALESCE(config, '{}'::jsonb), ARRAY[$3::text], $4::jsonb), " +
+                "updated_at = NOW() " +
+                "WHERE user_id = $1 AND mode = $2 RETURNING user_id;";
+            const patchRes = await tx.query(patchSql, [uid, m, String(key), JSON.stringify(value)]);
+
+            if (patchRes.rowCount === 0) {
+                throw new Error("SETTINGS_UPDATE_FAILED");
+            }
+
+            const version = await this.bumpSettingsVersionTransaction(tx, uid);
+            return { key, value, mode: m, version };
+        });
+    }
+
+    async patchBrokerInitialCashAtomic(userId, mode, initialCash) {
+        const uid = sanitizeUserId(userId);
+        const m = String(mode || "").toLowerCase();
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+        if (!["paper", "live"].includes(m)) throw new Error("MODE_REQUIRED");
+
+        const numVal = Number(initialCash);
+        if (!Number.isFinite(numVal)) throw new Error("INVALID_INITIAL_CASH");
+
+        return await db.withTransaction(async (tx) => {
+            const checkRes = await tx.query(
+                "SELECT 1 FROM user_broker_settings WHERE user_id = $1 AND mode = $2",
+                [uid, m]
+            );
+            if (checkRes.rowCount === 0) {
+                await tx.query(
+                    "INSERT INTO user_broker_settings (user_id, mode, cash, initial_cash, config, updated_at) VALUES ($1, $2, $3, $3, '{}'::jsonb, NOW()) ON CONFLICT (user_id, mode) DO NOTHING",
+                    [uid, m, numVal]
+                );
+            }
+
+            const patchSql = "UPDATE user_broker_settings SET initial_cash = $3, updated_at = NOW() WHERE user_id = $1 AND mode = $2 RETURNING user_id;";
+            const patchRes = await tx.query(patchSql, [uid, m, numVal]);
+
+            if (patchRes.rowCount === 0) {
+                throw new Error("SETTINGS_UPDATE_FAILED");
+            }
+
+            const version = await this.bumpSettingsVersionTransaction(tx, uid);
+            return { key: "initialCash", value: numVal, mode: m, version };
+        });
+    }
+
+    async patchEngineSettingAtomic(userId, key, value) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+
+        // G2: Whitelist engine setting columns BEFORE query building
+        const allowedColumns = ["max_concurrent_strategies", "default_paper_balance", "default_timeframe", "default_mode"];
+        const col = String(key);
+        if (!allowedColumns.includes(col)) {
+            throw new Error("INVALID_ENGINE_SETTING_KEY");
+        }
+
+        return await db.withTransaction(async (tx) => {
+            const checkRes = await tx.query("SELECT 1 FROM user_engine_settings WHERE user_id = $1", [uid]);
+            if (checkRes.rowCount === 0) {
+                await tx.query(
+                    "INSERT INTO user_engine_settings (user_id, max_concurrent_strategies, default_paper_balance, default_timeframe, default_mode, created_at, updated_at) VALUES ($1, 3, 100000, '1m', 'PAPER', NOW(), NOW()) ON CONFLICT (user_id) DO NOTHING",
+                    [uid]
+                );
+            }
+
+            const sql = `UPDATE user_engine_settings SET ${col} = $2, updated_at = NOW() WHERE user_id = $1 RETURNING user_id;`;
+            const patchRes = await tx.query(sql, [uid, value]);
+
+            if (patchRes.rowCount === 0) {
+                throw new Error("SETTINGS_UPDATE_FAILED");
+            }
+
+            const version = await this.bumpSettingsVersionTransaction(tx, uid);
+            return { key, value, version };
+        });
+    }
+
+    async updateUISettingAtomic(userId, key, value) {
+        const uid = sanitizeUserId(userId);
+        if (!uid) throw new Error("USER_ID_REQUIRED");
+
+        const sql = "INSERT INTO user_system_settings (user_id, payload, updated_at) " +
+            "VALUES ($1, jsonb_build_object('settingsVersion', 2, 'ui', jsonb_build_object($2::text, $3::jsonb)), NOW()) " +
+            "ON CONFLICT (user_id) DO UPDATE SET " +
+            "payload = jsonb_set(jsonb_set(COALESCE(user_system_settings.payload, '{}'::jsonb), '{ui}', COALESCE(user_system_settings.payload->'ui', '{}'::jsonb) || jsonb_build_object($2::text, $3::jsonb)), '{settingsVersion}', to_jsonb(COALESCE((user_system_settings.payload->>'settingsVersion')::int, 1) + 1)), " +
+            "updated_at = NOW() " +
+            "RETURNING payload;";
+
+        const { rows } = await db.query(sql, [uid, String(key), JSON.stringify(value)]);
+        const updatedPayload = rows[0]?.payload || {};
+        const version = Number(updatedPayload.settingsVersion || 1);
+        return { key, value, version, payload: updatedPayload };
+    }
+
     async getBrokerSettingsForUser(userId, mode) {
         const uid = sanitizeUserId(userId);
         const m = String(mode || "").toLowerCase();

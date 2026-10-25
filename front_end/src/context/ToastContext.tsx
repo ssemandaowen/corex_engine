@@ -19,7 +19,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   const showToast = (message: string, type: Toast['type'] = 'info') => {
-    const id = Math.random().toString(36).substr(2, 9);
+    const id = crypto.randomUUID();
     setToasts((prev) => [...prev, { id, message, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -37,14 +37,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               initial={{ opacity: 0, x: 50, scale: 0.9 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 20, scale: 0.9 }}
-              className="p-3 rounded border flex items-start gap-2.5 backdrop-blur-md pointer-events-auto"
+              className="p-3 border flex items-start gap-2.5 pointer-events-auto"
               style={{
                 backgroundColor: 'var(--ui-panel-strong)',
                 borderColor: toast.type === 'success' ? 'var(--ui-positive)' :
                              toast.type === 'error' ? 'var(--ui-negative)' :
                              toast.type === 'warning' ? 'var(--ui-warning)' : 'var(--ui-accent)',
                 color: 'var(--ui-text)',
-                boxShadow: 'var(--ui-shadow)'
+                boxShadow: 'var(--ui-)'
               }}
             >
               {toast.type === 'success' && <CheckCircle2 size={16} className="text-[var(--ui-positive)] shrink-0 mt-0.5" />}

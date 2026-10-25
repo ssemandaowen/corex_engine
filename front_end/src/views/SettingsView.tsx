@@ -440,7 +440,7 @@ export default function SettingsView() {
           {/* SYSTEM */}
           <button
             onClick={() => setActiveTab('system')}
-            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase rounded cursor-pointer text-nowrap shrink-0 ${
+            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase  cursor-pointer text-nowrap shrink-0 ${
               activeTab === 'system' ? 'bg-[var(--ui-panel-soft)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
             }`}
           >
@@ -450,7 +450,7 @@ export default function SettingsView() {
           {/* CONNECTIVITY */}
           <button
             onClick={() => setActiveTab('connectivity')}
-            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase rounded cursor-pointer text-nowrap shrink-0 ${
+            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase  cursor-pointer text-nowrap shrink-0 ${
               activeTab === 'connectivity' ? 'bg-[var(--ui-panel-soft)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
             }`}
           >
@@ -460,7 +460,7 @@ export default function SettingsView() {
           {/* ACCOUNT CONTEXT */}
           <button
             onClick={() => setActiveTab('account')}
-            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase rounded cursor-pointer text-nowrap shrink-0 ${
+            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase  cursor-pointer text-nowrap shrink-0 ${
               activeTab === 'account' ? 'bg-[var(--ui-panel-soft)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
             }`}
           >
@@ -470,7 +470,7 @@ export default function SettingsView() {
           {/* EDITOR */}
           <button
             onClick={() => setActiveTab('editor')}
-            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase rounded cursor-pointer text-nowrap shrink-0 ${
+            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase  cursor-pointer text-nowrap shrink-0 ${
               activeTab === 'editor' ? 'bg-[var(--ui-panel-soft)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
             }`}
           >
@@ -480,7 +480,7 @@ export default function SettingsView() {
           {/* APPEARANCE */}
           <button
             onClick={() => setActiveTab('appearance')}
-            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase rounded cursor-pointer text-nowrap shrink-0 ${
+            className={`w-auto md:w-full text-left px-3 py-2 text-xs font-bold uppercase  cursor-pointer text-nowrap shrink-0 ${
               activeTab === 'appearance' ? 'bg-[var(--ui-panel-soft)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
             }`}
           >
@@ -492,7 +492,7 @@ export default function SettingsView() {
             <div className="pt-0 md:pt-2 mt-0 md:mt-2 border-l md:border-l-0 md:border-t border-[var(--ui-border)]/50 pl-1.5 md:pl-0 flex md:block items-center">
               <button
                 onClick={() => setActiveTab('admin')}
-                className={`w-auto md:w-full text-left px-3 py-2 text-xs font-black uppercase rounded cursor-pointer border border-red-500/25 text-nowrap shrink-0 ${
+                className={`w-auto md:w-full text-left px-3 py-2 text-xs font-black uppercase  cursor-pointer border border-red-500/25 text-nowrap shrink-0 ${
                   activeTab === 'admin' ? 'bg-red-500/10 text-red-400 border-red-500/40' : 'text-red-400/80 hover:bg-red-500/5'
                 }`}
               >
@@ -521,7 +521,7 @@ export default function SettingsView() {
                   type="text" 
                   value={dbConnStr}
                   onChange={(e) => setDbConnStr(e.target.value)}
-                  className="w-full text-xs p-2 rounded border focus:outline-none"
+                  className="w-full text-xs p-2 border focus:outline-none"
                   style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 />
               </div>
@@ -532,7 +532,7 @@ export default function SettingsView() {
                   <select 
                     value={realtimeMode}
                     onChange={(e) => setRealtimeMode(e.target.value as any)}
-                    className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                    className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                     style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                   >
                     <option value="websocket">WebSocket Stream (Low Latency)</option>
@@ -545,7 +545,7 @@ export default function SettingsView() {
                   <select 
                     value={logLevel}
                     onChange={(e) => setLogLevel(e.target.value)}
-                    className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                    className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                     style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                   >
                     <option value="DEBUG">DEBUG (Detailed Telemetry)</option>
@@ -558,10 +558,10 @@ export default function SettingsView() {
               <div className="flex items-center gap-3 pt-2">
                 <button
                   onClick={() => setDbRequired(!dbRequired)}
-                  className="w-9 h-5 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                  className="w-9 h-5 p-0.5 relative cursor-pointer"
                   style={{ backgroundColor: dbRequired ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                 >
-                  <div className={`w-4 h-4 rounded-full bg-white transition-transform ${dbRequired ? 'translate-x-4' : 'translate-x-0'}`} />
+                  <div className={`w-4 h-4  bg-white  ${dbRequired ? 'translate-x-4' : 'translate-x-0'}`} />
                 </button>
                 <div className="flex flex-col leading-none">
                   <span className="text-xs font-bold text-white">Database Verification Required</span>
@@ -580,7 +580,7 @@ export default function SettingsView() {
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Engine Heartbeat (sec)</label>
-                      <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 1, max: 60</span>
+                      <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 1, max: 60</span>
                     </div>
                     <input 
                       type="number" 
@@ -591,7 +591,7 @@ export default function SettingsView() {
                         const err = validateWithSchema('heartbeatInterval', val, CONFIG_SCHEMAS.engine.properties.heartbeatInterval);
                         setValidationErrors(prev => ({ ...prev, heartbeatInterval: err }));
                       }}
-                      className="w-full text-xs p-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
+                      className="w-full text-xs p-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
                       style={{ 
                         borderColor: validationErrors.heartbeatInterval ? 'var(--ui-negative)' : 'var(--ui-border)', 
                         color: validationErrors.heartbeatInterval ? 'var(--ui-negative)' : 'var(--ui-text)' 
@@ -610,7 +610,7 @@ export default function SettingsView() {
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Max Active Strategies</label>
-                      <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 1, max: 20</span>
+                      <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 1, max: 20</span>
                     </div>
                     <input 
                       type="number" 
@@ -621,7 +621,7 @@ export default function SettingsView() {
                         const err = validateWithSchema('maxConcurrentStrategies', val, CONFIG_SCHEMAS.engine.properties.maxConcurrentStrategies);
                         setValidationErrors(prev => ({ ...prev, maxConcurrentStrategies: err }));
                       }}
-                      className="w-full text-xs p-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
+                      className="w-full text-xs p-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
                       style={{ 
                         borderColor: validationErrors.maxConcurrentStrategies ? 'var(--ui-negative)' : 'var(--ui-border)', 
                         color: validationErrors.maxConcurrentStrategies ? 'var(--ui-negative)' : 'var(--ui-text)' 
@@ -643,7 +643,7 @@ export default function SettingsView() {
                     <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)] flex items-center gap-1">
                       Global Daily Risk Max Loss ($)
                     </label>
-                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 0, max: 1M</span>
+                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 0, max: 1M</span>
                   </div>
                   <input 
                     type="number" 
@@ -654,7 +654,7 @@ export default function SettingsView() {
                       const err = validateWithSchema('riskGlobalMaxLoss', val, CONFIG_SCHEMAS.engine.properties.riskGlobalMaxLoss);
                       setValidationErrors(prev => ({ ...prev, riskGlobalMaxLoss: err }));
                     }}
-                    className="w-full text-xs p-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
+                    className="w-full text-xs p-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
                     style={{ 
                       borderColor: validationErrors.riskGlobalMaxLoss ? 'var(--ui-negative)' : 'var(--ui-border)', 
                       color: validationErrors.riskGlobalMaxLoss ? 'var(--ui-negative)' : 'var(--ui-text)' 
@@ -674,7 +674,7 @@ export default function SettingsView() {
               <div className="pt-4 border-t border-[var(--ui-border)]/50">
                 <button 
                   onClick={() => handleSaveSection('System')}
-                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest rounded cursor-pointer hover:opacity-95"
+                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-95"
                 >
                   Save System &amp; Engine Parameters
                 </button>
@@ -689,7 +689,7 @@ export default function SettingsView() {
               </span>
 
               {diagnostics ? (
-                <div className="grid grid-cols-2 gap-3 bg-[var(--ui-panel-strong)] p-3.5 rounded-lg border border-[var(--ui-border)]">
+                <div className="grid grid-cols-2 gap-3 bg-[var(--ui-panel-strong)] p-3.5 border border-[var(--ui-border)]">
                   <div className="space-y-1.5">
                     <div className="flex justify-between items-center text-[10px]">
                       <span className="text-[var(--ui-muted)]">Database Latency:</span>
@@ -733,7 +733,7 @@ export default function SettingsView() {
                   </div>
                 </div>
               ) : (
-                <div className="text-[10px] text-[var(--ui-muted)] italic animate-pulse">
+                <div className="text-[10px] text-[var(--ui-muted)] italic">
                   Connecting to CoreX diagnostics socket...
                 </div>
               )}
@@ -751,7 +751,7 @@ export default function SettingsView() {
               </div>
 
               {/* Subtabs Metatrader/Metaapi */}
-              <div className="flex rounded border bg-[var(--ui-input-bg)] overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="flex border bg-[var(--ui-input-bg)] overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
                 <button
                   onClick={() => setConnSubTab('mt5')}
                   className={`px-3 py-1.5 text-[9px] font-black uppercase cursor-pointer border-r last:border-r-0 ${
@@ -779,7 +779,7 @@ export default function SettingsView() {
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">MetaTrader 5 Account ID</label>
-                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">Format: numbers only</span>
+                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">Format: numbers only</span>
                   </div>
                   <input 
                     type="text" 
@@ -790,7 +790,7 @@ export default function SettingsView() {
                       const err = validateWithSchema('mt5AccountId', val, CONFIG_SCHEMAS.connectors.properties.mt5AccountId);
                       setValidationErrors(prev => ({ ...prev, mt5AccountId: err }));
                     }}
-                    className="w-full text-xs p-2 rounded border focus:outline-none font-mono"
+                    className="w-full text-xs p-2 border focus:outline-none font-mono"
                     style={{ 
                       backgroundColor: 'var(--ui-input-bg)', 
                       borderColor: validationErrors.mt5AccountId ? 'var(--ui-negative)' : 'var(--ui-border)', 
@@ -808,7 +808,7 @@ export default function SettingsView() {
                   <div>
                     <div className="flex justify-between items-center mb-1.5">
                       <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Broker Server</label>
-                      <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 3 chars</span>
+                      <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 3 chars</span>
                     </div>
                     <input 
                       type="text" 
@@ -819,7 +819,7 @@ export default function SettingsView() {
                         const err = validateWithSchema('mt5Server', val, CONFIG_SCHEMAS.connectors.properties.mt5Server);
                         setValidationErrors(prev => ({ ...prev, mt5Server: err }));
                       }}
-                      className="w-full text-xs p-2 rounded border focus:outline-none"
+                      className="w-full text-xs p-2 border focus:outline-none"
                       style={{ 
                         backgroundColor: 'var(--ui-input-bg)', 
                         borderColor: validationErrors.mt5Server ? 'var(--ui-negative)' : 'var(--ui-border)', 
@@ -838,7 +838,7 @@ export default function SettingsView() {
                       type="text" 
                       value={mt5Config.platform}
                       disabled
-                      className="w-full text-xs p-2 rounded border opacity-50 bg-[var(--ui-border)] text-[var(--ui-muted)] font-mono"
+                      className="w-full text-xs p-2 border opacity-50 bg-[var(--ui-border)] text-[var(--ui-muted)] font-mono"
                     />
                   </div>
                 </div>
@@ -846,7 +846,7 @@ export default function SettingsView() {
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Connector API Secret Key</label>
-                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 8 chars</span>
+                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 8 chars</span>
                   </div>
                   <input 
                     type="password" 
@@ -857,7 +857,7 @@ export default function SettingsView() {
                       const err = validateWithSchema('apiSecretKey', val, CONFIG_SCHEMAS.connectors.properties.apiSecretKey);
                       setValidationErrors(prev => ({ ...prev, apiSecretKey: err }));
                     }}
-                    className="w-full text-xs p-2 rounded border focus:outline-none font-mono"
+                    className="w-full text-xs p-2 border focus:outline-none font-mono"
                     style={{ 
                       backgroundColor: 'var(--ui-input-bg)', 
                       borderColor: validationErrors.apiSecretKey ? 'var(--ui-negative)' : 'var(--ui-border)', 
@@ -883,7 +883,7 @@ export default function SettingsView() {
                     type="text" 
                     value={metaApiConfig.accountId}
                     onChange={(e) => setMetaApiConfig({ ...metaApiConfig, accountId: e.target.value })}
-                    className="w-full text-xs p-2 rounded border focus:outline-none"
+                    className="w-full text-xs p-2 border focus:outline-none"
                     style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                   />
                 </div>
@@ -893,7 +893,7 @@ export default function SettingsView() {
                   <textarea 
                     value={metaApiConfig.token}
                     onChange={(e) => setMetaApiConfig({ ...metaApiConfig, token: e.target.value })}
-                    className="w-full text-xs p-2 rounded border focus:outline-none h-16 font-mono"
+                    className="w-full text-xs p-2 border focus:outline-none h-16 font-mono"
                     style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                   />
                 </div>
@@ -903,7 +903,7 @@ export default function SettingsView() {
             <div className="pt-4 border-t border-[var(--ui-border)]/50 flex items-center gap-3">
               <button 
                 onClick={() => handleSaveSection('Connectivity')}
-                className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest rounded cursor-pointer hover:opacity-95"
+                className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-95"
               >
                 Save Connectivity
               </button>
@@ -911,9 +911,9 @@ export default function SettingsView() {
               <button 
                 onClick={handleTestConnection}
                 disabled={testingConnection}
-                className="px-4 py-2 border border-[var(--ui-border-strong)] text-[var(--ui-muted)] hover:text-white text-xs font-bold uppercase tracking-widest rounded cursor-pointer flex items-center gap-1.5"
+                className="px-4 py-2 border border-[var(--ui-border-strong)] text-[var(--ui-muted)] hover:text-white text-xs font-bold uppercase tracking-widest cursor-pointer flex items-center gap-1.5"
               >
-                <RefreshCw size={12} className={testingConnection ? 'animate-spin' : ''} />
+                <RefreshCw size={12} className={testingConnection ? '' : ''} />
                 {testingConnection ? 'Testing...' : 'Test Connection'}
               </button>
             </div>
@@ -935,7 +935,7 @@ export default function SettingsView() {
                 <select 
                   value={editorThemeLocal}
                   onChange={(e) => setEditorThemeLocal(e.target.value as any)}
-                  className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                  className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                   style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 >
                   <option value="corex-dark">CoreX Twilight (High Contrast Dark)</option>
@@ -958,7 +958,7 @@ export default function SettingsView() {
                   max="20" 
                   value={fontSize}
                   onChange={(e) => setFontSize(parseInt(e.target.value))}
-                  className="w-full accent-[var(--ui-accent)] cursor-pointer h-1 rounded"
+                  className="w-full accent-[var(--ui-accent)] cursor-pointer h-1"
                   style={{ backgroundColor: 'var(--ui-border)' }}
                 />
               </div>
@@ -969,7 +969,7 @@ export default function SettingsView() {
                 <select 
                   value={tabSize}
                   onChange={(e) => setTabSize(parseInt(e.target.value))}
-                  className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                  className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                   style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 >
                   <option value={2}>2 Spaces</option>
@@ -983,10 +983,10 @@ export default function SettingsView() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setWordWrap(!wordWrap)}
-                    className="w-9 h-5 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-9 h-5 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: wordWrap ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${wordWrap ? 'translate-x-4' : 'translate-x-0'}`} />
+                    <div className={`w-4 h-4  bg-white  ${wordWrap ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                   <span className="text-xs font-bold text-white uppercase tracking-wider">Enable Word Wrap</span>
                 </div>
@@ -995,10 +995,10 @@ export default function SettingsView() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setMinimap(!minimap)}
-                    className="w-9 h-5 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-9 h-5 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: minimap ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${minimap ? 'translate-x-4' : 'translate-x-0'}`} />
+                    <div className={`w-4 h-4  bg-white  ${minimap ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                   <span className="text-xs font-bold text-white uppercase tracking-wider">Show Monaco Minimap</span>
                 </div>
@@ -1007,10 +1007,10 @@ export default function SettingsView() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setLineNumbers(!lineNumbers)}
-                    className="w-9 h-5 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-9 h-5 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: lineNumbers ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${lineNumbers ? 'translate-x-4' : 'translate-x-0'}`} />
+                    <div className={`w-4 h-4  bg-white  ${lineNumbers ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                   <span className="text-xs font-bold text-white uppercase tracking-wider">Show Line Gutter</span>
                 </div>
@@ -1019,10 +1019,10 @@ export default function SettingsView() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setAutoClosingBrackets(!autoClosingBrackets)}
-                    className="w-9 h-5 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-9 h-5 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: autoClosingBrackets ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-4 h-4 rounded-full bg-white transition-transform ${autoClosingBrackets ? 'translate-x-4' : 'translate-x-0'}`} />
+                    <div className={`w-4 h-4  bg-white  ${autoClosingBrackets ? 'translate-x-4' : 'translate-x-0'}`} />
                   </button>
                   <span className="text-xs font-bold text-white uppercase tracking-wider">Auto Complete Brackets</span>
                 </div>
@@ -1031,7 +1031,7 @@ export default function SettingsView() {
               <div className="pt-4 border-t border-[var(--ui-border)]/50">
                 <button 
                   onClick={() => handleSaveSection('Editor')}
-                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest rounded cursor-pointer hover:opacity-95"
+                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-95"
                 >
                   Save Editor Preferences
                 </button>
@@ -1052,7 +1052,7 @@ export default function SettingsView() {
               <div>
                 <div className="flex justify-between items-center mb-1.5">
                   <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Initial Allocation Capital ($)</label>
-                  <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 1K, max: 10M</span>
+                  <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 1K, max: 10M</span>
                 </div>
                 <input 
                   type="number" 
@@ -1063,7 +1063,7 @@ export default function SettingsView() {
                     const err = validateWithSchema('initialCapital', val, CONFIG_SCHEMAS.account.properties.initialCapital);
                     setValidationErrors(prev => ({ ...prev, initialCapital: err }));
                   }}
-                  className="w-full text-xs p-2 rounded border focus:outline-none font-mono font-bold bg-[var(--ui-input-bg)]"
+                  className="w-full text-xs p-2 border focus:outline-none font-mono font-bold bg-[var(--ui-input-bg)]"
                   style={{ 
                     borderColor: validationErrors.initialCapital ? 'var(--ui-negative)' : 'var(--ui-border)', 
                     color: validationErrors.initialCapital ? 'var(--ui-negative)' : 'var(--ui-text)' 
@@ -1083,7 +1083,7 @@ export default function SettingsView() {
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Brokerage Commission %</label>
-                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 0, max: 5</span>
+                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 0, max: 5</span>
                   </div>
                   <input 
                     type="number" 
@@ -1095,7 +1095,7 @@ export default function SettingsView() {
                       const err = validateWithSchema('commissionPct', val, CONFIG_SCHEMAS.account.properties.commissionPct);
                       setValidationErrors(prev => ({ ...prev, commissionPct: err }));
                     }}
-                    className="w-full text-xs p-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
+                    className="w-full text-xs p-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
                     style={{ 
                       borderColor: validationErrors.commissionPct ? 'var(--ui-negative)' : 'var(--ui-border)', 
                       color: validationErrors.commissionPct ? 'var(--ui-negative)' : 'var(--ui-text)' 
@@ -1114,7 +1114,7 @@ export default function SettingsView() {
                 <div>
                   <div className="flex justify-between items-center mb-1.5">
                     <label className="text-[10px] uppercase font-bold text-[var(--ui-muted)]">Slippage Threshold (BPS)</label>
-                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)] rounded">min: 0, max: 50</span>
+                    <span className="text-[8px] font-mono px-1 bg-slate-500/10 text-[var(--ui-muted)]">min: 0, max: 50</span>
                   </div>
                   <input 
                     type="number" 
@@ -1126,7 +1126,7 @@ export default function SettingsView() {
                       const err = validateWithSchema('slippageBps', val, CONFIG_SCHEMAS.account.properties.slippageBps);
                       setValidationErrors(prev => ({ ...prev, slippageBps: err }));
                     }}
-                    className="w-full text-xs p-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
+                    className="w-full text-xs p-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)]"
                     style={{ 
                       borderColor: validationErrors.slippageBps ? 'var(--ui-negative)' : 'var(--ui-border)', 
                       color: validationErrors.slippageBps ? 'var(--ui-negative)' : 'var(--ui-text)' 
@@ -1146,7 +1146,7 @@ export default function SettingsView() {
               <div className="pt-4 border-t border-[var(--ui-border)]/50">
                 <button 
                   onClick={() => handleSaveSection('Paper')}
-                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest rounded cursor-pointer hover:opacity-95"
+                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-95"
                 >
                   Save Sandbox Parameters
                 </button>
@@ -1179,7 +1179,7 @@ export default function SettingsView() {
                     setEditorThemeLocal(matchedEditorTheme);
                     showToast(`UI theme transitioned to '${chosen}'`, 'success');
                   }}
-                  className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                  className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                   style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 >
                   <option value="dark">CoreX Twilight (High Contrast Dark Mode)</option>
@@ -1194,7 +1194,7 @@ export default function SettingsView() {
                 <select 
                   value={sidebarExpanded ? 'expanded' : 'collapsed'}
                   onChange={(e) => setSidebarExpanded(e.target.value === 'expanded')}
-                  className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                  className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                   style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 >
                   <option value="expanded">Expanded Default (Full Navigation text)</option>
@@ -1207,7 +1207,7 @@ export default function SettingsView() {
                 <select 
                   value={density}
                   onChange={(e) => setDensity(e.target.value as any)}
-                  className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
+                  className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer"
                   style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 >
                   <option value="compact">Compact (Highly dense quantitative arrays)</option>
@@ -1218,7 +1218,7 @@ export default function SettingsView() {
               <div className="pt-4 border-t border-[var(--ui-border)]/50">
                 <button 
                   onClick={() => handleSaveSection('Appearance')}
-                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest rounded cursor-pointer hover:opacity-95"
+                  className="px-4 py-2 bg-[var(--ui-accent)] text-white text-xs font-bold uppercase tracking-widest cursor-pointer hover:opacity-95"
                 >
                   Save Appearance Rules
                 </button>
@@ -1236,7 +1236,7 @@ export default function SettingsView() {
             </div>
 
             {/* Quick Engine Flush Actions */}
-            <div className="p-4 rounded-xl border border-red-500/20 bg-red-500/5 space-y-3">
+            <div className="p-4 border border-red-500/20 bg-red-500/5 space-y-3">
               <span className="text-[10px] uppercase font-black tracking-widest text-red-400 block">
                 Destructive Command Room
               </span>
@@ -1247,7 +1247,7 @@ export default function SettingsView() {
                 onClick={() => {
                   showToast('Flushed all runtime databases and log registers!', 'warning');
                 }}
-                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest rounded cursor-pointer transition-colors"
+                className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold uppercase tracking-widest cursor-pointer"
               >
                 Clear all logs &amp; restart servers
               </button>
@@ -1259,7 +1259,7 @@ export default function SettingsView() {
                 Workspace Accounts
               </span>
 
-              <div className="border border-[var(--ui-border)] rounded-lg overflow-hidden">
+              <div className="border border-[var(--ui-border)] overflow-hidden">
                 <table className="w-full text-left text-[11px] border-collapse">
                   <thead>
                     <tr className="border-b border-[var(--ui-border)] bg-[var(--ui-panel-strong)]" style={{ color: 'var(--ui-muted)' }}>
@@ -1272,11 +1272,11 @@ export default function SettingsView() {
                   </thead>
                   <tbody>
                     {users.map(u => (
-                      <tr key={u.id} className="border-b border-[var(--ui-border)]/40 hover:bg-white/2 transition-colors">
+                      <tr key={u.id} className="border-b border-[var(--ui-border)]/40 hover:bg-white/2">
                         <td className="py-2 px-3 font-bold text-white">{u.name}</td>
                         <td className="py-2 px-3 font-mono text-[var(--ui-muted)]">{u.email}</td>
                         <td className="py-2 px-3">
-                          <span className={`text-[8px] font-black uppercase px-1 py-0.2 rounded border ${
+                          <span className={`text-[8px] font-black uppercase px-1 py-0.2  border ${
                             u.role === 'admin' ? 'bg-red-500/10 text-red-400 border-red-500/25' : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
                           }`}>
                             {u.role}
@@ -1287,14 +1287,14 @@ export default function SettingsView() {
                           {u.role === 'user' && (
                             <button
                               onClick={() => handlePromote(u.id, u.name)}
-                              className="px-1.5 py-0.5 rounded text-[8px] border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white cursor-pointer"
+                              className="px-1.5 py-0.5 text-[8px] border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-white cursor-pointer"
                             >
                               PROMOTE
                             </button>
                           )}
                           <button
                             onClick={() => handleDeactivate(u.id, u.name)}
-                            className="p-1 rounded hover:bg-red-500/15 hover:text-red-500 text-[var(--ui-muted)] cursor-pointer inline-flex items-center"
+                            className="p-1 hover:bg-red-500/15 hover:text-red-500 text-[var(--ui-muted)] cursor-pointer inline-flex items-center"
                           >
                             <Trash2 size={10} />
                           </button>

@@ -416,11 +416,11 @@ export default function AccountView() {
             setConnectionStatus('failed');
             Swal.fire({
               title: 'Connection Failed',
-              html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #ef4444;" class="font-bold mb-2">❌ RESOLUTION_FAILED</p><p style="color: #94a3b8;">The <b>Broker Server Target Name</b> is blank or could not be verified.</p><p class="mt-2 text-gray-400">Please supply a valid broker server address (e.g., <code>ICMarkets-Demo03</code>).</p></div>',
+              html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--neg);" class="font-bold mb-2">❌ RESOLUTION_FAILED</p><p style="color: var(--text-dim);">The <b>Broker Server Target Name</b> is blank or could not be verified.</p><p class="mt-2 text-gray-400">Please supply a valid broker server address (e.g., <code>ICMarkets-Demo03</code>).</p></div>',
               icon: 'error',
-              background: '#070e20',
-              color: '#fff',
-              confirmButtonColor: '#ef4444',
+              background: 'var(--bg-panel)',
+              color: 'var(--text)',
+              confirmButtonColor: 'var(--neg)',
               confirmButtonText: 'Review Settings'
             });
             return;
@@ -437,11 +437,11 @@ export default function AccountView() {
               setConnectionStatus('failed');
               Swal.fire({
                 title: 'Authorization Rejected',
-                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #ef4444;" class="font-bold mb-2">❌ INVALID_ACCOUNT_ID</p><p style="color: #94a3b8;">MetaTrader accounts require a numeric login sequence.</p><p class="mt-2 text-gray-400 font-bold">Received: <code>' + (apiAccountId || '[Empty]') + '</code></p></div>',
+                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--neg);" class="font-bold mb-2">❌ INVALID_ACCOUNT_ID</p><p style="color: var(--text-dim);">MetaTrader accounts require a numeric login sequence.</p><p class="mt-2 text-gray-400 font-bold">Received: <code>' + (apiAccountId || '[Empty]') + '</code></p></div>',
                 icon: 'error',
-                background: '#070e20',
-                color: '#fff',
-                confirmButtonColor: '#ef4444',
+                background: 'var(--bg-panel)',
+                color: 'var(--text)',
+                confirmButtonColor: 'var(--neg)',
                 confirmButtonText: 'Fix Login ID'
               });
               return;
@@ -454,11 +454,11 @@ export default function AccountView() {
               setConnectionStatus('failed');
               Swal.fire({
                 title: 'Authentication Failed',
-                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #ef4444;" class="font-bold mb-2">❌ WRONG_PASSWORD</p><p style="color: #94a3b8;">The password provided is incorrect or has not been customized from placeholder.</p><p class="mt-2 text-gray-400">Verify your Master Password for Account <code>' + apiAccountId + '</code>.</p></div>',
+                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--neg);" class="font-bold mb-2">❌ WRONG_PASSWORD</p><p style="color: var(--text-dim);">The password provided is incorrect or has not been customized from placeholder.</p><p class="mt-2 text-gray-400">Verify your Master Password for Account <code>' + apiAccountId + '</code>.</p></div>',
                 icon: 'error',
-                background: '#070e20',
-                color: '#fff',
-                confirmButtonColor: '#ef4444',
+                background: 'var(--bg-panel)',
+                color: 'var(--text)',
+                confirmButtonColor: 'var(--neg)',
                 confirmButtonText: 'Try Again'
               });
               return;
@@ -474,11 +474,11 @@ export default function AccountView() {
               setConnectionStatus('connected');
               Swal.fire({
                 title: 'Connection Successful',
-                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #10b981;" class="font-bold mb-2">✓ CONNECTED_STABLE</p><p style="color: #94a3b8;">CoreX has established a direct API connection to the terminal server!</p><p class="mt-2 text-gray-400">Account: <b>' + apiAccountId + '</b><br/>Broker Server: <b>' + apiServer + '</b><br/>Sync Protocol: <b>' + apiLibType + '</b></p></div>',
+                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--pos);" class="font-bold mb-2">✓ CONNECTED_STABLE</p><p style="color: var(--text-dim);">CoreX has established a direct API connection to the terminal server!</p><p class="mt-2 text-gray-400">Account: <b>' + apiAccountId + '</b><br/>Broker Server: <b>' + apiServer + '</b><br/>Sync Protocol: <b>' + apiLibType + '</b></p></div>',
                 icon: 'success',
-                background: '#070e20',
-                color: '#fff',
-                confirmButtonColor: '#10b981',
+                background: 'var(--bg-panel)',
+                color: 'var(--text)',
+                confirmButtonColor: 'var(--pos)',
                 confirmButtonText: 'Proceed to Terminal'
               });
             }, 800);
@@ -500,11 +500,11 @@ export default function AccountView() {
             setConnectionStatus('failed');
             Swal.fire({
               title: 'REST Endpoint Bypassed',
-              html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #ef4444;" class="font-bold mb-2">❌ INVALID_GATEWAY_URL</p><p style="color: #94a3b8;">The base REST URL must start with a valid HTTP or HTTPS schema.</p></div>',
+              html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--neg);" class="font-bold mb-2">❌ INVALID_GATEWAY_URL</p><p style="color: var(--text-dim);">The base REST URL must start with a valid HTTP or HTTPS schema.</p></div>',
               icon: 'error',
-              background: '#070e20',
-              color: '#fff',
-              confirmButtonColor: '#ef4444',
+              background: 'var(--bg-panel)',
+              color: 'var(--text)',
+              confirmButtonColor: 'var(--neg)',
               confirmButtonText: 'Change REST URL'
             });
             return;
@@ -521,11 +521,11 @@ export default function AccountView() {
               setConnectionStatus('failed');
               Swal.fire({
                 title: 'REST Auth Token Invalid',
-                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #ef4444;" class="font-bold mb-2">❌ UNAUTHORIZED</p><p style="color: #94a3b8;">The Bearer authorization sequence failed. The server rejected the Token.</p></div>',
+                html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--neg);" class="font-bold mb-2">❌ UNAUTHORIZED</p><p style="color: var(--text-dim);">The Bearer authorization sequence failed. The server rejected the Token.</p></div>',
                 icon: 'error',
-                background: '#070e20',
-                color: '#fff',
-                confirmButtonColor: '#ef4444',
+                background: 'var(--bg-panel)',
+                color: 'var(--text)',
+                confirmButtonColor: 'var(--neg)',
                 confirmButtonText: 'Check Token'
               });
               return;
@@ -537,11 +537,11 @@ export default function AccountView() {
             setConnectionStatus('connected');
             Swal.fire({
               title: 'REST Connection Active',
-              html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #10b981;" class="font-bold mb-2">✓ REST_CONNECTOR_ONLINE</p><p style="color: #94a3b8;">Trade requests are ready to dispatch via secure web requests.</p><p class="mt-2 text-gray-400">Target Router URL:<br/><code style="word-break: break-all;">' + restUrl + '</code></p></div>',
+              html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--pos);" class="font-bold mb-2">✓ REST_CONNECTOR_ONLINE</p><p style="color: var(--text-dim);">Trade requests are ready to dispatch via secure web requests.</p><p class="mt-2 text-gray-400">Target Router URL:<br/><code style="word-break: break-all;">' + restUrl + '</code></p></div>',
               icon: 'success',
-              background: '#070e20',
-              color: '#fff',
-              confirmButtonColor: '#10b981',
+              background: 'var(--bg-panel)',
+              color: 'var(--text)',
+              confirmButtonColor: 'var(--pos)',
               confirmButtonText: 'Confirm Active'
             });
           }, 800);
@@ -562,11 +562,11 @@ export default function AccountView() {
           setConnectionStatus('connected');
           Swal.fire({
             title: 'Bridge Listener Active',
-            html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: #10b981;" class="font-bold mb-2">✓ BRIDGE_LISTENER_ACTIVE</p><p style="color: #94a3b8;">The local socket server is actively listening on port <b>' + scriptPort + '</b>.</p><p class="mt-2 text-gray-400">Copy the connection link and enter it in MT5 Options as an approved WebRequest host to complete integration.</p></div>',
+            html: '<div style="text-align: left; font-size: 13px;" class="font-mono text-xs"><p style="color: var(--pos);" class="font-bold mb-2">✓ BRIDGE_LISTENER_ACTIVE</p><p style="color: var(--text-dim);">The local socket server is actively listening on port <b>' + scriptPort + '</b>.</p><p class="mt-2 text-gray-400">Copy the connection link and enter it in MT5 Options as an approved WebRequest host to complete integration.</p></div>',
             icon: 'success',
-            background: '#070e20',
-            color: '#fff',
-            confirmButtonColor: '#10b981',
+            background: 'var(--bg-panel)',
+            color: 'var(--text)',
+            confirmButtonColor: 'var(--pos)',
             confirmButtonText: 'Review Steps'
           });
         }, 1200);
@@ -588,7 +588,7 @@ export default function AccountView() {
           <button
             id="tab-paper-btn"
             onClick={() => setActiveTab('paper')}
-            className={`flex items-center gap-1.5 h-full px-3 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 h-full px-3 text-[10px] font-black uppercase tracking-wider border-b-2  cursor-pointer ${
               activeTab === 'paper' 
                 ? 'border-[var(--ui-accent)] text-white font-black' 
                 : 'border-transparent text-[var(--ui-muted)] hover:text-white'
@@ -601,7 +601,7 @@ export default function AccountView() {
           <button
             id="tab-live-btn"
             onClick={() => setActiveTab('live')}
-            className={`flex items-center gap-1.5 h-full px-3 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 h-full px-3 text-[10px] font-black uppercase tracking-wider border-b-2  cursor-pointer ${
               activeTab === 'live' 
                 ? 'border-[var(--ui-accent)] text-white font-black' 
                 : 'border-transparent text-[var(--ui-muted)] hover:text-white'
@@ -614,8 +614,8 @@ export default function AccountView() {
 
         {/* Global Loading Indicator */}
         {isLoading && (
-          <div className="flex items-center gap-1.5 text-[9px] text-[var(--ui-muted)] font-mono animate-pulse">
-            <RefreshCw size={10} className="animate-spin text-[var(--ui-accent)]" />
+          <div className="flex items-center gap-1.5 text-[9px] text-[var(--ui-muted)] font-mono">
+            <RefreshCw size={10} className="text-[var(--ui-accent)]" />
             <span>SYNCING COREX BROKER STATES...</span>
           </div>
         )}
@@ -629,31 +629,31 @@ export default function AccountView() {
           <div className="space-y-6 max-w-5xl">
             {/* Top row cards - Sandbox Account Metrics */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3.5">
-              <div className="p-3.5 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-3.5 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] block mb-1">Sandbox Balance</span>
                 <span className="text-lg font-mono font-black text-white">
                   {paperAccount?.balance !== undefined ? `$${Number(paperAccount.balance).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '---'}
                 </span>
               </div>
-              <div className="p-3.5 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-3.5 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] block mb-1">Sandbox Equity</span>
                 <span className="text-lg font-mono font-black text-emerald-400">
                   {paperAccount?.equity !== undefined ? `$${Number(paperAccount.equity).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '---'}
                 </span>
               </div>
-              <div className="p-3.5 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-3.5 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] block mb-1">Free Margin</span>
                 <span className="text-lg font-mono font-black text-white">
                   {paperAccount?.freeMargin !== undefined ? `$${Number(paperAccount.freeMargin).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '---'}
                 </span>
               </div>
-              <div className="p-3.5 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-3.5 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] block mb-1">Used Margin</span>
                 <span className="text-lg font-mono font-black text-white">
                   {paperAccount?.margin !== undefined ? `$${Number(paperAccount.margin).toLocaleString(undefined, { minimumFractionDigits: 2 })}` : '---'}
                 </span>
               </div>
-              <div className="p-3.5 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-3.5 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] block mb-1">Margin Level</span>
                 <span className="text-lg font-mono font-black text-emerald-400">
                   {paperAccount?.marginLevel !== undefined ? `${Number(paperAccount.marginLevel).toFixed(1)}%` : '---'}
@@ -662,7 +662,7 @@ export default function AccountView() {
             </div>
 
             {/* Core Settings Block */}
-            <div className="p-5 rounded-xl border bg-[var(--ui-panel)] space-y-5" style={{ borderColor: 'var(--ui-border)' }}>
+            <div className="p-5 border bg-[var(--ui-panel)] space-y-5" style={{ borderColor: 'var(--ui-border)' }}>
               <div className="flex items-center gap-2 border-b border-[var(--ui-border)]/50 pb-2.5">
                 <Sliders size={13} className="text-[var(--ui-accent)]" />
                 <span className="text-[10px] uppercase font-black tracking-widest text-white leading-none">
@@ -684,7 +684,7 @@ export default function AccountView() {
                       id="paper-base-currency-select"
                       value={paperBaseCurrency}
                       onChange={(e) => setPaperBaseCurrency(e.target.value)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-bold text-white font-mono"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-bold text-white font-mono"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
                       <option value="USD">USD - United States Dollar</option>
@@ -703,13 +703,13 @@ export default function AccountView() {
                         type="number"
                         value={paperCapital}
                         onChange={(e) => setPaperCapital(parseInt(e.target.value) || 0)}
-                        className="flex-1 text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono font-bold text-white"
+                        className="flex-1 text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono font-bold text-white"
                         style={{ borderColor: 'var(--ui-border)' }}
                       />
                       <button 
                         id="paper-reset-btn"
                         onClick={handleResetPaper}
-                        className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold text-[9px] uppercase tracking-wider rounded cursor-pointer transition-all active:scale-95"
+                        className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 font-bold text-[9px] uppercase tracking-wider cursor-pointer"
                         title="Re-fund the account and clear all paper transactions state"
                       >
                         Reset Balance
@@ -730,7 +730,7 @@ export default function AccountView() {
                       id="paper-leverage-select"
                       value={paperLeverage}
                       onChange={(e) => setPaperLeverage(e.target.value)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-mono font-bold text-white"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-mono font-bold text-white"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
                       <option value="1:1">1:1 - No Leverage</option>
@@ -750,7 +750,7 @@ export default function AccountView() {
                         type="number"
                         value={paperMarginCall}
                         onChange={(e) => setPaperMarginCall(parseInt(e.target.value) || 0)}
-                        className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                        className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                         style={{ borderColor: 'var(--ui-border)' }}
                       />
                     </div>
@@ -761,7 +761,7 @@ export default function AccountView() {
                         type="number"
                         value={paperStopOut}
                         onChange={(e) => setPaperStopOut(parseInt(e.target.value) || 0)}
-                        className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                        className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                         style={{ borderColor: 'var(--ui-border)' }}
                       />
                     </div>
@@ -780,7 +780,7 @@ export default function AccountView() {
                       id="paper-execution-mode-select"
                       value={paperExecutionMode}
                       onChange={(e) => setPaperExecutionMode(e.target.value)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-bold text-white"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-bold text-white"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
                       <option value="MARKET">Market Execution (Instant Fills)</option>
@@ -796,7 +796,7 @@ export default function AccountView() {
                         id="paper-spread-type-select"
                         value={paperSpreadType}
                         onChange={(e) => setPaperSpreadType(e.target.value)}
-                        className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer text-white text-[11px]"
+                        className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer text-white text-[11px]"
                         style={{ borderColor: 'var(--ui-border)' }}
                       >
                         <option value="FIXED">Fixed Spread</option>
@@ -814,7 +814,7 @@ export default function AccountView() {
                         disabled={paperSpreadType !== 'FIXED'}
                         value={paperFixedSpread}
                         onChange={(e) => setPaperFixedSpread(parseFloat(e.target.value) || 0)}
-                        className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white disabled:opacity-30 disabled:cursor-not-allowed"
                         style={{ borderColor: 'var(--ui-border)' }}
                       />
                     </div>
@@ -833,7 +833,7 @@ export default function AccountView() {
                     step="0.1"
                     value={paperSlippage}
                     onChange={(e) => setPaperSlippage(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                    className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                     style={{ borderColor: 'var(--ui-border)' }}
                   />
                   <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Randomized execution slippage bounds</span>
@@ -847,7 +847,7 @@ export default function AccountView() {
                     step="0.001"
                     value={paperCommission}
                     onChange={(e) => setPaperCommission(parseFloat(e.target.value) || 0)}
-                    className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                    className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                     style={{ borderColor: 'var(--ui-border)' }}
                   />
                   <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Simulated flat transacting cost percentage</span>
@@ -861,7 +861,7 @@ export default function AccountView() {
                       type="text"
                       value={paperStateFilePath}
                       onChange={(e) => setPaperStateFilePath(e.target.value)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-[11px] text-[var(--ui-accent)] font-bold pl-7"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-[11px] text-[var(--ui-accent)] font-bold pl-7"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <Database size={11} className="absolute left-2.5 top-3 text-[var(--ui-muted)]" />
@@ -885,7 +885,7 @@ export default function AccountView() {
                       min="0"
                       value={paperExecutionLatency}
                       onChange={(e) => setPaperExecutionLatency(parseInt(e.target.value) || 0)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Delay added before orders are matched (0-5000ms)</span>
@@ -897,25 +897,25 @@ export default function AccountView() {
                       id="paper-fill-policy-select"
                       value={paperFillPolicy}
                       onChange={(e) => setPaperFillPolicy(e.target.value)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold cursor-pointer"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold cursor-pointer"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
-                      <option value="GTC" className="bg-[#0b1329]">GTC (Good Till Cancelled)</option>
-                      <option value="FOK" className="bg-[#0b1329]">FOK (Fill or Kill - Strict)</option>
-                      <option value="IOC" className="bg-[#0b1329]">IOC (Immediate or Cancel)</option>
+                      <option value="GTC" className="bg-[var(--bg-raised)]">GTC (Good Till Cancelled)</option>
+                      <option value="FOK" className="bg-[var(--bg-raised)]">FOK (Fill or Kill - Strict)</option>
+                      <option value="IOC" className="bg-[var(--bg-raised)]">IOC (Immediate or Cancel)</option>
                     </select>
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Defines order execution matching lifecycle</span>
                   </div>
 
                   <div>
                     <label className="block text-[9px] uppercase tracking-wider font-bold text-[var(--ui-muted)] mb-1">Position Hedging Policy</label>
-                    <div className="flex items-center gap-3 p-2 rounded bg-[var(--ui-input-bg)] border" style={{ borderColor: 'var(--ui-border)' }}>
+                    <div className="flex items-center gap-3 p-2 bg-[var(--ui-input-bg)] border" style={{ borderColor: 'var(--ui-border)' }}>
                       <input 
                         id="paper-hedging-checkbox"
                         type="checkbox"
                         checked={paperAllowHedging}
                         onChange={(e) => setPaperAllowHedging(e.target.checked)}
-                        className="rounded border-[var(--ui-border)] text-[var(--ui-accent)] focus:ring-[var(--ui-accent)]"
+                        className="border-[var(--ui-border)] text-[var(--ui-accent)] focus:(--ui-accent)]"
                       />
                       <span className="text-xs text-white font-mono font-medium">Allow Concurrent Hedging</span>
                     </div>
@@ -939,7 +939,7 @@ export default function AccountView() {
                       min="0.1"
                       value={paperMaxOrderSize}
                       onChange={(e) => setPaperMaxOrderSize(parseFloat(e.target.value) || 0.1)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Capping max transaction size per individual order ticket</span>
@@ -955,7 +955,7 @@ export default function AccountView() {
                       max="100"
                       value={paperLiquidityConstraint}
                       onChange={(e) => setPaperLiquidityConstraint(parseInt(e.target.value) || 1)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Maximum % of real candle volume filled in sandbox</span>
@@ -970,7 +970,7 @@ export default function AccountView() {
                       min="0"
                       value={paperDailyLossCap}
                       onChange={(e) => setPaperDailyLossCap(parseFloat(e.target.value) || 0)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Halt all trade activities if daily realized loss exceeds cap</span>
@@ -992,7 +992,7 @@ export default function AccountView() {
                       step="0.1"
                       value={paperInterestRate}
                       onChange={(e) => setPaperInterestRate(parseFloat(e.target.value) || 0)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Annual swap financing rate applied for holding trades overnight</span>
@@ -1006,7 +1006,7 @@ export default function AccountView() {
                       step="0.001"
                       value={paperMakerFee}
                       onChange={(e) => setPaperMakerFee(parseFloat(e.target.value) || 0)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Discount rebate or premium charged to order creators</span>
@@ -1017,12 +1017,12 @@ export default function AccountView() {
                     <select 
                       id="paper-tick-interpolation-select"
                       defaultValue="TICK"
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold cursor-pointer"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold cursor-pointer"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
-                      <option value="TICK" className="bg-[#0b1329]">Tick-by-Tick Feed (Real Time)</option>
-                      <option value="OHLC_1M" className="bg-[#0b1329]">OHLC 1m Bar Snapshots</option>
-                      <option value="RANDOM_WALK" className="bg-[#0b1329]">Random Walk Monte Carlo</option>
+                      <option value="TICK" className="bg-[var(--bg-raised)]">Tick-by-Tick Feed (Real Time)</option>
+                      <option value="OHLC_1M" className="bg-[var(--bg-raised)]">OHLC 1m Bar Snapshots</option>
+                      <option value="RANDOM_WALK" className="bg-[var(--bg-raised)]">Random Walk Monte Carlo</option>
                     </select>
                     <span className="text-[8px] text-[var(--ui-muted)] block mt-1">Defines simulated sub-candle price-feed generation</span>
                   </div>
@@ -1032,7 +1032,7 @@ export default function AccountView() {
               {/* Action row */}
               <div className="pt-4 border-t border-[var(--ui-border)]/50 flex justify-between items-center">
                 <div className="flex items-center gap-1.5 text-[9px] text-[var(--ui-muted)] font-mono">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                  <span className="h-1.5 w-1.5 bg-emerald-500"></span>
                   <span>PAPER BROKER RUNTIME MODULE OK</span>
                 </div>
 
@@ -1040,9 +1040,9 @@ export default function AccountView() {
                   id="paper-save-btn"
                   onClick={handleSavePaperConfig}
                   disabled={isSaving}
-                  className="px-5 py-2.5 bg-[var(--ui-accent)] hover:opacity-90 text-white font-bold text-[10px] uppercase tracking-widest rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                  className="px-5 py-2.5 bg-[var(--ui-accent)] hover:opacity-90 text-white font-bold text-[10px] uppercase tracking-widest cursor-pointer flex items-center gap-1.5"
                 >
-                  {isSaving ? <RefreshCw size={11} className="animate-spin" /> : <Settings size={11} />}
+                  {isSaving ? <RefreshCw size={11} className="" /> : <Settings size={11} />}
                   <span>Save Sandbox Configuration</span>
                 </button>
               </div>
@@ -1055,29 +1055,29 @@ export default function AccountView() {
           <div className="space-y-6 max-w-6xl">
             {/* Live Metrics Header Row */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-4 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 block">Live Balance</span>
                 <span className="text-xl font-mono font-black text-white">${liveMetrics.balance.toLocaleString()}.00</span>
               </div>
-              <div className="p-4 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-4 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 block">Live Equity</span>
                 <span className={`text-xl font-mono font-black ${totalPositionsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   ${(liveMetrics.balance + totalPositionsPnl).toLocaleString()}.00
                 </span>
               </div>
-              <div className="p-4 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-4 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 block">Floating PnL</span>
                 <span className={`text-xl font-mono font-black flex items-center gap-1 ${totalPositionsPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {totalPositionsPnl >= 0 ? '+' : ''}${totalPositionsPnl.toLocaleString()}.00
                   {totalPositionsPnl !== 0 && (
                     <span className="relative flex h-2 w-2 shrink-0">
-                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${totalPositionsPnl >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
-                      <span className={`relative inline-flex rounded-full h-2 w-2 ${totalPositionsPnl >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+                      <span className={` absolute inline-flex h-full w-full  opacity-75 ${totalPositionsPnl >= 0 ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                      <span className={`relative inline-flex  h-2 w-2 ${totalPositionsPnl >= 0 ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                     </span>
                   )}
                 </span>
               </div>
-              <div className="p-4 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="p-4 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 block">Broker Context / Leverage</span>
                 <span className="text-sm font-black text-white truncate">{liveMetrics.leverage}</span>
               </div>
@@ -1087,25 +1087,25 @@ export default function AccountView() {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
               
               {/* Connector Config Gateway Left Panel (7 Cols) */}
-              <div className="lg:col-span-7 p-5 rounded-xl border bg-[var(--ui-panel)] space-y-5" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="lg:col-span-7 p-5 border bg-[var(--ui-panel)] space-y-5" style={{ borderColor: 'var(--ui-border)' }}>
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--ui-border)]/50 pb-3">
                   <div className="flex items-center gap-2">
-                    <Cpu size={13} className="text-[var(--ui-accent)] animate-pulse" />
+                    <Cpu size={13} className="text-[var(--ui-accent)]" />
                     <span className="text-[10px] uppercase font-black tracking-widest text-white leading-none">
                       CONNECTOR GATEWAY ROUTER CONTROLLER
                     </span>
                   </div>
 
                   {/* 3-way Connector Mode Segment Selector */}
-                  <div className="flex rounded border bg-[var(--ui-input-bg)] overflow-hidden shrink-0" style={{ borderColor: 'var(--ui-border)' }}>
+                  <div className="flex border bg-[var(--ui-input-bg)] overflow-hidden shrink-0" style={{ borderColor: 'var(--ui-border)' }}>
                     <button
                       id="live-connector-mode-rest-btn"
                       onClick={() => {
                         setLiveConnectorMode('rest');
                         setLogs([{ time: new Date().toLocaleTimeString(), type: 'info', message: 'Switched live connector gateway to REST API.' }]);
                       }}
-                      className={`px-2.5 py-1 text-[8px] font-black uppercase cursor-pointer border-r border-[var(--ui-border)] transition-all ${
+                      className={`px-2.5 py-1 text-[8px] font-black uppercase cursor-pointer border-r border-[var(--ui-border)]  ${
                         liveConnectorMode === 'rest' ? 'bg-[var(--ui-accent)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
                       }`}
                     >
@@ -1117,7 +1117,7 @@ export default function AccountView() {
                         setLiveConnectorMode('script');
                         setLogs([{ time: new Date().toLocaleTimeString(), type: 'info', message: 'Switched live connector gateway to MT5 Live Bridge.' }]);
                       }}
-                      className={`px-2.5 py-1 text-[8px] font-black uppercase cursor-pointer border-r border-[var(--ui-border)] transition-all ${
+                      className={`px-2.5 py-1 text-[8px] font-black uppercase cursor-pointer border-r border-[var(--ui-border)]  ${
                         liveConnectorMode === 'script' ? 'bg-[var(--ui-accent)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
                       }`}
                     >
@@ -1129,7 +1129,7 @@ export default function AccountView() {
                         setLiveConnectorMode('api');
                         setLogs([{ time: new Date().toLocaleTimeString(), type: 'info', message: 'Switched live connector gateway to direct MT5 API.' }]);
                       }}
-                      className={`px-2.5 py-1 text-[8px] font-black uppercase cursor-pointer transition-all ${
+                      className={`px-2.5 py-1 text-[8px] font-black uppercase cursor-pointer  ${
                         liveConnectorMode === 'api' ? 'bg-[var(--ui-accent)] text-white font-black' : 'text-[var(--ui-muted)] hover:text-white'
                       }`}
                     >
@@ -1141,13 +1141,13 @@ export default function AccountView() {
                 {/* --- 1. REST CONNECTOR UI --- */}
                 {liveConnectorMode === 'rest' && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-blue-500/5 rounded-lg border border-blue-500/10 text-[9px] text-[var(--ui-muted)] leading-relaxed">
+                    <div className="p-3 bg-blue-500/5 border border-blue-500/10 text-[9px] text-[var(--ui-muted)] leading-relaxed">
                       <span className="font-bold text-blue-400 block mb-1 uppercase tracking-wider">REST Gateway Order Routing Methodology</span>
                       Executes trade actions instantly over HTTPS webhook requests. This route allows external alerts, custom backends, or third-party webhooks (e.g. TradingView alerts) to dispatch trades into CoreX.
                     </div>
 
                     {/* Generative route displays */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-[var(--ui-input-bg)]/40 rounded-lg border border-[var(--ui-border)]/50">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 bg-[var(--ui-input-bg)]/40 border border-[var(--ui-border)]/50">
                       <div>
                         <span className="block text-[8px] font-black text-[var(--ui-muted)] uppercase mb-1">Target WebHook Trade URL</span>
                         <div className="flex gap-1.5">
@@ -1155,11 +1155,11 @@ export default function AccountView() {
                             readOnly
                             type="text" 
                             value={`${window.location.origin}/api/v1/trade`}
-                            className="flex-1 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] text-[9px] font-mono px-2 py-1.5 rounded text-[var(--ui-accent)] select-all focus:outline-none"
+                            className="flex-1 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] text-[9px] font-mono px-2 py-1.5 text-[var(--ui-accent)] select-all focus:outline-none"
                           />
                           <button 
                             onClick={() => copyToClipboard(`${window.location.origin}/api/v1/trade`, 'trade-url')}
-                            className="px-2 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-border-strong)] border border-[var(--ui-border)] rounded text-gray-300 transition-all cursor-pointer"
+                            className="px-2 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-border-strong)] border border-[var(--ui-border)] text-gray-300 cursor-pointer"
                           >
                             {copiedField === 'trade-url' ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                           </button>
@@ -1173,11 +1173,11 @@ export default function AccountView() {
                             readOnly
                             type="text" 
                             value={`${window.location.origin}/api/v1/alerts`}
-                            className="flex-1 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] text-[9px] font-mono px-2 py-1.5 rounded text-[var(--ui-accent)] select-all focus:outline-none"
+                            className="flex-1 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] text-[9px] font-mono px-2 py-1.5 text-[var(--ui-accent)] select-all focus:outline-none"
                           />
                           <button 
                             onClick={() => copyToClipboard(`${window.location.origin}/api/v1/alerts`, 'alert-url')}
-                            className="px-2 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-border-strong)] border border-[var(--ui-border)] rounded text-gray-300 transition-all cursor-pointer"
+                            className="px-2 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-border-strong)] border border-[var(--ui-border)] text-gray-300 cursor-pointer"
                           >
                             {copiedField === 'alert-url' ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                           </button>
@@ -1194,7 +1194,7 @@ export default function AccountView() {
                             type="text" 
                             value={restUrl}
                             onChange={(e) => setRestUrl(e.target.value)}
-                            className="w-full text-xs p-2 pl-7 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                            className="w-full text-xs p-2 pl-7 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                             style={{ borderColor: 'var(--ui-border)' }}
                           />
                           <Globe size={11} className="absolute left-2.5 top-3 text-[var(--ui-muted)]" />
@@ -1209,7 +1209,7 @@ export default function AccountView() {
                             type="text" 
                             value={restClientId}
                             onChange={(e) => setRestClientId(e.target.value)}
-                            className="w-full text-xs p-2 pl-7 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                            className="w-full text-xs p-2 pl-7 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                             style={{ borderColor: 'var(--ui-border)' }}
                           />
                           <Server size={11} className="absolute left-2.5 top-3 text-[var(--ui-muted)]" />
@@ -1229,7 +1229,7 @@ export default function AccountView() {
                               type="password" 
                               value={restToken}
                               onChange={(e) => setRestToken(e.target.value)}
-                              className="w-full text-xs p-2 pl-7 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                              className="w-full text-xs p-2 pl-7 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                               style={{ borderColor: 'var(--ui-border)' }}
                             />
                             <Lock size={11} className="absolute left-2.5 top-3 text-[var(--ui-muted)]" />
@@ -1251,7 +1251,7 @@ export default function AccountView() {
                                 showToast('Error generating key', 'error');
                               }
                             }}
-                            className="px-2.5 py-1.5 text-[8px] font-black uppercase border border-[var(--ui-border-strong)] bg-[var(--ui-panel-soft)] hover:bg-[var(--ui-border)] hover:text-white text-[var(--ui-muted)] rounded transition-all cursor-pointer whitespace-nowrap"
+                            className="px-2.5 py-1.5 text-[8px] font-black uppercase border border-[var(--ui-border-strong)] bg-[var(--ui-panel-soft)] hover:bg-[var(--ui-border)] hover:text-white text-[var(--ui-muted)] cursor-pointer whitespace-nowrap"
                           >
                             Generate Key
                           </button>
@@ -1265,7 +1265,7 @@ export default function AccountView() {
                           type="number" 
                           value={restTimeout}
                           onChange={(e) => setRestTimeout(parseInt(e.target.value) || 0)}
-                          className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                          className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                           style={{ borderColor: 'var(--ui-border)' }}
                         />
                       </div>
@@ -1276,13 +1276,13 @@ export default function AccountView() {
                 {/* --- 2. DIRECT MT5 SCRIPT-BASED LIVE BRIDGE UI --- */}
                 {liveConnectorMode === 'script' && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-emerald-500/5 rounded-lg border border-emerald-500/10 text-[9px] text-[var(--ui-muted)] leading-relaxed">
+                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/10 text-[9px] text-[var(--ui-muted)] leading-relaxed">
                       <span className="font-bold text-emerald-400 block mb-1 uppercase tracking-wider">MQL5 Terminal Loop Direct Integration</span>
                       Streams orders into a running MetaTrader 5 Terminal process on this server via web hooks or direct shared memory buffers. Download the Expert Advisor, place it on any chart, and paste the generated URL path below.
                     </div>
 
                     {/* Master Server Generated Link */}
-                    <div className="p-3 bg-[var(--ui-panel-strong)] rounded-lg border border-[var(--ui-border)]/60">
+                    <div className="p-3 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)]/60">
                       <span className="block text-[9px] uppercase font-black text-[var(--ui-muted)] tracking-wider mb-1">
                         Master Server WebRequest Host Link (Provide to MT5)
                       </span>
@@ -1292,11 +1292,11 @@ export default function AccountView() {
                           id="script-server-link-input"
                           type="text" 
                           value={`${window.location.origin}/api/v1/bridge/webhook`}
-                          className="flex-1 bg-[var(--ui-input-bg)] border border-[var(--ui-border)] text-[10px] font-mono px-2.5 py-2 rounded text-[var(--ui-accent-strong)] select-all focus:outline-none"
+                          className="flex-1 bg-[var(--ui-input-bg)] border border-[var(--ui-border)] text-[10px] font-mono px-2.5 py-2 text-[var(--ui-accent-strong)] select-all focus:outline-none"
                         />
                         <button 
                           onClick={() => copyToClipboard(`${window.location.origin}/api/v1/bridge/webhook`, 'bridge-link')}
-                          className="px-3.5 bg-[var(--ui-accent)] hover:bg-[var(--ui-accent-strong)] text-white rounded text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                          className="px-3.5 bg-[var(--ui-accent)] hover:bg-[var(--ui-accent-strong)] text-white text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 cursor-pointer"
                         >
                           {copiedField === 'bridge-link' ? <Check size={11} /> : <Copy size={11} />}
                           <span>{copiedField === 'bridge-link' ? 'Copied' : 'Copy'}</span>
@@ -1308,7 +1308,7 @@ export default function AccountView() {
                     </div>
 
                     {/* Interactive EX5 Script Downloader */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[var(--ui-input-bg)]/20 border border-[var(--ui-border)]/40 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-[var(--ui-input-bg)]/20 border border-[var(--ui-border)]/40">
                       <div className="space-y-1.5">
                         <span className="block text-[10px] font-black text-white uppercase flex items-center gap-1">
                           <Code size={11} className="text-emerald-400" />
@@ -1345,13 +1345,13 @@ export default function AccountView() {
                                 </ol>
                               </div>`,
                               icon: 'success',
-                              background: '#070e20',
-                              color: '#fff',
-                              confirmButtonColor: '#10b981',
+                              background: 'var(--bg-panel)',
+                              color: 'var(--text)',
+                              confirmButtonColor: 'var(--pos)',
                               confirmButtonText: 'Understood'
                             });
                           }}
-                          className="w-full sm:w-auto px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider rounded flex items-center justify-center gap-1.5 cursor-pointer transition-all active:scale-95 shadow-md"
+                          className="w-full sm:w-auto px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                         >
                           <Download size={12} />
                           <span>Download CoreXBridge.ex5</span>
@@ -1366,7 +1366,7 @@ export default function AccountView() {
                 {/* --- 3. NATIVE MT5 API DIRECT CONNECTOR UI --- */}
                 {liveConnectorMode === 'api' && (
                   <div className="space-y-4">
-                    <div className="p-3 bg-amber-500/5 rounded-lg border border-amber-500/10 text-[9px] text-[var(--ui-muted)] leading-relaxed">
+                    <div className="p-3 bg-amber-500/5 border border-amber-500/10 text-[9px] text-[var(--ui-muted)] leading-relaxed">
                       <span className="font-bold text-amber-400 block mb-1 uppercase tracking-wider">MetaTrader Direct SDK Daemon Connection</span>
                       Logs directly into the MetaTrader API using account credentials. CoreX acts as a client node, connecting directly to the MT5 servers, allowing live balances and portfolio actions to sync instantly.
                     </div>
@@ -1380,7 +1380,7 @@ export default function AccountView() {
                           value={apiAccountId}
                           onChange={(e) => setApiAccountId(e.target.value)}
                           placeholder="e.g. 500342119"
-                          className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                          className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                           style={{ borderColor: 'var(--ui-border)' }}
                         />
                       </div>
@@ -1393,7 +1393,7 @@ export default function AccountView() {
                           value={apiServer}
                           onChange={(e) => setApiServer(e.target.value)}
                           placeholder="e.g. ICMarkets-Demo03"
-                          className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
+                          className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white font-bold"
                           style={{ borderColor: 'var(--ui-border)' }}
                         />
                       </div>
@@ -1408,7 +1408,7 @@ export default function AccountView() {
                             type="password" 
                             value={apiPassword}
                             onChange={(e) => setApiPassword(e.target.value)}
-                            className="w-full text-xs p-2 pl-7 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                            className="w-full text-xs p-2 pl-7 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                             style={{ borderColor: 'var(--ui-border)' }}
                           />
                           <Lock size={11} className="absolute left-2.5 top-3 text-[var(--ui-muted)]" />
@@ -1421,7 +1421,7 @@ export default function AccountView() {
                           id="live-api-lib-type-select"
                           value={apiLibType}
                           onChange={(e) => setApiLibType(e.target.value)}
-                          className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-mono text-[11px] text-white font-bold"
+                          className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer font-mono text-[11px] text-white font-bold"
                           style={{ borderColor: 'var(--ui-border)' }}
                         >
                           <option value="node-mt5">node-mt5 wrapper</option>
@@ -1437,7 +1437,7 @@ export default function AccountView() {
                         type="number" 
                         value={apiHeartbeat}
                         onChange={(e) => setApiHeartbeat(parseInt(e.target.value) || 0)}
-                        className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
+                        className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-mono text-white"
                         style={{ borderColor: 'var(--ui-border)' }}
                       />
                     </div>
@@ -1445,16 +1445,16 @@ export default function AccountView() {
                 )}
 
                 {/* Real-time Diagnostics Terminal Log Pane */}
-                <div className="border border-[var(--ui-border)]/60 bg-[#020617]/90 rounded-lg overflow-hidden font-mono mt-4">
+                <div className="border border-[var(--ui-border)]/60 bg-[var(--bg)]/90 overflow-hidden font-mono mt-4">
                   <div className="flex items-center justify-between bg-[var(--ui-panel-strong)] px-3 py-1.5 border-b border-[var(--ui-border)]/50 select-none">
                     <div className="flex items-center gap-1.5 text-[8px] uppercase font-black text-[var(--ui-muted)] tracking-widest">
-                      <Terminal size={10} className="text-[var(--ui-accent)] animate-pulse" />
+                      <Terminal size={10} className="text-[var(--ui-accent)]" />
                       <span>Live Gateway Diagnostic Log Stream</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button 
                         onClick={() => setLogs([{ time: new Date().toLocaleTimeString(), type: 'info', message: 'Diagnostic stream logs cleared.' }])}
-                        className="text-[8px] uppercase tracking-wider font-extrabold text-[var(--ui-muted)] hover:text-white transition"
+                        className="text-[8px] uppercase tracking-wider font-extrabold text-[var(--ui-muted)] hover:text-white"
                       >
                         [Clear]
                       </button>
@@ -1464,7 +1464,7 @@ export default function AccountView() {
                     {logs.map((log, i) => (
                       <div key={i} className="flex gap-2 leading-relaxed items-start">
                         <span className="text-[var(--ui-muted)] text-[8px] shrink-0 select-none">[{log.time}]</span>
-                        <span className={`text-[8px] font-black shrink-0 px-1.5 py-0.5 rounded uppercase ${
+                        <span className={`text-[8px] font-black shrink-0 px-1.5 py-0.5  uppercase ${
                           log.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' :
                           log.type === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-blue-500/10 text-blue-400'
                         }`}>
@@ -1481,7 +1481,7 @@ export default function AccountView() {
                 {/* Gateway Execution & Actions */}
                 <div className="pt-4 border-t border-[var(--ui-border)]/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-1.5 text-[9px] text-[var(--ui-muted)] font-mono">
-                    <span className={`h-1.5 w-1.5 rounded-full ${isTesting ? 'bg-amber-500 animate-pulse' : connectionStatus === 'connected' ? 'bg-emerald-500 animate-ping' : 'bg-red-500'} shrink-0`}></span>
+                    <span className={`h-1.5 w-1.5  ${isTesting ? 'bg-amber-500 ' : connectionStatus === 'connected' ? 'bg-emerald-500 ' : 'bg-red-500'} shrink-0`}></span>
                     <span className="uppercase">
                       {isTesting ? 'DIAGNOSTICS RUNNING...' : connectionStatus === 'connected' ? 'GATEWAY STATUS: CONNECTED' : 'GATEWAY STATUS: DISCONNECTED'}
                     </span>
@@ -1492,9 +1492,9 @@ export default function AccountView() {
                       id="live-test-btn"
                       onClick={handleTestConnection}
                       disabled={isTesting}
-                      className="px-3.5 py-2 border border-[var(--ui-border-strong)] hover:border-[var(--ui-muted)] text-[var(--ui-muted)] hover:text-white text-[10px] font-black uppercase tracking-wider rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                      className="px-3.5 py-2 border border-[var(--ui-border-strong)] hover:border-[var(--ui-muted)] text-[var(--ui-muted)] hover:text-white text-[10px] font-black uppercase tracking-wider cursor-pointer flex items-center gap-1.5"
                     >
-                      <RefreshCw size={11} className={isTesting ? 'animate-spin' : ''} />
+                      <RefreshCw size={11} className={isTesting ? '' : ''} />
                       <span>{isTesting ? 'Pinging Gateway...' : 'Test Connection'}</span>
                     </button>
 
@@ -1502,9 +1502,9 @@ export default function AccountView() {
                       id="live-save-btn"
                       onClick={handleSaveLiveConfig}
                       disabled={isSaving}
-                      className="px-4.5 py-2 bg-[var(--ui-accent)] hover:opacity-90 text-white font-bold text-[10px] uppercase tracking-widest rounded cursor-pointer transition-all active:scale-95 flex items-center gap-1.5"
+                      className="px-4.5 py-2 bg-[var(--ui-accent)] hover:opacity-90 text-white font-bold text-[10px] uppercase tracking-widest cursor-pointer flex items-center gap-1.5"
                     >
-                      {isSaving ? <RefreshCw size={11} className="animate-spin" /> : <Settings size={11} />}
+                      {isSaving ? <RefreshCw size={11} className="" /> : <Settings size={11} />}
                       <span>Save Gateway Config</span>
                     </button>
                   </div>
@@ -1513,13 +1513,13 @@ export default function AccountView() {
               </div>
 
               {/* Realtime Positions list Right Panel (5 Cols) */}
-              <div className="lg:col-span-5 p-4 rounded-xl border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="lg:col-span-5 p-4 border bg-[var(--ui-panel)] flex flex-col justify-between" style={{ borderColor: 'var(--ui-border)' }}>
                 <div>
                   <div className="flex items-center justify-between border-b border-[var(--ui-border)]/50 pb-2.5 mb-3">
                     <span className="text-[10px] uppercase font-black tracking-widest text-[var(--ui-muted)] font-display">
                       REALTIME OPEN BROKER POSITIONS (MT5 BACKEND)
                     </span>
-                    <span className="text-[8px] font-mono px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 font-bold rounded uppercase">
+                    <span className="text-[8px] font-mono px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 font-bold uppercase">
                       Sync ok
                     </span>
                   </div>
@@ -1541,10 +1541,10 @@ export default function AccountView() {
                         </thead>
                         <tbody>
                           {livePositions.map((p, idx) => (
-                            <tr key={idx} className="border-b border-[var(--ui-border)]/30 hover:bg-white/2 transition-colors">
+                            <tr key={idx} className="border-b border-[var(--ui-border)]/30 hover:bg-white/2">
                               <td className="py-2.5 font-mono font-bold text-white">{p.symbol}</td>
                               <td className="py-2.5">
-                                <span className={`px-1 rounded text-[8px] font-black ${
+                                <span className={`px-1  text-[8px] font-black ${
                                   p.side === 'LONG' ? 'bg-blue-500/10 text-blue-400' : 'bg-red-500/10 text-red-400'
                                 }`}>
                                   {p.side}
@@ -1581,7 +1581,7 @@ export default function AccountView() {
             </div>
 
             {/* SECURE API CREDENTIALS & KEYS PANEL */}
-            <div className="p-5 rounded-xl border bg-[var(--ui-panel)] space-y-4" style={{ borderColor: 'var(--ui-border)' }}>
+            <div className="p-5 border bg-[var(--ui-panel)] space-y-4" style={{ borderColor: 'var(--ui-border)' }}>
               <div className="flex items-center justify-between border-b border-[var(--ui-border)]/50 pb-2.5">
                 <div className="flex items-center gap-2">
                   <Lock size={13} className="text-[var(--ui-accent)]" />
@@ -1589,7 +1589,7 @@ export default function AccountView() {
                     SECURE SYSTEM API KEYS &amp; CREDENTIALS
                   </span>
                 </div>
-                <span className="text-[8px] font-mono px-1.5 py-0.5 bg-blue-500/10 text-blue-400 font-bold rounded uppercase">
+                <span className="text-[8px] font-mono px-1.5 py-0.5 bg-blue-500/10 text-blue-400 font-bold uppercase">
                   REST AUTH GATEWAY
                 </span>
               </div>
@@ -1610,19 +1610,19 @@ export default function AccountView() {
                       placeholder="e.g. TradingView Webhook Key"
                       value={newKeyLabel}
                       onChange={(e) => setNewKeyLabel(e.target.value)}
-                      className="w-full text-xs p-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-sans text-white placeholder-gray-600"
+                      className="w-full text-xs p-2 border focus:outline-none bg-[var(--ui-input-bg)] font-sans text-white placeholder-gray-600"
                       style={{ borderColor: 'var(--ui-border)' }}
                     />
                   </div>
                   <button
                     onClick={handleCreateApiKey}
-                    className="w-full px-4 py-2 bg-[var(--ui-accent)] hover:opacity-90 text-white font-bold text-[10px] uppercase tracking-wider rounded transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full px-4 py-2 bg-[var(--ui-accent)] hover:opacity-90 text-white font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Generate Secure Key</span>
                   </button>
 
                   {newlyCreatedKey && (
-                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 rounded-lg space-y-2">
+                    <div className="p-3 bg-emerald-500/5 border border-emerald-500/20 space-y-2">
                       <span className="block text-[8px] font-black text-emerald-400 uppercase tracking-wider">
                         Key Created successfully! Copy it now:
                       </span>
@@ -1631,7 +1631,7 @@ export default function AccountView() {
                           readOnly
                           type="text" 
                           value={newlyCreatedKey}
-                          className="flex-1 bg-[#020617] border border-[var(--ui-border)] text-[9px] font-mono px-2 py-1.5 rounded text-emerald-400 select-all focus:outline-none"
+                          className="flex-1 bg-[var(--bg)] border border-[var(--ui-border)] text-[9px] font-mono px-2 py-1.5 text-emerald-400 select-all focus:outline-none"
                         />
                         <button 
                           onClick={() => {
@@ -1639,7 +1639,7 @@ export default function AccountView() {
                             setCopiedField('newly-created-key');
                             setTimeout(() => setCopiedField(null), 1500);
                           }}
-                          className="px-2 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-border-strong)] border border-[var(--ui-border)] rounded text-gray-300 transition-all cursor-pointer"
+                          className="px-2 py-1.5 bg-[var(--ui-panel)] hover:bg-[var(--ui-border-strong)] border border-[var(--ui-border)] text-gray-300 cursor-pointer"
                         >
                           {copiedField === 'newly-created-key' ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
                         </button>
@@ -1661,17 +1661,17 @@ export default function AccountView() {
                       <button 
                         onClick={fetchApiKeys}
                         disabled={isListingKeys}
-                        className="text-[8px] uppercase font-black text-[var(--ui-muted)] hover:text-white transition flex items-center gap-1"
+                        className="text-[8px] uppercase font-black text-[var(--ui-muted)] hover:text-white flex items-center gap-1"
                       >
-                        <RefreshCw size={8} className={isListingKeys ? 'animate-spin' : ''} />
+                        <RefreshCw size={8} className={isListingKeys ? '' : ''} />
                         <span>Refresh List</span>
                       </button>
                     </div>
 
-                    <div className="overflow-x-auto border border-[var(--ui-border)]/50 bg-[var(--ui-input-bg)]/20 rounded-lg min-h-[140px] max-h-[220px] overflow-y-auto">
+                    <div className="overflow-x-auto border border-[var(--ui-border)]/50 bg-[var(--ui-input-bg)]/20 min-h-[140px] max-h-[220px] overflow-y-auto">
                       {isListingKeys ? (
                         <div className="py-12 text-center text-[var(--ui-muted)] font-mono text-[9px] flex items-center justify-center gap-2">
-                          <RefreshCw size={10} className="animate-spin text-[var(--ui-accent)]" />
+                          <RefreshCw size={10} className="text-[var(--ui-accent)]" />
                           <span>FETCHING ACTIVE KEYS...</span>
                         </div>
                       ) : apiKeys.length === 0 ? (
@@ -1690,14 +1690,14 @@ export default function AccountView() {
                           </thead>
                           <tbody>
                             {apiKeys.map((key) => (
-                              <tr key={key.id} className="border-b border-[var(--ui-border)]/30 hover:bg-white/2 transition-colors">
+                              <tr key={key.id} className="border-b border-[var(--ui-border)]/30 hover:bg-white/2">
                                 <td className="py-2 px-3 font-medium text-white">{key.label}</td>
                                 <td className="py-2 px-3 font-mono text-[var(--ui-muted)]">{key.prefix || 'cx_...'}</td>
                                 <td className="py-2 px-3 text-[var(--ui-muted)]">{new Date(key.createdAt).toLocaleString()}</td>
                                 <td className="py-2 px-3 text-right">
                                   <button
                                     onClick={() => handleRevokeApiKey(key.id)}
-                                    className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 rounded text-[8px] font-black uppercase transition-all cursor-pointer"
+                                    className="px-2 py-0.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 text-[8px] font-black uppercase cursor-pointer"
                                   >
                                     Revoke
                                   </button>

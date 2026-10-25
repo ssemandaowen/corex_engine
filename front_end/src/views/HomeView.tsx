@@ -167,7 +167,7 @@ export default function HomeView() {
     window.dispatchEvent(new CustomEvent('corex:navigate', { detail: { tab: 'data' } }));
   };
 
-  // Merge REST runtimes with WS runtimes for the most up-to-date view
+  // Merge REST runtimes with WS runtimes for the most up- view
   const wsRuntimeKeys = useMemo(() => {
     const map: Record<string, any> = {};
     for (const [k, v] of Object.entries(runtimes)) {
@@ -213,7 +213,7 @@ export default function HomeView() {
 
   const statusDot = (status: string) => (
     <span
-      className="inline-block w-1.5 h-1.5 rounded-full shrink-0"
+      className="inline-block w-1.5 h-1.5 shrink-0"
       style={{ backgroundColor: getStatusColor(status) }}
       title={status}
     />
@@ -238,7 +238,7 @@ export default function HomeView() {
               </div>
               <button
                 onClick={navigateToExecution}
-                className="mt-2 px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider border cursor-pointer transition-all hover:border-[var(--ui-accent)]"
+                className="mt-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border cursor-pointer hover:border-[var(--ui-accent)]"
                 style={{ color: 'var(--ui-accent)', borderColor: 'var(--ui-border)' }}
               >
                 <Play size={10} className="inline mr-1" />
@@ -259,7 +259,7 @@ export default function HomeView() {
                   <div
                     key={r.runtimeId || r.strategyName}
                     onClick={navigateToExecution}
-                    className="group relative p-3 rounded-lg border cursor-pointer transition-all hover:border-[var(--ui-accent)]/40 hover:bg-[var(--ui-panel-soft)]/50"
+                    className="group relative p-3 border cursor-pointer hover:border-[var(--ui-accent)]/40 hover:bg-[var(--ui-panel-soft)]/50"
                     style={{ backgroundColor: 'var(--ui-panel)', borderColor: 'var(--ui-border)' }}
                   >
                     {/* Header: name + mode */}
@@ -268,11 +268,11 @@ export default function HomeView() {
                         {r.strategyName || 'Unknown'}
                       </span>
                       <span
-                        className="text-[8px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0"
+                        className="text-[8px] font-black px-1.5 py-0.5 uppercase tracking-wider shrink-0"
                         style={{
-                          backgroundColor: isPaper ? 'rgba(59,130,246,0.1)' : 'rgba(245,158,11,0.1)',
+                          backgroundColor: isPaper ? 'var(--bg-raised)' : 'var(--bg-raised)',
                           color: isPaper ? 'var(--ui-positive)' : 'var(--ui-warning)',
-                          border: `1px solid ${isPaper ? 'rgba(59,130,246,0.2)' : 'rgba(245,158,11,0.2)'}`
+                          border: `1px solid ${isPaper ? 'var(--bg-raised)' : 'var(--bg-raised)'}`
                         }}
                       >
                         {mode}
@@ -322,14 +322,14 @@ export default function HomeView() {
               <span className="text-[8px] font-mono uppercase tracking-wider mb-0.5" style={{ color: 'var(--ui-muted)' }}>
                 CPU {num(sysStatus?.resources?.cpuPct, 0).toFixed(0)}%
               </span>
-              {renderMiniSparkline(cpuHistory, '#1e90ff')}
+              {renderMiniSparkline(cpuHistory, 'var(--accent)')}
             </div>
             <div className="w-px h-6 bg-[var(--ui-border)]" />
             <div className="flex flex-col w-20">
               <span className="text-[8px] font-mono uppercase tracking-wider mb-0.5" style={{ color: 'var(--ui-muted)' }}>
                 RAM {num(sysStatus?.resources?.ramPct, 0).toFixed(0)}%
               </span>
-              {renderMiniSparkline(ramHistory, '#a855f7')}
+              {renderMiniSparkline(ramHistory, 'var(--accent)')}
             </div>
           </div>
 
@@ -346,7 +346,7 @@ export default function HomeView() {
           {/* Shortcuts */}
           <button
             onClick={navigateToAnalytics}
-            className="p-1.5 rounded border transition-all cursor-pointer hover:border-[var(--ui-accent)]"
+            className="p-1.5 border cursor-pointer hover:border-[var(--ui-accent)]"
             style={{ color: 'var(--ui-muted)', borderColor: 'var(--ui-border)' }}
             title="Recent Backtests → Analytics"
           >
@@ -355,7 +355,7 @@ export default function HomeView() {
 
           <button
             onClick={fetchOpsTelemetry}
-            className="p-1.5 rounded border transition-all cursor-pointer hover:border-[var(--ui-accent)]"
+            className="p-1.5 border cursor-pointer hover:border-[var(--ui-accent)]"
             style={{ color: 'var(--ui-muted)', borderColor: 'var(--ui-border)' }}
             title="Refresh Instances"
           >
@@ -364,7 +364,7 @@ export default function HomeView() {
 
           <button
             onClick={() => setIsTerminalVisible(!isTerminalVisible)}
-            className="p-1.5 rounded border transition-all cursor-pointer hover:border-[var(--ui-accent)]"
+            className="p-1.5 border cursor-pointer hover:border-[var(--ui-accent)]"
             style={{ color: 'var(--ui-muted)', borderColor: 'var(--ui-border)' }}
             title={isTerminalVisible ? 'Hide Terminal' : 'Show Terminal'}
           >
@@ -382,25 +382,25 @@ export default function HomeView() {
           {/* Terminal Header */}
           <div className="shrink-0 border-b px-3 py-2 flex items-center justify-between" style={{ borderColor: 'var(--ui-border)' }}>
             <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <span className="w-1.5 h-1.5 bg-emerald-500 shrink-0" />
               <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: 'var(--ui-text)' }}>
                 Terminal
               </span>
-              <span className="text-[8px] font-mono px-1 rounded" style={{ color: 'var(--ui-muted)', backgroundColor: 'var(--ui-panel-soft)' }}>
+              <span className="text-[8px] font-mono px-1" style={{ color: 'var(--ui-muted)', backgroundColor: 'var(--ui-panel-soft)' }}>
                 {filteredLogs.length}
               </span>
             </div>
 
             <div className="flex items-center gap-1">
-              <div className="flex rounded border overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
+              <div className="flex border overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
                 {(['ALL', 'INFO', 'WARN', 'ERROR'] as const).map(f => (
                   <button
                     key={f}
                     onClick={() => setActiveTabFilter(f)}
-                    className="px-1.5 py-0.5 text-[8px] font-mono font-bold transition-colors cursor-pointer"
+                    className="px-1.5 py-0.5 text-[8px] font-mono font-bold cursor-pointer"
                     style={{
                       backgroundColor: activeTabFilter === f ? 'var(--ui-accent)' : 'transparent',
-                      color: activeTabFilter === f ? '#fff' : 'var(--ui-muted)'
+                      color: activeTabFilter === f ? 'var(--text)' : 'var(--ui-muted)'
                     }}
                   >
                     {f}
@@ -410,7 +410,7 @@ export default function HomeView() {
 
               <button
                 onClick={handleCopyLogs}
-                className="p-1 rounded transition-colors cursor-pointer"
+                className="p-1 cursor-pointer"
                 style={{ color: copied ? 'var(--ui-positive)' : 'var(--ui-muted)' }}
                 title="Copy logs"
               >
@@ -419,7 +419,7 @@ export default function HomeView() {
 
               <button
                 onClick={handleSaveLogs}
-                className="p-1 rounded transition-colors cursor-pointer"
+                className="p-1 cursor-pointer"
                 style={{ color: saved ? 'var(--ui-positive)' : 'var(--ui-muted)' }}
                 title="Save logs"
               >
@@ -428,7 +428,7 @@ export default function HomeView() {
 
               <button
                 onClick={clearActivityLogs}
-                className="p-1 rounded transition-colors cursor-pointer hover:text-red-400"
+                className="p-1 cursor-pointer hover:text-red-400"
                 style={{ color: 'var(--ui-muted)' }}
                 title="Clear logs"
               >
@@ -437,7 +437,7 @@ export default function HomeView() {
 
               <button
                 onClick={() => setIsTerminalVisible(false)}
-                className="p-1 rounded transition-colors cursor-pointer hover:text-white"
+                className="p-1 cursor-pointer hover:text-white"
                 style={{ color: 'var(--ui-muted)' }}
                 title="Close terminal"
               >
@@ -466,7 +466,7 @@ export default function HomeView() {
                 {filteredLogs.map((log) => (
                   <div
                     key={log.id}
-                    className="flex items-start gap-1.5 hover:bg-white/5 px-1 py-0.5 rounded transition-colors group"
+                    className="flex items-start gap-1.5 hover:bg-white/5 px-1 py-0.5 group"
                   >
                     <span className="shrink-0 select-none" style={{ color: 'var(--ui-muted)' }}>
                       [{log.timestamp}]

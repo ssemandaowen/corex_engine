@@ -416,7 +416,7 @@ export default function BacktestSubTab() {
     <div className="flex flex-col lg:flex-row h-full w-full overflow-y-auto lg:overflow-hidden select-none bg-[var(--ui-bg)]">
       {/* LEFT COLUMN: Configuration Panel / Registry */}
       <div 
-        className={`border-b lg:border-b-0 lg:border-r shrink-0 flex flex-col bg-[var(--ui-sidebar-bg)] overflow-hidden transition-all duration-300 ${
+        className={`border-b lg:border-b-0 lg:border-r shrink-0 flex flex-col bg-[var(--ui-sidebar-bg)] overflow-hidden   ${
           isRegistryCollapsed 
             ? 'w-full h-[48px] lg:h-full lg:w-[50px]' 
             : 'w-full lg:w-[380px] h-auto lg:h-full'
@@ -425,24 +425,24 @@ export default function BacktestSubTab() {
       >
         {isRegistryCollapsed ? (
           /* COLLAPSED STATE RENDERER */
-          <div className="flex flex-row lg:flex-col items-center justify-between lg:justify-start lg:gap-4 h-full w-full bg-[#070e20] p-2">
+          <div className="flex flex-row lg:flex-col items-center justify-between lg:justify-start lg:gap-4 h-full w-full bg-[var(--bg-panel)] p-2">
             {/* On Mobile, show a compact horizontal bar with an expand toggle and run backtest */}
             <div className="flex items-center justify-between w-full lg:hidden">
               <button 
                 onClick={() => setIsRegistryCollapsed(false)}
-                className="flex items-center gap-2 hover:text-white transition-colors cursor-pointer text-left focus:outline-none"
+                className="flex items-center gap-2 hover:text-white cursor-pointer text-left focus:outline-none"
                 title="Expand configuration menu"
               >
-                <Menu size={16} className="text-amber-500 animate-pulse" />
+                <Menu size={16} className="text-amber-500" />
                 <span className="text-[10px] uppercase font-black tracking-widest text-slate-200 flex items-center gap-1.5">
-                  BACKTEST REGISTRY <span className="text-[8px] px-1 bg-amber-500/15 text-amber-500 rounded uppercase font-sans">Collapsed</span>
+                  BACKTEST REGISTRY <span className="text-[8px] px-1 bg-amber-500/15 text-amber-500 uppercase font-sans">Collapsed</span>
                 </span>
               </button>
               
               <button 
                 onClick={handleRunBacktest}
                 disabled={activeJobId !== null}
-                className="px-2.5 py-1 bg-[var(--ui-accent)] hover:opacity-90 text-white text-[9px] font-black uppercase tracking-widest rounded flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+                className="px-2.5 py-1 bg-[var(--ui-accent)] hover:opacity-90 text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-1 cursor-pointer disabled:opacity-50"
                 title="Run Backtest"
               >
                 <Play size={8} className="fill-current" />
@@ -455,7 +455,7 @@ export default function BacktestSubTab() {
               {/* Menu trigger to expand */}
               <button 
                 onClick={() => setIsRegistryCollapsed(false)}
-                className="p-2 rounded text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)] transition-all cursor-pointer active:scale-95"
+                className="p-2 text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)] cursor-pointer"
                 title="Expand Backtest Configuration"
               >
                 <Menu size={18} />
@@ -467,7 +467,7 @@ export default function BacktestSubTab() {
               <button 
                 onClick={handleRunBacktest}
                 disabled={activeJobId !== null}
-                className="p-2.5 rounded-md bg-[var(--ui-accent)] text-white hover:opacity-90 cursor-pointer disabled:opacity-50 transition-all active:scale-95 flex items-center justify-center"
+                className="p-2.5 bg-[var(--ui-accent)] text-white hover:opacity-90 cursor-pointer disabled:opacity-50 flex items-center justify-center"
                 title="Run Backtest Simulation"
               >
                 <Play size={14} className="fill-current" />
@@ -482,7 +482,7 @@ export default function BacktestSubTab() {
                     if (el) el.scrollIntoView({ behavior: 'smooth' });
                   }, 100);
                 }}
-                className="p-2 rounded text-[var(--ui-muted)] hover:text-slate-200 hover:bg-[var(--ui-panel-soft)] transition-all cursor-pointer"
+                className="p-2 text-[var(--ui-muted)] hover:text-slate-200 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
                 title="View Past Run Registry History (Clock)"
               >
                 <History size={16} />
@@ -494,7 +494,7 @@ export default function BacktestSubTab() {
                   setIsRegistryCollapsed(false);
                   setActiveAccordion('params');
                 }}
-                className="p-2 rounded text-[var(--ui-muted)] hover:text-slate-200 hover:bg-[var(--ui-panel-soft)] transition-all cursor-pointer"
+                className="p-2 text-[var(--ui-muted)] hover:text-slate-200 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
                 title="Edit Strategy Parameter Matrix"
               >
                 <Sliders size={16} />
@@ -506,7 +506,7 @@ export default function BacktestSubTab() {
                   setIsRegistryCollapsed(false);
                   setActiveAccordion('data');
                 }}
-                className="p-2 rounded text-[var(--ui-muted)] hover:text-slate-200 hover:bg-[var(--ui-panel-soft)] transition-all cursor-pointer"
+                className="p-2 text-[var(--ui-muted)] hover:text-slate-200 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
                 title="Change Historical Data Source"
               >
                 <TrendingUp size={16} />
@@ -517,11 +517,11 @@ export default function BacktestSubTab() {
           /* EXPANDED STATE RENDERER */
           <>
             {/* Registry Top Header */}
-            <div className="p-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0 bg-[#070e20]">
+            <div className="p-3 border-b border-[var(--ui-border)] flex items-center justify-between shrink-0 bg-[var(--bg-panel)]">
               <div className="flex items-center gap-2">
                 <button 
                   onClick={() => setIsRegistryCollapsed(true)}
-                  className="p-1.5 -ml-1 rounded text-[var(--ui-muted)] hover:text-white hover:bg-slate-800/50 transition-colors cursor-pointer"
+                  className="p-1.5 -ml-1 text-[var(--ui-muted)] hover:text-white hover:bg-slate-800/50 cursor-pointer"
                   title="Collapse Configuration Menu"
                 >
                   <Menu size={14} />
@@ -534,7 +534,7 @@ export default function BacktestSubTab() {
               <button 
                 onClick={handleRunBacktest}
                 disabled={activeJobId !== null}
-                className="px-3 py-1 bg-[var(--ui-accent)] hover:opacity-90 text-white text-[10px] font-black uppercase tracking-widest rounded flex items-center gap-1 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+                className="px-3 py-1 bg-[var(--ui-accent)] hover:opacity-90 text-white text-[10px] font-black uppercase tracking-widest flex items-center gap-1 cursor-pointer disabled:opacity-50"
               >
                 <Play size={10} className="fill-current" />
                 <span>Run Backtest</span>
@@ -545,7 +545,7 @@ export default function BacktestSubTab() {
             <div className="flex-1 lg:overflow-y-auto overflow-y-visible p-3 space-y-4">
           
           {/* STRATEGY Accordion */}
-          <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+          <div className="border border-[var(--ui-border)] bg-[var(--ui-panel)]">
             <button 
               onClick={() => setActiveAccordion(activeAccordion === 'strategy' ? '' : 'strategy')}
               className="w-full flex items-center justify-between p-2.5 text-left font-display font-black text-xs uppercase text-slate-300"
@@ -563,7 +563,7 @@ export default function BacktestSubTab() {
                   <select
                     value={selectedStratId}
                     onChange={(e) => setSelectedStratId(e.target.value)}
-                    className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer border-[var(--ui-border)]"
+                    className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] pr-8 cursor-pointer border-[var(--ui-border)]"
                   >
                     {strategies.map(s => (
                       <option key={s.id} value={s.id}>{s.name}</option>
@@ -576,7 +576,7 @@ export default function BacktestSubTab() {
                     type="number"
                     value={initialCapital}
                     onChange={(e) => setInitialCapital(parseInt(e.target.value))}
-                    className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
+                    className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
                   />
                 </div>
               </div>
@@ -585,7 +585,7 @@ export default function BacktestSubTab() {
 
           {/* STRATEGY PARAMETERS ACCORDION */}
           {selectedStrat && selectedStrat.schema && Object.keys(selectedStrat.schema).length > 0 && (
-            <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+            <div className="border border-[var(--ui-border)] bg-[var(--ui-panel)]">
               <button 
                 onClick={() => setActiveAccordion(activeAccordion === 'params' ? '' : 'params')}
                 className="w-full flex items-center justify-between p-2.5 text-left font-display font-black text-xs uppercase text-slate-300"
@@ -604,7 +604,7 @@ export default function BacktestSubTab() {
                     const isBoolean = config.type === 'boolean';
 
                     return (
-                      <div key={key} className="flex flex-col gap-1 p-2 bg-[#020617]/50 rounded border border-[var(--ui-border)]/30">
+                      <div key={key} className="flex flex-col gap-1 p-2 bg-[var(--bg)]/50 border border-[var(--ui-border)]/30">
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-bold text-slate-300 font-mono">{key}</span>
                           <span className="text-[8px] text-[var(--ui-muted)] uppercase">{config.type}</span>
@@ -616,10 +616,10 @@ export default function BacktestSubTab() {
                               onClick={() => {
                                 setCustomParams(prev => ({ ...prev, [key]: !val }));
                               }}
-                              className="w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer"
+                              className="w-8 h-4 p-0.5 cursor-pointer"
                               style={{ backgroundColor: val ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                             >
-                              <div className="w-3 h-3 rounded-full bg-white transition-transform duration-200" style={{ transform: val ? 'translateX(16px)' : 'translateX(0)' }} />
+                              <div className="w-3 h-3 bg-white" style={{ transform: val ? 'translateX(16px)' : 'translateX(0)' }} />
                             </button>
                             <span className="text-[9px] font-mono text-[var(--ui-muted)] uppercase">{val ? 'TRUE' : 'FALSE'}</span>
                           </div>
@@ -633,7 +633,7 @@ export default function BacktestSubTab() {
                               const parsed = isNumeric ? parseFloat(raw) : raw;
                               setCustomParams(prev => ({ ...prev, [key]: isNaN(parsed as any) ? raw : parsed }));
                             }}
-                            className="w-full text-xs p-1.5 rounded border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono mt-1"
+                            className="w-full text-xs p-1.5 border focus:outline-none bg-slate-900 border-[var(--ui-border)] text-white font-mono mt-1"
                           />
                         )}
                       </div>
@@ -645,7 +645,7 @@ export default function BacktestSubTab() {
           )}
 
           {/* DATA SOURCE Accordion */}
-          <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+          <div className="border border-[var(--ui-border)] bg-[var(--ui-panel)]">
             <button 
               onClick={() => setActiveAccordion(activeAccordion === 'data' ? '' : 'data')}
               className="w-full flex items-center justify-between p-2.5 text-left font-display font-black text-xs uppercase text-slate-300"
@@ -661,7 +661,7 @@ export default function BacktestSubTab() {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setDataSource('ONLINE')}
-                    className={`flex-1 text-[9px] font-black py-1.5 px-2 rounded border text-center cursor-pointer transition-all ${
+                    className={`flex-1 text-[9px] font-black py-1.5 px-2  border text-center cursor-pointer  ${
                       dataSource === 'ONLINE' ? 'bg-[var(--ui-accent)] border-[var(--ui-accent)] text-white' : 'border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white'
                     }`}
                   >
@@ -669,7 +669,7 @@ export default function BacktestSubTab() {
                   </button>
                   <button
                     onClick={() => setDataSource('OFFLINE')}
-                    className={`flex-1 text-[9px] font-black py-1.5 px-2 rounded border text-center cursor-pointer transition-all ${
+                    className={`flex-1 text-[9px] font-black py-1.5 px-2  border text-center cursor-pointer  ${
                       dataSource === 'OFFLINE' ? 'bg-[var(--ui-accent)] border-[var(--ui-accent)] text-white' : 'border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white'
                     }`}
                   >
@@ -685,7 +685,7 @@ export default function BacktestSubTab() {
                         type="text" 
                         value={symbol}
                         onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-                        className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] uppercase border-[var(--ui-border)] font-mono font-bold"
+                        className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] uppercase border-[var(--ui-border)] font-mono font-bold"
                       />
                     </div>
                     <div>
@@ -693,7 +693,7 @@ export default function BacktestSubTab() {
                       <select
                         value={interval}
                         onChange={(e) => setIntervalVal(e.target.value)}
-                        className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] cursor-pointer border-[var(--ui-border)]"
+                        className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] cursor-pointer border-[var(--ui-border)]"
                       >
                         <option value="1m">1 minute</option>
                         <option value="5m">5 minutes</option>
@@ -717,7 +717,7 @@ export default function BacktestSubTab() {
                           if (Number.isNaN(v)) { setRangePoints(1); return; }
                           setRangePoints(Math.max(1, Math.min(MAX_RANGE_POINTS, v)));
                         }}
-                        className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono font-bold"
+                        className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono font-bold"
                       />
                     </div>
                   </div>
@@ -726,10 +726,10 @@ export default function BacktestSubTab() {
                     <div 
                       onDragOver={handleDragOver}
                       onDrop={handleDrop}
-                      className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[var(--ui-accent)] transition-colors py-6 bg-[var(--ui-input-bg)]"
+                      className="border-2 border-dashed p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:border-[var(--ui-accent)] py-6 bg-[var(--ui-input-bg)]"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
-                      <Upload size={24} className="text-[var(--ui-muted)] animate-bounce mb-1" />
+                      <Upload size={24} className="text-[var(--ui-muted)] mb-1" />
                       <span className="text-[10px] uppercase font-bold text-[var(--ui-text)]">
                         {uploadingFile ? 'Uploading…' : 'Drag & Drop or Click to Upload CSV'}
                       </span>
@@ -747,7 +747,7 @@ export default function BacktestSubTab() {
                       />
                       <label
                         htmlFor="offline-csv-input"
-                        className="mt-2 px-2 py-1 text-[9px] font-black uppercase tracking-wider rounded border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white cursor-pointer"
+                        className="mt-2 px-2 py-1 text-[9px] font-black uppercase tracking-wider border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white cursor-pointer"
                       >
                         Choose File
                       </label>
@@ -760,7 +760,7 @@ export default function BacktestSubTab() {
                           <div
                             key={u.id}
                             onClick={() => setSelectedUploadId(u.id)}
-                            className={`flex items-center justify-between p-1.5 rounded border cursor-pointer transition-colors ${
+                            className={`flex items-center justify-between p-1.5  border cursor-pointer  ${
                               selectedUploadId === u.id
                                 ? 'border-[var(--ui-accent)] bg-[var(--ui-panel-soft)]'
                                 : 'border-[var(--ui-border)]/60 bg-[var(--ui-panel-soft)] hover:border-[var(--ui-accent)]'
@@ -770,7 +770,7 @@ export default function BacktestSubTab() {
                               <FileText size={12} className="text-[var(--ui-accent)] shrink-0" />
                               <span className="text-[10px] font-mono truncate text-white">{u.filename}</span>
                             </div>
-                            <span className="text-[8px] px-1 bg-[var(--ui-border)] rounded text-[var(--ui-muted)] shrink-0">{u.timeframe}</span>
+                            <span className="text-[8px] px-1 bg-[var(--ui-border)] text-[var(--ui-muted)] shrink-0">{u.timeframe}</span>
                           </div>
                         ))}
                       </div>
@@ -782,7 +782,7 @@ export default function BacktestSubTab() {
           </div>
 
           {/* RISK PARAMETERS Accordion */}
-          <div className="rounded border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+          <div className="border border-[var(--ui-border)] bg-[var(--ui-panel)]">
             <button 
               onClick={() => setActiveAccordion(activeAccordion === 'risk' ? '' : 'risk')}
               className="w-full flex items-center justify-between p-2.5 text-left font-display font-black text-xs uppercase text-slate-300"
@@ -803,7 +803,7 @@ export default function BacktestSubTab() {
                       step="0.1"
                       value={stopLoss}
                       onChange={(e) => setStopLoss(parseFloat(e.target.value))}
-                      className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
+                      className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
                     />
                   </div>
                   <div>
@@ -813,7 +813,7 @@ export default function BacktestSubTab() {
                       step="0.1"
                       value={takeProfit}
                       onChange={(e) => setTakeProfit(parseFloat(e.target.value))}
-                      className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
+                      className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
                     />
                   </div>
                 </div>
@@ -824,7 +824,7 @@ export default function BacktestSubTab() {
                     step="0.1"
                     value={trailingStop}
                     onChange={(e) => setTrailingStop(parseFloat(e.target.value))}
-                    className="w-full text-xs p-2 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
+                    className="w-full text-xs p-2 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
                   />
                 </div>
               </div>
@@ -832,7 +832,7 @@ export default function BacktestSubTab() {
           </div>
 
           {/* REALISM CONFIGURATION */}
-          <div className="rounded border border-[var(--ui-border)]/85 bg-[#020617]/40">
+          <div className="border border-[var(--ui-border)]/85 bg-[var(--bg)]/40">
             <button 
               onClick={() => setShowRealism(!showRealism)}
               className="w-full flex items-center justify-between p-2.5 text-left font-display text-[10px] text-[var(--ui-muted)] font-black uppercase"
@@ -851,7 +851,7 @@ export default function BacktestSubTab() {
                       step="0.005"
                       value={commission}
                       onChange={(e) => setCommission(parseFloat(e.target.value))}
-                      className="w-full text-xs p-1.5 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
+                      className="w-full text-xs p-1.5 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
                     />
                   </div>
                   <div>
@@ -861,7 +861,7 @@ export default function BacktestSubTab() {
                       step="0.5"
                       value={slippage}
                       onChange={(e) => setSlippage(parseFloat(e.target.value))}
-                      className="w-full text-xs p-1.5 rounded border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
+                      className="w-full text-xs p-1.5 border text-white focus:outline-none bg-[var(--ui-input-bg)] border-[var(--ui-border)] font-mono"
                     />
                   </div>
                 </div>
@@ -880,8 +880,8 @@ export default function BacktestSubTab() {
                   <div
                     key={job.id}
                     onClick={() => handlePastReportClick(job.id)}
-                    className={`p-2 rounded border flex items-center justify-between cursor-pointer hover:bg-[var(--ui-panel-soft)] transition-colors ${
-                      selectedPastJobId === job.id ? 'border-[var(--ui-accent)] bg-[var(--ui-panel-soft)]' : 'border-[var(--ui-border)]/60 bg-[#020617]/20'
+                    className={`p-2  border flex items-center justify-between cursor-pointer hover:bg-[var(--ui-panel-soft)]  ${
+                      selectedPastJobId === job.id ? 'border-[var(--ui-accent)] bg-[var(--ui-panel-soft)]' : 'border-[var(--ui-border)]/60 bg-[var(--bg)]/20'
                     }`}
                   >
                     <div className="flex flex-col min-w-0 leading-none gap-1">
@@ -892,10 +892,10 @@ export default function BacktestSubTab() {
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
-                      <span className="text-[8px] font-mono px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded font-black uppercase">{job.status}</span>
+                      <span className="text-[8px] font-mono px-1.5 py-0.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-black uppercase">{job.status}</span>
                       <button 
                         onClick={(e) => handleDeleteJob(e, job.id)}
-                        className="p-1 rounded text-[var(--ui-muted)] hover:text-red-500 transition-colors cursor-pointer"
+                        className="p-1 text-[var(--ui-muted)] hover:text-red-500 cursor-pointer"
                         title="Delete this historical report record"
                       >
                         <Trash2 size={10} />
@@ -916,13 +916,13 @@ export default function BacktestSubTab() {
         
         {/* Toggle Expand/Collapse helper banner if menu is collapsed on mobile */}
         {isRegistryCollapsed && (
-          <div className="lg:hidden shrink-0 mb-3 p-2 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
+          <div className="lg:hidden shrink-0 mb-3 p-2 border border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
             <span className="text-[10px] text-amber-500 uppercase tracking-wider font-bold">
               Backtest configuration menu is collapsed
             </span>
             <button 
               onClick={() => setIsRegistryCollapsed(false)}
-              className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30 active:scale-95 cursor-pointer"
+              className="text-[9px] font-black uppercase px-2 py-0.5 bg-amber-500/15 text-amber-500 border border-amber-500/30 cursor-pointer"
             >
               Expand Panel
             </button>
@@ -933,17 +933,17 @@ export default function BacktestSubTab() {
           /* RUNNING LOADER STATE */
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <div className="relative w-20 h-20 flex items-center justify-center mb-4">
-              <div className="absolute inset-0 border-4 border-[var(--ui-border)] border-t-[var(--ui-accent)] rounded-full animate-spin" />
-              <Sparkles size={24} className="text-[var(--ui-accent)] animate-pulse" />
+              <div className="absolute inset-0 border-4 border-[var(--ui-border)] border-t-[var(--ui-accent)]" />
+              <Sparkles size={24} className="text-[var(--ui-accent)]" />
             </div>
             
             <h3 className="text-sm font-display font-black uppercase tracking-wider text-white mb-1">
               Executing simulation run: {progress.stage}
             </h3>
             
-            <div className="w-64 bg-[var(--ui-border)] rounded-full h-1.5 mt-3 overflow-hidden">
+            <div className="w-64 bg-[var(--ui-border)] h-1.5 mt-3 overflow-hidden">
               <div 
-                className="h-full bg-[var(--ui-accent)] transition-all duration-300"
+                className="h-full bg-[var(--ui-accent)]"
                 style={{ width: `${progress.pct}%` }}
               />
             </div>
@@ -976,7 +976,7 @@ export default function BacktestSubTab() {
             {/* STATS GRID (6 panels) */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {/* NET PROFIT */}
-              <div className="p-3 bg-[var(--ui-panel)] rounded-lg border border-[var(--ui-border)] flex flex-col justify-between">
+              <div className="p-3 bg-[var(--ui-panel)] border border-[var(--ui-border)] flex flex-col justify-between">
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 leading-none">Net Profit</span>
                 <span className="text-lg font-mono font-black mt-2 leading-none" style={{ color: (report.performance?.netProfit || 0) >= 0 ? 'var(--ui-positive)' : 'var(--ui-negative)' }}>
                   {report.performance?.netProfit !== undefined 
@@ -987,7 +987,7 @@ export default function BacktestSubTab() {
               </div>
 
               {/* WIN RATE */}
-              <div className="p-3 bg-[var(--ui-panel)] rounded-lg border border-[var(--ui-border)] flex flex-col justify-between">
+              <div className="p-3 bg-[var(--ui-panel)] border border-[var(--ui-border)] flex flex-col justify-between">
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 leading-none">Win Rate</span>
                 <span className="text-lg font-mono font-black mt-2 leading-none text-emerald-400">
                   {report.performance?.winRate !== undefined ? `${(report.performance.winRate * 100).toFixed(1)}%` : '0.0%'}
@@ -995,7 +995,7 @@ export default function BacktestSubTab() {
               </div>
 
               {/* TOTAL TRADES */}
-              <div className="p-3 bg-[var(--ui-panel)] rounded-lg border border-[var(--ui-border)] flex flex-col justify-between">
+              <div className="p-3 bg-[var(--ui-panel)] border border-[var(--ui-border)] flex flex-col justify-between">
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 leading-none">Total Trades</span>
                 <span className="text-lg font-mono font-black mt-2 leading-none text-white">
                   {report.performance?.totalTrades || 0}
@@ -1003,7 +1003,7 @@ export default function BacktestSubTab() {
               </div>
 
               {/* MAX DRAWDOWN */}
-              <div className="p-3 bg-[var(--ui-panel)] rounded-lg border border-[var(--ui-border)] flex flex-col justify-between">
+              <div className="p-3 bg-[var(--ui-panel)] border border-[var(--ui-border)] flex flex-col justify-between">
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 leading-none">Max Drawdown</span>
                 <span className="text-lg font-mono font-black mt-2 leading-none text-[var(--ui-negative)]">
                   -{report.performance?.maxDrawdownPct || 0}%
@@ -1011,7 +1011,7 @@ export default function BacktestSubTab() {
               </div>
 
               {/* SHARPE */}
-              <div className="p-3 bg-[var(--ui-panel)] rounded-lg border border-[var(--ui-border)] flex flex-col justify-between">
+              <div className="p-3 bg-[var(--ui-panel)] border border-[var(--ui-border)] flex flex-col justify-between">
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 leading-none">Sharpe Ratio</span>
                 <span className="text-lg font-mono font-black mt-2 leading-none text-sky-400">
                   {report.performance?.sharpeRatio || '0.00'}
@@ -1019,7 +1019,7 @@ export default function BacktestSubTab() {
               </div>
 
               {/* PROFIT FACTOR */}
-              <div className="p-3 bg-[var(--ui-panel)] rounded-lg border border-[var(--ui-border)] flex flex-col justify-between">
+              <div className="p-3 bg-[var(--ui-panel)] border border-[var(--ui-border)] flex flex-col justify-between">
                 <span className="text-[9px] uppercase font-black tracking-wider text-[var(--ui-muted)] mb-1 leading-none">Profit Factor</span>
                 <span className="text-lg font-mono font-black mt-2 leading-none text-amber-500">
                   {report.performance?.profitFactor || '0.00'}
@@ -1028,7 +1028,7 @@ export default function BacktestSubTab() {
             </div>
 
             {/* EQUITY AREA CHART */}
-            <div className="p-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)] relative">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel)] relative">
               <div className="panel-header shrink-0 h-6 mb-4 px-1" style={{ background: 'transparent', borderBottom: 'none' }}>
                 <span className="section-label">PORTFOLIO EQUITY VALUE CURVE</span>
               </div>
@@ -1041,9 +1041,9 @@ export default function BacktestSubTab() {
                         <stop offset="100%" stopColor="var(--ui-accent)" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
-                    <XAxis dataKey="date" stroke="#64748b" fontSize={10} tickLine={false} />
-                    <YAxis stroke="#64748b" fontSize={10} tickLine={false} domain={['dataMin - 1000', 'dataMax + 1000']} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                    <XAxis dataKey="date" stroke="var(--text-dim)" fontSize={10} tickLine={false} />
+                    <YAxis stroke="var(--text-dim)" fontSize={10} tickLine={false} domain={['dataMin - 1000', 'dataMax + 1000']} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)', color: 'var(--ui-text)' }} 
                       labelStyle={{ fontSize: '10px', fontWeight: 'bold' }}
@@ -1056,7 +1056,7 @@ export default function BacktestSubTab() {
             </div>
 
             {/* DRAWDOWN FILL CHART */}
-            <div className="p-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)] relative">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel)] relative">
               <div className="panel-header shrink-0 h-6 mb-2 px-1" style={{ background: 'transparent', borderBottom: 'none' }}>
                 <span className="section-label">DRAWDOWN EXPOSURE (%)</span>
               </div>
@@ -1065,13 +1065,13 @@ export default function BacktestSubTab() {
                   <AreaChart data={chartData} margin={{ left: -10, top: 0, right: 10, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorDd" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#ef4444" stopOpacity={0.25} />
-                        <stop offset="100%" stopColor="#ef4444" stopOpacity={0.0} />
+                        <stop offset="0%" stopColor="var(--neg)" stopOpacity={0.25} />
+                        <stop offset="100%" stopColor="var(--neg)" stopOpacity={0.0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
                     <XAxis dataKey="date" hide />
-                    <YAxis stroke="#64748b" fontSize={9} tickLine={false} domain={['-10', '0']} />
+                    <YAxis stroke="var(--text-dim)" fontSize={9} tickLine={false} domain={['-10', '0']} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)', color: 'var(--ui-text)' }} 
                       itemStyle={{ fontSize: '10px', fontFamily: 'var(--font-mono)' }}
@@ -1085,14 +1085,14 @@ export default function BacktestSubTab() {
             {/* HISTOGRAM AND SHARPE LINE */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Left: Trade Profit Histogram */}
-              <div className="p-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+              <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel)]">
                 <span className="section-label block mb-3">Profit Distribution Histogram</span>
                 <div className="h-[140px] w-full">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={profitDistribution}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.3} />
-                      <XAxis dataKey="name" stroke="#64748b" fontSize={8} tickLine={false} />
-                      <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                      <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={8} tickLine={false} />
+                      <YAxis stroke="var(--text-dim)" fontSize={9} tickLine={false} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)' }}
                         itemStyle={{ fontSize: '10px', color: 'var(--ui-accent)' }}
@@ -1104,7 +1104,7 @@ export default function BacktestSubTab() {
               </div>
 
               {/* Right: Expectancy metrics list */}
-              <div className="p-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)] flex flex-col justify-between">
+              <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel)] flex flex-col justify-between">
                 <span className="section-label block mb-2">Extended Performance Metrics</span>
                 <div className="flex-1 space-y-2 py-1 overflow-y-auto">
                   <div className="flex justify-between items-center text-xs">
@@ -1128,7 +1128,7 @@ export default function BacktestSubTab() {
             </div>
 
             {/* TRADES LIST TABLE */}
-            <div className="p-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel)]">
               <span className="section-label block mb-3">SYSTEM TRADES EXECUTED SHEET</span>
               <div className="overflow-x-auto">
                 <table className="w-full text-[11px] text-left border-collapse">
@@ -1150,11 +1150,11 @@ export default function BacktestSubTab() {
                       return (
                         <tr 
                           key={idx} 
-                          className="border-b border-[var(--ui-border)]/50 hover:bg-white/2 transition-colors"
+                          className="border-b border-[var(--ui-border)]/50 hover:bg-white/2"
                         >
                           <td className="py-2 px-3 text-[var(--ui-muted)]">{absoluteIdx}</td>
                           <td className="py-2 px-3">
-                            <span className={`px-1.5 py-0.2 rounded font-black text-[9px] ${
+                            <span className={`px-1.5 py-0.2  font-black text-[9px] ${
                               t.direction === 'LONG' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-500'
                             }`}>
                               {t.direction}
@@ -1187,14 +1187,14 @@ export default function BacktestSubTab() {
                     <button
                       onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                       disabled={currentPage === 1}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer"
+                      className="px-2 py-0.5 text-[10px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer"
                     >
                       &larr; PREV
                     </button>
                     <button
                       onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(report.trades.length / rowsPerPage)))}
                       disabled={currentPage === Math.ceil(report.trades.length / rowsPerPage)}
-                      className="px-2 py-0.5 rounded text-[10px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer"
+                      className="px-2 py-0.5 text-[10px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer"
                     >
                       NEXT &rarr;
                     </button>
@@ -1206,8 +1206,8 @@ export default function BacktestSubTab() {
           </div>
         ) : (
           /* EMPTY STATE */
-          <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed rounded-xl p-8 m-6 border-[var(--ui-border)]">
-            <BarChart4 size={48} className="text-[var(--ui-muted)] animate-pulse mb-3" />
+          <div className="flex-1 flex flex-col items-center justify-center border-2 border-dashed p-8 m-6 border-[var(--ui-border)]">
+            <BarChart4 size={48} className="text-[var(--ui-muted)] mb-3" />
             <h3 className="text-sm font-display font-black uppercase tracking-wider text-[var(--ui-text)] mb-1">
               Simulation Station Offline
             </h3>
