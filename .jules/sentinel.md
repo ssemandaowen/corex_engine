@@ -1,0 +1,4 @@
+## 2026-10-18 - Block Dynamic Import Expressions in Strategy AST Scanner
+**Vulnerability:** Dynamic ES module imports (`import('module')`) bypass `CallExpression` AST node handlers in Acorn AST scanners because dynamic imports produce `ImportExpression` AST nodes rather than `CallExpression` nodes.
+**Learning:** In Acorn (ecmaVersion >= 2020), `import(...)` produces an `ImportExpression` AST node, and `import ... from ...` produces an `ImportDeclaration` AST node. If an AST scanner only inspects `CallExpression` for `require()`, dynamic imports allow untrusted strategy code to bypass module blocklists.
+**Prevention:** Always register `ImportExpression` and `ImportDeclaration` AST node handlers in security scanners to explicitly reject dynamic and static ES module imports in sandboxed strategy scripts.
