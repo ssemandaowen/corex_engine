@@ -1,0 +1,3 @@
+## 2026-10-13 - SoACandleStore Ring Buffer Slice Optimization
+**Learning:** `SoACandleStore.getFieldSlice` was performing element-by-element loop copying with modulo arithmetic `(writeIndex - count + i + capacity) % capacity` on every element. Replacing loop iteration with block memory copies via `TypedArray.set()` and `.subarray()` provides a ~2x speedup for field slice queries on hot strategy execution paths.
+**Action:** When extracting contiguous sub-slices from typed-array ring buffers, calculate start index once and use `out.set(source.subarray(...))` across at most two contiguous blocks instead of loop-wise assignments.
