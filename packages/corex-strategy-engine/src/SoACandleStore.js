@@ -88,9 +88,15 @@ class SoACandleStore {
         if (!sourceArray) throw new Error(`[SoACandleStore] Invalid field: ${field}`);
 
         const out = new Float64Array(count);
-        for (let i = 0; i < count; i++) {
-            const idx = (this.writeIndex - count + i + this.capacity) % this.capacity;
-            out[i] = sourceArray[idx];
+        const startIdx = (this.writeIndex - count + this.capacity) % this.capacity;
+        const endIdx = startIdx + count;
+
+        if (endIdx <= this.capacity) {
+            out.set(sourceArray.subarray(startIdx, endIdx));
+        } else {
+            const firstLen = this.capacity - startIdx;
+            out.set(sourceArray.subarray(startIdx, this.capacity));
+            out.set(sourceArray.subarray(0, endIdx - this.capacity), firstLen);
         }
         return out;
     }
