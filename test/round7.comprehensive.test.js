@@ -501,7 +501,7 @@ describe("security.js — loop guards", () => {
         const BaseStrategy = require("BaseStrategy");
         class S extends BaseStrategy {
             constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 10 }); }
-            next(bar) { ${code} return null; }
+            next(bar) { ${code}; return null; }
         }
         module.exports = S;
     `;
@@ -548,6 +548,18 @@ describe("security.js — loop guards", () => {
 
     test("process access is blocked", () => {
         expect(() => validateStrategyCode(wrap("process.exit()"))).toThrow(/process/i);
+    });
+
+    test("import('fs') dynamic import is blocked", () => {
+        expect(() => validateStrategyCode(wrap("import('fs');"))).toThrow(/import/i);
+    });
+
+    test("import('child_process') dynamic import is blocked", () => {
+        expect(() => validateStrategyCode(wrap("import('child_process');"))).toThrow(/import/i);
+    });
+
+    test("import(variable) dynamic import is blocked", () => {
+        expect(() => validateStrategyCode(wrap("const m = 'fs'; import(m);"))).toThrow(/import/i);
     });
 
     test("valid strategy passes scanner", () => {

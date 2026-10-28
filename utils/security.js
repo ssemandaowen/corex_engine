@@ -140,6 +140,16 @@ function validateStrategyCode(code) {
             }
         },
 
+        // ── Block dynamic import() calls ───────────────────────────────────
+        // acorn parses import('...') as ImportExpression, not CallExpression,
+        // so it must be handled as a separate visitor. Strategies compile as
+        // CommonJS via Module._compile, so import() is both a bypass of the
+        // require() blocklist and an async pattern incompatible with the
+        // synchronous strategy model.
+        ImportExpression(node) {
+            violations.push("Forbidden: dynamic import() is not allowed in strategy code");
+        },
+
         // ── Block new Function(...), new Buffer(...), etc. ────────────────
         NewExpression(node) {
             if (node.callee.type === "Identifier") {
