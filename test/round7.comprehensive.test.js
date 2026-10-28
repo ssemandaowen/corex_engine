@@ -562,6 +562,14 @@ describe("security.js — loop guards", () => {
         expect(() => validateStrategyCode(wrap("const m = 'fs'; import(m);"))).toThrow(/import/i);
     });
 
+    test("import('node:fs') dynamic import is blocked", () => {
+        expect(() => validateStrategyCode(wrap("import('node:fs');"))).toThrow(/import/i);
+    });
+
+    test("static import ... from ... is rejected (script sourceType)", () => {
+        expect(() => validateStrategyCode(wrap("import fs from 'fs';"))).toThrow(/syntax error|import/i);
+    });
+
     test("valid strategy passes scanner", () => {
         const valid = `
             const BaseStrategy = require("BaseStrategy");
