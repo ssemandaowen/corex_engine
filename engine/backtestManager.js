@@ -211,6 +211,7 @@ class BacktestManager {
             logger.info(`[BT:DATA] Initializing data fetch (mode: ${config.dataMode}) for ${config.symbol}`);
             emit("LOADING_DATA", `Fetching historical ${config.interval} bars for ${config.symbol} via ${modeLabel}...`, 22);
 
+            this._lastDataWarnings = [];
             const bars = await this._loadAndNormalizeData(config);
             logger.info(`[BT:DATA] Loaded ${bars.length} bars.`);
             emit("BUILDING_DATAFRAME", `Successfully loaded ${bars.length} data points. Constructing series...`, 35, { bars: bars.length });
@@ -237,6 +238,9 @@ class BacktestManager {
             // Attach captured logs to the final report.
             if (backtestLogs.length > 0) {
                 report.logs = backtestLogs;
+            }
+            if (this._lastDataWarnings && this._lastDataWarnings.length) {
+                report.warnings = this._lastDataWarnings;
             }
 
             // ── 6. Build and save report ──────────────────────────────────────
@@ -316,6 +320,10 @@ class BacktestManager {
             outputsize:     Number(options.rangePoints || options.outputsize || 5000),
             initialCapital: Number(options.initialCapital    || 10000),
             file:           options.file || null, // FIX: Preserve file path for data loading
+            commissionPct:  Number(options.commissionPct ?? 0),
+            slippageBps:    Number(options.slippageBps   ?? 0),
+            spread:         Number(options.spread         ?? 0),
+            fillMode:       String(options.fillMode || "nextOpen"),
             stopLossPct:    Number(options.stopLossPct || 0),
             takeProfitPct:  Number(options.takeProfitPct || 0),
             trailingStopLossPct: Number(options.trailingStopLossPct || 0),
@@ -492,8 +500,7 @@ class BacktestManager {
                     volume: parseFloat(row.volume || row.Volume || 0)
                 };
             })
-            .where(b => Number.isFinite(b.time) && b.close > 0)
-            .orderBy(row => row.time);
+            .where(b => Number.isFinite(b.time) && b.close > 0);
 
         // Apply range
         const rangeMode = String(options.rangeMode || "points").toLowerCase();
@@ -511,6 +518,24 @@ class BacktestManager {
 
         const result = processed.toArray();
         if (result.length === 0) throw new Error("No bars in selected range.");
+        // Bar validation (reject, do not repair).
+        const seen = new Set();
+        let prevTime = -Infinity;
+        for (let i = 0; i < result.length; i++) {
+            const b = result[i];
+            const vals = [b.open, b.high, b.low, b.close];
+            if (!vals.every((v) => Number.isFinite(v))) {
+                throw new Error(`BACKTEST_INVALID_BARS: non-finite OHLC at index ${i} ts=${b.time}`);
+            }
+            if (b.high < b.low) throw new Error(`BACKTEST_INVALID_BARS: high<low at index ${i} ts=${b.time}`);
+            if (b.high < Math.max(b.open, b.close)) throw new Error(`BACKTEST_INVALID_BARS: high<max(open,close) at index ${i} ts=${b.time}`);
+            if (b.low > Math.min(b.open, b.close)) throw new Error(`BACKTEST_INVALID_BARS: low>min(open,close) at index ${i} ts=${b.time}`);
+            if (!Number.isFinite(b.time)) throw new Error(`BACKTEST_INVALID_BARS: non-finite time at index ${i}`);
+            if (seen.has(b.time)) throw new Error(`BACKTEST_INVALID_BARS: duplicate timestamp ${b.time}`);
+            seen.add(b.time);
+            if (b.time <= prevTime) throw new Error(`BACKTEST_INVALID_BARS: timestamps not strictly ascending at index ${i} ts=${b.time}`);
+            prevTime = b.time;
+        }
         return result;
     }
 
@@ -525,6 +550,8 @@ class BacktestManager {
         const totalBars = bars.length;
         let lastPct     = 0;
         let position    = null;
+        let pendingSignal = null;
+        const fillMode = String(config.fillMode || "nextOpen").toLowerCase();
 
         // ── Execution quota ───────────────────────────────────────────────────
         // Prevent runaway strategy logic from hanging the worker.
@@ -544,6 +571,34 @@ class BacktestManager {
 
         for (let i = 0; i < totalBars; i++) {
             const bar = bars[i];
+
+            // Execute any signal queued from the previous bar (next-open fill).
+            if (pendingSignal && fillMode === "nextopen") {
+                if (pendingSignal.intent === "ENTER") {
+                    if (position && position.side !== pendingSignal.side) {
+                        broker.execute({ intent: "EXIT", symbol }, { ...bar, close: bar.open });
+                        position = null;
+                    }
+                    if (!position) {
+                        const entry = broker.execute(pendingSignal, { ...bar, close: bar.open });
+                        if (entry) {
+                            position = {
+                                ...entry,
+                                side:      pendingSignal.side,
+                                sl:        pendingSignal.sl    ?? entry.sl    ?? 0,
+                                tp:        pendingSignal.tp    ?? entry.tp    ?? 0,
+                                trailPct:  Number(pendingSignal.raw?.trailPct ?? pendingSignal.trailPct ?? 0),
+                                hwm:       entry.entryPrice,
+                                lwm:       entry.entryPrice,
+                            };
+                        }
+                    }
+                } else if (pendingSignal.intent === "EXIT" && position) {
+                    broker.execute(pendingSignal, { ...bar, close: bar.open });
+                    position = null;
+                }
+                pendingSignal = null;
+            }
 
             // Progress reporting + batch yield
             const pct = Math.floor((i / totalBars) * 100);
@@ -598,30 +653,33 @@ class BacktestManager {
 
             // 4. Execution
             if (signal) {
-                if (signal.intent === "ENTER") {
-                    // Auto-close if flipping sides
-                    if (position && position.side !== signal.side) {
-                        broker.execute({ intent: "EXIT", symbol }, bar);
+                if (fillMode === "sameclose") {
+                    if (signal.intent === "ENTER") {
+                        if (position && position.side !== signal.side) {
+                            broker.execute({ intent: "EXIT", symbol }, bar);
+                            position = null;
+                        }
+                        if (!position) {
+                            const entry = broker.execute(signal, bar);
+                            if (entry) {
+                                position = {
+                                    ...entry,
+                                    side:      signal.side,
+                                    sl:        signal.sl    ?? entry.sl    ?? 0,
+                                    tp:        signal.tp    ?? entry.tp    ?? 0,
+                                    trailPct:  Number(signal.raw?.trailPct ?? signal.trailPct ?? 0),
+                                    hwm:       entry.entryPrice,
+                                    lwm:       entry.entryPrice,
+                                };
+                            }
+                        }
+                    } else if (signal.intent === "EXIT" && position) {
+                        broker.execute(signal, bar);
                         position = null;
                     }
-
-                    if (!position) {
-                        const entry = broker.execute(signal, bar);
-                        if (entry) {
-                            position = {
-                                ...entry,
-                                side:      signal.side,
-                                sl:        signal.sl    ?? entry.sl    ?? 0,
-                                tp:        signal.tp    ?? entry.tp    ?? 0,
-                                trailPct:  Number(signal.raw?.trailPct ?? signal.trailPct ?? 0),
-                                hwm:       entry.entryPrice,
-                                lwm:       entry.entryPrice,
-                            };
-                        }
-                    }
-                } else if (signal.intent === "EXIT" && position) {
-                    broker.execute(signal, bar);
-                    position = null;
+                } else {
+                    // queue for next bar
+                    pendingSignal = signal;
                 }
             }
 
@@ -636,6 +694,10 @@ class BacktestManager {
         }
 
         // Return the round-trip trades from the broker's accumulator
+        if (pendingSignal) {
+            // dropped final-bar signal; store warning
+            this._lastDataWarnings = (this._lastDataWarnings || []).concat(["Signal on final bar dropped: no next bar for fill."]);
+        }
         return broker.getPerformanceMetrics().trades;
     }
 
@@ -772,9 +834,17 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
             periodsPerYear: 252,
             fallbackTs,
             includeTrades:  config.includeTrades,
-            commissionPercent: 0,
-            slippageBps: 0
+            commissionPercent: Number(config.commissionPct ?? 0),
+            slippageBps: Number(config.slippageBps ?? 0)
         });
+
+        // Expose broker-charged totals on the report (analytics format.buildReport
+        // does not surface these, so set them explicitly from the broker metrics).
+        const brokerTrades = Array.isArray(metrics.trades) ? metrics.trades : [];
+        const totalCommission = brokerTrades.reduce((s, t) => s + Number(t.commissionPaid || t.commission || 0), 0);
+        report.totalCommission = totalCommission;
+        if (report.performance) report.performance.totalCommission = totalCommission;
+        report.fillMode = config.fillMode || "nextOpen";
 
         // Paginate/Truncate trades to avoid UI overhead while still providing a preview.
         const TRUNCATION_LIMIT = 20;
