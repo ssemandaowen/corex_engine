@@ -196,7 +196,7 @@ STRATEGY DOMAIN      MARKET-DATA DOMAIN      ACCOUNT / SETTINGS
           PERSISTENCE ADAPTERS / POSTGRES
                        |
                        v
-          OUTBOX / DOMAIN EVENTS / WS PUSH
+          DOMAIN EVENTS / WS PUSH
                        |
                        v
                     FRONTEND
