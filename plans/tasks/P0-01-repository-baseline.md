@@ -54,9 +54,20 @@ Create `plans/architecture/REPOSITORY_BASELINE.md` with:
 - [x] Limitations and unknowns are explicit.
 - [x] STATUS and this task record include a resumable handoff.
 
-## Handoff
+### Handoff — 2026-10-31 (correction pass)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Last verified commit: fdcdd9f84babe4da3f6c2016f70feca4261d7956
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (updated); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Independent verification of Claude review findings. Verified: missing strategies/ dir with Jest alias; eslint not declared; KNOWN_ISSUES.md at plans/; hardcoded Windows DB path; root schema.sql; mt5Receiver.py; commit terminology clarified; ownership labels softened to observed/existence.
+Commands and test results: Test-Path checks; Select-String checks; npm test not rerun (docs-only change).
+Unverified items / limitations: root cause of strategies alias unknown; schema.sql vs migrations relationship untraced.
+Decisions needed: Owen review of corrected audit.
+Blockers: None.
+Exact next action: Owen reviews corrected audit and diff; if accepted, integrate via PR.
+May another agent continue? YES — read-only review only.
 
-### Handoff — 2026-10-31
 Owner / agent: Kilo Code
 Status: REVIEW
 Branch: audit/p0-01-repository-baseline

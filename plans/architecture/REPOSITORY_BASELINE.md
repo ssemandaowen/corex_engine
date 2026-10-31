@@ -5,8 +5,9 @@
 - **Date:** 2026-10-31
 - **Investigator:** Kilo Code
 - **Branch:** `audit/p0-01-repository-baseline` (worktree at `C:\Users\SBUM\Desktop\corex-p0-01-audit`)
-- **Commit SHA (HEAD):** `3aab1d71bd0c2554b519b2a099f8af6caccddf79`
-- **PR #52 merge ancestry:** Verified — `3aab1d7` is the merge commit; `git merge-base --is-ancestor 3aab1d7 HEAD` succeeds.
+- **Audited base commit (origin/main, PR #52 merge):** `3aab1d71bd0c2554b519b2a099f8af6caccddf79`
+- **P0-01 deliverable commit (this branch HEAD):** `fdcdd9f84babe4da3f6c2016f70feca4261d7956`
+- **PR #52 merge ancestry:** Verified — `3aab1d7` is an ancestor of HEAD; `git merge-base --is-ancestor 3aab1d7 HEAD` succeeds.
 - **Working-tree status:** Clean (no modified/untracked files; node_modules is a local junction to the original repo's node_modules and is gitignored).
 - **Scope:** Read-only audit of repository structure, dependencies, commands, tests, configuration, and documentation. No application code modified.
 
@@ -19,18 +20,18 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 | Path | Responsibility (observed) | Status |
 |------|--------------------------|--------|
 | `index.js` | Application entry point | Verified |
-| `engine/` | Orchestration: server.js, engine.js, routes, services, workers, backtest manager, middleware | Verified |
-| `engine/core/`, `engine/data/`, `engine/managers/`, `engine/middleware/`, `engine/modules/`, `engine/routes/`, `engine/services/`, `engine/test/`, `engine/workers/` | Sub-domains of engine | Verified |
+| `engine/` | Orchestration: server.js, engine.js, routes, services, workers, backtest manager, middleware | Observed (existence; ownership not traced) |
+| `engine/core/`, `engine/data/`, `engine/managers/`, `engine/middleware/`, `engine/modules/`, `engine/routes/`, `engine/services/`, `engine/test/`, `engine/workers/` | Sub-domains of engine (includes `engine/managers/mt5Receiver.py` Python MT5 bridge) | Observed (existence; ownership not traced) |
 | `packages/` | 7 extracted packages: corex-accounts, corex-auth, corex-broker-contract, corex-gateway, corex-market-data, corex-portfolio, corex-strategy-engine | Verified |
 | `broker/` | Legacy broker implementations | Verified (legacy) |
 | `utils/` | Mixed utilities; contains domain-specific code per AGENTS.md concern | Verified |
 | `events/` | Event bus / event definitions | Verified |
 | `config/` | Configuration modules | Verified |
 | `front_end/` | React/TypeScript UI | Verified |
-| `db/` | Migrations and DB scripts (migrate.js) | Verified |
+| `db/` | Migrations and DB scripts (migrate.js); root `schema.sql` also present | Observed (existence) |
 | `scripts/` | Operational scripts (menu, maintenance, bench) | Verified |
 | `data/` | Runtime data | Verified |
-| `plans/` | Roadmap, STATUS, tasks, audits, decisions, to_do (historical) | Verified |
+| `plans/` | Roadmap, STATUS, tasks, audits, decisions, to_do (historical), KNOWN_ISSUES.md | Observed (existence) |
 | `test/` | 12 top-level test files + nested (backtest) | Verified |
 | `.kilo/` | Kilo skills/rules | Verified |
 | `.jules/` | Jules artifacts | Verified |
@@ -44,7 +45,7 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 - **Broker/market data:** @oanda/v20, yahoo-finance2.
 - **Frontend:** React/TypeScript under `front_end/` (separate manifest; not inspected).
 - **Testing:** Jest 29.7.0 (devDep), nodemon 3.1.11.
-- **No lint/typecheck scripts** declared at root (suspected gap). eslint.config.js present.
+- **Linting:** `eslint.config.js` exists but `eslint` is not declared in dependencies/devDependencies (verified). Frontend lint is `tsc --noEmit` (TypeScript type-check), not ESLint. No root lint/typecheck scripts declared (suspected gap).
 
 ## 5. Application entry points and execution flow
 
@@ -97,6 +98,14 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 - `plans/tasks/P0-01..P0-07` present.
 - `plans/to_do.md` exists (historical per AGENTS.md).
 - `plans/decisions.md` exists.
+
+## 9.5 Verified configuration inconsistencies (independent review)
+
+- **Jest module alias to missing `strategies/` directory (verified):** `package.json` jest.moduleNameMapper contains `"^@strategies/(.*)$": "<rootDir>/strategies/$1"` and `_moduleAliases` contains `"@strategies": "./strategies"`, but no root `strategies/` directory exists (verified via `Test-Path`). Status: verified broken alias; root cause unknown (suspected: strategies migrated into packages/ or engine/).
+- **ESLint not declared as dependency (verified):** `eslint.config.js` exists at root with rules, but `eslint` is not in `dependencies` or `devDependencies` (devDeps: globals, jest, nodemon). Frontend lint command is `tsc --noEmit` (package.json `front_end`: `"lint": "tsc --noEmit"`), which is TypeScript type-checking, not ESLint. Status: verified inconsistency.
+- **KNOWN_ISSUES.md location (verified):** File exists at `plans/KNOWN_ISSUES.md`, not repository root. Root `AGENTS.md` references `/KNOWN_ISSUES.md`. Status: verified path discrepancy.
+- **Hardcoded Windows path in DB scripts (verified):** `package.json` scripts `db:start`, `db:stop`, `db:status` reference `D:/scoop/persist/postgresql/data`. Status: verified environment-specific hardcoded path.
+- **Root `schema.sql` (verified):** `schema.sql` (94,868 bytes) exists at repository root alongside `db/migrations/`. Status: observed; relationship to migrations not traced (unknown).
 
 ## 10. Potential architectural risks and inconsistencies
 
