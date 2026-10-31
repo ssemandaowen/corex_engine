@@ -11,7 +11,22 @@
 - **Status:** REVIEW
 - **Deliverable:** plans/architecture/REPOSITORY_BASELINE.md
 
-### Handoff — 2026-10-31 (correction pass)
+### Handoff — 2026-10-31 (correction pass 2)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Audited base commit: 3aab1d71bd0c2554b519b2a099f8af6caccddf79
+Initial P0-01 audit commit: fdcdd9f84babe4da3f6c2016f70feca4261d7956
+Last inspected correction commit: c565d0492cbcbbd9e21c3d0a2eb0513445aee5df
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (updated); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Second correction pass per independent GitHub MCP review. Fixed commit metadata, section 12 recommendations, ownership labels, strategies alias wording, lint documentation, handoff metadata.
+Commands and test results: Select-String/Test-Path verification only; no tests rerun (docs-only).
+Unverified items / limitations: root cause of strategies alias unknown; schema.sql vs migrations relationship untraced; ownership/usage not traced for any directory.
+Decisions needed: Owen review of corrected audit.
+Blockers: None.
+Exact next action: Owen reviews corrected audit and final diff; if accepted, integrate via PR #53.
+May another agent continue? YES — read-only review only.
+
 Owner / agent: Kilo Code
 Status: REVIEW
 Branch: audit/p0-01-repository-baseline

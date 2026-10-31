@@ -6,7 +6,8 @@
 - **Investigator:** Kilo Code
 - **Branch:** `audit/p0-01-repository-baseline` (worktree at `C:\Users\SBUM\Desktop\corex-p0-01-audit`)
 - **Audited base commit (origin/main, PR #52 merge):** `3aab1d71bd0c2554b519b2a099f8af6caccddf79`
-- **P0-01 deliverable commit (this branch HEAD):** `fdcdd9f84babe4da3f6c2016f70feca4261d7956`
+- **Initial P0-01 audit commit:** `fdcdd9f84babe4da3f6c2016f70feca4261d7956`
+- **Correction commit (this pass):** `c565d0492cbcbbd9e21c3d0a2eb0513445aee5df` (current branch HEAD at time of this correction)
 - **PR #52 merge ancestry:** Verified — `3aab1d7` is an ancestor of HEAD; `git merge-base --is-ancestor 3aab1d7 HEAD` succeeds.
 - **Working-tree status:** Clean (no modified/untracked files; node_modules is a local junction to the original repo's node_modules and is gitignored).
 - **Scope:** Read-only audit of repository structure, dependencies, commands, tests, configuration, and documentation. No application code modified.
@@ -24,17 +25,16 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 | `engine/core/`, `engine/data/`, `engine/managers/`, `engine/middleware/`, `engine/modules/`, `engine/routes/`, `engine/services/`, `engine/test/`, `engine/workers/` | Sub-domains of engine (includes `engine/managers/mt5Receiver.py` Python MT5 bridge) | Observed (existence; ownership not traced) |
 | `packages/` | 7 extracted packages: corex-accounts, corex-auth, corex-broker-contract, corex-gateway, corex-market-data, corex-portfolio, corex-strategy-engine | Verified |
 | `broker/` | Legacy broker implementations | Verified (legacy) |
-| `utils/` | Mixed utilities; contains domain-specific code per AGENTS.md concern | Verified |
-| `events/` | Event bus / event definitions | Verified |
-| `config/` | Configuration modules | Verified |
-| `front_end/` | React/TypeScript UI | Verified |
-| `db/` | Migrations and DB scripts (migrate.js); root `schema.sql` also present | Observed (existence) |
-| `scripts/` | Operational scripts (menu, maintenance, bench) | Verified |
+| `utils/` | Mixed utilities; contains domain-specific code per AGENTS.md concern | Observed (existence; ownership/usage not traced) |
+| `events/` | Event bus / event definitions | Observed (existence; ownership/usage not traced) |
+| `config/` | Configuration modules | Observed (existence; ownership/usage not traced) |
+| `data/` | Runtime data | Observed (existence; ownership/usage not traced) |
+| `scripts/` | Operational scripts (menu, maintenance, bench) | Observed (existence; ownership/usage not traced) |
 | `data/` | Runtime data | Verified |
 | `plans/` | Roadmap, STATUS, tasks, audits, decisions, to_do (historical), KNOWN_ISSUES.md | Observed (existence) |
 | `test/` | 12 top-level test files + nested (backtest) | Verified |
-| `.kilo/` | Kilo skills/rules | Verified |
-| `.jules/` | Jules artifacts | Verified |
+| `.kilo/` | Kilo skills/rules | Observed (existence) |
+| `.jules/` | Jules artifacts | Observed (existence) |
 
 ## 4. Technology stack and dependency inventory
 
@@ -45,7 +45,7 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 - **Broker/market data:** @oanda/v20, yahoo-finance2.
 - **Frontend:** React/TypeScript under `front_end/` (separate manifest; not inspected).
 - **Testing:** Jest 29.7.0 (devDep), nodemon 3.1.11.
-- **Linting:** `eslint.config.js` exists but `eslint` is not declared in dependencies/devDependencies (verified). Frontend lint is `tsc --noEmit` (TypeScript type-check), not ESLint. No root lint/typecheck scripts declared (suspected gap).
+- **Linting:** Root `package.json` declares no lint or typecheck scripts (verified). `eslint.config.js` exists at root but `eslint` is not declared in dependencies or devDependencies (verified), so ESLint cannot run from the inspected manifests. Frontend (`front_end/package.json`) declares `"lint": "tsc --noEmit"`, which is TypeScript type-checking, not ESLint. Do not imply that no lint command exists anywhere: a frontend type-check command exists, but it is not ESLint and no root lint command exists.
 
 ## 5. Application entry points and execution flow
 
@@ -101,7 +101,7 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 
 ## 9.5 Verified configuration inconsistencies (independent review)
 
-- **Jest module alias to missing `strategies/` directory (verified):** `package.json` jest.moduleNameMapper contains `"^@strategies/(.*)$": "<rootDir>/strategies/$1"` and `_moduleAliases` contains `"@strategies": "./strategies"`, but no root `strategies/` directory exists (verified via `Test-Path`). Status: verified broken alias; root cause unknown (suspected: strategies migrated into packages/ or engine/).
+- **Jest/module alias to missing `strategies/` directory (verified target missing):** `package.json` jest.moduleNameMapper contains `"^@strategies/(.*)$": "<rootDir>/strategies/$1"` and `_moduleAliases` contains `"@strategies": "./strategies"`, but no root `strategies/` directory exists (verified via `Test-Path`). The alias target is dangling. Consumer/runtime impact has not been established (no imports or execution paths traced in this audit). Status: configuration inconsistency / dangling alias target. Do not infer that the entire strategy system is broken.
 - **ESLint not declared as dependency (verified):** `eslint.config.js` exists at root with rules, but `eslint` is not in `dependencies` or `devDependencies` (devDeps: globals, jest, nodemon). Frontend lint command is `tsc --noEmit` (package.json `front_end`: `"lint": "tsc --noEmit"`), which is TypeScript type-checking, not ESLint. Status: verified inconsistency.
 - **KNOWN_ISSUES.md location (verified):** File exists at `plans/KNOWN_ISSUES.md`, not repository root. Root `AGENTS.md` references `/KNOWN_ISSUES.md`. Status: verified path discrepancy.
 - **Hardcoded Windows path in DB scripts (verified):** `package.json` scripts `db:start`, `db:stop`, `db:status` reference `D:/scoop/persist/postgresql/data`. Status: verified environment-specific hardcoded path.
@@ -124,10 +124,12 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 
 ## 12. Recommended investigation priorities for subsequent P0 tasks
 
-1. P0-02: Verify boot path (`npm start`) and DB connectivity.
-2. P0-03: Lint/typecheck baseline and test isolation (teardown warning).
-3. P0-04: Dependency usage audit (unused/outdated).
-4. P0-05: Legacy vs package ownership map completion.
+1. P0-02: Backend ownership and dependency map.
+2. P0-03: Frontend architecture and behavior map.
+3. P0-04: Cross-layer contract map.
+4. P0-05: Persistence, jobs and runtime-state audit.
+5. P0-06: Test and known-issues baseline.
+6. P0-07: Plans and PR/branch reconciliation.
 
 ## 13. Evidence index
 
