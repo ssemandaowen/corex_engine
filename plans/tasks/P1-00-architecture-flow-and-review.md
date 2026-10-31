@@ -59,7 +59,7 @@ The repository is a transitional modular monolith:
 - WebSocket broadcasting: engine/services/broadcaster.js.
 - Frontend state and views: front_end/src.
 
-Observed concentration points include engine/core/engine.js (718 lines), engine/backtestManager.js (913), engine/routes/backtestController.js (993), engine/routes/executionController.js (785), engine/services/broadcaster.js (788), and engine/services/pgStore.js (648). These are investigation targets, not instructions to split files mechanically.
+Observed concentration points at the reviewed GitHub baseline `435127546087f9d40486ea272cb337363ce0724e` include engine/core/engine.js (718 lines), engine/backtestManager.js (913), engine/routes/backtestController.js (993), engine/routes/executionController.js (785), engine/services/broadcaster.js (788), and engine/services/pgStore.js (648). These counts were independently reproduced from the files at that revision; they are investigation targets, not instructions to split files mechanically. A later Kilo review reported 1,026 / 803 / 777 / 784 for backtestManager / broadcaster / pgStore / executionController, respectively, but those figures do not match the GitHub source snapshot at the reviewed baseline or PR #54 head. Do not silently substitute them: first reconcile the exact local commit/source revision used for those `Get-Content` counts. Until then, this plan's counts are explicitly baseline-scoped.
 
 ### 2.3 Current boot and application flow
 
@@ -101,7 +101,7 @@ TwelveData / selected provider
   -> RuntimeRegistry.forSymbol(symbol)
   -> select PAPER/LIVE runtime entries
   -> broker.onTick(tick)
-  -> strategy.onMarketData(packet)
+  -> instance.onMarketData(packet, context)
   -> strategy returns signal/intent
   -> broker.handle(signal)
   -> synchronize position snapshot
@@ -119,9 +119,9 @@ Frontend command / REST request
   -> validate user, settings, upload/dataset and limits
   -> persist job through engine/services/jobQueue.js
   -> PostgreSQL corex_jobs
-  -> jobWorkerSupervisor forks worker
-  -> engine/workers/jobWorker.js claims job
-  -> engine/workers/jobs/backtestRun.js
+  -> jobWorkerSupervisor uses child_process.fork() to launch a separate Node.js worker process
+  -> engine/workers/jobWorker.js claims job inside that child process
+  -> engine/workers/jobs/backtestRun.js executes the backtest job inside the same worker process
   -> load strategy source and instantiate strategy
   -> engine/backtestManager.js
   -> historical data + BacktestDriver / fill simulation
@@ -131,7 +131,7 @@ Frontend command / REST request
   -> frontend report and progress view
 ~~~
 
-Source evidence: backtestController.js, jobQueue.js, jobWorker.js, jobs/backtestRun.js, backtestManager.js and packages/corex-broker-contract/src/drivers/BacktestDriver.js. BacktestDriver.execute is a direct synchronous fill method and bypasses BaseBroker.handle and its installed risk validator. The independent review also traced cancellation, retry, cost propagation, fill timing, callback, dataset validation, accounting and report-persistence defects. Record those findings in the P1-00 review artifact; Kilo/Jules should verify only explicitly uninspected boundaries and add missing evidence rather than repeat the whole audit.
+Source evidence: backtestController.js, jobQueue.js, jobWorker.js, jobs/backtestRun.js, backtestManager.js, jobWorkerSupervisor.js and packages/corex-broker-contract/src/drivers/BacktestDriver.js. `engine/services/jobWorkerSupervisor.js` calls `fork(workerPath, ...)` in `_spawn()`, so the job handler and backtest manager execute in a separate child process rather than the HTTP/application process. BacktestDriver.execute is a direct synchronous fill method and bypasses BaseBroker.handle and its installed risk validator. The independent review also traced cancellation, retry, cost propagation, fill timing, callback, dataset validation, accounting and report-persistence defects. Record those findings in the P1-00 review artifact; Kilo/Jules should verify only explicitly uninspected boundaries and add missing evidence rather than repeat the whole audit.
 
 ### 2.6 Risk and SocketX source verification
 
@@ -143,6 +143,10 @@ The normal engine wiring sets a BaseBroker-level risk validator:
 - BacktestDriver.execute bypasses BaseBroker.handle and the validator. This is the concrete mode-parity gap.
 
 SocketXServer supports account ownership checks only when an accountResolver is supplied. The inspected engine configures its static token verifier but does not instantiate SocketXServer; engine/server.js wires /ws to the broadcaster and /mt5 to the MT5 bridge. Verify whether another entry point activates SocketXServer before treating that command path as production behavior.
+
+### 2.8 Strategy validation evidence limit
+
+The round7 security cases (`eval`, `require('fs')` and `process` access) are not re-verified by this architecture review. The P0-06 quality review identified the prior KNOWN_ISSUES classification as stale/inconsistent with an earlier full-suite result, but that does not establish the current behavior of `@utils/security/validateStrategyCode`. No fresh targeted test run or source-level rejection proof is recorded here. Treat the three cases as UNVERIFIED until the current helper and its tests are inspected and the exact tests are rerun with saved output; do not claim that static validation rejects them or that the strategy execution environment is sandboxed.
 
 ### 2.7 Strategy worker and restart source verification
 
@@ -167,7 +171,7 @@ Use the active roadmap's rules:
 - Shims are temporary and require named consumers and removal criteria.
 - No mechanical file splitting, mass package extraction, schema changes or protected execution/risk changes during architecture review.
 
-Historical plans/target-architecture.md is not authoritative. Its event-bus-first rule and proposed package map must not be adopted without review. The current roadmap supersedes it.
+Historical `plans/target-architecture.md` (dated 2026-08-22) is not authoritative; its contents explain why it is superseded rather than merely asserting that status. It sets the goal that each new feature should be a new package with zero existing-code changes, says packages communicate via events, makes `engine/` a thin I/O/composition root, and proposes future `corex-execution`, `corex-jobs`, `corex-risk`, `corex-notifications` and `corex-settings` packages. It also specifies event-bus-first package rules and a leaf-first extraction sequence. Those rules and package proposals are not adopted by the current roadmap, which instead requires justified ownership/contracts, direct calls for synchronous request/response, events for genuine asynchronous fan-out, and no mechanical extraction. The current roadmap supersedes the historical proposal; retain it as historical rationale, not an active target.
 
 ## 3. Proposed target interaction flow — for review, not yet approved
 
