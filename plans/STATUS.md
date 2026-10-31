@@ -1,7 +1,7 @@
 # CoreX Work Status
 
 > Last updated: 2026-10-31
-> Active phase: Phase 0 — Establish the verified repository baseline
+> Active phase: Phase 0 — Current-state architecture audits
 > Authoritative roadmap: `plans/COREX_DEVELOPMENT_PLAN.md`
 > Coordination rules: `plans/AGENT_WORKFLOW.md`
 
