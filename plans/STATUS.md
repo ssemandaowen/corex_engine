@@ -15,7 +15,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 | ID | Task | Suggested owner | Status | Depends on | Output |
 |---|---|---|---|---|---|
-| P0-01 | Repository baseline | Kilo Code | REVIEW | None | `plans/architecture/REPOSITORY_BASELINE.md` |
+| P0-01 | Repository baseline | Kilo Code | DONE | None | `plans/architecture/REPOSITORY_BASELINE.md` |
 | P0-02 | Backend ownership and dependency map | Kilo Code | READY | P0-01 | `plans/architecture/BACKEND_OWNERSHIP_MAP.md` |
 | P0-03 | Frontend architecture and behavior map | Jules | READY | None; verify baseline commit | `plans/architecture/FRONTEND_OWNERSHIP_MAP.md` |
 | P0-04 | Cross-layer contract map | Kilo Code | READY | P0-02, P0-03, P0-05 | `plans/architecture/INTEGRATION_CONTRACT_MAP.md` |
@@ -27,7 +27,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 ## Execution constraints
 
-- P0-01 is the first baseline task. P0-03 and P0-07 may be investigated independently after checking the current main commit.
+- P0-01 is accepted and DONE. P0-02, P0-05 and P0-06 may now use its verified baseline. P0-03 and P0-07 may be investigated independently after checking the current main commit.
 - P0-02, P0-05 and P0-06 should use P0-01's verified baseline and avoid overlapping writes.
 - P0-04 waits for the backend, frontend and persistence maps.
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
@@ -45,11 +45,20 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 ## Current blockers and decisions
 
-- P0-01 is in REVIEW on branch `audit/p0-01-repository-baseline`; awaiting Owen's acceptance.
+- Owen accepted P0-01 on 2026-10-31. PR #53 was squash-merged to `main` as `a97ae6359b0d1b960b19368e2bbff476e16b4405`.
+- P0-02 is approved to begin. It remains READY until Kilo records its workstream branch and claims it in this dashboard and task file.
 - Review existing open PRs as evidence; do not merge or close them as part of a read-only audit.
 - Any protected architecture, broker/execution/risk behavior, database schema or public-contract change requires the approval specified in the roadmap.
 
 ## Recent handoffs
+
+### Acceptance — 2026-10-31 (P0-01)
+Owner / decision: Owen Ssemanda
+Status: DONE — accepted
+Integrated PR: [#53](https://github.com/ssemandaowen/corex_engine/pull/53)
+Merge commit: `a97ae6359b0d1b960b19368e2bbff476e16b4405`
+Evidence: three documentation files merged; all seven task IDs remain on the dashboard; P0-01 acceptance record and correction metadata verified on `main`.
+Decision: P0-02 is authorized to begin. Kilo must record its branch and claim before work starts.
 
 ### Handoff — 2026-10-31 (correction pass 3)
 Owner / agent: Kilo Code
