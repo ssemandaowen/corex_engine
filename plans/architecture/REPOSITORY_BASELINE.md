@@ -8,6 +8,7 @@
 - **Audited base commit (origin/main, PR #52 merge):** `3aab1d71bd0c2554b519b2a099f8af6caccddf79`
 - **Initial P0-01 audit commit:** `fdcdd9f84babe4da3f6c2016f70feca4261d7956`
 - **Correction commit (this pass):** `c565d0492cbcbbd9e21c3d0a2eb0513445aee5df` (current branch HEAD at time of this correction)
+- **Latest reviewed revision before this pass:** `85533094243e1332bd8293fb0a21db68c0f4f856`
 - **PR #52 merge ancestry:** Verified — `3aab1d7` is an ancestor of HEAD; `git merge-base --is-ancestor 3aab1d7 HEAD` succeeds.
 - **Working-tree status:** Clean (no modified/untracked files; node_modules is a local junction to the original repo's node_modules and is gitignored).
 - **Scope:** Read-only audit of repository structure, dependencies, commands, tests, configuration, and documentation. No application code modified.
@@ -20,19 +21,16 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 
 | Path | Responsibility (observed) | Status |
 |------|--------------------------|--------|
-| `index.js` | Application entry point | Verified |
-| `engine/` | Orchestration: server.js, engine.js, routes, services, workers, backtest manager, middleware | Observed (existence; ownership not traced) |
-| `engine/core/`, `engine/data/`, `engine/managers/`, `engine/middleware/`, `engine/modules/`, `engine/routes/`, `engine/services/`, `engine/test/`, `engine/workers/` | Sub-domains of engine (includes `engine/managers/mt5Receiver.py` Python MT5 bridge) | Observed (existence; ownership not traced) |
-| `packages/` | 7 extracted packages: corex-accounts, corex-auth, corex-broker-contract, corex-gateway, corex-market-data, corex-portfolio, corex-strategy-engine | Verified |
-| `broker/` | Legacy broker implementations | Verified (legacy) |
+| `index.js` | Application entry point | Observed (existence) |
+| `packages/` | 7 extracted packages: corex-accounts, corex-auth, corex-broker-contract, corex-gateway, corex-market-data, corex-portfolio, corex-strategy-engine | Observed (existence) |
+| `broker/` | Legacy broker implementations | Observed (existence; legacy) |
 | `utils/` | Mixed utilities; contains domain-specific code per AGENTS.md concern | Observed (existence; ownership/usage not traced) |
 | `events/` | Event bus / event definitions | Observed (existence; ownership/usage not traced) |
 | `config/` | Configuration modules | Observed (existence; ownership/usage not traced) |
 | `data/` | Runtime data | Observed (existence; ownership/usage not traced) |
 | `scripts/` | Operational scripts (menu, maintenance, bench) | Observed (existence; ownership/usage not traced) |
-| `data/` | Runtime data | Verified |
 | `plans/` | Roadmap, STATUS, tasks, audits, decisions, to_do (historical), KNOWN_ISSUES.md | Observed (existence) |
-| `test/` | 12 top-level test files + nested (backtest) | Verified |
+| `test/` | 12 top-level test files + nested (backtest) | Observed (existence) |
 | `.kilo/` | Kilo skills/rules | Observed (existence) |
 | `.jules/` | Jules artifacts | Observed (existence) |
 
@@ -69,7 +67,7 @@ CoreX is a Node.js/Express + React/TypeScript algorithmic trading engine backed 
 | `npm run worker:jobs` | package.json | Not executed |
 | `npm run status` | package.json | Not executed |
 | `npm run bench:engine` | package.json | Not executed |
-| lint / typecheck | — | **No scripts declared** (unknown if configured) |
+| lint / typecheck | package.json (root) / front_end/package.json | **No root scripts declared**; frontend declares `"lint": "tsc --noEmit"` (TypeScript type-check, not ESLint). ESLint not declared in inspected manifests. |
 
 ## 7. Testing and quality infrastructure
 

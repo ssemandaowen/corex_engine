@@ -54,7 +54,23 @@ Create `plans/architecture/REPOSITORY_BASELINE.md` with:
 - [x] Limitations and unknowns are explicit.
 - [x] STATUS and this task record include a resumable handoff.
 
-### Handoff — 2026-10-31 (correction pass 2)
+### Handoff — 2026-10-31 (correction pass 3)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Audited base commit: 3aab1d71bd0c2554b519b2a099f8af6caccddf79
+Initial P0-01 audit commit: fdcdd9f84babe4da3f6c2016f70feca4261d7956
+First correction commit: c565d0492cbcbbd9e21c3d0a2eb0513445aee5df
+Latest reviewed revision before this pass: 85533094243e1332bd8293fb0a21db68c0f4f856
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (updated); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Third correction pass per final GitHub review. Restored full P0-01..P0-07 dashboard in STATUS.md. Removed duplicate data/ row. Softened all existence-only labels. Corrected section 6 lint row. Added latest reviewed revision commit reference.
+Commands and test results: Select-String/Test-Path verification only; no tests rerun (docs-only).
+Unverified items / limitations: root cause of strategies alias unknown; schema.sql vs migrations relationship untraced; ownership/usage not traced for any directory.
+Decisions needed: Owen review of corrected audit.
+Blockers: None.
+Exact next action: Owen reviews corrected audit and final diff; if accepted, integrate via PR #53.
+May another agent continue? YES — read-only review only.
+
 Owner / agent: Kilo Code
 Status: REVIEW
 Branch: audit/p0-01-repository-baseline
