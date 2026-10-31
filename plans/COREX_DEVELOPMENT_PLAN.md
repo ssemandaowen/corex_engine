@@ -198,11 +198,15 @@ An unchecked task is not permission to start it. The task must be selected, assi
 
 **Outcome:** A verified map of the current application, its dependencies, behavior and active work. No broad implementation or mass movement in this phase.
 
-- [ ] **P0-01 — Repository baseline**
+- [~] **P0-01 — Repository baseline**
   - Record default branch, latest commit, package manager, scripts, runtime versions, workspace configuration and test commands.
   - Inventory top-level and nested directories, package manifests and package-specific agent instructions.
   - Output: plans/architecture/REPOSITORY_BASELINE.md.
   - Acceptance: commands and paths verified against the checked-out branch; timestamp and commit SHA recorded.
+  - Status: IN PROGRESS — remote repository inventory drafted; local workstation evidence remains outstanding.
+  - Owner: ChatGPT (remote inventory), Owen/Jules (local runtime and working-tree verification).
+  - Branch: docs/p0-01-repository-baseline.
+  - Started: 2026-10-31.
 
 - [ ] **P0-02 — Backend ownership and dependency map**
   - Trace routes/controllers → application services/workers → domain logic → adapters/repositories.
