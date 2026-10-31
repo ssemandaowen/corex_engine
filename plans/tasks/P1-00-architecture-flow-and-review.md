@@ -1,6 +1,6 @@
 # CoreX — Phase 0 Closeout and Phase 1 Architecture Review
 
-> Status: REVISE — REVIEW FINDINGS INCORPORATED; FOLLOW-UP REVIEW REQUIRED — NO CODING AUTHORIZED
+> Status: ACCEPT FOR OWEN REVIEW — FOLLOW-UP EVIDENCE LIMITS RECORDED — NO CODING AUTHORIZED
 > Owner / final decision authority: Owen Ssemanda
 > Roadmap authority: plans/COREX_DEVELOPMENT_PLAN.md
 > Baseline reviewed: main at 435127546087f9d40486ea272cb337363ce0724e
@@ -360,4 +360,10 @@ After reviews, Kilo may make one bounded documentation correction pass. Owen app
 - No merging existing PRs as a shortcut.
 - No repeated documentation-only correction cycles once the evidence is sufficient.
 
-**Next action:** Kilo verifies only the targeted unknown paths; Jules verifies frontend job/report and tenant flows using PR #49; Gemini reviews the revised security/execution decisions. Return findings only. Do not code until Owen decides the policy questions and approves the consolidated architecture.
+## 10. Follow-up review disposition — 2026-11-01
+
+Kilo Code returned **ACCEPT FOR OWEN REVIEW**, subject to a bounded documentation correction pass. The pass corrected the MarketFeed callback name, made the forked job-worker process boundary explicit, documented the historical target-architecture proposal that is being superseded, and recorded the unverified round7 validation cases. The reported alternate line counts could not be reproduced from the GitHub source snapshot at the reviewed baseline or PR #54 head; the plan now scopes its counts to baseline `435127546087f9d40486ea272cb337363ce0724e` and records the discrepancy rather than presenting unverified numbers as fact.
+
+This is not final architecture approval. The original independent review findings remain recorded in `plans/reviews/P1-00-review-2026-11-01.md`; the targeted Kilo verdict does not replace Jules/Gemini review or Owen's decisions. No application coding is authorized.
+
+**Next action:** Jules verifies frontend job/report and tenant flows using PR #49; Gemini reviews the revised security/execution decisions. Kilo may verify any remaining backend unknowns only where evidence is still missing. Return findings only. Do not code until Owen decides the policy questions and approves the consolidated architecture.
