@@ -1,237 +1,464 @@
-# CoreX fix pack — Jul 2026
+# CoreX
 
-Two confirmed root causes, plus two smaller fixes. All are drop-in file replacements
-(same paths as in your repo). No new dependencies.
+**CoreX is a Node.js trading application for authoring and running algorithmic strategies, connecting market-data and broker integrations, monitoring execution, and evaluating strategies through historical backtests.**
 
-## 1. WebSocket disconnect/reconnect cycling + "static logs" (the big one)
+The repository contains a Node.js/Express backend, a React/TypeScript desktop-style web interface, PostgreSQL persistence, WebSocket-based live updates, strategy runtime infrastructure, broker/data-provider adapters and an asynchronous job system.
 
-**File:** `front_end/src/App.tsx`, `front_end/src/views/HomeView.tsx`
-
-Root cause: `connectWebSocket()` / `disconnectWebSocket()` were called inside
-`HomeView`'s own `useEffect` mount/unmount. Your views are conditionally
-rendered (`activeTab === 'home' ? <HomeView/> : ...`), so `HomeView` fully
-**unmounts** the instant you switch to Strategies, Run, Data, etc. That
-unmount cleanup was calling `disconnectWebSocket()` — killing your live
-connection every time you navigated away from Home, and reconnecting only
-when you came back. That's the "disconnects and connects" you're seeing, and
-it's also why the terminal only ever shows the two hardcoded placeholder
-lines: the socket is dead on every screen except Home, so no `SYSTEM_LOG` /
-`BACKTEST_PROGRESS` / anything ever arrives while you're actually working.
-
-Fix: the WS connection now lives at the app root (`App.tsx`), keyed on your
-auth `token`, so it opens once on login and stays open across every tab —
-only tearing down on logout or tab close.
-
-## 2. System logs silently hidden unless your account role is "admin"
-
-**File:** `engine/services/broadcaster.js`
-
-`transmit()` had a hardcoded rule: any `SYSTEM_LOG`/`SYSTEM_ERROR` event with
-no specific target user (i.e. general system/startup logs, not
-strategy-scoped ones) was only sent to clients with `role === "admin"`. If
-your account isn't flagged admin, none of that ever reached your browser —
-again, consistent with "the only logs I see are the same two static lines."
-
-Fix: gated behind an env var, default OFF (visible to every authenticated
-client). If you ever want the old restriction back for a real multi-tenant
-deployment, set:
-
-```
-COREX_WS_SYSTEM_LOGS_ADMIN_ONLY=true
-```
-
-**Also worth checking right now:** confirm your own account actually has
-`role = "admin"` in the `users` table if you want the strictest setting later.
-For a single-operator setup, leaving the new default (open) is simpler and
-correct.
-
-## 3. Fake placeholder logs removed
-
-**File:** `front_end/src/store/dataStore.ts`
-
-The seeded `activityLogs` array had two hardcoded fake "success" lines
-(`"COREX Strategy Engine Core Online v2.6.0"`, `"System DB healthcheck:
-STABLE"`) left over from the original AI Studio scaffold. They were never
-replaced by real data, so they always looked like a healthy live log even
-when nothing was connected. Replaced with a single honest "waiting for
-WebSocket connection..." line, and added real `WebSocket connected` /
-`WebSocket disconnected (code ...)` log lines on actual connect/close events,
-so the terminal now reflects truth instead of a canned success message.
-
-## 4. Missing "Output Size" (bars) field on Backtest form
-
-**File:** `front_end/src/components/run/BacktestSubTab.tsx`
-
-Two bugs here:
-- `rangePoints` (the bar-count parameter you're missing) was declared and
-  sent to the backend, but there was **no input control** for it anywhere in
-  the UI — it was permanently stuck at the default `1000`.
-- `rangeMode` was typed as `'ALL' | 'LAST_N'`, but your backend
-  (`backtestController.js` / `backtestManager.js`) only ever recognizes
-  `'points'` or `'dates'`. Since your frontend never sent either of those,
-  the backend was silently falling through validation using a value it
-  doesn't actually understand.
-
-Fix: `rangeMode` now correctly defaults to `'points'` (the only mode your UI
-actually supports today — there's no date-range picker in this form), and
-there's a new "Output Size (Bars)" number input wired to `rangePoints`,
-clamped client-side to 5000 to match the backend's `MAX_BARS_LIMIT`.
+> **Project status:** Active development. The current codebase is a working but transitional modular monolith. Domain packages coexist with older application directories, and some responsibilities are still being migrated. This README describes the code currently present in the repository; it is not a claim that every feature is production-ready or that the target architecture is complete.
 
 ---
 
-## Still need your help on these (couldn't diagnose blind):
+## What the application does
 
-1. **"Failed to spin up connector / container"** on paper trade — this is
-   almost certainly your job worker (`engine/services/jobWorkerSupervisor.js`,
-   a forked Node child process, not Docker — "container worker" is just the
-   toast copy in `BacktestSubTab.tsx`). I didn't want to patch this without
-   seeing the actual error. Next time it happens, grab:
-   - the exact toast/error text in the browser
-   - the server terminal output from the moment you click Run (look for
-     `[JOB_SUPERVISOR]` or `Backtest job worker exited` lines)
-2. **Auth failing on every request when you handed code to another AI to
-   check** — need the actual 401 response body / server log line
-   (`[authGuard] ...`) from that session to pin down whether it was a
-   revoked session, missing `Authorization` header, or something in how that
-   AI's sandbox was calling your API.
+CoreX is organized around a workflow:
 
-## 5. Scaling concern: redundant REST polling (fixed)
+1. Sign in and manage a user account.
+2. Create, edit, compile and configure a trading strategy.
+3. Configure market-data and broker connectivity.
+4. Start a strategy runtime in a supported execution mode.
+5. Monitor strategy state, market data, account/execution activity and system health.
+6. Upload historical CSV data, run backtests and inspect saved reports.
 
-**Files:** `engine/services/broadcaster.js`, `front_end/src/views/HomeView.tsx`
+### Main workspace
 
-You were right to flag this. `HomeView` was firing **two REST calls every 5
-seconds, per connected browser**:
-- `systemApi.getStatus()` — which did a live `SELECT 1` against Postgres on
-  *every single call*
-- `runApi.getOpsTelemetry()`
+The React application currently exposes these main navigation areas:
 
-With 1 user that's 24 DB round-trips/minute just for a status badge. With 50
-users open on Home simultaneously, that's 1,200/minute for information your
-WebSocket is already pushing. This would absolutely get worse as your user
-count grows — polling cost scales with clients, push doesn't.
+| Area | Purpose |
+|---|---|
+| **Home** | Application status, account/workspace overview and operational information |
+| **Strategies** | Strategy list, source editor, strategy metadata and parameter configuration |
+| **Run** | Strategy runtime controls, execution monitoring and backtest workflow |
+| **Data** | Historical data, uploaded datasets, storage and backtest reports |
+| **Account** | Account and connector-related user interface |
+| **Settings** | Application, engine and integration settings |
 
-Fix:
-- `broadcaster.js` now does **one shared DB health check every 10 seconds**
-  (`_refreshDbHealth()`), cached in memory, and includes `db` + `worker`
-  status in the existing `STATUS_UPDATE` WS broadcast — so it's O(1)
-  regardless of how many clients are connected, not O(n).
-- `HomeView.tsx` no longer polls `/api/status` at all. `engineStatus`
-  (STABLE/DEGRADED/OFFLINE) is now derived reactively from the WS-fed
-  `systemStatus` in the store.
-- `runApi.getOpsTelemetry()` (the paper/live running-instance list) isn't on
-  the WS feed yet, so it still polls — but dropped from 5s to 20s, since an
-  instance list doesn't need sub-5-second freshness. If the Runtimes view
-  ever feels laggy, moving that onto the WS feed the same way `db`/`worker`
-  went would be the next step — happy to do that too.
+The frontend is under `front_end/`. It uses React 19, TypeScript, Vite, Zustand, Axios, Tailwind CSS 4, Lightweight Charts, Recharts and Monaco Editor.
 
-This also likely explains part of the "big red DEGRADED events popping up
-everywhere": before this fix, `engineStatus` flipped to `OFFLINE` on *any*
-failed REST poll (network hiccup, slow DB, or the WS-cycling bug in #1 above
-indirectly causing timing issues) — a transient blip that's now gone since
-there's no separate poll to fail.
+### Strategy engine and runtime
 
-## SOLVED (from your log): why paper/live starts were failing
+The backend includes a strategy loader/compiler and a strategy runtime system. The strategy-engine package contains strategy context construction, parameter schema utilities, indicator management/registry, position-related utilities, state storage, plotting buffers, validation and a collection of technical indicators.
 
-Your log gave the exact answer — DB is fine (`corex_jobs` worker started clean,
-no `DB_NOT_CONFIGURED` anywhere), and this had nothing to do with the DB theory
-above. The real error, three times over:
+The application exposes strategy operations through the API, including listing, reading, creating/updating and managing strategies. Runtime services support starting, stopping and restarting strategies, applying validated parameter updates and retrieving runtime status/telemetry.
 
-```
-Symbol 'EURUSD' is not supported by '...::demo'. Available: BTC/USD
-Symbol 'EURUSD' is not supported by '...::ema_crossover'. Available: BTC/USD
-Symbol 'EURUSD' is not supported by '...::rapid'. Available: BTC/USD
-```
+The runtime is designed to warm strategies with historical market data before live updates. Runtime lifecycle and recovery behavior are managed by the engine and its supporting runtime/loader modules.
 
-Every one of your strategies only declares `BTC/USD`, but every launch
-attempt was sent with `symbol: 'EURUSD'`. Two bugs stacked to cause that:
+### Execution modes
 
-**Files:** `engine/routes/strategyController.js`, `front_end/src/components/run/RuntimesSubTab.tsx`
+The repository contains broker drivers and mode implementations for:
 
-1. `strategyController.js`'s strategy list endpoint (`GET /`) built the
-   `symbols` field as `liveInstance?.symbols || []` — which is only ever
-   non-empty while a runtime is *already running*. For a stopped strategy
-   (exactly the state you're in right before launching it), this was always
-   `[]`, even though the endpoint already had `meta` (the compiled strategy
-   metadata, which does contain the real declared symbol list) sitting right
-   there unused. Fixed: falls back to `meta.metadata.symbols` when there's no
-   live instance.
-2. `RuntimesSubTab.tsx`'s launcher form defaulted `launchSymbol` to a
-   hardcoded `'EURUSD'`, and its only attempt to override that checked
-   `selectedStrat.schema.symbol?.default` — a field that doesn't exist on a
-   real compiled strategy (`schema` is the strategy's *parameter* config, not
-   its symbol list). That check silently never matched anything, so
-   `launchSymbol` stayed at `'EURUSD'` for every strategy regardless of what
-   it actually declared. Fixed: now reads the strategy's real `symbols` array
-   (correctly populated by fix #1 above) and defaults to its first declared
-   symbol instead.
+- **PAPER** — simulated execution through the CoreX paper driver/broker.
+- **LIVE** — broker-backed execution through configured connectors.
+- **BACKTEST** — historical simulation using the current backtest manager and its data/report workflow.
 
-With both applied, selecting `demo`/`ema_crossover`/`rapid` in the launcher
-should auto-fill `BTC/USD` instead of `EURUSD`, and paper/live start should
-actually succeed. The free-text symbol input still lets you type any symbol
-manually if a strategy supports more than one.
+The codebase contains separate mode-specific implementations. Do not assume that all broker integrations, symbols, account types or order features are available in every mode. Availability depends on the connector, credentials, configuration and current implementation.
 
-This was purely a paper/live bug — it doesn't touch backtests, which take
-their symbol from the Backtest form's own `symbol` field (already free-text,
-defaults to `EURUSD` there too — worth checking your BTC-only strategies use
-the right symbol in that form as well, same underlying mismatch could bite
-you there if you don't type BTC/USD in manually).
+### Backtesting and historical datasets
 
-## On backtests specifically (still open)
+The current backtest workflow includes:
 
+- CSV dataset upload and storage;
+- dataset metadata such as bar count and time range;
+- per-user upload/report access paths;
+- asynchronous job execution through the database-backed job queue;
+- progress reporting;
+- saved backtest reports and report retrieval;
+- configurable upload and storage limits.
 
+**Current implementation location:** backtest behavior is still orchestrated through legacy application modules, notably `engine/backtestManager.js`, with supporting API, service, worker and market-data modules. A dedicated `packages/corex-backtest` package is a proposed rebuild target, not an existing package in the current repository snapshot.
 
-I traced backtest execution end-to-end. Backtests go through a **DB-backed
-job queue** (`engine/services/jobQueue.js`) — the forked worker process polls
-a `corex_jobs` table for work. Every single method in that file starts with:
+### Market data
 
-```js
-if (!db.hasDbConfig()) throw new Error("DB_NOT_CONFIGURED");
-```
+The market-data package defines a provider contract and factory and includes provider implementations for:
 
-`hasDbConfig()` just checks that `DATABASE_URL` or `PGHOST` is set in your
-env — not that the DB is actually reachable. So there are two ways this
-breaks every backtest:
-1. Those env vars aren't set at all → immediate `DB_NOT_CONFIGURED` on every
-   run.
-2. They *are* set, but Postgres itself is down/unreachable → the `INSERT INTO
-   corex_jobs` throws a real connection error instead.
+- Twelve Data;
+- Yahoo Finance;
+- file-backed data.
 
-Paper/live trading takes a **different path** (`strategyLoader.js` →
-`loader.start()`, not the job queue), so if all three are failing together
-it's probably not this one shared cause — but it's the fastest, cheapest
-thing to rule out first, and now that `broadcaster.js` broadcasts `db`
-status over WS, you'll see `CONNECTED`/`DISCONNECTED`/`DISABLED` in real time
-in the terminal the moment you apply this patch and reload.
+The repository also contains the older Twelve Data broker integration used by parts of the application. Historical retrieval, live subscriptions, symbol normalization, caching and strategy warmup are handled across the market-data package and existing engine/broker modules.
 
-**Next step:** apply this patch, reload, check what `db` shows in your
-terminal/status, then send me:
-- the exact toast/error text when you click Run on a backtest
-- same for starting a paper instance
-- the server console output from that same moment (look for lines starting
-  `[JOB_SUPERVISOR]`, `[JOB_WORKER]`, or anything with `VALIDATION_FAILED`)
+An API key or provider account may be required. Provider limits, symbol coverage, intervals and availability are controlled by the upstream service and the current adapter.
 
-That'll tell us definitively whether it's the DB, the job worker process, or
-something in `strategyLoader`/`RuntimeBrokerFactory` for paper/live — and I
-can fix the actual thing instead of guessing at three different subsystems.
+### Broker and bridge integrations
 
+The broker-contract package contains broker abstractions, drivers, mode implementations, symbol/data utilities and connector code. The current source tree includes:
+
+- MetaApi connector/driver code;
+- MT5 MQL5 connector and bridge code;
+- CoreX paper and backtest drivers;
+- live and paper broker mode implementations;
+- shared fill-simulation utilities.
+
+The presence of connector code does not mean a broker account is already connected. Credentials, account configuration, provider access and the relevant bridge process are required. MT5 bridge connectivity uses its own WebSocket endpoint and configured bridge token.
+
+### Accounts, authentication and settings
+
+The repository includes user authentication services, JWT handling, a secrets vault, account/connection services, settings APIs and PostgreSQL persistence. The backend scopes many strategy, job, upload and report operations to the authenticated user.
+
+Production startup explicitly requires configured values for:
+- `JWT_SECRET`
+- `COREX_SECRETS_KEY`
+- `AUTH_KEY_PEPPER`
+
+Use unique, strong secrets. Never commit a real `.env` file, broker credential, API key, token or database password.
+
+### Real-time communication
+
+The backend exposes an authenticated WebSocket endpoint at `/ws` for application events and live state updates. The broadcaster maps internal engine events to WebSocket event types and supports channel/symbol subscriptions, heartbeats and buffered-message/backpressure controls.
+
+The MT5 bridge uses a separate `/mt5` WebSocket endpoint. It requires `MT5_BRIDGE_TOKEN` to be configured and validates the supplied bridge token.
+
+REST endpoints remain in use for commands, initial queries, settings, uploads, reports and other request/response operations. The application is not REST-free.
 
 ---
 
-## On temporarily removing your auth guards to debug
+## Technology
 
-I'd steer away from that. Two reasons:
-- `authGuard` and the WS upgrade handler are woven pretty tightly into
-  session revocation (`corex_sessions`) and per-user data isolation — pulling
-  it out cleanly and then correctly re-threading it back in is real surgery,
-  and you already said re-applying guards after removing them has bitten you
-  before.
-- You don't need it off to see what's happening — the two fixes above
-  restore your actual logs and a stable WS connection, which is the
-  visibility you were trying to get by removing the guard in the first
-  place.
+| Layer | Current implementation |
+|---|---|
+| Backend runtime | Node.js (root package declares Node.js `>=18`) |
+| HTTP API | Express 5 |
+| Real-time transport | WebSocket (`ws`) |
+| Database | PostgreSQL (`pg`) |
+| Backend language | JavaScript (CommonJS) |
+| Frontend | React 19 + TypeScript |
+| Frontend build/dev server | Vite |
+| Frontend state | Zustand |
+| HTTP client | Axios |
+| Charts | Lightweight Charts, Recharts |
+| Strategy editor | Monaco Editor |
+| Tests | Jest |
+| Configuration | Environment variables plus persisted CoreX settings |
 
-If you still hit an authorization wall while debugging locally, a safer
-version of the same idea is a dev-only bypass gated by an env var
-(`if (process.env.NODE_ENV !== 'production' && process.env.COREX_DISABLE_AUTH === 'true') return next();`)
-at the top of `authGuard` — one line to add, one line to delete, no
-re-threading required. Say the word and I'll wire that in properly instead.
+The root application uses module aliases such as `@core`, `@utils`, `@broker`, `@data`, `@events` and `@config`. These aliases are part of the current transitional codebase and should not be interpreted as proof that every package is fully isolated.
+
+---
+
+## Repository layout
+
+This is a responsibility-oriented guide to the current directories. It is not a statement that all boundaries are final.
+
+~~~text
+corex_engine/
+├── index.js                       # Application bootstrap and shutdown
+├── package.json                   # Backend dependencies and root scripts
+├── package-lock.json
+├── engine/
+│   ├── server.js                  # Express app, REST mounts and WS upgrades
+│   ├── core/                      # Engine, strategy loading, runtime and pipeline
+│   ├── routes/                    # HTTP route/controller modules
+│   ├── services/                  # Application services, persistence and integration
+│   ├── workers/                   # Job worker and job handlers
+│   └── modules/                   # Runtime-related modules
+├── packages/
+│   ├── corex-accounts/
+│   ├── corex-auth/
+│   ├── corex-broker-contract/
+│   ├── corex-gateway/
+│   ├── corex-market-data/
+│   ├── corex-portfolio/
+│   └── corex-strategy-engine/
+├── broker/                        # Existing/legacy broker integrations
+├── events/                        # Internal event bus
+├── config/                        # Engine constants and configuration
+├── utils/                          # Shared and legacy utilities
+├── db/
+│   ├── migrate.js                 # Database migration runner
+│   └── migrations/                # Ordered SQL migrations
+├── data/                          # Runtime data, cache, uploads and reports
+├── front_end/
+│   ├── src/
+│   │   ├── api/                   # Frontend API clients
+│   │   ├── components/
+│   │   ├── context/
+│   │   ├── hooks/
+│   │   ├── store/                 # Zustand stores
+│   │   └── views/                 # Main application views
+│   └── package.json
+├── scripts/                       # Maintenance, migration and utility scripts
+├── test/                          # Jest tests
+├── plans/                         # Architecture, audit and development plans
+├── AGENTS.md                      # Agent/repository engineering instructions
+└── SKILLS.md                      # Shared development skills and procedures
+~~~
+
+### Current package responsibilities
+
+| Package | Responsibility represented by current source |
+|---|---|
+| `corex-strategy-engine` | Strategy context, parameters, indicators, validation and runtime support |
+| `corex-market-data` | Provider contract/factory, market feed and historical data providers |
+| `corex-broker-contract` | Broker contract/base classes, drivers, connectors, modes and fill/data utilities |
+| `corex-gateway` | Account model/repository and Socket_X gateway/protocol components |
+| `corex-portfolio` | Trade history and portfolio/equity/performance analytics |
+| `corex-accounts` | Account and connection persistence/services |
+| `corex-auth` | Authentication and secrets-vault functionality |
+
+The root application still contains important domain and integration logic. Some package manifests also retain aliases to the older application directories. The development roadmap tracks the work needed to establish authoritative ownership and remove obsolete paths safely.
+
+---
+
+## Runtime request and event entry points
+
+### HTTP route mounts
+
+The Express server currently mounts these API route groups:
+
+| Route prefix | Purpose |
+|---|---|
+| `/api/auth` | Authentication |
+| `/api/strategies` | Strategy management and metadata |
+| `/api/run` | Runtime/execution controls and telemetry |
+| `/api/backtest` | Backtest runs, progress-related operations and dataset upload workflow |
+| `/api/system` | System status and operational endpoints |
+| `/api/bridge` | Bridge-related HTTP operations |
+| `/api/mt5` | MT5-related HTTP operations |
+| `/api/settings` | User/engine/integration settings |
+| `/api/accounts` | Account and connector routes |
+| `/api/data` | Candles, uploads, storage and report data |
+| `/ping` | Basic public process response (`PONG`) |
+
+Most application route groups are mounted with authentication middleware and a user-aware rate limiter. The bridge and MT5 route groups have their own route-level behavior; inspect their controllers before assuming a particular endpoint is public or protected.
+
+### WebSocket endpoints
+
+| Endpoint | Purpose |
+|---|---|
+| `/ws` | Authenticated CoreX application event stream |
+| `/mt5` | Token-protected MT5 bridge connection |
+
+The `/ws` upgrade accepts a Bearer token from the Authorization header or a token query parameter. Prefer the Authorization header in clients where it is supported; query-string credentials can be exposed in logs and intermediary tooling.
+
+---
+
+## Requirements
+
+- Node.js `>=18` (as declared in the root package manifest).
+- npm.
+- PostgreSQL for persisted application functionality.
+- A market-data provider API key for provider-backed market data.
+- Broker credentials and/or an MT5 terminal/bridge for the corresponding integrations.
+- Python only if you intend to run the optional MT5 receiver script.
+
+The exact provider, broker and account requirements depend on which features you intend to use.
+
+---
+
+## Local development setup
+
+### 1. Get the repository and install backend dependencies
+
+~~~bash
+git clone https://github.com/ssemandaowen/corex_engine.git
+cd corex_engine
+npm ci
+~~~
+
+### 2. Configure the backend environment
+
+Copy the example file:
+
+**Windows PowerShell**
+~~~powershell
+Copy-Item .env.example .env
+~~~
+
+**macOS / Linux**
+~~~bash
+cp .env.example .env
+~~~
+
+Edit `.env` and configure your PostgreSQL connection. The example file uses the `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD` and `PGDATABASE` variables. You can alternatively configure `DATABASE_URL`.
+
+Create the PostgreSQL database before running migrations. Then configure the credentials and provider settings you actually use.
+
+> **Security:** values in `.env.example` are development placeholders, not safe production credentials. Replace all placeholder passwords and secrets. Never deploy with the example JWT, admin password, or database password.
+
+For production, set strong independent values for `JWT_SECRET`, `COREX_SECRETS_KEY` and `AUTH_KEY_PEPPER`. Production bootstrap rejects startup when these required values are missing.
+
+### 3. Apply database migrations
+
+~~~bash
+npm run db:migrate
+~~~
+
+The application bootstrap also invokes the migration runner. The database migration history is stored under `db/migrations/`.
+
+### 4. Start the backend
+
+~~~bash
+npm start
+~~~
+
+The default HTTP port is `3000`. The server's default CORS origin is `http://localhost:5173`. Set `PORT` and `CORS_ORIGIN` as required for your environment.
+
+For automatic backend restarts during development:
+
+~~~bash
+npm run dev
+~~~
+
+### 5. Start the frontend
+
+Install frontend dependencies:
+
+~~~bash
+npm --prefix front_end install
+~~~
+
+Start the Vite development server:
+
+~~~bash
+npm run ui:dev
+~~~
+
+By default, the frontend API client targets `http://localhost:3000`. To point it at another backend, define `VITE_API_URL` in the frontend environment (for example, `front_end/.env.local`):
+
+~~~dotenv
+VITE_API_URL=http://localhost:3000
+~~~
+
+Vite normally serves the frontend at `http://localhost:5173`, which matches the backend's default development CORS origin.
+
+---
+
+## Configuration reference
+
+The complete and evolving list of environment settings is in `.env.example` and the configuration/service modules. Common settings include:
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | Backend HTTP port (default 3000) |
+| `NODE_ENV` | Runtime environment |
+| `DATABASE_URL` | Optional PostgreSQL connection string |
+| `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | PostgreSQL connection fields |
+| `JWT_SECRET` | JWT signing/verification secret |
+| `COREX_SECRETS_KEY` | Secrets-vault encryption key |
+| `AUTH_KEY_PEPPER` | API-key hashing pepper |
+| `TWELVE_DATA_KEY` | Twelve Data API key |
+| `METAAPI_ACCOUNT_ID`, `METAAPI_TOKEN`, `METAAPI_SERVER` | MetaApi account connection configuration where used |
+| `MT5_BRIDGE_TOKEN` | MT5 WebSocket bridge token |
+| `COREX_LIVE_DRY_RUN` | Live execution safety configuration |
+| `COREX_STRATEGY_WORKER_ENABLED` | Strategy worker configuration |
+| `COREX_WS_*` | WebSocket status/feed/tick cadence and buffering controls |
+| `BACKTEST_MAX_MB` | Maximum backtest CSV upload size |
+| `BACKTEST_DB_DATASET_MAX_BARS` | Dataset bar limit setting |
+
+CoreX also supports persisted settings managed through its settings services. Environment variables and persisted settings may interact; inspect the current configuration service before changing a setting's source of truth.
+
+---
+
+## Useful commands
+
+Run from the repository root:
+
+| Command | Description |
+|---|---|
+| `npm start` | Start the application |
+| `npm run dev` | Start backend with Nodemon |
+| `npm test` | Run the root Jest test suite |
+| `npm run test:auth` | Run the configured authentication test files |
+| `npm run db:migrate` | Apply database migrations |
+| `npm run ui:dev` | Start the frontend Vite dev server |
+| `npm run ui:build` | Build the frontend |
+| `npm run ui:preview` | Preview the frontend production build |
+| `npm --prefix front_end run lint` | Run frontend TypeScript checking |
+| `npm run worker:jobs` | Run the job worker process |
+| `npm run mt5:receiver` | Run the optional Python MT5 receiver |
+| `npm run status` | Run the repository system-check script |
+
+The root Jest configuration discovers tests matching `**/test/**/*.test.js`. Some package manifests also define package-local Jest scripts. A successful frontend build or an individual package test is not a substitute for the full backend suite and end-to-end verification.
+
+---
+
+## Data and persistence
+
+PostgreSQL is used for user/account data, strategy records, settings, jobs, backtest records and other persisted application state. SQL migrations are maintained in `db/migrations/`.
+
+The application also uses local runtime storage under `data/`, including:
+
+- `data/cache/` — cached market/candle data;
+- `data/uploads/` — uploaded backtest datasets and related indexes/files;
+- `data/backtests/` — backtest report/artifact storage used by current modules.
+
+These paths contain runtime data and should be backed up or managed according to the deployment's retention policy. Do not commit user datasets, reports, secrets or generated runtime files.
+
+---
+
+## Testing and verification
+
+Run the root test suite:
+
+~~~bash
+npm test
+~~~
+
+Run frontend type checking and production build:
+
+~~~bash
+npm --prefix front_end run lint
+npm run ui:build
+~~~
+
+For changes to a domain package, run its relevant tests as well as the root tests and integration tests that exercise its application boundary.
+
+When reporting verification, include:
+- the exact commit SHA and branch tested;
+- the exact commands executed;
+- passed, failed and skipped test counts;
+- the full output or a durable CI/log artifact;
+- the base-branch comparison when the change could affect existing behavior.
+
+Do not describe tests as passing unless they were actually executed.
+
+---
+
+## Current architecture and development status
+
+CoreX is in an architectural consolidation and rebuild process. The existing code should be understood before it is moved or replaced.
+
+Current facts that contributors should keep in mind:
+
+1. The backend application still composes modules from both `engine/` and `packages/`.
+2. Legacy directories such as `broker/`, `utils/`, `events/` and `config/` remain active in parts of the runtime.
+3. Module aliases still connect packages to application/legacy paths; package boundaries are not yet fully closed.
+4. Backtesting is not yet owned by a dedicated `corex-backtest` package.
+5. The frontend and backend have separate build/test workflows and must be verified together when API or WebSocket contracts change.
+6. The repository contains transitional code and compatibility paths. Do not assume a file is obsolete based only on its location or age; trace its consumers first.
+
+### Planned development direction
+
+The intended direction is a maintainable modular monolith with explicit domain ownership, one authoritative implementation for each behavior, clear application/domain/adapter boundaries, reliable runtime and persistence behavior, and a frontend driven by real API/WebSocket state.
+
+The active task board, architectural rules, phase gates and agent workflow are maintained in:
+
+**[CoreX Development Plan](plans/COREX_DEVELOPMENT_PLAN.md)**
+
+Important supporting documents:
+
+- [Agent instructions](AGENTS.md)
+- [Shared engineering skills](SKILLS.md)
+- [Architecture and audit plans](plans/)
+- [Architecture decisions](plans/decisions.md)
+
+The roadmap is the active development source of truth. Historical task lists and audit documents are evidence, not independent authorization to begin new implementation work.
+
+---
+
+## Contributing
+
+Before making changes:
+
+1. Read [AGENTS.md](AGENTS.md), [SKILLS.md](SKILLS.md) and the [CoreX Development Plan](plans/COREX_DEVELOPMENT_PLAN.md).
+2. Identify the roadmap task that owns the requested behavior.
+3. Trace the full behavior through its API, application service, domain owner, adapter, persistence and frontend consumers where relevant.
+4. Check the current branch and working tree before modifying files.
+5. Keep the change within its approved scope and add tests at the layer that owns the behavior.
+6. Record exact test evidence and update the roadmap task with its branch/PR, commit and verification results.
+
+Do not introduce a second implementation to patch around an existing one. Do not delete legacy code until its consumers have been migrated and the replacement has passed its acceptance criteria. Architectural, security, database, execution and public-contract changes require owner review as described in the roadmap.
+
+---
+
+## License
+
+Proprietary / UNLICENSED. See the root package manifest.
