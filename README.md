@@ -109,7 +109,7 @@ The backend Express application mounts routes under `/api` and a root health che
 | `POST` | `/api/auth/register` | Public | `engine/routes/authController.js` |
 | `POST` | `/api/auth/signin` | Public | `engine/routes/authController.js` |
 | `POST` | `/api/auth/signout` | Optional JWT session | `engine/routes/authController.js` |
-| `POST` | `/api/auth/bootstrap` | Public | `engine/routes/authController.js` |
+| `POST` | `/api/auth/bootstrap` | `x-admin-key` (`ADMIN_SECRET`) required | `engine/routes/authController.js` |
 | `GET` | `/api/auth/me` | JWT required | `engine/routes/authController.js` |
 | `GET` | `/api/strategies` | JWT required | `engine/routes/strategyController.js` |
 | `GET` | `/api/strategies/manifest` | JWT required | `engine/routes/strategyController.js` |
@@ -258,6 +258,7 @@ The server exposes two WebSocket paths:
 |---|---|---|---|
 | `PORT` | No | `3000` | `engine/server.js`: HTTP and WebSocket listening port |
 | `NODE_ENV` | No | `development` | Multiple: Environment mode (`production`, `development`, `test`) |
+| `ADMIN_SECRET` | Required for first-admin bootstrap | None | `engine/routes/authController.js`: Compared with the `x-admin-key` header on `/api/auth/bootstrap` |
 | `JWT_SECRET` | Yes (in prod) | Dev fallback | `corex-auth`: Signing and verifying user JWT tokens |
 | `COREX_SECRETS_KEY` | Yes (in prod) | Dev fallback | `corex-auth/SecretsVault.js`: AES encryption key for broker tokens |
 | `COREX_SECRETS_KEY_OLD`| No | None | `corex-auth/SecretsVault.js`: Previous key for secrets rotation |
