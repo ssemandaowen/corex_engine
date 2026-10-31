@@ -104,9 +104,9 @@ May another agent continue? YES — read-only review only.
 Owner / agent: ChatGPT — review incorporation
 Status: REVIEW — REVISE findings incorporated
 Branch: `planning/phase0-closeout-phase1-flow`
-Latest task revision: `de05529f4661faa1b66e689345898d9ec8e475c9`
-Review record: `plans/reviews/P1-00-review-2026-11-01.md`
-Completed: Recorded strategy isolation and tenant boundaries; one risk-gated order path; per-runtime ordering/backpressure/fault containment; job state/retry/cancel/recovery requirements; backtest fill/cost/determinism/accounting issues; durable artifact storage; import-boundary enforcement; targeted verification paths; five Owen decisions. Consolidated P1-01/P1-02 and P1-04/P1-05 deliverables. Reordered implementation dependencies so risk/portfolio contracts precede backtest implementation; added a parallel security/tenancy release gate.
+Latest task revision: `d8c9bc40a7d0bc6c843b1a03bbdfbfc7c2466eb0`
+Review record: `plans/reviews/P1-00-review-2026-11-01.md` (latest source-verification correction: `89c2506660893b672b2fa2f08c67c2f344b8874e`)
+Completed: Recorded strategy isolation and tenant boundaries; one risk-gated order path; per-runtime ordering/backpressure/fault containment; job state/retry/cancel/recovery requirements; backtest fill/cost/determinism/accounting issues; durable artifact storage; import-boundary enforcement; targeted verification paths; five Owen decisions. Follow-up source verification corrected the risk path: BaseBroker.handle is a fail-closed universal gate for MarketFeed PAPER/LIVE; RiskGateway duplicates that validation if active; BacktestDriver.execute bypasses it. SocketXServer activation remains unconfirmed; worker-pool isolation is not a sandbox. Consolidated P1-01/P1-02 and P1-04/P1-05 deliverables. Reordered implementation dependencies so risk/portfolio contracts precede backtest implementation; added a parallel security/tenancy release gate.
 Tests: Documentation-only; no tests run and no source code changed.
 Exact next action: Kilo verifies only uninspected backend paths; Jules verifies frontend/tenant/job-report flows; Gemini reviews revised plan. Owen decides policy choices.
 May another agent continue? YES — read-only review only.
