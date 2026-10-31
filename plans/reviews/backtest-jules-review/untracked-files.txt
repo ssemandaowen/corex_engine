@@ -1,0 +1,5 @@
+do_patch.js
+fix_back.js
+fixback2.py
+test/backtest/fixtures/stopHit.csv
+test/backtest/fixtures/stopHitStrategy.js

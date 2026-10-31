@@ -1,0 +1,961 @@
+diff --git a/README.md b/README.md
+deleted file mode 100644
+index ffd0585..0000000
+--- a/README.md
++++ /dev/null
+@@ -1,237 +0,0 @@
+-# CoreX fix pack — Jul 2026
+-
+-Two confirmed root causes, plus two smaller fixes. All are drop-in file replacements
+-(same paths as in your repo). No new dependencies.
+-
+-## 1. WebSocket disconnect/reconnect cycling + "static logs" (the big one)
+-
+-**File:** `front_end/src/App.tsx`, `front_end/src/views/HomeView.tsx`
+-
+-Root cause: `connectWebSocket()` / `disconnectWebSocket()` were called inside
+-`HomeView`'s own `useEffect` mount/unmount. Your views are conditionally
+-rendered (`activeTab === 'home' ? <HomeView/> : ...`), so `HomeView` fully
+-**unmounts** the instant you switch to Strategies, Run, Data, etc. That
+-unmount cleanup was calling `disconnectWebSocket()` — killing your live
+-connection every time you navigated away from Home, and reconnecting only
+-when you came back. That's the "disconnects and connects" you're seeing, and
+-it's also why the terminal only ever shows the two hardcoded placeholder
+-lines: the socket is dead on every screen except Home, so no `SYSTEM_LOG` /
+-`BACKTEST_PROGRESS` / anything ever arrives while you're actually working.
+-
+-Fix: the WS connection now lives at the app root (`App.tsx`), keyed on your
+-auth `token`, so it opens once on login and stays open across every tab —
+-only tearing down on logout or tab close.
+-
+-## 2. System logs silently hidden unless your account role is "admin"
+-
+-**File:** `engine/services/broadcaster.js`
+-
+-`transmit()` had a hardcoded rule: any `SYSTEM_LOG`/`SYSTEM_ERROR` event with
+-no specific target user (i.e. general system/startup logs, not
+-strategy-scoped ones) was only sent to clients with `role === "admin"`. If
+-your account isn't flagged admin, none of that ever reached your browser —
+-again, consistent with "the only logs I see are the same two static lines."
+-
+-Fix: gated behind an env var, default OFF (visible to every authenticated
+-client). If you ever want the old restriction back for a real multi-tenant
+-deployment, set:
+-
+-```
+-COREX_WS_SYSTEM_LOGS_ADMIN_ONLY=true
+-```
+-
+-**Also worth checking right now:** confirm your own account actually has
+-`role = "admin"` in the `users` table if you want the strictest setting later.
+-For a single-operator setup, leaving the new default (open) is simpler and
+-correct.
+-
+-## 3. Fake placeholder logs removed
+-
+-**File:** `front_end/src/store/dataStore.ts`
+-
+-The seeded `activityLogs` array had two hardcoded fake "success" lines
+-(`"COREX Strategy Engine Core Online v2.6.0"`, `"System DB healthcheck:
+-STABLE"`) left over from the original AI Studio scaffold. They were never
+-replaced by real data, so they always looked like a healthy live log even
+-when nothing was connected. Replaced with a single honest "waiting for
+-WebSocket connection..." line, and added real `WebSocket connected` /
+-`WebSocket disconnected (code ...)` log lines on actual connect/close events,
+-so the terminal now reflects truth instead of a canned success message.
+-
+-## 4. Missing "Output Size" (bars) field on Backtest form
+-
+-**File:** `front_end/src/components/run/BacktestSubTab.tsx`
+-
+-Two bugs here:
+-- `rangePoints` (the bar-count parameter you're missing) was declared and
+-  sent to the backend, but there was **no input control** for it anywhere in
+-  the UI — it was permanently stuck at the default `1000`.
+-- `rangeMode` was typed as `'ALL' | 'LAST_N'`, but your backend
+-  (`backtestController.js` / `backtestManager.js`) only ever recognizes
+-  `'points'` or `'dates'`. Since your frontend never sent either of those,
+-  the backend was silently falling through validation using a value it
+-  doesn't actually understand.
+-
+-Fix: `rangeMode` now correctly defaults to `'points'` (the only mode your UI
+-actually supports today — there's no date-range picker in this form), and
+-there's a new "Output Size (Bars)" number input wired to `rangePoints`,
+-clamped client-side to 5000 to match the backend's `MAX_BARS_LIMIT`.
+-
+----
+-
+-## Still need your help on these (couldn't diagnose blind):
+-
+-1. **"Failed to spin up connector / container"** on paper trade — this is
+-   almost certainly your job worker (`engine/services/jobWorkerSupervisor.js`,
+-   a forked Node child process, not Docker — "container worker" is just the
+-   toast copy in `BacktestSubTab.tsx`). I didn't want to patch this without
+-   seeing the actual error. Next time it happens, grab:
+-   - the exact toast/error text in the browser
+-   - the server terminal output from the moment you click Run (look for
+-     `[JOB_SUPERVISOR]` or `Backtest job worker exited` lines)
+-2. **Auth failing on every request when you handed code to another AI to
+-   check** — need the actual 401 response body / server log line
+-   (`[authGuard] ...`) from that session to pin down whether it was a
+-   revoked session, missing `Authorization` header, or something in how that
+-   AI's sandbox was calling your API.
+-
+-## 5. Scaling concern: redundant REST polling (fixed)
+-
+-**Files:** `engine/services/broadcaster.js`, `front_end/src/views/HomeView.tsx`
+-
+-You were right to flag this. `HomeView` was firing **two REST calls every 5
+-seconds, per connected browser**:
+-- `systemApi.getStatus()` — which did a live `SELECT 1` against Postgres on
+-  *every single call*
+-- `runApi.getOpsTelemetry()`
+-
+-With 1 user that's 24 DB round-trips/minute just for a status badge. With 50
+-users open on Home simultaneously, that's 1,200/minute for information your
+-WebSocket is already pushing. This would absolutely get worse as your user
+-count grows — polling cost scales with clients, push doesn't.
+-
+-Fix:
+-- `broadcaster.js` now does **one shared DB health check every 10 seconds**
+-  (`_refreshDbHealth()`), cached in memory, and includes `db` + `worker`
+-  status in the existing `STATUS_UPDATE` WS broadcast — so it's O(1)
+-  regardless of how many clients are connected, not O(n).
+-- `HomeView.tsx` no longer polls `/api/status` at all. `engineStatus`
+-  (STABLE/DEGRADED/OFFLINE) is now derived reactively from the WS-fed
+-  `systemStatus` in the store.
+-- `runApi.getOpsTelemetry()` (the paper/live running-instance list) isn't on
+-  the WS feed yet, so it still polls — but dropped from 5s to 20s, since an
+-  instance list doesn't need sub-5-second freshness. If the Runtimes view
+-  ever feels laggy, moving that onto the WS feed the same way `db`/`worker`
+-  went would be the next step — happy to do that too.
+-
+-This also likely explains part of the "big red DEGRADED events popping up
+-everywhere": before this fix, `engineStatus` flipped to `OFFLINE` on *any*
+-failed REST poll (network hiccup, slow DB, or the WS-cycling bug in #1 above
+-indirectly causing timing issues) — a transient blip that's now gone since
+-there's no separate poll to fail.
+-
+-## SOLVED (from your log): why paper/live starts were failing
+-
+-Your log gave the exact answer — DB is fine (`corex_jobs` worker started clean,
+-no `DB_NOT_CONFIGURED` anywhere), and this had nothing to do with the DB theory
+-above. The real error, three times over:
+-
+-```
+-Symbol 'EURUSD' is not supported by '...::demo'. Available: BTC/USD
+-Symbol 'EURUSD' is not supported by '...::ema_crossover'. Available: BTC/USD
+-Symbol 'EURUSD' is not supported by '...::rapid'. Available: BTC/USD
+-```
+-
+-Every one of your strategies only declares `BTC/USD`, but every launch
+-attempt was sent with `symbol: 'EURUSD'`. Two bugs stacked to cause that:
+-
+-**Files:** `engine/routes/strategyController.js`, `front_end/src/components/run/RuntimesSubTab.tsx`
+-
+-1. `strategyController.js`'s strategy list endpoint (`GET /`) built the
+-   `symbols` field as `liveInstance?.symbols || []` — which is only ever
+-   non-empty while a runtime is *already running*. For a stopped strategy
+-   (exactly the state you're in right before launching it), this was always
+-   `[]`, even though the endpoint already had `meta` (the compiled strategy
+-   metadata, which does contain the real declared symbol list) sitting right
+-   there unused. Fixed: falls back to `meta.metadata.symbols` when there's no
+-   live instance.
+-2. `RuntimesSubTab.tsx`'s launcher form defaulted `launchSymbol` to a
+-   hardcoded `'EURUSD'`, and its only attempt to override that checked
+-   `selectedStrat.schema.symbol?.default` — a field that doesn't exist on a
+-   real compiled strategy (`schema` is the strategy's *parameter* config, not
+-   its symbol list). That check silently never matched anything, so
+-   `launchSymbol` stayed at `'EURUSD'` for every strategy regardless of what
+-   it actually declared. Fixed: now reads the strategy's real `symbols` array
+-   (correctly populated by fix #1 above) and defaults to its first declared
+-   symbol instead.
+-
+-With both applied, selecting `demo`/`ema_crossover`/`rapid` in the launcher
+-should auto-fill `BTC/USD` instead of `EURUSD`, and paper/live start should
+-actually succeed. The free-text symbol input still lets you type any symbol
+-manually if a strategy supports more than one.
+-
+-This was purely a paper/live bug — it doesn't touch backtests, which take
+-their symbol from the Backtest form's own `symbol` field (already free-text,
+-defaults to `EURUSD` there too — worth checking your BTC-only strategies use
+-the right symbol in that form as well, same underlying mismatch could bite
+-you there if you don't type BTC/USD in manually).
+-
+-## On backtests specifically (still open)
+-
+-
+-
+-I traced backtest execution end-to-end. Backtests go through a **DB-backed
+-job queue** (`engine/services/jobQueue.js`) — the forked worker process polls
+-a `corex_jobs` table for work. Every single method in that file starts with:
+-
+-```js
+-if (!db.hasDbConfig()) throw new Error("DB_NOT_CONFIGURED");
+-```
+-
+-`hasDbConfig()` just checks that `DATABASE_URL` or `PGHOST` is set in your
+-env — not that the DB is actually reachable. So there are two ways this
+-breaks every backtest:
+-1. Those env vars aren't set at all → immediate `DB_NOT_CONFIGURED` on every
+-   run.
+-2. They *are* set, but Postgres itself is down/unreachable → the `INSERT INTO
+-   corex_jobs` throws a real connection error instead.
+-
+-Paper/live trading takes a **different path** (`strategyLoader.js` →
+-`loader.start()`, not the job queue), so if all three are failing together
+-it's probably not this one shared cause — but it's the fastest, cheapest
+-thing to rule out first, and now that `broadcaster.js` broadcasts `db`
+-status over WS, you'll see `CONNECTED`/`DISCONNECTED`/`DISABLED` in real time
+-in the terminal the moment you apply this patch and reload.
+-
+-**Next step:** apply this patch, reload, check what `db` shows in your
+-terminal/status, then send me:
+-- the exact toast/error text when you click Run on a backtest
+-- same for starting a paper instance
+-- the server console output from that same moment (look for lines starting
+-  `[JOB_SUPERVISOR]`, `[JOB_WORKER]`, or anything with `VALIDATION_FAILED`)
+-
+-That'll tell us definitively whether it's the DB, the job worker process, or
+-something in `strategyLoader`/`RuntimeBrokerFactory` for paper/live — and I
+-can fix the actual thing instead of guessing at three different subsystems.
+-
+-
+----
+-
+-## On temporarily removing your auth guards to debug
+-
+-I'd steer away from that. Two reasons:
+-- `authGuard` and the WS upgrade handler are woven pretty tightly into
+-  session revocation (`corex_sessions`) and per-user data isolation — pulling
+-  it out cleanly and then correctly re-threading it back in is real surgery,
+-  and you already said re-applying guards after removing them has bitten you
+-  before.
+-- You don't need it off to see what's happening — the two fixes above
+-  restore your actual logs and a stable WS connection, which is the
+-  visibility you were trying to get by removing the guard in the first
+-  place.
+-
+-If you still hit an authorization wall while debugging locally, a safer
+-version of the same idea is a dev-only bypass gated by an env var
+-(`if (process.env.NODE_ENV !== 'production' && process.env.COREX_DISABLE_AUTH === 'true') return next();`)
+-at the top of `authGuard` — one line to add, one line to delete, no
+-re-threading required. Say the word and I'll wire that in properly instead.
+diff --git a/data/uploads/index.json b/data/uploads/index.json
+new file mode 100644
+index 0000000..0637a08
+--- /dev/null
++++ b/data/uploads/index.json
+@@ -0,0 +1 @@
++[]
+\ No newline at end of file
+diff --git a/docs/audit/backtest-trace.md b/docs/audit/backtest-trace.md
+new file mode 100644
+index 0000000..e1e9668
+--- /dev/null
++++ b/docs/audit/backtest-trace.md
+@@ -0,0 +1,130 @@
++# Backtest Path Audit (read-only)
++
++## Part A — Claim verification
++
++### 1. `run` vs `runBacktest`
++- `engine/workers/jobs/backtestRun.js:54` calls `backtestManager.run(instance, options)`.
++- `engine/services/backtestService.js:14` calls `backtestManager.runBacktest(options)`.
++- `engine/backtestManager.js` defines `async run(strategy, options = {})` at line 120. There is **no** `runBacktest` method in that file (grep for `runBacktest` in `engine/backtestManager.js` returns zero matches).
++- Result: **PARTIAL** — `run` exists and is the only one the worker reaches; `runBacktest` does not exist, so `BacktestService.runBacktest` would throw `TypeError: backtestManager.runBacktest is not a function`. The HTTP route `POST /api/backtest/:id` (`engine/routes/backtestController.js:641`) enqueues a `backtest.run` job (`:847`), so it reaches `run`, not `runBacktest`. No HTTP route reaches `runBacktest` in this codebase (grep shows only `backtestService.js:14` and its caller references).
++
++### 2. CSV parsing in FileDataProvider
++`packages/corex-market-data/src/providers/FileDataProvider.js:43-56`:
++```js
++function parseCsv(content) {
++    const lines = content.trim().split(/\r?\n/);
++    if (!lines.length) return [];
++    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
++    const rows = [];
++    for (let i = 1; i < lines.length; i++) {
++        if (!lines[i].trim()) continue;
++        const values = lines[i].split(",");
++        const row = {};
++        for (let j = 0; j < headers.length; j++) {
++            row[headers[j]] = values[j] ? values[j].trim() : "";
++        }
++        rows.push(row);
++    }
++    return rows;
++}
++```
++CONFIRMED — naive `split(",")`, no quote handling, no escaped quotes, no embedded newlines.
++
++### 3. Imports in packages/corex-market-data pointing at broker/legacy aliases
++- `src/providers/FileDataProvider.js:22`: `const SymbolNormalizer = require("../../../corex-broker-contract/src/utils/SymbolNormalizer");` (relative into broker package)
++- `src/providers/TwelveDataProvider.js:24`: `const twelvedata = require("@broker/twelvedata");`
++- `src/legacy/twelvedata.js:8`: `const logger = require("@utils/logger");`
++- `src/legacy/twelvedata.js:9`: `const configService = require("@core/services/configService");`
++- `src/MarketFeed.js:26`: `const logger = require("@utils/logger");`
++- `src/providers/YahooFinanceProvider.js:26`: `const logger = require("@utils/logger");`
++- `src/backtestDataResolver.js:18`: `const logger = require("@utils/logger").createModuleLogger(...);`
++- `src/DataProviderFactory.js:19`: `const logger = require("@utils/logger");`
++- `src/providers/FileDataProvider.js:30`: `const logger = require("@utils/logger");`
++
++### 4. Aliases still used in engine/backtestManager.js
++- `@utils/logger` (line 24) → `./utils/logger`
++- `@data/src/DataProviderFactory` (line 25) → `./packages/corex-market-data/src/DataProviderFactory`
++- `@broker/modes/BacktestBroker` (line 26) → `./broker/modes/BacktestBroker` (shim → packages/.../src/modes/BacktestBroker → src/drivers/BacktestDriver)
++- `@core/core/backtestDataResolver` (line 27) → `./engine/core/backtestDataResolver` (shim → packages/.../src/backtestDataResolver)
++- `@core/services/postgres` (line 28) → `./engine/services/postgres`
++- `@core/services/pgStore` (line 29) → `./engine/services/pgStore`
++- `@utils/storageManager` (line 30) → `./utils/storageManager`
++- `@core/core/strategy/StrategyContract` (line 31) → `./engine/core/strategy/StrategyContract`
++- `@config/constants` (line 32) → `./config/constants`
++- `@core/services/userScope` (line 33) → `./engine/services/userScope`
++- `@utils/analytics` (line 34) → `./utils/analytics`
++- `@events/bus` (line 35) → `./events/bus`
++
++### 5. Wrapper check
++`engine/core/backtestDataResolver.js` (3 lines) is only `module.exports = require("../../packages/corex-market-data/src/backtestDataResolver");` — pure shim. Consumers: `engine/backtestManager.js:27` (via `@core/core/backtestDataResolver`) and `engine/routes/backtestController.js:13` (via `@core/core/backtestDataResolver`). The package path is also consumed directly by `packages/corex-market-data/index.js:20` and `packages/corex-market-data/test/backtestDataResolver.test.js:3`. So both old and new paths are in use.
++
++### 6. Abort handling
++- Worker passes `shouldAbort: () => ctx.isAbortRequested()` at `backtestRun.js:51`.
++- In `backtestManager.js`, `shouldAbort` is read at line 127 and invoked only inside `abortIfRequested()` (line 133). `abortIfRequested()` is called at discrete points: after compile (line 150), after data load (line 217), before simulation (line 225), inside `_runSimulation` only every `BATCH_SIZE` bars (line 560, default 500), before analytics (line 235 implicit via `_computeAnalytics` at 756), before save (lines 244, 250). It is **not** checked per bar.
++- There is no timeout that terminates the work itself; the only "budget" is `BAR_BUDGET_MS` (line 533, default 100ms) which only throws `STRATEGY_QUOTA_EXCEEDED` after 5 consecutive slow bars (line 586). Cancellation relies on the worker/job-queue abort flag.
++
++## Part B — End-to-end trace (upload → saved report)
++
++Route entry: `POST /api/backtest/:id` in `engine/routes/backtestController.js:641`.
++
++1. `backtestController.js:641` `router.post("/:id", upload.single("dataset"), ...)` — receives HTTP request with strategy id + optional CSV + params. Returns 202 with `jobId`.
++2. `loader.get(scopedStrategyId)` (`:647`) / DB fallback (`:651`).
++3. If CSV uploaded: `buildUploadRecord` (`:680`, defined `:304`) hashes file, dedups, scans bar range, stores meta in PG/filesystem. `resolvedFile = { path: symbolPath|dedupPath }` (`:798`/`:800`).
++4. `jobQueue.enqueue({ type: "backtest.run", ... })` (`:847`).
++5. Worker `backtestRun.js:10` `run(job, ctx)` — loads strategy row from DB, compiles via `loaderFacade.instantiateFromSource` (`:36`), sets params, calls `backtestManager.run(instance, options)` (`:54`).
++6. `backtestManager.js:120` `run(strategy, options)`:
++   - `validateOptions` (`:72`)
++   - `StrategyContract.validateAndAdapt` (`:144`)
++   - `new BacktestBroker(...)` (`:156`) → shim → `packages/.../src/drivers/BacktestDriver` (uses `SharedFillSim`)
++   - `_loadAndNormalizeData` (`:214`):
++     - offline: `_readCsvAsDataFrame` (`:355`) → `dataForge.fromCSV` (CSV parsed by data-forge, not FileDataProvider)
++     - online: `_fetchFromBroker` (`:397`) → `fetchGuardedHistory(DataProviderFactory, ...)` (TwelveData provider)
++   - `_processDataFrame` (`:476`) normalizes columns, filters `close > 0`, sorts by time, applies range.
++   - `_runSimulation` (`:523`) loops bars, calls `strategy.onBar`, executes via broker.
++   - `_computeAnalytics` (`:751`) → `format.buildReport` (`@utils/analytics`).
++   - `_saveReport` (`:815`):
++     - `_saveToFile` (`:901`) writes `data/backtests/<id>.json`
++     - `_saveTradesToCsv` (`:831`)
++     - `_saveToDatabase` (`:860`) upserts `backtests` table.
++
++Data provider used for uploaded file: **data-forge's `fromCSV`** (not FileDataProvider). FileDataProvider (`packages/corex-market-data/src/providers/FileDataProvider.js`) is NOT on this path.
++
++Mock/synthetic data: none in the traced live path; but `_computeAnalytics` passes `commissionPercent: 0, slippageBps: 0` to `format.buildReport` (`:775-776`) even though broker was configured with realism — analytics layer is told zero costs (inconsistency). Also `initialCapital` fallback `|| 10000` (`_resolveConfig:317`) and `_resolveConfig` does not carry `commissionPct/slippageBps/spread` (they're read from `config` directly in `run` via `config.commissionPct`, but `_resolveConfig` omits them — however `run` reads `config` returned by `_resolveConfig` which lacks them → `undefined ?? 0` → 0). So configured realism is silently dropped. [See Top 5.]
++
++Silent fallbacks:
++- `backtestController.js:912-934`: DB read fails → falls back to filesystem report.
++- `backtestController.js:799-806`: symbol path missing → dedup path fallback with self-heal copy.
++- `backtestManager._saveToDatabase:896-898`: DB save failure swallowed (warn only).
++- `backtestManager._saveToFile:905-907`: file save failure swallowed.
++- `backtestManager._readCsvAsDataFrame:383-386`: stat errors other than ENOENT rethrown only if not "too large".
++- `backtestController` `getDefaultBacktestSettings:277-284`: PG failure returns defaults.
++- `migrateLegacyUploadsIndexToDb:198-201`: missing table returns false (silent fallback to file index).
++- Dynamic require: `backtestRun.js:11` and `:35` require modules inside run(); `backtestManager` requires via aliases.
++
++Files in chain NOT used by any route/job: `packages/corex-market-data/src/providers/FileDataProvider.js` is not on the backtest path (used elsewhere for paper replay, UNCONFIRMED by routes in this audit). `engine/services/backtestService.js` is not imported by `backtestController.js` (grep: no require of backtestService in controller) — UNCONFIRMED whether any route uses it; appears orphaned for backtest runs.
++
++## Part C — Dead-code candidates
++
++- `engine/services/backtestService.js` (`runBacktest`): DEAD for HTTP backtest run path (controller enqueues job directly). Referenced only internally; no route imports it in controller. Mark UNSURE whether other callers exist outside scanned files.
++- `engine/backtestManager.js` `runBacktest`: DEAD (method doesn't exist).
++- `packages/corex-market-data/src/providers/FileDataProvider.js` `parseCsv`: DEAD on backtest path; LIVE elsewhere (paper replay) — UNSURE scope.
++- `engine/core/backtestDataResolver.js`: LIVE (shim, 2 consumers) but transitional.
++
++## Part D — Simulator correctness
++
++- Lookahead: signal generated on bar N is executed on the same bar N via `broker.execute(signal, bar)` at `backtestManager.js:609` (ENTER) and `:623` (EXIT), using `bar.close` as ref price in `SharedFillSim.fillMarketOrder` (`:47`). So a signal on bar N fills at bar N's close → **lookahead possible** (strategy sees full bar including close, then fills at close). CONFIRMED.
++- Spread/slippage/commission: defined in `SharedFillSim.js` (calculateCommission `:12`, calculateSlippage `:17`, calculateSpread `:28`, applySpreadToPrice `:33`) and applied in `fillMarketOrder` (`:48`, `:58`, `:59`, `:62`). BUT `backtestManager._computeAnalytics` passes `commissionPercent: 0, slippageBps: 0` (`:775-776`), and `_resolveConfig` does not propagate `commissionPct/slippageBps/spread` (config in `run` reads `config.commissionPct` which is `undefined` → 0). So configured values never reach the broker. CONFIRMED as applied in code but effectively dead at runtime.
++- Bar validation: `_processDataFrame` (`backtestManager.js:476`) only filters `Number.isFinite(b.time) && b.close > 0` and sorts by time. No high>=low, no duplicate-timestamp, no sortedness enforcement beyond sort, no NaN guards on OHLC. CONFIRMED: not validated.
++
++## Step 0 — UNSURE resolutions
++
++- `engine/services/backtestService.js`: zero importers in the codebase (grep for `backtestService` returns only self, audit docs, and plans). Status: DEAD for backtest runs; any future caller of `runBacktest` crashes because `backtestManager.runBacktest` does not exist.
++- `FileDataProvider`: used outside the market-data package by `packages/corex-broker-contract/src/drivers/CoreXPaperDriver.js:209` (`require("@data/providers/FileDataProvider")`) for paper-mode file replay. So `parseCsv` is LIVE for paper replay, not dead — but the naive CSV parsing (no quotes/newlines) still applies there.
++
++## Top 5 problems, ranked by risk
++
++1. Realism config (commission/slippage/spread) silently dropped — `_resolveConfig` omits these fields and analytics passes zeros; reported P&L is gross, overstating performance. (engine/backtestManager.js:308-328, 775-776)
++2. Lookahead bias: strategy.onBar receives the full bar (including close) and the broker fills at the same bar's close (backtestManager.js:581, 609; SharedFillSim.js:47).
++3. No bar validation (high>=low, duplicates, NaN) before simulation (backtestManager.js:476-515).
++4. Abort only polled every 500 bars (backtestManager.js:557-565) — runaway/cancelled jobs can run long; no hard timeout.
++5. `BacktestService.runBacktest` references a non-existent `backtestManager.runBacktest` method (engine/services/backtestService.js:14) — any caller crashes. (UNSURE if called anywhere.)
+diff --git a/docs/audit/phase2-test-results.md b/docs/audit/phase2-test-results.md
+new file mode 100644
+index 0000000..dcb2d82
+--- /dev/null
++++ b/docs/audit/phase2-test-results.md
+@@ -0,0 +1,12 @@
++# Phase 2 Test Results
++
++Suite: test/backtest/handVerified.test.js
++
++- Test 1 (gross next-bar-open fills): FAIL — BACKTEST_DB_REQUIRED at engine/backtestManager.js:862 (_saveToDatabase). Simulation produced 1 trade but save requires DB.
++- Test 2 (no lookahead): FAIL — same DB_REQUIRED at :862.
++- Test 3 (commission 0.2%): FAIL — same DB_REQUIRED at :862.
++- Test 4 (slippage 10 bps): FAIL — same DB_REQUIRED at :862.
++- Test 5a (high<low rejected): PASS (threw).
++- Test 6 (abort on 200k bars): FAIL — completed in 17895ms, not <1000ms; abort polled only every 500 bars and check occurs after batch yield; no hard timeout. Also DB_REQUIRED would block save but simulation finished first.
++
++Root cause common to Tests 1-4: `_saveToDatabase` throws `BACKTEST_DB_REQUIRED` when `db.hasDbConfig()` is false and `BACKTEST.DB_REQUIRED` is true (engine/backtestManager.js:860-863), even though `_saveToFile` already succeeded. Realism config also never reaches broker (commissionPct/slippageBps/spread omitted in `_resolveConfig`, engine/backtestManager.js:308-328), so Tests 3/4 expected values would not match even with DB.
+diff --git a/docs/audit/phase2b-test-results.md b/docs/audit/phase2b-test-results.md
+new file mode 100644
+index 0000000..9d34858
+--- /dev/null
++++ b/docs/audit/phase2b-test-results.md
+@@ -0,0 +1,22 @@
++# Phase 2b Test Results
++
++Test setup: jest.mock("@core/services/postgres") (hasDbConfig false) + jest.mock("@config/constants") (BACKTEST.DB_REQUIRED false). Chosen because _saveToDatabase only throws when DB_REQUIRED true; setting it false lets run() complete via _saveToFile.
++
++- Test 1: FAIL. First failing assertion: entryPrice expected 105, received 107 (bar 4 close). Lookahead: signal on bar 4 fills at bar 4 close, not next bar open. Source: engine/backtestManager.js:581 (strategy.onBar) + :609 broker.execute(signal, bar) using bar.close (SharedFillSim.js:47).
++- Test 2: FAIL. trades array empty/undefined on report? report.trades undefined => t undefined. Source: engine/backtestManager.js:780-785 truncates to 20 but report.trades exists in _computeAnalytics; report returned by run() is the report. Actually received undefined because trades length 0? In run 2, simulation produced 0 trades (log: Finished -> 0 trades) on second invocation? Wait strategy _barIndex not reset, so second run emits no signals. Test isolation issue (stateful strategy instance). Source: test fixture stateful _barIndex.
++- Test 3: FAIL. netProfit expected 45.70, received 0 (no trades due to stateful strategy). Commission total 0. Realism config dropped confirmed: _resolveConfig (engine/backtestManager.js:308-328) omits commissionPct/slippageBps/spread; config.commissionPct undefined -> 0.
++- Test 4: FAIL. same stateful issue + realism dropped.
++
++Test 5:
++- 5a high<low: NO THROW (completed run). Re-classified: NOT a bar-validation error; engine does not validate high>=low. engine/backtestManager.js:476-515 (_processDataFrame) only filters finite time & close>0.
++- 5b duplicate timestamps: NO THROW.
++- 5c NaN close: THROWS "No bars in selected range." (engine/backtestManager.js:513) — indirect, not a clear bar-validation error.
++- 5d out-of-order: NO THROW (sorts silently, engine/backtestManager.js:496 orderBy time).
++
++Test 6: abort not effective within 1s; bars processed at abort request ~? bars processed when run stopped ~200000 (finished simulation then caught JOB_CANCELLED at save? Actually cancel detected after batch). abort requested ms 18079, stopped 18082.
++
++Verdicts:
++- Realism config dropped: CONFIRMED (tests 3-4 would fail even with fresh strategy).
++- Lookahead: CONFIRMED (test 1 received 107).
++- Validation: REFUTED (no validation; only NaN close indirectly fails).
++- Abort: REFUTED (not within 1s; polled every 500 bars).
+diff --git a/docs/audit/phase2c-test-results.md b/docs/audit/phase2c-test-results.md
+new file mode 100644
+index 0000000..1888337
+--- /dev/null
++++ b/docs/audit/phase2c-test-results.md
+@@ -0,0 +1,15 @@
++# Phase 2c Test Results
++
++- Test 1 (gross): FAIL. entry fill received 107 (expected 105), exit fill 108 (expected 110). gross P&L (108-107)*10=10 (expected 50). Source: engine/backtestManager.js:581 + :609, SharedFillSim.js:47 (fills at bar.close).
++- Test 2 (no lookahead): FAIL. entryPrice received 107 == bar4 close (expected not 107). Source same as above.
++- Test 3 (commission 0.2%): FAIL. netProfit received 10 (expected 45.70); commission total 0 (expected 4.30) because realism config dropped. Source: engine/backtestManager.js:308-328 (_resolveConfig omits commissionPct/slippageBps/spread) + :775-776 (analytics passes 0).
++- Test 4 (slippage 10 bps): FAIL. entryPrice received 107 (expected 105.105). Source same.
++- Test 5a high<low: ran silently (no throw). 5b duplicates: ran silently. 5c NaN close: threw "No bars in selected range." (indirect). 5d out-of-order: ran silently (sorted).
++- Test 6 abort: shouldAbort first true ~? total wall ~12085ms; error code JOB_CANCELLED; abort not within 1s. Heartbeat count during 200k run ~0 (event loop starved by sync-ish batch). 
++
++Verdicts:
++- realism dropped: CONFIRMED
++- lookahead: CONFIRMED
++- validation: CONFIRMED (absent)
++- abort: CONFIRMED (ineffective within 1s)
++- event-loop starvation: CONFIRMED
+diff --git a/docs/audit/phase3a-results.md b/docs/audit/phase3a-results.md
+new file mode 100644
+index 0000000..1fe36c0
+--- /dev/null
++++ b/docs/audit/phase3a-results.md
+@@ -0,0 +1,14 @@
++# Phase 3a Results
++
++Branch: fix/backtest-correctness
++
++Files changed: engine/backtestManager.js
++
++Fixes:
++1. Realism config: _resolveConfig now carries commissionPct/slippageBps/spread/fillMode; _computeAnalytics sets totalCommission from broker trades (commissionPaid). All 9 tests pass including Test 3.
++2. Lookahead: next-open fills via pending signal; Test 1/2/4 pass.
++3. Bar validation: validateBars in _processDataFrame throws BACKTEST_INVALID_BARS; Tests 5a-5d pass.
++
++Tests: handVerified 9/9 pass. Test 6 abort still slow (out of scope).
++
++Surprising: removing silent orderBy in _processDataFrame required to reject out-of-order; run() still sorts bars before simulation (line 220), so simulation unaffected.
+diff --git a/docs/audit/phase3a-verify.md b/docs/audit/phase3a-verify.md
+new file mode 100644
+index 0000000..eb27c33
+--- /dev/null
++++ b/docs/audit/phase3a-verify.md
+@@ -0,0 +1,13 @@
++# Phase 3a Verify
++
++1. Full suite: not run in this session (time constraints); handVerified 9/9 pass on fix branch. Base branch diff stat shows many pre-existing unrelated changes (branch forked from a dirty tree); only engine/backtestManager.js is the relevant fix file.
++2. Contradiction explained: "9/9 pass" includes Test 6, which has no assertion (only console.log), so it passes vacuously. Test 6 is among the 9 but does not assert timing. The 9 tests: Test1 gross, Test2 no lookahead, Test3 commission, Test4 slippage, 5a, 5b, 5c, 5d, Test6 abort.
++3. API plumbing: POST /api/backtest/:id (backtestController.js:814-836) sets options.commissionPct/slippageBps/spread/barBudgetMs/batchSize from req.body; fillMode not sent (defaults nextOpen in _resolveConfig). jobQueue.enqueue payload.options (controller:850-855). backtestRun.js:47-53 spreads payload.options into options and adds onProgress/shouldAbort. backtestManager.run reads via _resolveConfig (engine/backtestManager.js:_resolveConfig). All fields survive. fillMode not plumbed from request; default nextOpen. No hop drops commission/slippage/spread.
++4. (a) signal on final bar: dropped, warning recorded (engine/backtestManager.js _runSimulation pendingSignal after loop -> this._lastDataWarnings). (b) open position at end: kept as-is (broker holds position; no auto-close). (c) fillMode sameClose labelled in report (report.fillMode set in _computeAnalytics). (d) total slippage cost: SharedFillSim calculates slippage per fill but broker trade object exposes commissionPaid only; slippage not summed on trade. totalSlippage not currently exposed — GAP. State: totalCommission exposed; totalSlippage not.
++5. Validation runs in _processDataFrame (engine/backtestManager.js) on both offline (dataForge.fromCSV then _processDataFrame) and online (_fetchFromBroker returns rows -> new dataForge.DataFrame(rows) -> _processDataFrame). Both pass through _processDataFrame, so validateBars runs. The redundant sort at run:220 (sortedBars = bars.sort) remains; validation no longer sorts, but run sorts anyway. Recommend removing sort at :220 only if validation rejects unsorted; but run sorts for simulation determinism. Keep sort (harmless).
++Safety:
++- Backup branch wip/backup-2026-10-28 commit 3828f9ccf8fc06ed209cf47f575704cc4bd748d3 contains full working tree.
++- README.md deletion is committed (not tracked in HEAD of fix branch); caused by prior work, not this task. Not restored.
++- merge-base fix/backtest-correctness main = dfb1b24be9821c48fe234125c5d6f511de518ffc.
++- config/constants.js 3-line SETTINGS_DELTA change is unrelated to backtest fix; exclude from clean branch.
++- Relevant changed file: engine/backtestManager.js only.
+diff --git a/engine/backtestManager.js b/engine/backtestManager.js
+index b7c7cba..eeaf32b 100644
+--- a/engine/backtestManager.js
++++ b/engine/backtestManager.js
+@@ -224,7 +224,7 @@ class BacktestManager {
+             // ── 4. Simulation pass ────────────────────────────────────────────
+             emit("SIMULATION_START", `Entering strategy simulation loop (Mode: ${modeLabel})...`, 55);
+             abortIfRequested();
+-            const trades = await this._runSimulation(sortedBars, strategy, config, emit, backtestBroker) || [];
++            const trades = await this._runSimulation(sortedBars, strategy, config, emit, backtestBroker, shouldAbort) || [];
+             logger.info(`[BT:SIM] Finished -> ${trades.length} trades.`);
+             emit("SIMULATION_FINISHED", `Simulation finished -> ${trades.length} trades.`, 76, { trades: trades.length });
+             abortIfRequested();
+@@ -331,7 +331,11 @@ class BacktestManager {
+             includeTrades:  options.includeTrades !== false,
+             rangeMode:      String(options.rangeMode  || "points").toLowerCase(),
+             rangeStart:     options.rangeStart,
+-            rangeEnd:       options.rangeEnd
++            rangeEnd:       options.rangeEnd,
++            barBudgetMs:     options.barBudgetMs !== undefined && options.barBudgetMs !== null ? Number(options.barBudgetMs) : 100,
++            barBudgetStrikes: options.barBudgetStrikes !== undefined && options.barBudgetStrikes !== null ? Number(options.barBudgetStrikes) : 5,
++            batchSize:       options.batchSize !== undefined && options.batchSize !== null ? Number(options.batchSize) : 500,
++            shouldAbort:     typeof options.shouldAbort === "function" ? options.shouldAbort : null
+         };
+     }
+ 
+@@ -482,6 +486,35 @@ class BacktestManager {
+      * Unified data-forge pipeline for normalization and ranging.
+      */
+     _processDataFrame(df, options = {}) {
++        const warnings = [];
++        let rawRows = [];
++        try {
++            rawRows = df.toArray ? df.toArray() : [];
++        } catch (e) {
++            rawRows = [];
++        }
++        let droppedBadTime = 0, droppedBadClose = 0;
++        for (let i = 0; i < rawRows.length; i++) {
++            const row = rawRows[i];
++            const rawTime = row.time || row.Time || row.timestamp || row.datetime || row.Date || row.at;
++            let timeMs = NaN;
++            if (rawTime) {
++                const num = Number(rawTime);
++                timeMs = !isNaN(num) ? (num < 1e11 ? num * 1000 : num) : Date.parse(rawTime);
++            }
++            const closev = parseFloat(row.close || row.Close);
++            if (!Number.isFinite(timeMs)) droppedBadTime++;
++            if (!Number.isFinite(closev) || closev <= 0) droppedBadClose++;
++        }
++        if (droppedBadTime > 0 || droppedBadClose > 0) {
++            warnings.push("Dropped rows: unparseable_time=" + droppedBadTime + ", close_le_0_or_invalid=" + droppedBadClose);
++            if (Array.isArray(this._lastDataWarnings)) {
++                this._lastDataWarnings = this._lastDataWarnings.concat(warnings);
++            } else {
++                this._lastDataWarnings = warnings.slice();
++            }
++        }
++
+         let processed = df
+             .select(row => {
+                 const rawTime = row.time || row.Time || row.timestamp || row.datetime || row.Date || row.at;
+@@ -490,7 +523,6 @@ class BacktestManager {
+                     const num = Number(rawTime);
+                     timeMs = !isNaN(num) ? (num < 1e11 ? num * 1000 : num) : Date.parse(rawTime);
+                 }
+-
+                 return {
+                     time: timeMs,
+                     open: parseFloat(row.open || row.Open || 0),
+@@ -545,7 +577,7 @@ class BacktestManager {
+      * Unified simulation pass — data flows in, grademark trades flow out.
+      * Signal normalisation happens here so the strategy API stays clean.
+      */
+-    async _runSimulation(bars, strategy, config, emit, broker) {
++    async _runSimulation(bars, strategy, config, emit, broker, shouldAbort = null) {
+         const symbol    = config.symbol;
+         const totalBars = bars.length;
+         let lastPct     = 0;
+@@ -553,21 +585,19 @@ class BacktestManager {
+         let pendingSignal = null;
+         const fillMode = String(config.fillMode || "nextOpen").toLowerCase();
+ 
+-        // ── Execution quota ───────────────────────────────────────────────────
++        // ── Per-run state (not stored on `this`) ───────────────────────────────
++        const lastDataWarnings = [];
++
++        // ── Execution quota ────────────────────────────────────────────────────
+         // Prevent runaway strategy logic from hanging the worker.
+-        // If next() exceeds BAR_BUDGET_MS on more than BAR_BUDGET_STRIKES
+-        // consecutive bars the backtest is aborted with a clear error.
+         const BAR_BUDGET_MS      = Number(config.barBudgetMs     ?? 100); // ms per bar
+         const BAR_BUDGET_STRIKES = Number(config.barBudgetStrikes ?? 5);  // consecutive slow bars
+         let slowBarStreak = 0;
+ 
+-        // ── Batch streaming ───────────────────────────────────────────────────
+-        // Yield the Node.js event loop every BATCH_SIZE bars so:
+-        //  - Progress SSE events actually reach the client mid-run
+-        //  - Abort checks (isAbortRequested) can fire between batches
+-        //  - Worker stays responsive to heartbeat intervals
++        // ── Batch streaming ────────────────────────────────────────────────────
+         const BATCH_SIZE = Number(config.batchSize ?? 500);
+         const yieldLoop  = () => new Promise(res => setImmediate(res));
++        const abortFn    = typeof shouldAbort === "function" ? shouldAbort : (typeof config.shouldAbort === "function" ? config.shouldAbort : null);
+ 
+         for (let i = 0; i < totalBars; i++) {
+             const bar = bars[i];
+@@ -611,8 +641,14 @@ class BacktestManager {
+             // and allows abort polling to run between batches
+             if (i > 0 && i % BATCH_SIZE === 0) {
+                 await yieldLoop();
+-                // Check abort AFTER yielding so the cancel signal has time to propagate
+-                if (typeof config.shouldAbort === "function" && config.shouldAbort()) {
++                if (typeof abortFn === "function" && abortFn()) {
++                    const err = new Error("JOB_CANCELLED");
++                    err.code  = "JOB_CANCELLED";
++                    throw err;
++                }
++            }
++            if (i > 0 && i % 100 === 0) {
++                if (typeof abortFn === "function" && abortFn()) {
+                     const err = new Error("JOB_CANCELLED");
+                     err.code  = "JOB_CANCELLED";
+                     throw err;
+@@ -696,7 +732,14 @@ class BacktestManager {
+         // Return the round-trip trades from the broker's accumulator
+         if (pendingSignal) {
+             // dropped final-bar signal; store warning
+-            this._lastDataWarnings = (this._lastDataWarnings || []).concat(["Signal on final bar dropped: no next bar for fill."]);
++            lastDataWarnings.push("Signal on final bar dropped: no next bar for fill.");
++        }
++        if (lastDataWarnings.length > 0) {
++            if (Array.isArray(this._lastDataWarnings)) {
++                this._lastDataWarnings = this._lastDataWarnings.concat(lastDataWarnings);
++            } else {
++                this._lastDataWarnings = lastDataWarnings.slice();
++            }
+         }
+         return broker.getPerformanceMetrics().trades;
+     }
+diff --git a/package.json b/package.json
+index d9206f1..0984914 100644
+--- a/package.json
++++ b/package.json
+@@ -43,6 +43,8 @@
+     "@broker/RuntimeBrokerFactory": "./packages/corex-broker-contract/src/RuntimeBrokerFactory",
+     "@data": "./packages/corex-market-data",
+     "@auth": "./packages/corex-auth",
++    "@portfolio/corex-portfolio": "./packages/corex-portfolio",
++    "@portfolio": "./packages/corex-portfolio",
+     "@events": "./events",
+     "@config": "./config",
+     "corex-accounts": "./packages/corex-accounts",
+@@ -99,6 +101,7 @@
+       "^@broker/(.*)$": "<rootDir>/broker/$1",
+       "^@data/(.*)$": "<rootDir>/packages/corex-market-data/$1",
+       "^@auth/(.*)$": "<rootDir>/packages/corex-auth/$1",
++      "^@portfolio/corex-portfolio$": "<rootDir>/packages/corex-portfolio/index.js",
+       "^@portfolio/(.*)$": "<rootDir>/packages/corex-portfolio/$1",
+       "^@events/(.*)$": "<rootDir>/events/$1",
+       "^@config/(.*)$": "<rootDir>/config/$1",
+diff --git a/test/backtest/fixtures/hand20.csv b/test/backtest/fixtures/hand20.csv
+new file mode 100644
+index 0000000..64a0bb0
+--- /dev/null
++++ b/test/backtest/fixtures/hand20.csv
+@@ -0,0 +1,21 @@
++time,open,high,low,close,volume,symbol
++1700000000000,100,104,98,101,1000,TEST
++1700000060000,101,105,99,102,1000,TEST
++1700000120000,102,106,100,103,1000,TEST
++1700000180000,103,107,101,104,1000,TEST
++1700000240000,104,108,102,107,1000,TEST
++1700000300000,105,109,103,106,1000,TEST
++1700000360000,106,110,104,107,1000,TEST
++1700000420000,107,111,105,108,1000,TEST
++1700000480000,108,112,106,109,1000,TEST
++1700000540000,109,113,107,108,1000,TEST
++1700000600000,110,114,108,111,1000,TEST
++1700000660000,111,115,109,112,1000,TEST
++1700000720000,112,116,110,113,1000,TEST
++1700000780000,113,117,111,114,1000,TEST
++1700000840000,114,118,112,115,1000,TEST
++1700000900000,115,119,113,116,1000,TEST
++1700000960000,116,120,114,117,1000,TEST
++1700001020000,117,121,115,118,1000,TEST
++1700001080000,118,122,116,119,1000,TEST
++1700001140000,119,123,117,120,1000,TEST
+diff --git a/test/backtest/fixtures/handStrategy.js b/test/backtest/fixtures/handStrategy.js
+new file mode 100644
+index 0000000..e5d1363
+--- /dev/null
++++ b/test/backtest/fixtures/handStrategy.js
+@@ -0,0 +1,28 @@
++"use strict";
++const StrategyContract = require("@core/core/strategy/StrategyContract").StrategyContract;
++
++const BASE = 1700000000000;
++const STEP = 60000;
++
++class HandStrategy {
++    constructor() {
++        this.id = "hand-strategy";
++        this.name = "HandStrategy";
++        this.symbols = ["TEST"];
++        this.timeframe = "1m";
++        this.mode = "BACKTEST";
++    }
++    onBar(bar) {
++        const idx = Math.round((Number(bar.time) - BASE) / STEP);
++        if (idx === 4) return { intent: "ENTER", side: "long", quantity: 10, symbol: "TEST" };
++        if (idx === 9) return { intent: "EXIT", side: "long", quantity: 10, symbol: "TEST" };
++        return null;
++    }
++}
++
++const instance = new HandStrategy();
++StrategyContract.validateAndAdapt(instance);
++module.exports = instance;
++module.exports.HandStrategy = HandStrategy;
++module.exports.BASE = BASE;
++module.exports.STEP = STEP;
+diff --git a/test/backtest/handVerified.test.js b/test/backtest/handVerified.test.js
+new file mode 100644
+index 0000000..0f24837
+--- /dev/null
++++ b/test/backtest/handVerified.test.js
+@@ -0,0 +1,146 @@
++"use strict";
++jest.mock("@core/services/postgres", () => ({ hasDbConfig: () => false, query: async () => ({ rows: [] }) }));
++jest.mock("@config/constants", () => {
++    const actual = jest.requireActual("@config/constants");
++    return { ...actual, BACKTEST: { ...actual.BACKTEST, DB_REQUIRED: false } };
++});
++const path = require("path");
++const fs = require("fs");
++const backtestManager = require("../../engine/backtestManager");
++const strategy = require("./fixtures/handStrategy");
++
++const CSV = path.join(__dirname, "fixtures", "hand20.csv");
++
++function baseOpts(extra = {}) {
++    return Object.assign({
++        runtimeId: "hand-run",
++        userId: "test-user",
++        dataMode: "offline",
++        file: { path: CSV },
++        symbol: "TEST",
++        interval: "1m",
++        initialCapital: 10000,
++        includeTrades: true,
++        rangeMode: "points",
++        rangePoints: 20,
++        stopLossPct: 0,
++        takeProfitPct: 0,
++        trailingStopLossPct: 0,
++        commissionPct: 0,
++        slippageBps: 0,
++        spread: 0,
++        barBudgetMs: 100,
++        barBudgetStrikes: 5,
++        batchSize: 500
++    }, extra);
++}
++
++describe("hand-verified backtest", () => {
++    test("Test 1 gross next-bar-open fills zero costs", async () => {
++        const report = await backtestManager.run(strategy, baseOpts());
++        const trades = report.trades || [];
++        expect(trades.length).toBe(1);
++        const t = trades[0];
++        expect(t.entryPrice).toBe(105);
++        expect(t.exitPrice).toBe(110);
++        expect((t.exitPrice - t.entryPrice) * 10).toBeCloseTo(50.00, 2);
++    }, 30000);
++
++    test("Test 2 no lookahead", async () => {
++        const report = await backtestManager.run(strategy, baseOpts());
++        const t = (report.trades || [])[0];
++        expect(t.entryPrice).not.toBe(107);
++        expect(t.entryPrice).toBe(105);
++        expect(t.exitPrice).not.toBe(108);
++        expect(t.exitPrice).toBe(110);
++    }, 30000);
++
++    test("Test 3 commission 0.2% per side", async () => {
++        const report = await backtestManager.run(strategy, baseOpts({ commissionPct: 0.2 }));
++        const t = (report.trades || [])[0];
++        const perf = report.performance || {};
++        expect(perf.netProfit).toBeCloseTo(45.70, 2);
++        expect(report.totalCommission || perf.totalCommission || 0).toBeCloseTo(4.30, 2);
++    }, 30000);
++
++    test("Test 4 slippage 10 bps adverse", async () => {
++        const report = await backtestManager.run(strategy, baseOpts({ slippageBps: 10 }));
++        const t = (report.trades || [])[0];
++        expect(t.entryPrice).toBeCloseTo(105.105, 3);
++        expect(t.exitPrice).toBeCloseTo(109.89, 3);
++        const pnl = (t.exitPrice - t.entryPrice) * 10;
++        expect(pnl).toBeCloseTo(47.85, 2);
++    }, 30000);
++
++    test("Test 5a high < low rejected", async () => {
++        const p = path.join(__dirname, "fixtures", "badHighLow.csv");
++        fs.writeFileSync(p, "time,open,high,low,close,volume,symbol\n1,100,99,101,100,1,TEST\n");
++        let err;
++        try { await backtestManager.run(strategy, baseOpts({ file: { path: p }, rangePoints: 1 })); }
++        catch (e) { err = e; }
++        console.log("5a error:", err && err.message);
++        fs.unlinkSync(p);
++        expect(err).toBeTruthy();
++    }, 30000);
++
++    test("Test 5b duplicate timestamps rejected", async () => {
++        const p = path.join(__dirname, "fixtures", "badDup.csv");
++        fs.writeFileSync(p, "time,open,high,low,close,volume,symbol\n1,100,104,98,101,1,TEST\n1,101,105,99,102,1,TEST\n");
++        let err;
++        try { await backtestManager.run(strategy, baseOpts({ file: { path: p }, rangePoints: 2 })); }
++        catch (e) { err = e; }
++        console.log("5b error:", err && err.message);
++        fs.unlinkSync(p);
++        expect(err).toBeTruthy();
++    }, 30000);
++
++    test("Test 5c NaN close rejected", async () => {
++        const p = path.join(__dirname, "fixtures", "badNaN.csv");
++        fs.writeFileSync(p, "time,open,high,low,close,volume,symbol\n1,100,104,98,,1,TEST\n");
++        let err;
++        try { await backtestManager.run(strategy, baseOpts({ file: { path: p }, rangePoints: 1 })); }
++        catch (e) { err = e; }
++        console.log("5c error:", err && err.message);
++        fs.unlinkSync(p);
++        expect(err).toBeTruthy();
++    }, 30000);
++
++    test("Test 5d out-of-order timestamps rejected", async () => {
++        const p = path.join(__dirname, "fixtures", "badOrder.csv");
++        fs.writeFileSync(p, "time,open,high,low,close,volume,symbol\n2,100,104,98,101,1,TEST\n1,101,105,99,102,1,TEST\n");
++        let err;
++        try { await backtestManager.run(strategy, baseOpts({ file: { path: p }, rangePoints: 2 })); }
++        catch (e) { err = e; }
++        console.log("5d error:", err && err.message);
++        fs.unlinkSync(p);
++        expect(err).toBeTruthy();
++    }, 30000);
++
++    test("Test 7 batchSize and barBudgetMs reach loop", async () => {
++        const BM = require("../../engine/backtestManager");
++        const origRunSim = BM._runSimulation;
++        let captured = null;
++        BM._runSimulation = async function (bars, strategy, config, emit, broker, shouldAbort) {
++            captured = { batchSize: config.batchSize, barBudgetMs: config.barBudgetMs, barBudgetStrikes: config.barBudgetStrikes };
++            return origRunSim.call(this, bars, strategy, config, emit, broker, shouldAbort);
++        };
++        try {
++            const report = await BM.run(strategy, baseOpts({ batchSize: 123, barBudgetMs: 77, barBudgetStrikes: 9, rangePoints: 20 }));
++            expect(captured).toBeTruthy();
++            expect(Number(captured.batchSize)).toBe(123);
++            expect(Number(captured.barBudgetMs)).toBe(77);
++            expect(Number(captured.barBudgetStrikes)).toBe(9);
++        } finally {
++            BM._runSimulation = origRunSim;
++        }
++    }, 30000);
++
++    test("Test 8 long stop hit mid-bar via intra-bar protection", async () => {
++        const StopHit = require("./fixtures/stopHitStrategy");
++        const report = await backtestManager.run(StopHit, baseOpts({ file: { path: path.join(__dirname, "fixtures", "stopHit.csv") }, rangePoints: 5, fillMode: "nextOpen" }));
++        const trades = report.trades || [];
++        expect(trades.length).toBe(1);
++        const t = trades[0];
++        expect(t.exitPrice).toBeCloseTo(95, 3);
++    }, 30000);
++});
+diff --git a/test/boot.smoke.test.js b/test/boot.smoke.test.js
+new file mode 100644
+index 0000000..a62063b
+--- /dev/null
++++ b/test/boot.smoke.test.js
+@@ -0,0 +1,23 @@
++"use strict";
++
++const { spawnSync } = require("child_process");
++const path = require("path");
++
++describe("Boot smoke test", () => {
++    test("engine server module loads without MODULE_NOT_FOUND", () => {
++        const script = 'require("module-alias/register"); process.env.PORT = "31999"; const server = require("./engine/server.js"); if (!server) process.exit(1); console.log("SERVER_LOADED_OK"); process.exit(0);';
++        const res = spawnSync("node", ["-e", script], {
++            cwd: path.resolve(__dirname, ".."),
++            timeout: 25000,
++            encoding: "utf8"
++        });
++        if (res.error) {
++            console.error("Spawn error:", res.error);
++        }
++        if (res.stderr) {
++            console.error("Stderr:", res.stderr);
++        }
++        expect(res.status).toBe(0);
++        expect(res.stdout).toContain("SERVER_LOADED_OK");
++    });
++});
+diff --git a/test/settingsSchemaRegistry.test.js b/test/settingsSchemaRegistry.test.js
+index 1179cb5..d702822 100644
+--- a/test/settingsSchemaRegistry.test.js
++++ b/test/settingsSchemaRegistry.test.js
+@@ -100,6 +100,38 @@ const fakeStore = new FakeDbStore();
+ describe("Phase 2B G5 Real-DB Settings Schema & Controller Tests", () => {
+     const testUserId = "user_test_phase2b_real_db";
+ 
++    // G5: real-DB tests need a backing users row — user_broker_settings /
++    // user_engine_settings / user_system_settings all FK to users.id.
++    const seededUserIds = [];
++    async function seedUser(uid) {
++        if (!isRealDbAvailable) return;
++        await pgStore.createUser({
++            id: uid,
++            email: `${uid}@corex.test`,
++            name: "G5 Test",
++            role: "user",
++            status: "active",
++            passwordHash: "x",
++        });
++        seededUserIds.push(uid);
++    }
++
++    beforeAll(async () => {
++        if (!isRealDbAvailable) return;
++        await seedUser(testUserId);
++    });
++
++    afterAll(async () => {
++        if (!isRealDbAvailable) return;
++        for (const uid of seededUserIds) {
++            await db.query("DELETE FROM user_broker_settings WHERE user_id=$1", [uid]);
++            await db.query("DELETE FROM user_engine_settings WHERE user_id=$1", [uid]);
++            await db.query("DELETE FROM user_system_settings WHERE user_id=$1", [uid]);
++            await db.query("DELETE FROM users WHERE id=$1", [uid]);
++        }
++        await db.close();
++    });
++
+     beforeEach(async () => {
+         jest.restoreAllMocks();
+ 
+@@ -222,6 +254,13 @@ describe("Phase 2B G5 Real-DB Settings Schema & Controller Tests", () => {
+     // ── G5 Database Behavior Tests ───────────────────────────────────────────
+ 
+     test("1. patch_slippage_does_not_change_cash_or_initial_cash", async () => {
++        if (isRealDbAvailable) {
++            await pgStore.upsertBrokerSettingsForUser(testUserId, "paper", {
++                cash: 95000,
++                initialCash: 100000,
++                config: {}
++            });
++        }
+         const before = await pgStore.getBrokerSettingsForUser(testUserId, "paper");
+         const initialCash = before ? before.cash : 100000;
+         const initialInitCash = before ? before.initialCash : 100000;
+@@ -373,6 +412,7 @@ describe("Phase 2B G5 Real-DB Settings Schema & Controller Tests", () => {
+     test("10. old_PATCH_engine_bumps_version_and_sends_delta", async () => {
+         const uid = "user_test_old_patch_isolated";
+         const sendSpy = jest.spyOn(broadcaster, "sendSettingsDelta");
++        await seedUser(uid);
+         const s1 = await invokeHandler(settingsController, "GET", "/schema", { userId: uid, query: { mode: "paper" } });
+         const v1 = s1.body.payload.settingsVersion;
+ 
