@@ -11,7 +11,7 @@
     "menu": "node scripts/menu.js",
     "dev": "nodemon index.js",
     "test": "jest --passWithNoTests",
-    "test:auth": "jest --runInBand test/auth.service.test.js test/auth.integration.test.js",
+    "test:auth": "jest --runInBand packages/corex-auth/test/AuthService.test.js packages/corex-auth/test/SecretsVault.test.js",
     "status:set": "node scripts/gh-project-status.js",
     "account:reset": "node scripts/reset-paper-account.js",
     "ui:dev": "npm --prefix front_end run dev",
