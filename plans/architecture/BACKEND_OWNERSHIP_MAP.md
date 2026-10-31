@@ -122,11 +122,11 @@ Categories (mutually exclusive per file):
 | corex-market-data | (none observed via package name at runtime) | (none observed directly; only via shims) | engine/core/data/providers/TwelveDataProvider.js, engine/core/data/DataProviderContract.js, engine/core/data/backtestDataResolver.js, engine/core/runtime/MarketFeed.js, broker/twelvedata.js (all re-export from packages/.../src/*) | SymbolNormalizer, DataPaginationLayer from corex-broker-contract | engine/broker -> package (via shims) |
 | corex-broker-contract | (none observed via package name at runtime) | engine/core/engine.js -> BaseBroker; packages/corex-market-data/src/* -> SymbolNormalizer, DataPaginationLayer; packages/corex-gateway/src/socketx/RiskGateway.js -> RuntimeBrokerFactory; tests -> src/base/*, src/modes/*, src/connectors/*, src/utils/* | broker/base/*, broker/modes/*, broker/connectors/*, engine/core/runtime/RuntimeBrokerFactory.js, engine/services/mt5Bridge.js | (none observed outward) | many -> package internals |
 | corex-gateway | engine/core/engine.js -> {RiskGateway, SocketXServer} | engine/routes/settingsController.js -> TradingAccountRepository (deep); engine/test/settingsController.test.js (jest.mock) | (none observed) | corex-auth (AuthService via require) | engine -> package (public + deep) |
-| corex-auth | engine/core/engine.js -> {verifyToken} | engine/services/authService.js, secretsVault.js (shims -> src/*); packages/corex-gateway/src/* -> {verifyToken, signToken} via src/AuthService | authService.js, secretsVault.js | (none observed) | engine/gateway -> package (shim + deep) |
-| corex-accounts | engine/services/connectorSettingsService.js -> {connectionsService, CONNECTOR_SCHEMAS} | engine/services/brokerPersistence.js (shim -> src/brokerPersistenceService); engine/test/connectorSettingsService.test.js (jest.mock) | brokerPersistence.js | (none observed) | engine -> package (public + shim) |
+| corex-auth | `engine/core/engine.js` -> {verifyToken} | `packages/corex-gateway/src/*` -> {verifyToken, signToken} via src/AuthService | `authService.js`, `secretsVault.js` | (none observed) | engine/gateway -> package (public + deep + shim) |
+| corex-accounts | `engine/services/connectorSettingsService.js` -> {connectionsService, CONNECTOR_SCHEMAS} | `engine/test/connectorSettingsService.test.js` (jest.mock) | `brokerPersistence.js` | (none observed) | engine -> package (public + shim) |
 | corex-portfolio | engine/services/tradeHistoryService.js -> {TradeHistoryService} | (none observed) | (none observed) | (none observed) | engine -> package (public only) |
 
-Note: A file listed as a shim is a re-export wrapper, not a public-API consumer. Public API imports use the package name or index; shims bypass the index. Categories above are mutually exclusive per file.
+Note: A file listed as a shim is a re-export wrapper, not a public-API consumer. Categories are per file-to-package dependency, not global per file: the same file may appear in different categories for different packages (e.g., engine/core/engine.js is Public API for corex-gateway/corex-auth but Deep internal for corex-broker-contract via BaseBroker). A dependency should not be listed in both Deep internal and Shims for the same package; where it appears in both, the Shim entry takes precedence and the Deep internal entry is removed.
 
 ## 11b. Critical flow traces (call sites)
 
@@ -258,3 +258,20 @@ Decisions needed: Owen review.
 Blockers: None.
 Exact next action: Owen reviews corrected audit; if accepted, integrate or proceed to P0-03.
 May another agent continue? YES — read-only review only.
+
+
+### Handoff — 2026-10-31 (correction pass 5)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-02-backend-ownership
+Base commit: 637056feaeddb2800a58d4b2c85a469fff970125 (original P0-02 base)
+Reviewed revision before this pass: f48bf66f210fa767042e99cf501ccb6d541623d6
+Files changed: plans/architecture/BACKEND_OWNERSHIP_MAP.md (updated); plans/STATUS.md (updated); plans/tasks/P0-02-backend-ownership.md (updated)
+Completed: Final documentation-consistency correction. Package consumer classification corrected (per file-to-package dependency; duplicate shim/deep entries removed; note clarifies mutual exclusivity per dependency). STATUS reconciled: P0-01 DONE, P0-02 REVIEW, stale statements removed. Handoff identifies f48bf66 as reviewed revision. Unknowns and provisional recommendations preserved.
+Commands and test results: Select-String/Test-Path verification only; no tests rerun (docs-only).
+Unverified items / limitations: circular deps not tool-verified; consumer/parity tracing partial; ownership/usage not traced; state-changing methods not traced; suspected call sequences not verified.
+Decisions needed: Owen review and integration decision.
+Blockers: None.
+Exact next action: Owen reviews final audit; if accepted, integrate P0-02 deliverables onto clean branch based on current main, verify diff, then merge.
+May another agent continue? YES — read-only review only.
+Historical handoffs above (passes 1-4) are retained for audit trail.

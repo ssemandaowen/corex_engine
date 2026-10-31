@@ -45,11 +45,27 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 ## Current blockers and decisions
 
-- P0-01 is in REVIEW on branch `audit/p0-01-repository-baseline`; awaiting Owen's acceptance.
+- P0-01 is DONE on main (accepted and squash-merged as a97ae6359b0d1b960b19368e2bbff476e16b4405). Its audit branch remains historical reference only.
 - Review existing open PRs as evidence; do not merge or close them as part of a read-only audit.
 - Any protected architecture, broker/execution/risk behavior, database schema or public-contract change requires the approval specified in the roadmap.
 
 ## Recent handoffs
+
+### Handoff — 2026-10-31 (correction pass 5)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-02-backend-ownership
+Base commit: 637056feaeddb2800a58d4b2c85a469fff970125 (original P0-02 base)
+Reviewed revision before this pass: f48bf66f210fa767042e99cf501ccb6d541623d6
+Files changed: plans/architecture/BACKEND_OWNERSHIP_MAP.md (updated); plans/STATUS.md (updated); plans/tasks/P0-02-backend-ownership.md (updated)
+Completed: Final documentation-consistency correction. Package consumer classification corrected (per file-to-package dependency; duplicate shim/deep entries removed; note clarifies mutual exclusivity per dependency). STATUS reconciled: P0-01 DONE, P0-02 REVIEW, stale REVIEW/READY statements removed. Handoff updated to identify f48bf66 as reviewed revision. Unknowns and provisional recommendations preserved.
+Commands and test results: Select-String/Test-Path verification only; no tests rerun (docs-only).
+Unverified items / limitations: circular deps not tool-verified; consumer/parity tracing partial; ownership/usage not traced; state-changing methods not traced; suspected call sequences not verified.
+Decisions needed: Owen review and integration decision.
+Blockers: None.
+Exact next action: Owen reviews final audit; if accepted, integrate P0-02 deliverables onto clean branch based on current main, verify diff, then merge.
+May another agent continue? YES — read-only review only.
+Historical handoffs below (passes 1-4) are retained for audit trail.
 
 ### Handoff — 2026-10-31 (correction pass 4)
 Owner / agent: Kilo Code
