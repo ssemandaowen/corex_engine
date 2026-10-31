@@ -7,7 +7,7 @@
 - **Branch:** `audit/p0-01-repository-baseline` (worktree at `C:\Users\SBUM\Desktop\corex-p0-01-audit`)
 - **Audited base commit (origin/main, PR #52 merge):** `3aab1d71bd0c2554b519b2a099f8af6caccddf79`
 - **Initial P0-01 audit commit:** `fdcdd9f84babe4da3f6c2016f70feca4261d7956`
-- **Correction commit (this pass):** `c565d0492cbcbbd9e21c3d0a2eb0513445aee5df` (current branch HEAD at time of this correction)
+- **First correction commit:** `c565d0492cbcbbd9e21c3d0a2eb0513445aee5df`.
 - **Latest reviewed revision before this pass:** `85533094243e1332bd8293fb0a21db68c0f4f856`
 - **PR #52 merge ancestry:** Verified — `3aab1d7` is an ancestor of HEAD; `git merge-base --is-ancestor 3aab1d7 HEAD` succeeds.
 - **Working-tree status:** Clean (no modified/untracked files; node_modules is a local junction to the original repo's node_modules and is gitignored).
