@@ -22,7 +22,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | P0-05 | Persistence, jobs and runtime-state audit | Jules | READY | P0-01 | `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md` |
 | P0-06 | Test and known-issues baseline | Kilo Code | REVIEW | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
 | P0-07 | Existing plans and PR/branch reconciliation | Jules | READY | None; verify current main | `plans/architecture/BRANCH_AND_PLAN_RECONCILIATION.md` |
-| P1-00 | Consolidated architecture flow and independent review | Kilo Code (draft); Jules and Gemini (review) | READY | P0-01 through P0-07 reviewed by Owen | `plans/tasks/P1-00-architecture-flow-and-review.md` |
+| P1-00 | Consolidated architecture flow and independent review | Kilo Code (draft); Jules and Gemini (review) | READY | P0 evidence baseline; final Phase 1 approval waits for Owen's Phase 0 exit decision | `plans/tasks/P1-00-architecture-flow-and-review.md` |
 
 **Suggested owner is a proposed allocation, not a claim.** A task becomes CLAIMED only when the owner and branch are recorded here and in its task file.
 
