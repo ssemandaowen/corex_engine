@@ -1336,22 +1336,14 @@ The purpose of this file is to preserve the reasoning behind implementation choi
 
 ## 8.5 Active Task Tracking
 
-The current implementation state must be maintained in:
+The active task system is maintained in:
 
-```text
-/plans/to_do.md
-```
+- `plans/COREX_DEVELOPMENT_PLAN.md` — phase order, task IDs, dependencies and approval gates.
+- `plans/STATUS.md` — current task state, owner, branch and handoff pointer.
+- `plans/tasks/<TASK-ID>.md` — exact scope, non-goals, acceptance criteria and resumable handoff.
+- `plans/AGENT_WORKFLOW.md` — claiming, collaboration, branch ownership and completion rules.
 
-This file should allow a new agent to quickly determine:
-
-* what is currently being implemented
-* what is completed
-* what remains
-* what is blocked
-* what has not yet been started
-* which configuration or migration work remains
-
-Keep it current as work progresses.
+A new agent must be able to resume from these repository records without relying on a previous chat. Update STATUS and the selected task file whenever ownership or progress changes. `plans/to_do.md` is historical task history, not an active board.
 
 ---
 
@@ -1361,22 +1353,15 @@ Keep it current as work progresses.
 
 Never work directly on `main`.
 
-Use:
-
-* one feature branch per task, or
-* one worktree per package/task when appropriate.
+Use one long-lived branch per coherent workstream or milestone. Resume the existing task and branch across agent sessions when safe; do not create a new branch for every session. Follow `plans/AGENT_WORKFLOW.md` for single-writer coordination and handoffs.
 
 ---
 
 ## 9.2 Issue-Driven Development
 
-Each package or feature task should have a corresponding GitHub Issue containing its implementation checklist.
+Every active task must have a repository task specification under `plans/tasks/` and an entry in `plans/STATUS.md`. The task specification is the primary source for scope, non-goals and acceptance criteria. A GitHub Issue may be linked for discussion or external tracking, but it does not replace the repository task record.
 
-The checklist is the primary source of progress for that task.
-
-Work through checklist items in order unless there is a clear dependency requiring another order.
-
-Configuration and database work should be explicitly represented in the checklist when applicable.
+Work through the task's acceptance criteria and dependencies in the approved order. Configuration and database work must be explicitly represented in the task scope where applicable.
 
 ---
 
@@ -1415,14 +1400,9 @@ Do not claim a feature is fully verified when only a partial test was performed.
 
 ## 9.5 Session Completion
 
-When ending a development session, update the relevant GitHub Issue with a concise status:
+When ending a development session, write a dated handoff in the task file using the mandatory template in `plans/AGENT_WORKFLOW.md`. Include the last verified commit, changed files, tests/results, blockers and the exact next action.
 
-```text
-done: <what was completed>
-next: <what should happen next>
-```
-
-Also update `/plans/to_do.md` and `/plans/decisions.md` where applicable.
+Update `plans/STATUS.md` and the task record. Update `plans/decisions.md` only when an actual architectural decision is made. GitHub Issues may be updated as supporting records, but they do not replace the handoff.
 
 
 ## 9.6 Multi-Agent Development
