@@ -1,6 +1,6 @@
 # P0-01 — Repository Baseline
 
-Status: READY
+Status: REVIEW
 Suggested owner: Kilo Code
 Risk: Low (read-only investigation and documentation)
 Dependencies: None
@@ -47,12 +47,25 @@ Create `plans/architecture/REPOSITORY_BASELINE.md` with:
 - risks and follow-up questions.
 
 ## Acceptance criteria
-- [ ] Every key fact has a real path, command or manifest as evidence.
-- [ ] Current branch and commit SHA are recorded.
-- [ ] Commands that were run are distinguished from commands merely identified.
-- [ ] No application/config/dependency files changed.
-- [ ] Limitations and unknowns are explicit.
-- [ ] STATUS and this task record include a resumable handoff.
+- [x] Every key fact has a real path, command or manifest as evidence.
+- [x] Current branch and commit SHA are recorded.
+- [x] Commands that were run are distinguished from commands merely identified.
+- [x] No application/config/dependency files changed.
+- [x] Limitations and unknowns are explicit.
+- [x] STATUS and this task record include a resumable handoff.
 
 ## Handoff
-Use the mandatory handoff template in `plans/AGENT_WORKFLOW.md`. Do not claim the task DONE until Owen reviews the baseline.
+
+### Handoff — 2026-10-31
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Last verified commit: 3aab1d71bd0c2554b519b2a099f8af6caccddf79
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (created); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Read-only baseline audit on origin/main (PR #52 merge ancestor verified). Tests verified (51 suites, 572 tests pass). Deliverables created.
+Commands and test results: npm test -> 51 suites, 572 tests passed, 64.09s, worker teardown warning. node v22.20.0, npm 10.9.3. git status clean. git merge-base verified PR #52 ancestor.
+Unverified items / limitations: npm start not run (DB required); frontend not built; deps usage not verified; broker DB-config depth not verified.
+Decisions needed: Owen review of audit before integration.
+Blockers: None.
+Exact next action: Owen reviews audit and three-file diff; if accepted, integrate into main via PR.
+May another agent continue? YES — read-only review only; write ownership stays with Kilo Code.
