@@ -14,6 +14,8 @@ The project remains in Phase 0 until the required current-state evidence has bee
 
 The goal is not to complete every possible audit or make every document perfect. Close only the evidence gaps that could change domain ownership, public contracts, persistence, runtime correctness, security, or migration order. Record other gaps as bounded follow-up work.
 
+Independent review returned REVISE. Findings and required plan corrections are recorded in [P1-00 review — 2026-11-01](../reviews/P1-00-review-2026-11-01.md). Treat that review as source evidence supplied for this planning pass; claims depending on uninspected files remain VERIFY.
+
 ## 2. Repository investigation — verified current position
 
 ### 2.1 Phase 0 status
@@ -107,7 +109,7 @@ TwelveData / selected provider
   -> broadcaster / persistence consumers
 ~~~
 
-Source evidence: packages/corex-market-data/src/MarketFeed.js. The exact broker persistence, fill, portfolio update, risk validation and WebSocket delivery chain still needs end-to-end tracing. Do not assume every signal passes through the separately constructed SignalGenerationEngine / SignalProcessingEngine / SignalExecutionEngine pipeline; P0-04 must establish which path is authoritative for each mode.
+Source evidence: packages/corex-market-data/src/MarketFeed.js. Independent review reports that this path calls broker.handle without RiskGateway and that MarketFeed does not use the SignalGenerationEngine / SignalProcessingEngine / SignalExecutionEngine pipeline. The reviewer did not inspect BaseBroker or PAPER broker, so verify whether they add risk checks. Do not leave this as an open-ended architecture question: P1-03 must define one authoritative order-intent entry point and risk policy for every mode.
 
 ### 2.5 Current BACKTEST flow observed in source
 
@@ -129,7 +131,7 @@ Frontend command / REST request
   -> frontend report and progress view
 ~~~
 
-Source evidence: backtestController.js, jobQueue.js, jobWorker.js, jobs/backtestRun.js and backtestManager.js. P0-04/P0-05 must verify actual transaction boundaries, cancellation timing, report persistence, cleanup and reconnect behavior. README currently classifies backtesting as PARTIAL and reports lookahead-bias/configuration-propagation concerns; these must be treated as high-priority correctness questions, not accepted as proven root causes without code/test evidence.
+Source evidence: backtestController.js, jobQueue.js, jobWorker.js, jobs/backtestRun.js and backtestManager.js. The independent review already traced concrete cancellation, retry, cost propagation, fill timing, callback, dataset validation, accounting and report-persistence defects. Record those findings in the P1-00 review artifact; Kilo/Jules should verify only the explicitly uninspected boundaries and add missing evidence rather than repeat the whole audit.
 
 ### 2.6 Existing package facts and architecture constraints
 
@@ -246,39 +248,37 @@ Execute in this order:
    - Accept verified evidence and explicitly retain unknowns as follow-ups.
    - Do not demand perfect certainty where the missing evidence does not change the architecture.
 
-## 5. Phase 1 design sequence
+## 5. Phase 1 design sequence — consolidated deliverables
 
-After the Phase 0 exit decision, complete the existing roadmap tasks in this order:
+Keep the existing roadmap task IDs for traceability, but do not produce six separate design documents. Combine work that belongs together:
 
-| Order | Roadmap task | Required decision/output |
+| Decision artifact | Roadmap tasks | What it must settle |
 |---|---|---|
-| 1 | P1-01 Domain boundaries and package ownership | Domain responsibilities, non-responsibilities, public APIs, dependencies, package reuse/new-package justification |
-| 2 | P1-02 Application composition and adapters | Boot/composition root, dependency injection, HTTP/WS boundary, worker lifecycle, adapter and repository placement |
-| 3 | P1-03 Runtime and execution contracts | Runtime identity/state machine, strategy output, risk gate, order/fill/position lifecycle, PAPER/LIVE/BACKTEST differences |
-| 4 | P1-04 Data and persistence contracts | Bar/tick/dataset schema, time/index rules, table ownership, transaction boundaries, retention and recovery |
-| 5 | P1-05 Frontend and API contracts | REST command/query contracts, WebSocket snapshots/events/subscriptions, typed errors, frontend state ownership |
-| 6 | P1-06 Migration sequence and decision record | Dependency order, coexistence/cutover, rollback, compatibility window, shim expiry and deletion gates |
+| Target domain and application composition | P1-01 + P1-02 | Domain ownership/non-ownership, public APIs, dependencies, composition root, boot/shutdown, workers, HTTP/WS boundary, adapter/repository placement |
+| Runtime, strategy, execution, risk and portfolio contracts | P1-03 | Strategy isolation and callback contract; runtime identity/lifecycle/queues/fault domains; single order-intent path; risk policy; orders/fills/positions/equity/accounting; PAPER/LIVE/BACKTEST parity and deliberate divergences |
+| Data, persistence, tenancy, jobs, artifacts and frontend/API contracts | P1-04 + P1-05 | Market-data and dataset/time rules; explicit tenant model; table writers/transactions; job state/retry/cancel/recovery; artifact storage/IDs/retention; REST/WS schemas and frontend state ownership |
+| Migration sequence and decision record | P1-06 | Dependency order, coexistence/cutover, rollback, compatibility window, import-boundary enforcement, shim expiry and deletion gates |
 
-The outputs remain the existing roadmap paths:
-- plans/architecture/TARGET_DOMAIN_MAP.md
-- plans/architecture/APPLICATION_AND_ADAPTER_DESIGN.md
+The existing roadmap task IDs remain, but their outputs are consolidated into these four artifacts:
+- plans/architecture/TARGET_DOMAIN_MAP.md (includes application composition)
 - plans/architecture/EXECUTION_CONTRACTS.md
-- plans/architecture/DATA_AND_PERSISTENCE_DESIGN.md
-- plans/architecture/FRONTEND_AND_API_DESIGN.md
+- plans/architecture/DATA_AND_PERSISTENCE_DESIGN.md (includes frontend/API contracts)
 - plans/architecture/MIGRATION_SEQUENCE.md
 
-No seventh architecture document is needed unless Owen approves a specific gap that these outputs cannot cover.
+Do not create APPLICATION_AND_ADAPTER_DESIGN.md or FRONTEND_AND_API_DESIGN.md as separate documents unless a concrete uncovered decision requires separation and Owen approves it.
+
+Security and tenancy are a parallel release gate, not a late implementation phase. Multi-user LIVE remains disabled until strategy isolation, tenant authorization, broker/account scoping and cross-tenant tests pass.
 
 ## 6. Proposed implementation sequence after architecture approval
 
 This is the recommended dependency order; P1-06 may adjust it based on evidence:
 
-1. Strategy-engine ownership closure — complete one authoritative strategy API/runtime contract; remove duplicate ownership only after consumers are migrated.
-2. Market-data boundary closure — provider contract, normalized tick/bar representation, history/warmup and subscription lifecycle.
-3. Backtest correctness and domain rebuild — deterministic causal simulation, no lookahead, explicit fill timing/costs, cancellation, reproducible report; preserve hand-verified fixtures.
-4. Execution/broker ownership — one order lifecycle and risk-gated path for PAPER/LIVE; broker adapters behind the contract.
-5. Portfolio/risk ownership — authoritative fills, positions, P&L/equity and risk state; persistence/recovery.
-6. Accounts/auth/settings closure — scoped configuration, connector credentials and authorization boundaries.
+1. Security and tenancy foundation (parallel release gate) — explicit tenant IDs and authorization, strategy isolation, least-privilege workers, secret/account scoping and cross-tenant tests. No multi-user LIVE before this gate.
+2. Strategy/runtime contract — one strategy entry/callback contract across modes; enforceable execution limits; per-runtime ordering, backpressure, cancellation and fault isolation.
+3. Market-data boundary — provider contract, normalized tick/bar representation, history/warmup and per-runtime subscription handoff.
+4. Execution, risk and portfolio accounting foundation — one order-intent entry point, one risk-policy owner, authoritative order/fill/position/equity accounting and documented mode parity.
+5. Backtest correctness rebuild — reuse the approved execution/accounting contracts; deterministic causal simulation, explicit fill timing/costs/gap behavior, cancellation, bounded resources and reproducible reports.
+6. Persistence/jobs/artifacts — atomic job state transitions, leases/fencing, retry classification, durable tenant-scoped artifact storage and recovery.
 7. Legacy retirement — remove old paths only after zero-consumer evidence and replacement tests.
 
 Implement one domain migration at a time. Each task must state current behavior, intended behavior, public contract, files in/out of scope, migration steps, tests, rollback/recovery, and acceptance criteria. No broad refactor or mass extraction.
@@ -308,7 +308,15 @@ After reviews, Kilo may make one bounded documentation correction pass. Owen app
 - [ ] Current behavior is separated from proposed target behavior.
 - [ ] Every proposed domain has explicit responsibility and non-responsibility.
 - [ ] Direct calls vs events are justified per interaction.
-- [ ] Runtime identity, concurrency, mode isolation and state transitions are explicit.
+- [ ] Runtime identity, per-runtime ordering, backpressure, cancellation, fault isolation and state transitions are explicit.
+- [ ] Strategy code has an explicit trust/isolation model and cannot access ambient secrets, DB or other tenants' broker sessions.
+- [ ] Tenant ownership is enforced across HTTP, WebSocket, workers, repositories, broker routing and artifacts.
+- [ ] One authoritative order-intent entry point and risk-policy owner exist; risk failure behavior is fail-closed.
+- [ ] PAPER/LIVE/BACKTEST risk, fill, cost and accounting parity/divergences are explicit and tested.
+- [ ] Job transitions, cancellation, retries, worker leases, shutdown and recovery have one terminal-state authority.
+- [ ] Artifact publication is durable and tenant-scoped; a job cannot succeed if its report is not retrievable.
+- [ ] Backtests inject clock/RNG, validate datasets strictly and enforce server-side resource limits.
+- [ ] Import-boundary lint/tests enforce package public APIs and prevent deep imports.
 - [ ] Broker, risk, fill, portfolio and persistence ownership do not overlap ambiguously.
 - [ ] Backtest timing, data causality, fill/cost model, cancellation and report persistence are specified.
 - [ ] Database ownership, transactions, idempotency and recovery are addressed.
@@ -329,4 +337,4 @@ After reviews, Kilo may make one bounded documentation correction pass. Owen app
 - No merging existing PRs as a shortcut.
 - No repeated documentation-only correction cycles once the evidence is sufficient.
 
-**Next action:** Kilo, Jules and Gemini independently review this execution flow. Return findings only. Do not code until Owen approves the consolidated architecture.
+**Next action:** Kilo verifies only the targeted unknown paths; Jules verifies frontend job/report and tenant flows using PR #49; Gemini reviews the revised security/execution decisions. Return findings only. Do not code until Owen decides the policy questions and approves the consolidated architecture.
