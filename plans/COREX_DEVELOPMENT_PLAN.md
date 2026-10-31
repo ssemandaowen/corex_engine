@@ -440,6 +440,8 @@ The following are useful starting points, not automatically approved designs:
 
 ## 6. Agent execution protocol
 
+The operational details for claiming work, branch ownership, handoffs, and resumability live in `plans/AGENT_WORKFLOW.md`. The active ownership dashboard is `plans/STATUS.md`; expanded, independently readable specifications for P0-01 through P0-07 live in `plans/tasks/`. This roadmap remains authoritative for phase order, task IDs, dependencies, and approval gates. `plans/to_do.md` is historical only.
+
 ### 6.1 Before starting a task
 
 Every agent must:
