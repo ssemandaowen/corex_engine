@@ -100,6 +100,38 @@ const fakeStore = new FakeDbStore();
 describe("Phase 2B G5 Real-DB Settings Schema & Controller Tests", () => {
     const testUserId = "user_test_phase2b_real_db";
 
+    // G5: real-DB tests need a backing users row — user_broker_settings /
+    // user_engine_settings / user_system_settings all FK to users.id.
+    const seededUserIds = [];
+    async function seedUser(uid) {
+        if (!isRealDbAvailable) return;
+        await pgStore.createUser({
+            id: uid,
+            email: `${uid}@corex.test`,
+            name: "G5 Test",
+            role: "user",
+            status: "active",
+            passwordHash: "x",
+        });
+        seededUserIds.push(uid);
+    }
+
+    beforeAll(async () => {
+        if (!isRealDbAvailable) return;
+        await seedUser(testUserId);
+    });
+
+    afterAll(async () => {
+        if (!isRealDbAvailable) return;
+        for (const uid of seededUserIds) {
+            await db.query("DELETE FROM user_broker_settings WHERE user_id=$1", [uid]);
+            await db.query("DELETE FROM user_engine_settings WHERE user_id=$1", [uid]);
+            await db.query("DELETE FROM user_system_settings WHERE user_id=$1", [uid]);
+            await db.query("DELETE FROM users WHERE id=$1", [uid]);
+        }
+        await db.close();
+    });
+
     beforeEach(async () => {
         jest.restoreAllMocks();
 
@@ -222,6 +254,13 @@ describe("Phase 2B G5 Real-DB Settings Schema & Controller Tests", () => {
     // ── G5 Database Behavior Tests ───────────────────────────────────────────
 
     test("1. patch_slippage_does_not_change_cash_or_initial_cash", async () => {
+        if (isRealDbAvailable) {
+            await pgStore.upsertBrokerSettingsForUser(testUserId, "paper", {
+                cash: 95000,
+                initialCash: 100000,
+                config: {}
+            });
+        }
         const before = await pgStore.getBrokerSettingsForUser(testUserId, "paper");
         const initialCash = before ? before.cash : 100000;
         const initialInitCash = before ? before.initialCash : 100000;
@@ -373,6 +412,7 @@ describe("Phase 2B G5 Real-DB Settings Schema & Controller Tests", () => {
     test("10. old_PATCH_engine_bumps_version_and_sends_delta", async () => {
         const uid = "user_test_old_patch_isolated";
         const sendSpy = jest.spyOn(broadcaster, "sendSettingsDelta");
+        await seedUser(uid);
         const s1 = await invokeHandler(settingsController, "GET", "/schema", { userId: uid, query: { mode: "paper" } });
         const v1 = s1.body.payload.settingsVersion;
 

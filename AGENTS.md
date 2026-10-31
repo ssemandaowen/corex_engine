@@ -1771,3 +1771,154 @@ Before declaring a task complete, confirm:
 # 17. Core Principle
 
 > **Understand the existing system before changing it. Organize CoreX by ownership rather than historical folder location. Keep domain logic inside the package that owns it, keep the engine responsible for orchestration, keep adapters responsible for external systems, keep `utils` genuinely domain-neutral, treat shims as temporary migration mechanisms, use explicit package APIs and dependency boundaries, minimize hardcoded values, preserve architectural guarantees, independently review AI-generated changes, verify what can be verified, document what cannot, and leave the repository easier for the next agent to understand than you found it.**
+
+
+# CoreX — Shared Multi-Agent Project Management System
+
+## Mission
+
+Establish a durable, repository-backed development management system for CoreX so that Kilo Code, Gemini Jules, Claude, ChatGPT and future agents can work on the same approved rebuild without losing context, duplicating tasks, creating unnecessary branches or producing competing pull requests.
+
+The existing `plans/COREX_DEVELOPMENT_PLAN.md` is the authoritative roadmap. Preserve it as the main development authority.
+
+## Phase A — Inspect existing planning infrastructure
+
+Before editing anything:
+
+1. Read `AGENTS.md`, `SKILLS.md`, `KNOWN_ISSUES.md` and `plans/COREX_DEVELOPMENT_PLAN.md`.
+2. Inspect `plans/decisions.md` and `plans/to_do.md`.
+3. Inspect the existing GitHub Project named `CoreX Modularization`.
+4. Inspect open PR #17, which previously proposed `plans/STATUS.md`.
+5. Inspect relevant GitHub Issues and existing task/branch records.
+6. Identify conflicts between old instructions and the current roadmap.
+
+Do not create duplicate planning files or another GitHub Project.
+
+## Phase B — Establish the shared repository documents
+
+Use the following responsibilities:
+
+- `plans/COREX_DEVELOPMENT_PLAN.md`: authoritative roadmap, task IDs, dependencies, phases and acceptance criteria.
+- `plans/STATUS.md`: concise active-work dashboard, agent ownership, workstream branch, latest commit, blockers and handoff references.
+- `plans/decisions.md`: approved architectural decisions.
+- `plans/AGENT_WORKFLOW.md`: mandatory multi-agent operating procedure.
+- `plans/tasks/`: detailed resumable task specifications where the roadmap entry alone is insufficient.
+- `plans/architecture/`: evidence-backed architecture inventories and approved designs.
+
+Review and reuse PR #17's work where appropriate. Do not blindly adopt its contents.
+
+Avoid duplicating the full roadmap in the status file.
+
+## Phase C — Define the task lifecycle
+
+Use these statuses:
+
+READY, CLAIMED, IN_PROGRESS, BLOCKED, REVIEW, DONE, CANCELLED.
+
+Every task must have:
+
+- Unique task ID.
+- Objective and reason.
+- Scope and non-goals.
+- Dependencies.
+- Relevant files and ownership.
+- Acceptance criteria.
+- Assigned agent.
+- Current status.
+- Evidence and test results.
+- Branch and PR references, where applicable.
+- Last completed action.
+- Exact next action.
+- Blocker and required decision, if any.
+
+One task must have one permanent tracking record. New sessions must continue the existing task rather than create duplicate tasks.
+
+## Phase D — Resumable handoff protocol
+
+Every agent must update the same task record when:
+
+- Starting work.
+- Completing a meaningful task step.
+- Discovering a blocker.
+- Pausing or ending a session.
+- Requesting review.
+- Completing acceptance.
+
+An unfinished task must always include:
+
+1. What has been investigated or implemented.
+2. Actual files changed.
+3. Last verified commit SHA.
+4. Tests executed and their real results.
+5. Unresolved questions.
+6. Exact next action.
+7. Whether another agent may safely continue.
+
+Never claim work is complete if the evidence does not support it.
+
+## Phase E — GitHub Project integration
+
+Use the existing `CoreX Modularization` Project.
+
+Create or reconcile one Project card/Issue for each approved bounded task, not each AI session.
+
+Each card must reference its roadmap task ID and include the task specification, dependencies, owner/agent, acceptance criteria, current branch and PR where applicable.
+
+Recommended board columns:
+
+- Ready
+- In Progress
+- Blocked
+- Review
+- Done
+
+Keep the board synchronized with actual work. Do not close an issue until its acceptance criteria are satisfied and the work is integrated.
+
+Do not automatically recreate stale Issues #4–#10 without reconciling their status against the current roadmap.
+
+## Phase F — Branch and PR discipline
+
+- Never work directly on `main`.
+- Use one long-lived integration branch per genuinely independent workstream.
+- Do not create a branch for every agent session.
+- Do not open a PR for every completed task.
+- Keep coherent task-sized commits on the integration branch.
+- Open PRs at agreed milestone review gates.
+- Kilo owns integration and conflict resolution.
+- Jules must use the designated workstream where its workflow supports it.
+- If an agent cannot contribute safely to the designated branch, it must provide a reviewable handoff rather than silently creating another competing integration path.
+- Never force-push, reset, clean, overwrite user changes or merge without Owen's approval.
+
+## Phase G — Reconcile agent instructions
+
+Update `AGENTS.md` so all agents follow one consistent procedure.
+
+Remove contradictions concerning:
+
+- Whether `plans/to_do.md` is active or historical.
+- Whether GitHub Issues or the roadmap define task scope.
+- Where active task status is recorded.
+- Which project board is authoritative.
+- How an agent claims and hands over a task.
+- How branches and PRs are managed.
+
+Every agent must read the authoritative roadmap and workflow before implementation.
+
+## Phase H — Final verification
+
+Before reporting completion:
+
+- Verify all new document paths and links.
+- Verify the roadmap remains authoritative.
+- Verify the task lifecycle and handoff template are usable.
+- Verify the old instructions no longer contradict the new workflow.
+- Verify the existing GitHub Project and PR #17 have been reconciled.
+- Record exactly what changed and what remains unfinished.
+
+## Scope restriction
+
+This task establishes the project management and agent coordination system only.
+
+Do not start a mass backend refactor, relocate legacy folders, delete shims or modify trading behavior as part of this task.
+
+Present the final proposed document structure, changed files, GitHub tracking changes and remaining owner decisions for Owen's review.
