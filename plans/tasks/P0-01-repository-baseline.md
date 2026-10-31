@@ -1,6 +1,6 @@
 # P0-01 — Repository Baseline
 
-Status: READY
+Status: REVIEW
 Suggested owner: Kilo Code
 Risk: Low (read-only investigation and documentation)
 Dependencies: None
@@ -47,12 +47,67 @@ Create `plans/architecture/REPOSITORY_BASELINE.md` with:
 - risks and follow-up questions.
 
 ## Acceptance criteria
-- [ ] Every key fact has a real path, command or manifest as evidence.
-- [ ] Current branch and commit SHA are recorded.
-- [ ] Commands that were run are distinguished from commands merely identified.
-- [ ] No application/config/dependency files changed.
-- [ ] Limitations and unknowns are explicit.
-- [ ] STATUS and this task record include a resumable handoff.
+- [x] Every key fact has a real path, command or manifest as evidence.
+- [x] Current branch and commit SHA are recorded.
+- [x] Commands that were run are distinguished from commands merely identified.
+- [x] No application/config/dependency files changed.
+- [x] Limitations and unknowns are explicit.
+- [x] STATUS and this task record include a resumable handoff.
 
-## Handoff
-Use the mandatory handoff template in `plans/AGENT_WORKFLOW.md`. Do not claim the task DONE until Owen reviews the baseline.
+### Handoff — 2026-10-31 (correction pass 3)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Audited base commit: 3aab1d71bd0c2554b519b2a099f8af6caccddf79
+Initial P0-01 audit commit: fdcdd9f84babe4da3f6c2016f70feca4261d7956
+First correction commit: c565d0492cbcbbd9e21c3d0a2eb0513445aee5df
+Latest reviewed revision before this pass: 85533094243e1332bd8293fb0a21db68c0f4f856
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (updated); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Third correction pass per final GitHub review. Restored full P0-01..P0-07 dashboard in STATUS.md. Removed duplicate data/ row. Softened all existence-only labels. Corrected section 6 lint row. Added latest reviewed revision commit reference.
+Commands and test results: Select-String/Test-Path verification only; no tests rerun (docs-only).
+Unverified items / limitations: root cause of strategies alias unknown; schema.sql vs migrations relationship untraced; ownership/usage not traced for any directory.
+Decisions needed: Owen review of corrected audit.
+Blockers: None.
+Exact next action: Owen reviews corrected audit and final diff; if accepted, integrate via PR #53.
+May another agent continue? YES — read-only review only.
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Audited base commit: 3aab1d71bd0c2554b519b2a099f8af6caccddf79
+Initial P0-01 audit commit: fdcdd9f84babe4da3f6c2016f70feca4261d7956
+Last inspected correction commit: c565d0492cbcbbd9e21c3d0a2eb0513445aee5df
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (updated); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Second correction pass per independent GitHub MCP review. Fixed commit metadata (three distinct commits), section 12 recommendations aligned to P0 task definitions, ownership labels softened to Observed (existence), strategies alias wording corrected (dangling target, impact untraced), lint documentation clarified (root vs frontend), handoff metadata corrected.
+Commands and test results: Select-String/Test-Path verification only; no tests rerun (docs-only).
+Unverified items / limitations: root cause of strategies alias unknown; schema.sql vs migrations relationship untraced; ownership/usage not traced for any directory.
+Decisions needed: Owen review of corrected audit.
+Blockers: None.
+Exact next action: Owen reviews corrected audit and final diff; if accepted, integrate via PR #53.
+May another agent continue? YES — read-only review only.
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Last verified commit: fdcdd9f84babe4da3f6c2016f70feca4261d7956
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (updated); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Independent verification of Claude review findings. Verified: missing strategies/ dir with Jest alias; eslint not declared; KNOWN_ISSUES.md at plans/; hardcoded Windows DB path; root schema.sql; mt5Receiver.py; commit terminology clarified; ownership labels softened to observed/existence.
+Commands and test results: Test-Path checks; Select-String checks; npm test not rerun (docs-only change).
+Unverified items / limitations: root cause of strategies alias unknown; schema.sql vs migrations relationship untraced.
+Decisions needed: Owen review of corrected audit.
+Blockers: None.
+Exact next action: Owen reviews corrected audit and diff; if accepted, integrate via PR.
+May another agent continue? YES — read-only review only.
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-01-repository-baseline
+Last verified commit: 3aab1d71bd0c2554b519b2a099f8af6caccddf79
+Files changed: plans/architecture/REPOSITORY_BASELINE.md (created); plans/STATUS.md (updated); plans/tasks/P0-01-repository-baseline.md (updated)
+Completed: Read-only baseline audit on origin/main (PR #52 merge ancestor verified). Tests verified (51 suites, 572 tests pass). Deliverables created.
+Commands and test results: npm test -> 51 suites, 572 tests passed, 64.09s, worker teardown warning. node v22.20.0, npm 10.9.3. git status clean. git merge-base verified PR #52 ancestor.
+Unverified items / limitations: npm start not run (DB required); frontend not built; deps usage not verified; broker DB-config depth not verified.
+Decisions needed: Owen review of audit before integration.
+Blockers: None.
+Exact next action: Owen reviews audit and three-file diff; if accepted, integrate into main via PR.
+May another agent continue? YES — read-only review only; write ownership stays with Kilo Code.
