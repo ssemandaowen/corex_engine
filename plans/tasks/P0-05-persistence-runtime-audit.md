@@ -6,6 +6,10 @@ Risk: High (read-only audit of protected data/runtime behavior)
 Dependencies: P0-01
 Output: `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md`
 
+## Reuse existing evidence
+
+Read `plans/reviews/P1-00-review-2026-11-01.md` first. It already records reviewer findings for job cancellation, retry atomicity, worker shutdown/leases, backtest cancellation, report persistence, local artifact storage, identity and accounting. Do not re-trace these from scratch. Verify only the remaining migrations/schema constraints, pgStore, broadcaster, frontend progress/report handling and restart/recovery paths. Label claims depending on uninspected code as VERIFY.
+
 ## Objective
 Identify authoritative persisted state, in-memory runtime state, database ownership and job lifecycle/recovery behavior without changing schemas or execution behavior.
 
@@ -33,6 +37,8 @@ Identify authoritative persisted state, in-memory runtime state, database owners
 Create `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md` with table ownership, writers/readers, transactions, state machine diagrams, retry/cancellation/recovery analysis, idempotency, restart gaps, evidence and decisions needed.
 
 ## Acceptance criteria
+- [ ] Existing P1-00 review findings are referenced; only missing evidence is newly traced.
+- [ ] Job state, retry/cancel/lease/recovery findings are verified against actual code and tests.
 - [ ] Table ownership is tied to migrations and actual writers.
 - [ ] Runtime/job transitions and terminal paths are traced.
 - [ ] Persisted, reconstructed and ephemeral state are distinguished.

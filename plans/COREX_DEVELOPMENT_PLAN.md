@@ -250,15 +250,22 @@ An unchecked task is not permission to start it. The task must be selected, assi
 
 **Outcome:** A concrete architecture and migration design derived from Phase 0 evidence.
 
+- [ ] **P1-00 — Consolidated architecture flow and independent review**
+  - Reuse the existing P0 evidence; do not restart completed audits or create a competing roadmap.
+  - Consolidate the verified current boot, PAPER/LIVE, BACKTEST, persistence and frontend flows; distinguish observed behavior from proposed target behavior.
+  - Sequence P0 closeout and P1-01 through P1-06; obtain independent Kilo, Gemini and Jules reviews before implementation.
+  - Incorporate independent review findings from `plans/reviews/P1-00-review-2026-11-01.md`; retain verified facts and label uninspected paths VERIFY.
+  - Consolidate six design tasks into four decision artifacts: P1-01/P1-02, P1-03, P1-04/P1-05, P1-06. Keep task IDs for traceability, not six separate documents.
+  - Output: `plans/tasks/P1-00-architecture-flow-and-review.md` plus the linked review record.
+  - Non-goal: no application code, package extraction, schema change, file movement or PR merge.
+  - Acceptance: review findings resolved or recorded; Owen approves the architecture and first bounded coding task.
+
 - [ ] **P1-01 — Domain boundaries and package ownership**
   - Decide which existing packages remain, which responsibilities move, and whether any new package is justified.
   - Define domain responsibilities, non-responsibilities, public APIs, dependencies and owners.
-  - Output: plans/architecture/TARGET_DOMAIN_MAP.md.
-
-- [ ] **P1-02 — Application composition and adapter design**
-  - Define startup/composition, dependency injection, worker lifecycle, HTTP/WS boundaries and adapter placement.
-  - Decide where database repositories and transactions live.
-  - Output: plans/architecture/APPLICATION_AND_ADAPTER_DESIGN.md.
+  - Include strategy trust/isolation, tenant ownership, least-privilege capabilities and the multi-user LIVE release gate.
+  - Include application composition: startup/shutdown/restart, dependency wiring, worker supervision, HTTP/WS boundaries, adapters and repository placement.
+  - Output: plans/architecture/TARGET_DOMAIN_MAP.md (includes application composition; no separate P1-02 document).
 
 - [ ] **P1-03 — Runtime and execution contracts**
   - Define strategy input/output, signal normalization, order lifecycle, fill behavior, position state, risk checks and mode differences.
@@ -267,18 +274,16 @@ An unchecked task is not permission to start it. The task must be selected, assi
 
 - [ ] **P1-04 — Data and persistence contracts**
   - Define market-data contracts, historical dataset representation, time/index rules, storage ownership, retention and recovery.
-  - Output: plans/architecture/DATA_AND_PERSISTENCE_DESIGN.md.
-
-- [ ] **P1-05 — Frontend and API contract strategy**
-  - Define feature ownership, API versioning/schema approach, typed error model, WebSocket event/subscription contract, client state ownership and empty/error states.
-  - Output: plans/architecture/FRONTEND_AND_API_DESIGN.md.
+  - Define explicit tenant ownership, canonical IDs, job state/retry/cancel/recovery, artifact storage/publication, transaction/idempotency rules and retention.
+  - Include frontend/API contracts: feature/state ownership, REST schemas, typed errors, WebSocket events/subscriptions, progress/cancellation/report states and reconnect behavior.
+  - Output: plans/architecture/DATA_AND_PERSISTENCE_DESIGN.md (includes frontend/API contracts; no separate P1-05 document).
 
 - [ ] **P1-06 — Migration sequence and decision record**
   - Define dependency-aware migration order, coexistence rules, rollback points, shim expiry and removal gates.
   - Append approved decisions to plans/decisions.md; do not silently rewrite historical decisions.
   - Output: plans/architecture/MIGRATION_SEQUENCE.md.
 
-**Phase 1 exit gate:** Owen approves the target domain map, dependency rules, contracts and migration order. No implementation agent may substitute its own architecture.
+**Phase 1 exit gate:** P1-00 independent review is complete; Owen approves the four consolidated decision artifacts, dependency rules, contracts and migration order. Strategy isolation and tenant authorization must be specified as release gates; no multi-user LIVE until their implementation and tests pass. No implementation agent may substitute its own architecture.
 
 ### PHASE 2 — Reconcile and prepare existing work
 
@@ -305,6 +310,12 @@ An unchecked task is not permission to start it. The task must be selected, assi
   - Identify backup/restore expectations, feature flags or controlled cutover options, database migration safeguards and test fixtures.
   - Acceptance: every high-risk migration has a rollback or recovery procedure.
 
+- [ ] **P2-05 — Strategy isolation and tenant security release gate**
+  - Define and implement least-privilege strategy execution, tenant-scoped authorization and broker/account routing before multi-user LIVE is enabled.
+  - Verify HTTP, WebSocket, worker, storage, strategy lookup and runtime ownership boundaries.
+  - Acceptance: cross-tenant negative tests pass; untrusted strategy code cannot access ambient secrets, DB, filesystem or another user's broker session; worker/runtime failure is contained.
+  - This is a release gate, not a late accounts/auth cleanup task.
+
 **Phase 2 exit gate:** Each selected change has an approved destination and a bounded task. No bulk merge of agent branches.
 
 ### PHASE 3 — Rebuild domain ownership
@@ -317,7 +328,9 @@ The exact order is confirmed by Phase 0/1 dependency evidence. Initial candidate
   - Finalize strategy public API and runtime contract.
   - Remove duplicate strategy implementations and legacy alias dependencies.
   - Confirm parameter schema, context API, indicators, state and validation ownership.
-  - Acceptance: application and consumers use the package public API; legacy shims have named consumers and removal criteria.
+  - Define one strategy entry/callback contract across PAPER/LIVE/BACKTEST, including async semantics and capability access.
+  - Strategy code must not inherit ambient Node privileges; select an enforceable isolation model and execution resource limits.
+  - Acceptance: application and consumers use the package public API; legacy shims have named consumers and removal criteria; strategy isolation tests prevent filesystem/DB/secrets/cross-tenant access.
 
 - [ ] **P3-02 — Market-data boundary closure**
   - Make provider contracts, historical retrieval, streaming, normalization and subscription lifecycle explicit.
@@ -330,16 +343,20 @@ The exact order is confirmed by Phase 0/1 dependency evidence. Initial candidate
   - Preserve hand-computed acceptance fixtures (including hand20) and document every independently derived expected value.
   - Include gap-through-stop behavior, invalid-bar diagnostics, abort/cancel, resource budgets and reproducible reports.
   - Candidate package name: corex-backtest; confirm against Phase 1 package ownership.
+  - Depends on approved execution/risk/portfolio accounting contracts from P3-04/P3-05 before simulation implementation; do not create a second accounting model.
+  - Do not create corex-backtest merely because it is a candidate; reuse existing ownership unless Phase 1 proves a new package is necessary.
   - Acceptance: deterministic tests pass; service/worker/API use the new contract; old manager is removed only after all consumers are migrated and integration evidence passes.
 
 - [ ] **P3-04 — Execution and broker adapter ownership**
   - Reconcile broker contract, execution orchestration, paper/live drivers and external connectors.
   - Ensure broker-independent order lifecycle and fill semantics have one owner.
+  - Define one authoritative order-intent entry point and risk-policy owner for strategy/manual/automated actions; define fail-closed behavior and explicit PAPER/LIVE/BACKTEST risk/fill parity.
   - Acceptance: no competing broker trees or duplicated fill implementations; mode-specific behavior tested.
 
 - [ ] **P3-05 — Portfolio and risk ownership**
   - Define authoritative ownership for positions, trades, P&L, equity, account state and risk decisions.
   - Ensure transaction and event ordering is explicit.
+  - Freeze the authoritative balance/equity/position/accounting contract before P3-03 backtest simulation is implemented.
   - Acceptance: consistent account/user scoping, restart recovery and auditable state transitions.
 
 - [ ] **P3-06 — Accounts, auth and settings boundaries**
@@ -571,7 +588,7 @@ Update this section when a phase changes. Do not estimate completion percentages
 | Phase 4 — Frontend integration | NOT STARTED | UI/API/WS flows match approved contracts |
 | Phase 5 — Production readiness | NOT STARTED | End-to-end, recovery, security and operational gates pass |
 
-**Current active task:** P0-01 — Repository baseline.
+**Current active work:** P0-02 review and remaining P0-03 through P0-07 evidence closeout. P1-00 defines the independent architecture review gate.
 
 **Current implementation authorization:** No broad rebuild is authorized by this roadmap alone. First complete Phase 0, then obtain approval for Phase 1 decisions and bounded implementation tasks.
 
@@ -582,5 +599,7 @@ Update this section when a phase changes. Do not estimate completion percentages
 | Date | Change | Author |
 |---|---|---|
 | 2026-10-31 | Established authoritative development roadmap, phase gates, task protocol and anti-patching rules | Owen / ChatGPT draft |
+| 2026-10-31 | Added P1-00 execution flow to close remaining Phase 0 evidence and obtain independent architecture review before coding | ChatGPT draft for Owen review |
+| 2026-11-01 | Revised P1-00 from independent review: strategy isolation, tenant boundary, single risk-gated order path, runtime fault domains, job/recovery correctness, backtest determinism/accounting, durable artifacts, import boundaries; consolidated six design docs into four | ChatGPT draft for Owen and agent review |
 
 Append future changes. Do not erase historical reasoning. For architectural decisions, also append to plans/decisions.md.

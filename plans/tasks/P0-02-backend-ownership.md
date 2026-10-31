@@ -1,10 +1,14 @@
 # P0-02 — Backend Ownership and Dependency Map
 
-Status: READY
+Status: REVIEW
 Suggested owner: Kilo Code
 Risk: Medium (read-only architectural audit)
 Dependencies: P0-01
 Output: `plans/architecture/BACKEND_OWNERSHIP_MAP.md`
+
+Submitted branch: `audit/p0-02-backend-ownership`
+Latest reported revision: `9d57881b0b5b570b5390f4cf94bdbe3af2ac27f4`
+Review state: awaiting Owen's independent acceptance; do not merge the original branch directly. If accepted, transplant only the documentation deliverable onto current main and reconcile STATUS/task metadata.
 
 ## Objective
 Map actual backend responsibility and dependency ownership from transport entry points through orchestration, domain behavior, adapters and persistence.
