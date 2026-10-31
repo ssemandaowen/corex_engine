@@ -250,6 +250,14 @@ An unchecked task is not permission to start it. The task must be selected, assi
 
 **Outcome:** A concrete architecture and migration design derived from Phase 0 evidence.
 
+- [ ] **P1-00 — Consolidated architecture flow and independent review**
+  - Reuse the existing P0 evidence; do not restart completed audits or create a competing roadmap.
+  - Consolidate the verified current boot, PAPER/LIVE, BACKTEST, persistence and frontend flows; distinguish observed behavior from proposed target behavior.
+  - Sequence P0 closeout and P1-01 through P1-06; obtain independent Kilo, Gemini and Jules reviews before implementation.
+  - Output: `plans/tasks/P1-00-architecture-flow-and-review.md`.
+  - Non-goal: no application code, package extraction, schema change, file movement or PR merge.
+  - Acceptance: review findings resolved or recorded; Owen approves the architecture and first bounded coding task.
+
 - [ ] **P1-01 — Domain boundaries and package ownership**
   - Decide which existing packages remain, which responsibilities move, and whether any new package is justified.
   - Define domain responsibilities, non-responsibilities, public APIs, dependencies and owners.
@@ -278,7 +286,7 @@ An unchecked task is not permission to start it. The task must be selected, assi
   - Append approved decisions to plans/decisions.md; do not silently rewrite historical decisions.
   - Output: plans/architecture/MIGRATION_SEQUENCE.md.
 
-**Phase 1 exit gate:** Owen approves the target domain map, dependency rules, contracts and migration order. No implementation agent may substitute its own architecture.
+**Phase 1 exit gate:** P1-00 independent review is complete; Owen approves the target domain map, dependency rules, contracts and migration order. No implementation agent may substitute its own architecture.
 
 ### PHASE 2 — Reconcile and prepare existing work
 
@@ -571,7 +579,7 @@ Update this section when a phase changes. Do not estimate completion percentages
 | Phase 4 — Frontend integration | NOT STARTED | UI/API/WS flows match approved contracts |
 | Phase 5 — Production readiness | NOT STARTED | End-to-end, recovery, security and operational gates pass |
 
-**Current active task:** P0-01 — Repository baseline.
+**Current active work:** P0-02 review and remaining P0-03 through P0-07 evidence closeout. P1-00 defines the independent architecture review gate.
 
 **Current implementation authorization:** No broad rebuild is authorized by this roadmap alone. First complete Phase 0, then obtain approval for Phase 1 decisions and bounded implementation tasks.
 
@@ -582,5 +590,6 @@ Update this section when a phase changes. Do not estimate completion percentages
 | Date | Change | Author |
 |---|---|---|
 | 2026-10-31 | Established authoritative development roadmap, phase gates, task protocol and anti-patching rules | Owen / ChatGPT draft |
+| 2026-10-31 | Added P1-00 execution flow to close remaining Phase 0 evidence and obtain independent architecture review before coding | ChatGPT draft for Owen review |
 
 Append future changes. Do not erase historical reasoning. For architectural decisions, also append to plans/decisions.md.

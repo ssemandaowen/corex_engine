@@ -1,10 +1,14 @@
 # P0-06 — Test and Known-Issues Baseline
 
-Status: READY
+Status: REVIEW
 Suggested owner: Kilo Code
 Risk: Medium (test execution may require local services)
 Dependencies: P0-01
 Output: `plans/architecture/QUALITY_BASELINE.md`
+
+Submitted branch: `followup/p0-06-verification`
+Latest reported revision: `31c8c5e34bc7140077f05306aa02d904afdce1a4`
+Review state: quality baseline submitted; corrected `test:auth` script has not been executed. Review the `package.json` change separately from the documentation baseline. No PR/merge or Owen acceptance recorded.
 
 ## Objective
 Establish a truthful test and quality baseline for the verified repository commit, separating product failures from environment limitations and historical reports.
