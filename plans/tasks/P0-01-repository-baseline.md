@@ -1,10 +1,17 @@
 # P0-01 — Repository Baseline
 
-Status: REVIEW
+Status: DONE
 Suggested owner: Kilo Code
 Risk: Low (read-only investigation and documentation)
 Dependencies: None
 Output: `plans/architecture/REPOSITORY_BASELINE.md`
+
+## Acceptance record
+- **Accepted by:** Owen Ssemanda
+- **Accepted on:** 2026-10-31
+- **Integration:** [PR #53](https://github.com/ssemandaowen/corex_engine/pull/53), squash-merged
+- **Merge commit:** `a97ae6359b0d1b960b19368e2bbff476e16b4405`
+- **Verified on:** `main`; the three-file documentation change is integrated and the seven-task dashboard is intact.
 
 ## Objective
 Create a verified, reproducible snapshot of the current repository and development environment so later audits use the same factual baseline.
