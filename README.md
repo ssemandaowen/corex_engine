@@ -338,7 +338,7 @@ Packages are partially modularized and still maintain dependencies on root alias
 CoreX uses PostgreSQL for persistence.
 
 ### Database Tables Created by Migrations
-The database schema includes 30 active tables:
+The migration inventory below lists 31 tables, including `schema_migrations`:
 `backtest_market_data`, `backtest_uploads`, `backtests`, `bridge_status`, `broker_settings`, `connections`, `corex_jobs`, `corex_sessions`, `execution_control`, `execution_events`, `mt5_messages`, `order_fills`, `orders`, `paper_trades`, `positions`, `quota_profiles`, `schema_migrations`, `strategies`, `strategy_runtimes`, `strategy_signals`, `strategy_ticks`, `strategy_ticks_p0`, `strategy_versions`, `system_settings`, `trading_accounts`, `user_accounts`, `user_broker_settings`, `user_connector_settings`, `user_engine_settings`, `user_system_settings`, `users`.
 *(Historical tables dropped in subsequent migrations: `accounts`, `user_api_keys`, `backtest_data_storage`)*.
 
