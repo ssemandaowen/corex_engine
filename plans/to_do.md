@@ -1,3 +1,13 @@
+> **HISTORICAL TASK LOG — NOT THE ACTIVE ROADMAP**
+>
+> Active development strategy, task ordering and progress tracking now live in
+> [COREX_DEVELOPMENT_PLAN.md](./COREX_DEVELOPMENT_PLAN.md).
+> Keep this file as historical implementation evidence. Do not start new work
+> from unchecked items here without reconciling them into an approved task in
+> the authoritative roadmap.
+>
+> ---
+
 # CoreX — Active Task Tracking
 
 ## Done
