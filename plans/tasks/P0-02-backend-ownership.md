@@ -1,6 +1,6 @@
 # P0-02 — Backend Ownership and Dependency Map
 
-Status: READY
+Status: REVIEW
 Suggested owner: Kilo Code
 Risk: Medium (read-only architectural audit)
 Dependencies: P0-01

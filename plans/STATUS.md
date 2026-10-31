@@ -16,7 +16,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | ID | Task | Suggested owner | Status | Depends on | Output |
 |---|---|---|---|---|---|
 | P0-01 | Repository baseline | Kilo Code | REVIEW | None | `plans/architecture/REPOSITORY_BASELINE.md` |
-| P0-02 | Backend ownership and dependency map | Kilo Code | READY | P0-01 | `plans/architecture/BACKEND_OWNERSHIP_MAP.md` |
+| P0-02 | Backend ownership and dependency map | Kilo Code | REVIEW | P0-01 | `plans/architecture/BACKEND_OWNERSHIP_MAP.md` |
 | P0-03 | Frontend architecture and behavior map | Jules | READY | None; verify baseline commit | `plans/architecture/FRONTEND_OWNERSHIP_MAP.md` |
 | P0-04 | Cross-layer contract map | Kilo Code | READY | P0-02, P0-03, P0-05 | `plans/architecture/INTEGRATION_CONTRACT_MAP.md` |
 | P0-05 | Persistence, jobs and runtime-state audit | Jules | READY | P0-01 | `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md` |
