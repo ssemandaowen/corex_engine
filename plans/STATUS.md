@@ -22,7 +22,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | P0-05 | Persistence, jobs and runtime-state audit | Jules | READY | P0-01 | `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md` |
 | P0-06 | Test and known-issues baseline | Kilo Code | REVIEW | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
 | P0-07 | Existing plans and PR/branch reconciliation | Jules | READY | None; verify current main | `plans/architecture/BRANCH_AND_PLAN_RECONCILIATION.md` |
-| P1-00 | Consolidated architecture flow and independent review | Kilo Code (targeted verify); Jules and Gemini (review) | REVIEW | Independent review returned REVISE; follow-up verification and Owen decisions pending | `plans/tasks/P1-00-architecture-flow-and-review.md` |
+| P1-00 | Consolidated architecture flow and independent review | Kilo Code (targeted verify); Jules and Gemini (review) | REVIEW | Kilo follow-up: ACCEPT FOR OWEN REVIEW; Jules/Gemini reviews and Owen decisions pending | `plans/tasks/P1-00-architecture-flow-and-review.md` |
 
 **Suggested owner is a proposed allocation, not a claim.** A task becomes CLAIMED only when the owner and branch are recorded here and in its task file.
 
@@ -32,7 +32,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 - P0-02, P0-05 and P0-06 should use P0-01's verified baseline and avoid overlapping writes.
 - P0-04 reuses the P1-00 review evidence; only targeted missing contracts (SocketX ownership, broadcaster/frontend consumers, BaseBroker/PAPER, migrations) need additional tracing.
 - P0-05 must reuse P1-00 review findings for job/backtest cancellation, retry, report and artifact behavior; verify only remaining schema, pgStore, broadcaster and recovery evidence.
-- P1-00 review returned REVISE. Findings are recorded in `plans/reviews/P1-00-review-2026-11-01.md`; revised plan consolidates six design outputs into four. No coding is authorized.
+- P1-00's initial independent review returned REVISE; Kilo's bounded follow-up review returned ACCEPT FOR OWEN REVIEW after the documentation corrections recorded in the task file. Findings remain in `plans/reviews/P1-00-review-2026-11-01.md`; the revised plan consolidates six design outputs into four. Jules/Gemini review and Owen's policy decisions remain pending. No coding is authorized.
 - P1-00 is review/planning only; it does not authorize coding. Kilo, Jules and Gemini review independently, then Owen decides.
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
 - Phase 0 exit requires Owen to review P0-01 through P0-07. No broad rebuild is authorized before that gate.
