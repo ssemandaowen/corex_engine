@@ -18,11 +18,11 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | P0-01 | Repository baseline | Kilo Code | DONE | None | `plans/architecture/REPOSITORY_BASELINE.md` |
 | P0-02 | Backend ownership and dependency map | Kilo Code | REVIEW | P0-01 | `plans/architecture/BACKEND_OWNERSHIP_MAP.md` |
 | P0-03 | Frontend architecture and behavior map | Jules | READY | None; verify baseline commit | `plans/architecture/FRONTEND_OWNERSHIP_MAP.md` |
-| P0-04 | Cross-layer contract map | Kilo Code | READY | P0-02, P0-03, P0-05 | `plans/architecture/INTEGRATION_CONTRACT_MAP.md` |
+| P0-04 | Cross-layer contract map | Kilo Code | READY | P0-02, P0-03, targeted P0-05 evidence | `plans/architecture/INTEGRATION_CONTRACT_MAP.md` |
 | P0-05 | Persistence, jobs and runtime-state audit | Jules | READY | P0-01 | `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md` |
 | P0-06 | Test and known-issues baseline | Kilo Code | REVIEW | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
 | P0-07 | Existing plans and PR/branch reconciliation | Jules | READY | None; verify current main | `plans/architecture/BRANCH_AND_PLAN_RECONCILIATION.md` |
-| P1-00 | Consolidated architecture flow and independent review | Kilo Code (draft); Jules and Gemini (review) | READY | P0 evidence baseline; final Phase 1 approval waits for Owen's Phase 0 exit decision | `plans/tasks/P1-00-architecture-flow-and-review.md` |
+| P1-00 | Consolidated architecture flow and independent review | Kilo Code (targeted verify); Jules and Gemini (review) | REVIEW | Independent review returned REVISE; follow-up verification and Owen decisions pending | `plans/tasks/P1-00-architecture-flow-and-review.md` |
 
 **Suggested owner is a proposed allocation, not a claim.** A task becomes CLAIMED only when the owner and branch are recorded here and in its task file.
 
@@ -30,7 +30,9 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 - P0-01 is accepted and DONE. P0-02, P0-05 and P0-06 may now use its verified baseline. P0-03 and P0-07 may be investigated independently after checking the current main commit.
 - P0-02, P0-05 and P0-06 should use P0-01's verified baseline and avoid overlapping writes.
-- P0-04 waits for P0-02, P0-03 and P0-05 evidence.
+- P0-04 reuses the P1-00 review evidence; only targeted missing contracts (SocketX ownership, broadcaster/frontend consumers, BaseBroker/PAPER, migrations) need additional tracing.
+- P0-05 must reuse P1-00 review findings for job/backtest cancellation, retry, report and artifact behavior; verify only remaining schema, pgStore, broadcaster and recovery evidence.
+- P1-00 review returned REVISE. Findings are recorded in `plans/reviews/P1-00-review-2026-11-01.md`; revised plan consolidates six design outputs into four. No coding is authorized.
 - P1-00 is review/planning only; it does not authorize coding. Kilo, Jules and Gemini review independently, then Owen decides.
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
 - Phase 0 exit requires Owen to review P0-01 through P0-07. No broad rebuild is authorized before that gate.
@@ -96,6 +98,17 @@ Unverified items / limitations: root cause of strategies alias unknown; schema.s
 Decisions needed: Owen review of corrected audit.
 Blockers: None.
 Exact next action: Owen reviews corrected audit and final diff; if accepted, integrate via PR #53.
+May another agent continue? YES — read-only review only.
+
+### Planning handoff — 2026-11-01 (P1-00 review revision)
+Owner / agent: ChatGPT — review incorporation
+Status: REVIEW — REVISE findings incorporated
+Branch: `planning/phase0-closeout-phase1-flow`
+Latest task revision: `de05529f4661faa1b66e689345898d9ec8e475c9`
+Review record: `plans/reviews/P1-00-review-2026-11-01.md`
+Completed: Recorded strategy isolation and tenant boundaries; one risk-gated order path; per-runtime ordering/backpressure/fault containment; job state/retry/cancel/recovery requirements; backtest fill/cost/determinism/accounting issues; durable artifact storage; import-boundary enforcement; targeted verification paths; five Owen decisions. Consolidated P1-01/P1-02 and P1-04/P1-05 deliverables. Reordered implementation dependencies so risk/portfolio contracts precede backtest implementation; added a parallel security/tenancy release gate.
+Tests: Documentation-only; no tests run and no source code changed.
+Exact next action: Kilo verifies only uninspected backend paths; Jules verifies frontend/tenant/job-report flows; Gemini reviews revised plan. Owen decides policy choices.
 May another agent continue? YES — read-only review only.
 
 ### Planning handoff — 2026-10-31 (P1-00)
