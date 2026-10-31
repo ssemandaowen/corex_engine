@@ -43,13 +43,16 @@ Before starting development work, the agent must inspect the relevant project gu
 
 1. Read this `AGENTS.md`.
 2. Read `SKILLS.md`.
-3. Check `/KNOWN_ISSUES.md`.
-4. Check `/plans/to_do.md`.
-5. Check `/plans/decisions.md`.
-6. Check the GitHub Project Board **CoreX Modularization** for current package extraction status.
-7. If working inside a package containing its own `AGENTS.md`, read that file before modifying the package.
-8. Check the relevant GitHub Issue or task specification before implementing the requested work.
-9. Inspect the existing configuration, environment, database, and migration patterns before adding new configurable behavior.
+3. Read `plans/COREX_DEVELOPMENT_PLAN.md`.
+4. Read `plans/AGENT_WORKFLOW.md` and `plans/STATUS.md`.
+5. Read the selected task file under `plans/tasks/` and its dependencies.
+6. Check `/KNOWN_ISSUES.md` (or the documented `plans/KNOWN_ISSUES.md` location if that is where the repository keeps it).
+7. Read `plans/decisions.md`.
+8. If working inside a package containing its own `AGENTS.md`, read that file before modifying the package.
+9. Check linked GitHub issues/PRs only as supporting work records; the roadmap and task file define scope and authorization.
+10. Inspect the existing configuration, environment, database, and migration patterns before adding new configurable behavior.
+
+`plans/to_do.md` is historical task history, not the active task board. `plans/STATUS.md` tracks current ownership and state; the roadmap and individual task files define scope and acceptance.
 
 ### Important
 
@@ -1627,7 +1630,7 @@ Use the appropriate location:
 | Feature scope               | `/plans/full-feature-scope.md` |
 | Feature implementation plan | `/plans/`                      |
 | Architectural decision      | `/plans/decisions.md`          |
-| Active work                 | `/plans/to_do.md`              |
+| Active task state           | `/plans/STATUS.md` and `/plans/tasks/` |
 | Architecture / settings / system audit | `/plans/Audit/` |
 
 Keep issue entries concise, preferably one line.
@@ -1762,7 +1765,7 @@ Before declaring a task complete, confirm:
 * [ ] Relevant `AGENTS.md` files were read.
 * [ ] `SKILLS.md` was followed.
 * [ ] `/KNOWN_ISSUES.md` was checked.
-* [ ] `/plans/to_do.md` was updated where necessary.
+* [ ] `plans/STATUS.md` and the selected task record were updated where necessary.
 * [ ] `/plans/decisions.md` was updated where necessary.
 * [ ] Relevant tests were executed.
 * [ ] Configuration values were reviewed for unnecessary hardcoding.
