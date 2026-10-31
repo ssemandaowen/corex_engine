@@ -15,7 +15,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 | ID | Task | Suggested owner | Status | Depends on | Output |
 |---|---|---|---|---|---|
-| P0-01 | Repository baseline | Kilo Code | REVIEW | None | `plans/architecture/REPOSITORY_BASELINE.md` |
+| P0-01 | Repository baseline | Kilo Code | DONE | None | `plans/architecture/REPOSITORY_BASELINE.md` |
 | P0-02 | Backend ownership and dependency map | Kilo Code | REVIEW | P0-01 | `plans/architecture/BACKEND_OWNERSHIP_MAP.md` |
 | P0-03 | Frontend architecture and behavior map | Jules | READY | None; verify baseline commit | `plans/architecture/FRONTEND_OWNERSHIP_MAP.md` |
 | P0-04 | Cross-layer contract map | Kilo Code | READY | P0-02, P0-03, P0-05 | `plans/architecture/INTEGRATION_CONTRACT_MAP.md` |
@@ -51,7 +51,20 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 ## Recent handoffs
 
-### Handoff — 2026-10-31 (correction pass 3)
+### Handoff — 2026-10-31 (correction pass 4)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: audit/p0-02-backend-ownership
+Base commit: 637056f (original P0-02 base); P0-01 accepted/squash-merged to main at a97ae6359b0d1b960b19368e2bbff476e16b4405
+Files changed: plans/architecture/BACKEND_OWNERSHIP_MAP.md (updated); plans/STATUS.md (updated); plans/tasks/P0-02-backend-ownership.md (updated)
+Completed: Fourth correction pass per independent GitHub review. Package consumer map categorized (public/deep/shim/pkg-to-pkg) with symbols. Flow traces with call sites and unverified transitions. Singleton ownership with state-changing methods/consumers/unknowns. Dispositions marked provisional. Large-file wording corrected to bytes. Metadata corrected (637056f base, P0-01 DONE on main). P0-01 dashboard corrected to DONE.
+Commands and test results: Select-String/Test-Path/Get-ChildItem verification only; no tests rerun (docs-only).
+Unverified items / limitations: circular deps not tool-verified; consumer/parity tracing partial; ownership/usage not traced; state-changing methods not traced.
+Decisions needed: Owen review.
+Blockers: None.
+Exact next action: Owen reviews corrected audit; if accepted, integrate or proceed to P0-03.
+May another agent continue? YES — read-only review only.
+
 Owner / agent: Kilo Code
 Status: REVIEW
 Branch: audit/p0-01-repository-baseline
