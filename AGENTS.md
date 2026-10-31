@@ -25,6 +25,18 @@ An agent must read and follow this file before making repository changes.
 
 ## 2. Mandatory Reading
 
+**Authoritative development roadmap:** `plans/COREX_DEVELOPMENT_PLAN.md`
+
+Every agent MUST read this roadmap before proposing or implementing work. It is the active source of truth for development phases, task IDs, priorities, dependencies, progress status and acceptance gates. Do not treat historical plans or old TODO entries as authorization to implement.
+
+When a requested change is not represented by an approved roadmap task:
+1. Trace the affected behavior and ownership.
+2. Propose a task with evidence, scope, dependencies and acceptance criteria.
+3. Wait for Owen's approval when required by the roadmap.
+4. Update the roadmap before implementation begins.
+
+Agents must update the roadmap task status and evidence as work progresses. A task is not complete merely because code was written or tests compile.
+
 Before starting development work, the agent must inspect the relevant project guidance.
 
 ### Required
