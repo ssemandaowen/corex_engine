@@ -1,6 +1,6 @@
 # CoreX Development Plan — Authoritative Roadmap
 
-> **Status:** Active — Phase 0 (repository discovery and architecture baseline)
+> **Status:** Active — Phase 0 (P0-01 accepted; remaining current-state audits)
 > **Owner / final decision authority:** Owen Ssemanda
 > **Repository:** https://github.com/ssemandaowen/corex_engine
 > **Last strategy review:** 2026-10-31
@@ -198,11 +198,12 @@ An unchecked task is not permission to start it. The task must be selected, assi
 
 **Outcome:** A verified map of the current application, its dependencies, behavior and active work. No broad implementation or mass movement in this phase.
 
-- [ ] **P0-01 — Repository baseline**
+- [x] **P0-01 — Repository baseline**
   - Record default branch, latest commit, package manager, scripts, runtime versions, workspace configuration and test commands.
   - Inventory top-level and nested directories, package manifests and package-specific agent instructions.
   - Output: plans/architecture/REPOSITORY_BASELINE.md.
   - Acceptance: commands and paths verified against the checked-out branch; timestamp and commit SHA recorded.
+  - **Accepted by Owen:** 2026-10-31. Integrated through [PR #53](https://github.com/ssemandaowen/corex_engine/pull/53); squash merge `a97ae6359b0d1b960b19368e2bbff476e16b4405`.
 
 - [ ] **P0-02 — Backend ownership and dependency map**
   - Trace routes/controllers → application services/workers → domain logic → adapters/repositories.
