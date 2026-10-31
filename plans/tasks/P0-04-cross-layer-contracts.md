@@ -3,8 +3,12 @@
 Status: READY
 Suggested owner: Kilo Code
 Risk: Medium (read-only contract audit)
-Dependencies: P0-02, P0-03 and P0-05
+Dependencies: P0-02, P0-03 and targeted P0-05 evidence
 Output: `plans/architecture/INTEGRATION_CONTRACT_MAP.md`
+
+## Reuse existing evidence
+
+Read `plans/reviews/P1-00-review-2026-11-01.md` first. It already documents the reviewer-traced MarketFeed-to-broker path, apparent risk-gate bypass, job/backtest flows, and several producer/consumer defects. Do not repeat those investigations. Verify only the explicitly uninspected paths (SocketXServer, userScope, broadcaster, BaseBroker/PAPER broker, frontend consumers and migrations) and add evidence where it changes a contract. Mark any unverified claim as VERIFY.
 
 ## Objective
 Establish the verified contract map connecting frontend consumers, HTTP routes, WebSocket events, application orchestration, domain behavior and persistence.
