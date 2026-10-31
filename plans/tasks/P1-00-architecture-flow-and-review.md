@@ -144,6 +144,14 @@ The normal engine wiring sets a BaseBroker-level risk validator:
 
 SocketXServer supports account ownership checks only when an accountResolver is supplied. The inspected engine configures its static token verifier but does not instantiate SocketXServer; engine/server.js wires /ws to the broadcaster and /mt5 to the MT5 bridge. Verify whether another entry point activates SocketXServer before treating that command path as production behavior.
 
+### 2.7 Strategy worker and restart source verification
+
+- engine/modules/strategyRuntime/workerPool.js lazily forks a child on the first request; the child inherits the complete parent environment and uses normal Node module resolution. This is process separation, not a security sandbox or least-privilege boundary.
+- engine/workers/strategyWorker.js stores multiple active strategies in one process-wide map and compiles them with StrategyCompiler.
+- The inspected engine/strategyLoader.js path compiles strategies directly through StrategyCompiler and does not call strategyRuntime.loadStrategy/execTick/execBar. Trace actual production callers before claiming the worker pool isolates normal PAPER/LIVE strategy execution.
+- index.js imports strategyRuntime and stops it during shutdown but does not start it in bootstrap. Since workerPool starts lazily on request, this is not itself a defect; actual worker-pool use remains to be traced.
+- index.js Ctrl+R calls engine.restart(). engine.restart() only stops and starts the engine component; it does not restart the HTTP server, job worker supervisor, strategy worker pool, data culler or live order dispatcher. Do not describe it as a full application restart.
+
 ### 2.6 Existing package facts and architecture constraints
 
 Seven package directories exist: corex-accounts, corex-auth, corex-broker-contract, corex-gateway, corex-market-data, corex-portfolio and corex-strategy-engine. A dedicated corex-backtest package is not established as the current owner.
