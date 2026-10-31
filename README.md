@@ -17,7 +17,7 @@ The repository contains a Node.js/Express backend, a React/TypeScript desktop-st
 | Strategy Runtime & Management | Working | Start, stop, restart, parameter updates, telemetry streaming (`engine/modules/strategyRuntime`, `engine/routes/executionController.js`). |
 | Paper Execution Mode | Working | Simulated order fills, balance/equity tracking, portfolio event emission (`packages/corex-broker-contract/src/modes/PaperBroker.js`). |
 | Historical Backtesting | Partial | CSV uploads, dataset persistence, database-backed job queue, and report generation work. Simulation has lookahead bias and configuration propagation gaps (`engine/backtestManager.js`). |
-| MT5 Bridge Execution | Partial | WebSocket endpoint at `/mt5` and REST order-polling work, requiring an external MT5 terminal receiver process (`packages/corex-broker-contract/src/mt5Bridge.js`, `engine/managers/mt5Receiver.py`). |
+| MT5 Bridge Execution | Partial | WebSocket endpoint at `/mt5` and REST order-polling paths are implemented; actual execution depends on a configured external MT5 terminal receiver and has not been verified end-to-end in this review (`packages/corex-broker-contract/src/mt5Bridge.js`, `engine/managers/mt5Receiver.py`). |
 | Live Execution (MetaApi) | Broken | `LiveBroker` loads `MetaApiDriver`, but `MetaApiConnector` is currently a structural skeleton returning mock objects (`packages/corex-broker-contract/src/connectors/MetaApiConnector.js`). |
 | Twelve Data Market Provider | Working | REST historical bar fetching and live WebSocket streaming (`packages/corex-market-data/src/providers/TwelveDataProvider.js`). |
 | Yahoo Finance Market Provider | Partial | `yahoo-finance2` historical daily/intraday adapter is implemented; its source explicitly calls for human end-to-end verification against Yahoo Finance (`packages/corex-market-data/src/providers/YahooFinanceProvider.js`). |
@@ -84,7 +84,7 @@ When running `npm start` or `node index.js`:
 | `ui:build` | `npm --prefix front_end run build` | Build production frontend bundle |
 | `ui:preview` | `npm --prefix front_end run preview` | Preview production frontend build |
 
-### Clean Test Verification
+### Jules-Reported Test Verification
 
 Executed in a clean workspace:
 - Command: `npm install` (added 515 packages, exit status 0).
@@ -395,9 +395,6 @@ The following code defects were confirmed in the inspected implementation:
 
 5. **Naive CSV parser in `FileDataProvider` not used in backtest pipeline:**
    - In `packages/corex-market-data/src/providers/FileDataProvider.js` lines 41-53, `parseCsv` uses `split(",")`, which breaks on quoted fields or comma-separated values inside columns. Furthermore, this provider is not utilized in the backtest CSV upload workflow, which instead uses `data-forge` in `engine/backtestManager.js` line 394.
-
-
-
 
 
 **Singleton note:** `BacktestManager` is exported as a singleton, but the mutable instance fields identified in this review are the storage path and storage-initialization flags. No per-run state contamination was demonstrated, so singleton export alone is not listed as a confirmed defect.
