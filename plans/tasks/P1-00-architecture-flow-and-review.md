@@ -1,6 +1,6 @@
 # CoreX — Phase 0 Closeout and Phase 1 Architecture Review
 
-> Status: READY FOR INDEPENDENT REVIEW — NO CODING AUTHORIZED
+> Status: REVISE — REVIEW FINDINGS INCORPORATED; FOLLOW-UP REVIEW REQUIRED — NO CODING AUTHORIZED
 > Owner / final decision authority: Owen Ssemanda
 > Roadmap authority: plans/COREX_DEVELOPMENT_PLAN.md
 > Baseline reviewed: main at 435127546087f9d40486ea272cb337363ce0724e
