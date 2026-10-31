@@ -12,7 +12,7 @@ The repository contains a Node.js/Express backend, a React/TypeScript desktop-st
 
 | Subsystem / Feature | Status | Implementation Details |
 |---|---|---|
-| User Authentication & Sessions | Working | JWT tokens, password hashing with pepper, session revocation in PostgreSQL (`corex-auth`, `engine/routes/authController.js`). |
+| User Authentication & Sessions | Working | Scrypt password hashing, signed JWTs, PostgreSQL-backed users, and session revocation when PostgreSQL is configured (`packages/corex-auth/src/AuthService.js`, `engine/routes/authController.js`). |
 | Strategy Engine & Indicators | Working | Strategy contracts, parameter validation, incremental technical indicators, typed-array candle store (`packages/corex-strategy-engine`). |
 | Strategy Runtime & Management | Working | Start, stop, restart, parameter updates, telemetry streaming (`engine/modules/strategyRuntime`, `engine/routes/executionController.js`). |
 | Paper Execution Mode | Working | Simulated order fills, balance/equity tracking, portfolio event emission (`packages/corex-broker-contract/src/modes/PaperBroker.js`). |
@@ -20,7 +20,7 @@ The repository contains a Node.js/Express backend, a React/TypeScript desktop-st
 | MT5 Bridge Execution | Partial | WebSocket endpoint at `/mt5` and REST order-polling work, requiring an external MT5 terminal receiver process (`packages/corex-broker-contract/src/mt5Bridge.js`, `engine/managers/mt5Receiver.py`). |
 | Live Execution (MetaApi) | Broken | `LiveBroker` loads `MetaApiDriver`, but `MetaApiConnector` is currently a structural skeleton returning mock objects (`packages/corex-broker-contract/src/connectors/MetaApiConnector.js`). |
 | Twelve Data Market Provider | Working | REST historical bar fetching and live WebSocket streaming (`packages/corex-market-data/src/providers/TwelveDataProvider.js`). |
-| Yahoo Finance Market Provider | Working | Historical daily/intraday bar downloads via `yahoo-finance2` (`packages/corex-market-data/src/providers/YahooFinanceProvider.js`). |
+| Yahoo Finance Market Provider | Partial | `yahoo-finance2` historical daily/intraday adapter is implemented; its source explicitly calls for human end-to-end verification against Yahoo Finance (`packages/corex-market-data/src/providers/YahooFinanceProvider.js`). |
 | File Market Data Provider | Partial | Replays CSV/JSON/JSONL files to the event bus, but uses a naive comma-split parser and is not integrated into the backtest upload path (`packages/corex-market-data/src/providers/FileDataProvider.js`). |
 | Dedicated `corex-backtest` Package | Planned-not-built | Backtesting currently resides in legacy `engine/backtestManager.js`. |
 
@@ -93,7 +93,9 @@ Executed in a clean workspace:
   - Tests: 572 passed, 572 total
   - Snapshots: 0 total
   - Exit code: 0
-  - Note: Jest outputs a warning on exit regarding open handles/timers (`Force exiting Jest`). Tests run reliably using `npx jest --passWithNoTests --runInBand --forceExit`.
+  - Note: Jest outputs an open-handles/forced-exit warning.
+
+**Evidence status:** These are Jules-reported results. This PR has no attached terminal log or passing GitHub Actions run for this commit, so the counts are not independently verifiable from the PR. The PR itself changes documentation only.
 
 ---
 
@@ -250,7 +252,7 @@ The server exposes two WebSocket paths:
 
 ---
 
-## Environment Variables
+## Key Environment Variables
 
 | Variable | Required | Default | Read By / Purpose |
 |---|---|---|---|
@@ -259,9 +261,9 @@ The server exposes two WebSocket paths:
 | `JWT_SECRET` | Yes (in prod) | Dev fallback | `corex-auth`: Signing and verifying user JWT tokens |
 | `COREX_SECRETS_KEY` | Yes (in prod) | Dev fallback | `corex-auth/SecretsVault.js`: AES encryption key for broker tokens |
 | `COREX_SECRETS_KEY_OLD`| No | None | `corex-auth/SecretsVault.js`: Previous key for secrets rotation |
-| `AUTH_KEY_PEPPER` | Yes (in prod) | Dev fallback | `corex-auth/AuthService.js`: Pepper string for hashing API keys |
+| `AUTH_KEY_PEPPER` | Yes (in prod) | None in auth service | Required by the production startup assertion in `index.js`; the current `corex-auth` password hashing function uses scrypt with a salt, not this pepper. |
 | `DATABASE_URL` | No | None | `engine/services/postgres.js`: PostgreSQL connection string |
-| `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | No | localhost/5432 | `engine/services/postgres.js`: PostgreSQL connection parameters |
+| `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | No | `PGPORT` defaults to `5432`; other values have no code default | `engine/services/postgres.js`: host-based PostgreSQL connection parameters; `PGHOST` is the config-detection switch. |
 | `PGSSL` | No | `false` | `engine/services/postgres.js`: Enable SSL for PostgreSQL pool |
 | `COREX_DB_REQUIRED` | No | `true` in prod, `false` in dev | `db/migrate.js`: Fails startup if DB unreachable when true |
 | `CORS_ORIGIN` | No | `http://localhost:5173` | `engine/server.js`: Allowed CORS origin for web client |
@@ -271,14 +273,16 @@ The server exposes two WebSocket paths:
 | `MT5_BRIDGE_TOKEN` | No | None | `engine/server.js`: Security token for `/mt5` WebSocket bridge |
 | `COREX_MT5_HTTP_TOKEN` | No | None | `engine/routes/mt5Controller.js`: Expected `x-corex-token` for MT5 REST routes |
 | `COREX_STRATEGY_WORKER_ENABLED` | No | `false` | `engine/modules/strategyRuntime/workerPool.js`: Run strategies in worker threads |
-| `BACKTEST_MAX_MB` | No | `50` | `engine/backtestManager.js`: Max CSV upload size in megabytes |
-| `BACKTEST_DB_DATASET_MAX_BARS` | No | `500000` | `engine/services/backtestDataStorage.js`: Max bars stored per dataset |
+| `BACKTEST_MAX_MB` | No | `50` | `engine/routes/backtestController.js`: Maximum CSV upload size in megabytes |
+| `BACKTEST_DB_DATASET_MAX_BARS` | No | `5000` in `.env.example` | Present in sample configuration; no active code reader was identified in this review. |
 | `COREX_API_RATE_LIMIT_MAX` | No | `600` | `engine/server.js`: Maximum user API requests per minute window |
 | `COREX_AUTH_RATE_LIMIT_MAX` | No | `120` | `engine/server.js`: Maximum auth API requests per minute window |
 | `COREX_SHUTDOWN_FORCE_MS` | No | `5000` | `index.js`: Force process exit timeout if graceful teardown hangs |
 | `COREX_DATA_CULL_ENABLED` | No | `true` | `engine/services/dataCuller.js`: Enable background artifact pruning |
 
 *Note on `COREX_LIVE_DRY_RUN`*: Found in `.env.example`, but not referenced anywhere in backend application code.
+
+*Note on `BACKTEST_DB_DATASET_MAX_BARS`*: Also present in `.env.example`, but the README's former source path (`engine/services/backtestDataStorage.js`) does not exist and no active reader was identified. Treat this setting as stale or unwired until confirmed.
 
 ---
 
@@ -343,14 +347,14 @@ The migration inventory below lists 31 tables, including `schema_migrations`:
 *(Historical tables dropped in subsequent migrations: `accounts`, `user_api_keys`, `backtest_data_storage`)*.
 
 ### Degraded Operation (When PostgreSQL is Not Configured)
-Database availability is determined by `postgres.hasDbConfig()` (true if `DATABASE_URL` or both `PGUSER` and `PGDATABASE` are provided).
+Database availability is determined by `postgres.hasDbConfig()`, which returns true when `DATABASE_URL` or `PGHOST` is set.
 - If `COREX_DB_REQUIRED=true` (default in production): startup throws `POSTGRES_NOT_CONFIGURED` and halts.
 - If `COREX_DB_REQUIRED=false` (default in development):
   - Migrations are skipped.
   - `jobWorkerSupervisor` does not start.
-  - Routes requiring database persistence return HTTP `503 DB_NOT_CONFIGURED` or `BACKTEST_DB_REQUIRED`.
-  - Trade history returns an empty mock performance report.
-  - User authentication and session validation fall back to in-memory/unpersisted mode.
+  - Database-backed routes fail when PostgreSQL is unavailable; exact status codes and error names are route-specific.
+  - Trade history returns a zeroed PAPER-mode fallback report.
+  - Registration, sign-in, and user-profile lookup still depend on PostgreSQL through `pgStore`; there is no in-memory user store. For an already-issued JWT, `authGuard` skips the session-revocation database check when `hasDbConfig()` is false and performs token-only validation. Session persistence and revocation are therefore unavailable in that degraded state.
 
 ---
 
@@ -374,26 +378,29 @@ Database availability is determined by `postgres.hasDbConfig()` (true if `DATABA
 
 ## Known Issues
 
-The following issues are confirmed present in the code:
+The following code defects were confirmed in the inspected implementation:
 
 1. **Config omission in `engine/backtestManager.js` (`_resolveConfig` and `_computeAnalytics`):**
-   - In `engine/backtestManager.js` lines 308-328, `_resolveConfig` does not copy `commissionPct`, `slippageBps`, `spread`, `shouldAbort`, `barBudgetMs`, `barBudgetStrikes`, or `batchSize` from the incoming options into the returned config object.
+   - In `engine/backtestManager.js` lines 308-328, `_resolveConfig` does not copy `commissionPct`, `slippageBps`, `spread`, `barBudgetMs`, `barBudgetStrikes`, or `batchSize` from the incoming options into the returned config object. `shouldAbort` is handled separately from the resolved config in `run()` and is not part of this omission.
    - In `engine/backtestManager.js` lines 775-776, `_computeAnalytics` explicitly passes `commissionPercent: 0` and `slippageBps: 0` to `format.buildReport`, discarding configured commission and slippage metrics in the final report calculation.
 
 2. **Lookahead execution in backtesting (`engine/backtestManager.js`):**
    - In `engine/backtestManager.js` lines 581-635, a signal emitted by `strategy.onBar({ ...bar, symbol })` is passed directly to `broker.execute(signal, bar)` on the same bar. This fills orders at the current bar's close price rather than deferring the fill to the next bar's open, introducing lookahead bias.
 
 3. **Incomplete CSV data frame validation in `engine/backtestManager.js` (`_processDataFrame`):**
-   - In `engine/backtestManager.js` lines 476-497, `_processDataFrame` silently discards rows where `close <= 0` or time is unparseable, and does not check for `high >= low`, duplicate timestamps, NaN values across other OHLCV columns, or chronologically disordered bars.
+   - In `engine/backtestManager.js` lines 476-497, `_processDataFrame` silently discards rows where `close <= 0` or time is unparseable. It does not validate `high >= low`, duplicate timestamps, or NaN values in the other OHLCV columns. It sorts rows by timestamp rather than rejecting out-of-order input.
 
 4. **Missing method call in `engine/services/backtestService.js`:**
-   - In `engine/services/backtestService.js` line 14, `runBacktest` calls `backtestManager.runBacktest(options)`, but `backtestManager` defines `run(strategy, options)`, not `runBacktest`. Invoking this service method throws `TypeError: backtestManager.runBacktest is not a function`.
+   - In `engine/services/backtestService.js` line 14, `runBacktest` calls `backtestManager.runBacktest(options)`, but the manager defines `run(strategy, options)`, not `runBacktest`. Calling this wrapper therefore throws `TypeError: backtestManager.runBacktest is not a function`. The current backtest controller and job worker do not use this service wrapper; the worker calls `backtestManager.run()` directly, so this is an orphaned broken service path rather than the active backtest execution path.
 
 5. **Naive CSV parser in `FileDataProvider` not used in backtest pipeline:**
    - In `packages/corex-market-data/src/providers/FileDataProvider.js` lines 41-53, `parseCsv` uses `split(",")`, which breaks on quoted fields or comma-separated values inside columns. Furthermore, this provider is not utilized in the backtest CSV upload workflow, which instead uses `data-forge` in `engine/backtestManager.js` line 394.
 
-6. **Singleton state mutation in `engine/backtestManager.js`:**
-   - In `engine/backtestManager.js` line 924, `BacktestManager` is exported as an instantiated singleton (`module.exports = new BacktestManager()`). It maintains mutable instance properties such as `this._storageReady` and `this._storageReadyPromise` across unrelated simulation runs.
+
+
+
+
+**Singleton note:** `BacktestManager` is exported as a singleton, but the mutable instance fields identified in this review are the storage path and storage-initialization flags. No per-run state contamination was demonstrated, so singleton export alone is not listed as a confirmed defect.
 
 ---
 
