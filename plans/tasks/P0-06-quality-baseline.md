@@ -1,10 +1,16 @@
 # P0-06 — Test and Known-Issues Baseline
 
-Status: READY
+Status: REVIEW
 Suggested owner: Kilo Code
 Risk: Medium (test execution may require local services)
 Dependencies: P0-01
 Output: `plans/architecture/QUALITY_BASELINE.md`
+
+## Owner / branch / commit
+- Owner: Kilo Code
+- Branch: review/p0-06-quality-baseline
+- Starting commit: 435127546087f9d40486ea272cb337363ce0724e
+- Current status: REVIEW (not DONE; acceptance criteria not ticked until Owen accepts)
 
 ## Objective
 Establish a truthful test and quality baseline for the verified repository commit, separating product failures from environment limitations and historical reports.

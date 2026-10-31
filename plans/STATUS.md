@@ -20,7 +20,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | P0-03 | Frontend architecture and behavior map | Jules | READY | None; verify baseline commit | `plans/architecture/FRONTEND_OWNERSHIP_MAP.md` |
 | P0-04 | Cross-layer contract map | Kilo Code | READY | P0-02, P0-03, P0-05 | `plans/architecture/INTEGRATION_CONTRACT_MAP.md` |
 | P0-05 | Persistence, jobs and runtime-state audit | Jules | READY | P0-01 | `plans/architecture/PERSISTENCE_AND_RUNTIME_AUDIT.md` |
-| P0-06 | Test and known-issues baseline | Kilo Code | READY | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
+| P0-06 | Test and known-issues baseline | Kilo Code | REVIEW | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
 | P0-07 | Existing plans and PR/branch reconciliation | Jules | READY | None; verify current main | `plans/architecture/BRANCH_AND_PLAN_RECONCILIATION.md` |
 
 **Suggested owner is a proposed allocation, not a claim.** A task becomes CLAIMED only when the owner and branch are recorded here and in its task file.
@@ -96,3 +96,15 @@ May another agent continue? YES — read-only review only.
 ## Update discipline
 
 Update this file and the matching task record on every claim, start, blocker, handoff, review and completion. Never mark a task DONE without acceptance evidence and review.
+
+### Handoff — 2026-10-31 (P0-06 corrected)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: review/p0-06-quality-baseline
+Starting commit: 435127546087f9d40486ea272cb337363ce0724e
+Current commit: 5bfb6f5cd835f99d3fc803a9c9788cdfe1ee82d6 (prior); corrected commit to follow
+Deliverable: plans/architecture/QUALITY_BASELINE.md
+Verification: 51 suites / 572 tests PASS on 4351275 (full run, 85.07s). Auth root script broken (targets missing files); actual auth tests pure-logic, included in full run. Frontend tsc --noEmit timed out. Known-issues round7 entry appears stale (wrap includes semicolon; tests passed in full run) but not re-verified this pass.
+Limitations: node_modules broken (missing @jest/core) prevented re-run; raw log not persisted; frontend typecheck incomplete; known-issue reclassification not freshly verified.
+Next action: Owen reviews corrected branch; if accepted, integrate P0-06 deliverable + task/STATUS updates onto clean branch based on main.
+May another agent continue? YES — read-only review only.
