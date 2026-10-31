@@ -18,7 +18,7 @@ The repository contains a Node.js/Express backend, a React/TypeScript desktop-st
 | Paper Execution Mode | Working | Simulated order fills, balance/equity tracking, portfolio event emission (`packages/corex-broker-contract/src/modes/PaperBroker.js`). |
 | Historical Backtesting | Partial | CSV uploads, dataset persistence, database-backed job queue, and report generation work. Simulation has lookahead bias and configuration propagation gaps (`engine/backtestManager.js`). |
 | MT5 Bridge Execution | Partial | WebSocket endpoint at `/mt5` and REST order-polling work, requiring an external MT5 terminal receiver process (`packages/corex-broker-contract/src/mt5Bridge.js`, `engine/managers/mt5Receiver.py`). |
-| Live Execution (MetaApi) | Broken / Partial | `LiveBroker` loads `MetaApiDriver`, but `MetaApiConnector` is currently a structural skeleton returning mock objects (`packages/corex-broker-contract/src/connectors/MetaApiConnector.js`). |
+| Live Execution (MetaApi) | Broken | `LiveBroker` loads `MetaApiDriver`, but `MetaApiConnector` is currently a structural skeleton returning mock objects (`packages/corex-broker-contract/src/connectors/MetaApiConnector.js`). |
 | Twelve Data Market Provider | Working | REST historical bar fetching and live WebSocket streaming (`packages/corex-market-data/src/providers/TwelveDataProvider.js`). |
 | Yahoo Finance Market Provider | Working | Historical daily/intraday bar downloads via `yahoo-finance2` (`packages/corex-market-data/src/providers/YahooFinanceProvider.js`). |
 | File Market Data Provider | Partial | Replays CSV/JSON/JSONL files to the event bus, but uses a naive comma-split parser and is not integrated into the backtest upload path (`packages/corex-market-data/src/providers/FileDataProvider.js`). |
@@ -338,7 +338,7 @@ Packages are partially modularized and still maintain dependencies on root alias
 CoreX uses PostgreSQL for persistence.
 
 ### Database Tables Created by Migrations
-The database schema includes 30 active tables:
+The migration inventory below lists 31 tables, including `schema_migrations`:
 `backtest_market_data`, `backtest_uploads`, `backtests`, `bridge_status`, `broker_settings`, `connections`, `corex_jobs`, `corex_sessions`, `execution_control`, `execution_events`, `mt5_messages`, `order_fills`, `orders`, `paper_trades`, `positions`, `quota_profiles`, `schema_migrations`, `strategies`, `strategy_runtimes`, `strategy_signals`, `strategy_ticks`, `strategy_ticks_p0`, `strategy_versions`, `system_settings`, `trading_accounts`, `user_accounts`, `user_broker_settings`, `user_connector_settings`, `user_engine_settings`, `user_system_settings`, `users`.
 *(Historical tables dropped in subsequent migrations: `accounts`, `user_api_keys`, `backtest_data_storage`)*.
 
@@ -366,7 +366,7 @@ Database availability is determined by `postgres.hasDbConfig()` (true if `DATABA
    - Datasets are uploaded as CSV, parsed via `data-forge`, and queued as background jobs in PostgreSQL.
    - Subject to known issues outlined below (same-bar fill lookahead bias and configuration passing omissions).
 
-3. **LIVE Mode (Partial / Skeleton):**
+3. **LIVE Mode (Partial):**
    - MetaApi integration uses `MetaApiDriver` with `MetaApiConnector`, which currently returns skeleton stub data.
    - MT5 execution passes orders to PostgreSQL and awaits execution via the `/api/mt5/next-order` polling endpoint and WebSocket bridge.
 
@@ -393,7 +393,7 @@ The following issues are confirmed present in the code:
    - In `packages/corex-market-data/src/providers/FileDataProvider.js` lines 41-53, `parseCsv` uses `split(",")`, which breaks on quoted fields or comma-separated values inside columns. Furthermore, this provider is not utilized in the backtest CSV upload workflow, which instead uses `data-forge` in `engine/backtestManager.js` line 394.
 
 6. **Singleton state mutation in `engine/backtestManager.js`:**
-   - In `engine/backtestManager.js` line 924, `BacktestManager` is exported as an instantiated singleton (`module.exports = new BacktestManager()`). It maintains mutable instance properties such as `this._storageReady` and `this._storageReadyPromise` across unrelated simulation runs.
+   - In `engine/backtestManager.js` line 913, `BacktestManager` is exported as an instantiated singleton (`module.exports = new BacktestManager()`). It maintains mutable instance properties such as `this._storageReady` and `this._storageReadyPromise` across unrelated simulation runs.
 
 ---
 
