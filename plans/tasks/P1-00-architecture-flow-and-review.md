@@ -109,7 +109,7 @@ TwelveData / selected provider
   -> broadcaster / persistence consumers
 ~~~
 
-Source evidence: packages/corex-market-data/src/MarketFeed.js. Independent review reports that this path calls broker.handle without RiskGateway and that MarketFeed does not use the SignalGenerationEngine / SignalProcessingEngine / SignalExecutionEngine pipeline. The reviewer did not inspect BaseBroker or PAPER broker, so verify whether they add risk checks. Do not leave this as an open-ended architecture question: P1-03 must define one authoritative order-intent entry point and risk policy for every mode.
+Source evidence: packages/corex-market-data/src/MarketFeed.js and engine/core/engine.js. MarketFeed calls broker.handle. The engine wires BaseBroker.setRiskValidator to SignalProcessingEngine.validateForCommand, and BaseBroker.handle invokes it and fails closed if missing/rejected. Thus this PAPER/LIVE strategy path does have a risk validator; it does not call RiskGateway directly. RiskGateway, if active, pre-checks through SocketXRiskEngine and then broker.handle repeats the same SignalProcessingEngine validation. However, SignalProcessingEngine currently checks only drawdown, flat exit and same-side/scaling; maxDailyLossLimit is declared but unused. P1-03 must consolidate the duplicated checks into one authoritative risk-policy boundary and define complete limits. SocketXServer is imported and its auth verifier configured, but no instance was found in engine/core/engine.js or engine/server.js; verify whether another entry point activates it.
 
 ### 2.5 Current BACKTEST flow observed in source
 
@@ -131,7 +131,18 @@ Frontend command / REST request
   -> frontend report and progress view
 ~~~
 
-Source evidence: backtestController.js, jobQueue.js, jobWorker.js, jobs/backtestRun.js and backtestManager.js. The independent review already traced concrete cancellation, retry, cost propagation, fill timing, callback, dataset validation, accounting and report-persistence defects. Record those findings in the P1-00 review artifact; Kilo/Jules should verify only the explicitly uninspected boundaries and add missing evidence rather than repeat the whole audit.
+Source evidence: backtestController.js, jobQueue.js, jobWorker.js, jobs/backtestRun.js, backtestManager.js and packages/corex-broker-contract/src/drivers/BacktestDriver.js. BacktestDriver.execute is a direct synchronous fill method and bypasses BaseBroker.handle and its installed risk validator. The independent review also traced cancellation, retry, cost propagation, fill timing, callback, dataset validation, accounting and report-persistence defects. Record those findings in the P1-00 review artifact; Kilo/Jules should verify only explicitly uninspected boundaries and add missing evidence rather than repeat the whole audit.
+
+### 2.6 Risk and SocketX source verification
+
+The normal engine wiring sets a BaseBroker-level risk validator:
+- engine/core/engine.js calls BaseBroker.setRiskValidator(...SignalProcessingEngine.validateForCommand...).
+- BaseBroker.handle invokes that validator and fails closed when it is missing or rejects.
+- MarketFeed calls broker.handle for strategy-driven PAPER/LIVE intents, so this route does pass through the BaseBroker validator.
+- RiskGateway, if invoked, pre-checks through SocketXRiskEngine (which delegates to SignalProcessingEngine) and then calls broker.handle, causing the same validator to run again.
+- BacktestDriver.execute bypasses BaseBroker.handle and the validator. This is the concrete mode-parity gap.
+
+SocketXServer supports account ownership checks only when an accountResolver is supplied. The inspected engine configures its static token verifier but does not instantiate SocketXServer; engine/server.js wires /ws to the broadcaster and /mt5 to the MT5 bridge. Verify whether another entry point activates SocketXServer before treating that command path as production behavior.
 
 ### 2.6 Existing package facts and architecture constraints
 
