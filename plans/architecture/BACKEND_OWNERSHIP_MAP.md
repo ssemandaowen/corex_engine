@@ -110,141 +110,44 @@ Backend is a Node.js/Express monolith with 7 extracted packages under `packages/
 
 ## 11a. Package consumer map (expanded evidence)
 
-Categories: **Public API** = import via package name/index; **Deep internal** = require into `packages/<pkg>/src/*` or `packages/<pkg>/...`; **Shim** = legacy file that re-exports from package; **Pkg→pkg** = package depends on another package.
+Categories (mutually exclusive per file):
+- **Public API**: import via package name or package index.
+- **Deep internal**: require into packages/<pkg>/src/* or packages/<pkg>/... bypassing the index.
+- **Shim**: legacy file whose body is module.exports = require(...) re-exporting from a package.
+- **Pkg->pkg**: package depends on another package.
 
-| Package | Public API imports (file → symbols) | Deep internal imports (file → path) | Shims (legacy → package) | Pkg→pkg deps | Direction |
+| Package | Public API imports (file -> symbols) | Deep internal imports (file -> path) | Shims (legacy -> package) | Pkg->pkg deps | Direction |
 |---------|-------------------------------------|-------------------------------------|--------------------------|--------------|-----------|
-| corex-strategy-engine | `utils/DeclarativeStrategy.js` → `{Strategy}`; `engine/services/runtimeService.js` → `{ParamSchema}`; `engine/test/plotBroadcaster.test.js` → `{Strategy}` | `utils/strategy/*` shims → `packages/.../src/*`; tests → `@root/packages/.../src/*` (IndicatorManager, IndicatorRegistry, indicators/*) | `utils/strategy/StrategyRuntimeUtils.js`, `StrategyPositionManager.js`, `StrategyIntrospection.js`, `Position.js` (all `module.exports = require("../../packages/.../src/...")`) | (none observed) | engine/utils/tests → package; shims invert to internals |
-| corex-market-data | `engine/core/data/*`, `engine/core/runtime/MarketFeed.js`, `engine/core/backtestDataResolver.js`, `broker/twelvedata.js` (all shims) | shims require `packages/.../src/*` | `TwelveDataProvider.js`, `DataProviderContract.js`, `backtestDataResolver.js`, `MarketFeed.js`, `broker/twelvedata.js` | SymbolNormalizer, DataPaginationLayer from corex-broker-contract | engine/broker → package (via shims) |
-| corex-broker-contract | `engine/core/runtime/RuntimeBrokerFactory.js`, `engine/services/mt5Bridge.js` (shims) | `engine/core/engine.js` → `BaseBroker`; `packages/corex-market-data/src/*` → SymbolNormalizer, DataPaginationLayer; `packages/corex-gateway/src/socketx/RiskGateway.js` → RuntimeBrokerFactory; tests → `src/base/*`, `src/modes/*`, `src/connectors/*`, `src/utils/*` | `broker/base/*`, `broker/modes/*`, `broker/connectors/*`, `RuntimeBrokerFactory.js`, `mt5Bridge.js` | (none observed outward except market-data consuming it) | many → package internals |
-| corex-gateway | `engine/core/engine.js` → `{RiskGateway, SocketXServer}` | `engine/routes/settingsController.js` → `TradingAccountRepository` (deep); `engine/test/settingsController.test.js` (jest.mock) | (none observed) | corex-auth (AuthService via require) | engine → package (public + deep) |
-| corex-auth | `engine/core/engine.js` → `{verifyToken}` | `engine/services/authService.js`, `secretsVault.js` (shims → `src/*`); `packages/corex-gateway/src/*` → `{verifyToken, signToken}` via `src/AuthService` | `authService.js`, `secretsVault.js` | (none observed) | engine/gateway → package (shim + deep) |
-| corex-accounts | `engine/services/connectorSettingsService.js` → `{connectionsService, CONNECTOR_SCHEMAS}` | `engine/services/brokerPersistence.js` (shim → `src/brokerPersistenceService`); `engine/test/connectorSettingsService.test.js` (jest.mock) | `brokerPersistence.js` | (none observed) | engine → package (public + shim) |
-| corex-portfolio | `engine/services/tradeHistoryService.js` → `{TradeHistoryService}` | (none observed) | (none observed) | (none observed) | engine → package (public only) |
+| corex-strategy-engine | utils/DeclarativeStrategy.js -> {Strategy}; engine/services/runtimeService.js -> {ParamSchema}; engine/test/plotBroadcaster.test.js -> {Strategy} | tests -> @root/packages/.../src/... (IndicatorManager, IndicatorRegistry, indicators/*) | utils/strategy/StrategyRuntimeUtils.js, StrategyPositionManager.js, StrategyIntrospection.js, Position.js | (none observed) | engine/utils/tests -> package; shims invert to internals |
+| corex-market-data | (none observed via package name at runtime) | (none observed directly; only via shims) | engine/core/data/providers/TwelveDataProvider.js, engine/core/data/DataProviderContract.js, engine/core/data/backtestDataResolver.js, engine/core/runtime/MarketFeed.js, broker/twelvedata.js (all re-export from packages/.../src/*) | SymbolNormalizer, DataPaginationLayer from corex-broker-contract | engine/broker -> package (via shims) |
+| corex-broker-contract | (none observed via package name at runtime) | engine/core/engine.js -> BaseBroker; packages/corex-market-data/src/* -> SymbolNormalizer, DataPaginationLayer; packages/corex-gateway/src/socketx/RiskGateway.js -> RuntimeBrokerFactory; tests -> src/base/*, src/modes/*, src/connectors/*, src/utils/* | broker/base/*, broker/modes/*, broker/connectors/*, engine/core/runtime/RuntimeBrokerFactory.js, engine/services/mt5Bridge.js | (none observed outward) | many -> package internals |
+| corex-gateway | engine/core/engine.js -> {RiskGateway, SocketXServer} | engine/routes/settingsController.js -> TradingAccountRepository (deep); engine/test/settingsController.test.js (jest.mock) | (none observed) | corex-auth (AuthService via require) | engine -> package (public + deep) |
+| corex-auth | engine/core/engine.js -> {verifyToken} | engine/services/authService.js, secretsVault.js (shims -> src/*); packages/corex-gateway/src/* -> {verifyToken, signToken} via src/AuthService | authService.js, secretsVault.js | (none observed) | engine/gateway -> package (shim + deep) |
+| corex-accounts | engine/services/connectorSettingsService.js -> {connectionsService, CONNECTOR_SCHEMAS} | engine/services/brokerPersistence.js (shim -> src/brokerPersistenceService); engine/test/connectorSettingsService.test.js (jest.mock) | brokerPersistence.js | (none observed) | engine -> package (public + shim) |
+| corex-portfolio | engine/services/tradeHistoryService.js -> {TradeHistoryService} | (none observed) | (none observed) | (none observed) | engine -> package (public only) |
 
-Conclusion (verified): packages are consumed through a mix of public API, deep internal imports, and legacy shims. Public index entry points are used in only a few call sites; most consumers bypass public APIs (suspected boundary violation; full consumer trace incomplete → unknown).
+Note: A file listed as a shim is a re-export wrapper, not a public-API consumer. Public API imports use the package name or index; shims bypass the index. Categories above are mutually exclusive per file.
 
 ## 11b. Critical flow traces (call sites)
 
 - **Startup:** `index.js` (lines ~1-40) registers module-alias, loads dotenv, then requires `@core/core/engine` (`engine/core/engine.js`), `@core/server` (`engine/server.js`), services (`@core/services/postgres`, `configService`, `integrationRuntime`, `dataCuller`, `liveOrderDispatcher`, `jobWorkerSupervisor`, `strategyRuntime`), and `./db/migrate`. Route mounting in `engine/server.js:54-73` (10 controllers). Unverified: exact initialization order of singletons and error handling.
 - **Strategy lifecycle:** `engine/strategyLoader.js` (24,377 bytes) + `engine/core/loader/StrategyLoader.js`; `engine/core/strategy/StrategyContract.js`; `packages/corex-strategy-engine`. Lazy load (protected). SHA256-keyed cache claimed in docs; not verified in this audit (unknown).
 - **Market data:** `engine/core/data/providers/TwelveDataProvider.js` (shim) → `packages/corex-market-data/src/providers/TwelveDataProvider.js`; `engine/services/historicalCache.js`; `engine/services/marketStatus.js`; `packages/corex-market-data/src/DataProviderContract.js`, `DataProviderFactory.js`. Unverified: provider selection/fallback logic.
-- **Broker connection:** `engine/core/runtime/RuntimeBrokerFactory.js` (shim) → package; `engine/services/brokerPersistence.js` (shim → accounts package); `engine/services/mt5Bridge.js` (shim → package); `packages/corex-broker-contract/src/*`; legacy `broker/` shims. Unverified: runtime broker instantiation call sequence.
-- **Execution:** `engine/routes/executionController.js` (35,278 bytes) → `engine/core/pipeline/SignalGenerationEngine.js`, `SignalExecutionEngine.js`, `SignalProcessingEngine.js`, `SocketXRiskEngine.js`; `engine/services/liveOrderDispatcher.js`; `engine/services/tradeHistoryService.js`. Unverified: exact call sequence and error paths.
+- **Broker connection:** `engine/core/runtime/RuntimeBrokerFactory.js` (shim) -> package; `engine/services/brokerPersistence.js` (shim -> accounts package); `engine/services/mt5Bridge.js` (shim -> package); `packages/corex-broker-contract/src/*`; legacy `broker/` shims. Call sequence: factory -> broker constructor -> persistence save/load -> mt5Bridge transport (suspected, not verified). Unverified transitions: factory->broker constructor, persistence save/load triggers, MT5 reconnect handling.
+- **Execution:** `engine/routes/executionController.js` (35,278 bytes) -> `engine/core/pipeline/SignalGenerationEngine.js`, `SignalExecutionEngine.js`, `SignalProcessingEngine.js`, `SocketXRiskEngine.js`; `engine/services/liveOrderDispatcher.js`; `engine/services/tradeHistoryService.js`. Call sequence: controller -> pipeline engines -> liveOrderDispatcher -> tradeHistoryService (suspected, not verified). Unverified: exact invocation order, error/rollback paths, whether executionController calls pipeline directly or via service.
 - **Backtest:** `engine/routes/backtestController.js` (42,703 bytes) → `engine/backtestManager.js` (42,839 bytes) → `engine/services/backtestService.js` → `engine/core/backtestDataResolver.js` (shim → market-data package). 5000-candle limit at 3 gates (protected; not re-verified here). Unverified: gate locations and enforcement call sequence.
 
 ## 11c. Singleton ownership (verified instances)
 
 | Singleton | File:line | Mutable state (observed) | State-changing methods (observed) | Consumers (observed) |
 |-----------|-----------|------------------------|----------------------------------|----------------------|
-| PgStore | `engine/services/pgStore.js:648` (`module.exports = new PgStore()`) | DB pool/cache (suspected) | not traced | not fully traced |
-| RuntimeRegistry | `engine/core/runtime/RuntimeRegistry.js:190` (`module.exports = new RuntimeRegistry()`) | runtime map, plot intervals | not traced | `engine/core/engine.js`, broadcaster, strategy runtime (suspected) |
-| Broadcaster | `engine/services/broadcaster.js:787` (`module.exports = new Broadcaster()`) | WS clients, buffers | not traced | engine, runtime (suspected) |
-| ConfigService | `engine/services/configService.js:190` (`module.exports = {...}` object) | config cache (suspected) | not traced | many services (not traced) |
-| RuntimeLifecycle | `engine/core/runtime/RuntimeLifecycle.js:324` (class export; instance created elsewhere) | lifecycle state | not traced | engine (suspected) |
+| PgStore | `engine/services/pgStore.js:648` (`module.exports = new PgStore()`) | DB pool/cache (suspected, not traced) | Unknown (not traced) | Not fully traced (unknown) |
+| RuntimeRegistry | `engine/core/runtime/RuntimeRegistry.js:190` (`module.exports = new RuntimeRegistry()`) | runtime map, plot intervals (suspected) | Unknown (not traced) | `engine/core/engine.js`, broadcaster, strategy runtime (suspected, not verified) |
+| Broadcaster | `engine/services/broadcaster.js:787` (`module.exports = new Broadcaster()`) | WS clients, buffers (suspected) | Unknown (not traced) | engine, runtime (suspected, not verified) |
+| ConfigService | `engine/services/configService.js:190` (`module.exports = {...}` object) | config cache (suspected) | Unknown (not traced) | many services (not traced) |
+| RuntimeLifecycle | `engine/core/runtime/RuntimeLifecycle.js:324` (class export; instance created elsewhere) | lifecycle state (suspected) | Unknown (not traced) | engine (suspected, not verified) |
 
-Unknowns: state-changing method names, full consumer lists, mutation/locking behavior, recoverability implications. Not verified.
-
-## 11d. Duplicate implementations (parity unverified)
-
-| Domain | Legacy location | Package location | Parity status |
-|--------|-----------------|------------------|---------------|
-| Broker | `broker/` (shims to package) | `packages/corex-broker-contract/` | Not verified (unknown) |
-| Strategy data/position/state | `utils/strategy/*` (shims to package) | `packages/corex-strategy-engine/src/*` | Not verified (unknown) |
-| Market data | `engine/core/data/providers/TwelveDataProvider.js`, `broker/twelvedata.js` (shims) | `packages/corex-market-data/` | Not verified (unknown) |
-| Auth | `engine/services/authService.js`, `secretsVault.js` (shims) | `packages/corex-auth/` | Not verified (unknown) |
-| Accounts | `engine/services/brokerPersistence.js` (shim) | `packages/corex-accounts/` | Not verified (unknown) |
-
-Shims (`module.exports = require(...)`) delegate legacy paths to packages; whether behavior is identical is unverified.
-
-## 11e. Disposition evidence (provisional)
-
-All dispositions below are provisional pending consumer/parity tracing (see §11a, §11d). Evidence cited is existence/import observation only.
-
-| Module | Proposed | Evidence | Migration risk |
-|--------|----------|----------|----------------|
-| `packages/*` | KEEP (owner) | 7 packages with index.js/main; consumed by engine/utils/tests (§11a) | Low |
-| `engine/backtestManager.js` (42,839 bytes) | MOVE (provisional) | Backtest domain logic in engine; backtestController 42,703 bytes | High (3 gates, 5000 limit) |
-| `engine/routes/executionController.js` (35,278 bytes) | CONSOLIDATE (provisional) | Transport + execution domain mixed | High (execution path) |
-| `engine/services/broadcaster.js` (33,806 bytes) | CONSOLIDATE (provisional) | Large WS broadcaster | Medium |
-| `broker/` | REPLACE (shim) (provisional) | All observed broker files are shims to package | Medium (consumers unknown) |
-| `utils/strategy/*` | MOVE (provisional) | All observed are shims to package | Medium |
-| `utils/` domain-neutral primitives | KEEP | Small files (time, ID, math) — not traced | Low |
-| `engine/core/*` | KEEP (engine) | Orchestration owner per AGENTS.md | Low |
-| `config/` | CONSOLIDATE (provisional) | Ownership unclear; not traced | Medium |
-
-## 11f. Test ownership map
-
-| Module area | Test files (observed) | Coverage gaps (suspected) |
-|-------------|----------------------|--------------------------|
-| Strategy engine | `packages/corex-strategy-engine/test/*` (Strategy, Position, ta, util) | Indicators beyond dispatch; plotting |
-| Broker contract | `packages/corex-broker-contract/test/*` (contract, SymbolNormalizer, UnsupportedOperationError) | Live/paper brokers (need creds) |
-| Market data | `packages/corex-market-data/test/DataProviderContract.test.js`, `TwelveDataProvider.test.js` | Yahoo/File providers |
-| Auth | `packages/corex-auth/test/SecretsVault.test.js` | AuthService flows |
-| Accounts | `packages/corex-accounts/test/connections.test.js` | brokerPersistence |
-| Gateway | `packages/corex-gateway/test/*` (socketx, authVerifier, account_socketx) | RiskGateway |
-| Portfolio | `packages/corex-portfolio/test/*` (tradeHistoryService, orderFillListener) | analytics |
-| Engine | `engine/test/*` (boot.smoke, connectorSettingsService, riskGateway.wiring, runtimeExclusivity, settingsSchemaRegistry, strategyWorker.warmup) | Large controllers (system, backtest, execution) untested at controller level |
-| Root | `test/*.test.js` (12 files) + `test/backtest/*` | backtestController, broadcaster |
-
-Baseline: 51 suites / 572 tests (P0-01, verified on origin/audit/p0-01-repository-baseline).
-
-## 11g. Measurements (reverified 2026-10-31, bytes)
-
-File sizes (bytes, via Get-ChildItem):
-- `engine/routes/systemController.js` 44,117
-- `engine/backtestManager.js` 42,839
-- `engine/routes/backtestController.js` 42,703
-- `engine/routes/executionController.js` 35,278
-- `engine/services/broadcaster.js` 33,806
-- `engine/core/engine.js` 30,070
-- `engine/services/pgStore.js` 26,668
-- `engine/strategyLoader.js` 24,377
-- `engine/services/dataCuller.js` 16,245
-- `engine/core/runtime/RuntimeLifecycle.js` 15,009
-- `engine/services/jobQueue.js` 13,978
-- `engine/workers/jobWorker.js` 13,780
-- `engine/services/strategyCompiler.js` 13,524
-- `engine/managers/mt5Receiver.py` 13,411
-
-Engine file count: 80 files (Get-ChildItem -Recurse -File). Package count: 7.
-
-## 12. Handoff
-
-For each package, consumers are identified via grep across the repo (excluding node_modules). "Internal import" = direct require into `packages/<pkg>/src/...` or `packages/<pkg>/...` bypassing the package index.
-
-| Package | Public entry | Observed consumers (files) | Internal (deep) imports | Direction |
-|---------|--------------|---------------------------|------------------------|-----------|
-| corex-strategy-engine | `packages/corex-strategy-engine/index.js` | `utils/DeclarativeStrategy.js` (require "corex-strategy-engine"); `engine/services/runtimeService.js` (`ParamSchema`); `engine/test/plotBroadcaster.test.js`; `packages/corex-gateway/test/*` (none observed); `utils/strategy/*` shims re-export from `packages/.../src/*` | Yes — `utils/strategy/*` shims require `../../packages/corex-strategy-engine/src/*`; tests require `@root/packages/.../src/...` | engine/utils/tests → package (shims invert to package internals) |
-| corex-market-data | `packages/corex-market-data/index.js` | `engine/core/data/providers/TwelveDataProvider.js`, `engine/core/data/DataProviderContract.js`, `engine/core/data/backtestDataResolver.js`, `engine/core/runtime/MarketFeed.js`, `broker/twelvedata.js` (all shims re-exporting) | Yes — shims require `../../../packages/corex-market-data/src/...` | engine/broker → package (via shims) |
-| corex-broker-contract | `packages/corex-broker-contract/index.js` (main: `src/mt5Bridge.js`) | `engine/core/runtime/RuntimeBrokerFactory.js`, `engine/services/mt5Bridge.js`, `broker/base/*`, `broker/modes/*`, `broker/connectors/*` (shims), `packages/corex-market-data/src/*`, `packages/corex-gateway/src/socketx/RiskGateway.js` | Yes — extensive deep imports into `src/base`, `src/modes`, `src/connectors`, `src/utils`, `src/RuntimeBrokerFactory` | many → package internals |
-| corex-gateway | `packages/corex-gateway/index.js` | `engine/core/engine.js` (RiskGateway, SocketXServer); `engine/routes/settingsController.js` (TradingAccountRepository); `engine/test/settingsController.test.js` (jest.mock) | Yes — `engine/routes/settingsController.js` requires `../../packages/corex-gateway/src/account/TradingAccountRepository` | engine → package internals |
-| corex-auth | `packages/corex-auth/index.js` | `engine/core/engine.js` (verifyToken); `engine/services/authService.js`, `secretsVault.js` (shims); `packages/corex-gateway/src/*` (AuthService) | Yes — shims require `../../packages/corex-auth/src/*`; gateway requires `../../../corex-auth/src/AuthService` | engine/gateway → package internals |
-| corex-accounts | `packages/corex-accounts/index.js` | `engine/services/connectorSettingsService.js` (connectionsService, CONNECTOR_SCHEMAS); `engine/services/brokerPersistence.js` (shim); `engine/test/connectorSettingsService.test.js` (jest.mock) | Yes — `brokerPersistence.js` shim requires `../../packages/corex-accounts/src/brokerPersistenceService` | engine → package (shim + public) |
-| corex-portfolio | `packages/corex-portfolio/index.js` | `engine/services/tradeHistoryService.js` (TradeHistoryService) | Yes — observed via `@portfolio/corex-portfolio` alias | engine → package |
-
-Conclusion (verified): packages are consumed mostly through shims and deep imports; public index entry points are used only in a few places (`engine/core/engine.js`, `utils/DeclarativeStrategy.js`, `tradeHistoryService.js`). Most consumers bypass public APIs (suspected boundary violation; not fully traced).
-
-## 11b. Critical flow traces (call sites)
-
-- **Startup:** `index.js:1-40` requires `@core/core/engine` (engine.js), `@core/server` (server.js), then services (`@core/services/postgres`, `configService`, `integrationRuntime`, `dataCuller`, `liveOrderDispatcher`, `jobWorkerSupervisor`, `strategyRuntime`). Migrations via `require("./db/migrate")`. Routes mounted in `engine/server.js:54-73`.
-- **Strategy lifecycle:** `engine/strategyLoader.js` (24,377 bytes) + `engine/core/loader/StrategyLoader.js`; `engine/core/strategy/StrategyContract.js`; `packages/corex-strategy-engine`. Lazy load (protected). SHA256-keyed cache (observed in docs; not verified here).
-- **Market data:** `engine/core/data/providers/TwelveDataProvider.js` (shim → package), `engine/services/historicalCache.js`, `engine/services/marketStatus.js`, `packages/corex-market-data/src/DataProviderContract.js`, `DataProviderFactory.js`.
-- **Broker connection:** `engine/core/runtime/RuntimeBrokerFactory.js` (shim → package), `engine/services/brokerPersistence.js` (shim → accounts package), `engine/services/mt5Bridge.js` (shim → package), `packages/corex-broker-contract/src/*`, legacy `broker/` shims.
-- **Execution:** `engine/routes/executionController.js` (35,278 bytes) → `engine/core/pipeline/SignalGenerationEngine.js`, `SignalExecutionEngine.js`, `SignalProcessingEngine.js`, `SocketXRiskEngine.js`, `engine/services/liveOrderDispatcher.js`, `tradeHistoryService.js`.
-- **Backtest:** `engine/routes/backtestController.js` (42,703 bytes) → `engine/backtestManager.js` (42,839 bytes) → `engine/services/backtestService.js` → `engine/core/backtestDataResolver.js` (shim → market-data package). 5000-candle limit at 3 gates (protected; not re-verified here).
-
-## 11c. Singleton ownership (verified)
-
-| Singleton | File:line | Mutable state | Consumers (observed) |
-|-----------|-----------|---------------|----------------------|
-| PgStore | `engine/services/pgStore.js:648` (`module.exports = new PgStore()`) | DB pool/cache | pgStore consumers across services (not fully traced) |
-| RuntimeRegistry | `engine/core/runtime/RuntimeRegistry.js:190` | runtime map, plot intervals | `engine/core/engine.js`, broadcaster, strategy runtime |
-| Broadcaster | `engine/services/broadcaster.js:787` | WS clients, buffers | engine, runtime |
-| ConfigService | `engine/services/configService.js:190` (`module.exports = {...}` object) | config cache | many services (not fully traced) |
-| RuntimeLifecycle | `engine/core/runtime/RuntimeLifecycle.js:324` (class export, instantiated elsewhere) | lifecycle state | engine |
-
-Note: state-changing methods and full consumer lists not traced (unknown). Recoverability implications suspected, not verified.
+Note: State-changing methods and full consumer lists were NOT traced in this audit. They are explicitly unverified. Do not treat this table as complete singleton ownership evidence.
 
 ## 11d. Duplicate implementations (parity unverified)
 

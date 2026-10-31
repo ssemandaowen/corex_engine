@@ -1,7 +1,7 @@
 # CoreX Work Status
 
 > Last updated: 2026-10-31
-> Active phase: Phase 0 — Establish the verified repository baseline
+> Active phase: Phase 0 — Repository baseline audits (P0-01 DONE on main; P0-02 in REVIEW)
 > Authoritative roadmap: `plans/COREX_DEVELOPMENT_PLAN.md`
 > Coordination rules: `plans/AGENT_WORKFLOW.md`
 
@@ -27,8 +27,8 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 ## Execution constraints
 
-- P0-01 is the first baseline task. P0-03 and P0-07 may be investigated independently after checking the current main commit.
-- P0-02, P0-05 and P0-06 should use P0-01's verified baseline and avoid overlapping writes.
+- P0-01 is accepted and DONE on main (squash merge a97ae6359b0d1b960b19368e2bbff476e16b4405). P0-02, P0-05 and P0-06 should use its verified baseline and avoid overlapping writes.
+- P0-02 is in REVIEW on branch audit/p0-02-backend-ownership; not yet integrated.
 - P0-04 waits for the backend, frontend and persistence maps.
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
 - Phase 0 exit requires Owen to review P0-01 through P0-07. No broad rebuild is authorized before that gate.
