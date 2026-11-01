@@ -434,7 +434,7 @@ export default function App() {
         style={{ backgroundColor: 'var(--ui-bg)' }}
       >
         <div 
-          className="w-full max-w-md rounded-lg border shadow-xl overflow-hidden p-6 relative"
+          className="w-full max-w-md border overflow-hidden p-6 relative"
           style={{ 
             backgroundColor: 'var(--ui-panel)', 
             borderColor: 'var(--ui-border)'
@@ -442,7 +442,7 @@ export default function App() {
         >
           {/* Logo */}
           <div className="flex flex-col items-center mb-6 text-center">
-            <img src="/corex.svg" alt="CoreX" className="w-14 h-14 mb-2 animate-pulse" />
+            <img src="/corex.svg" alt="CoreX" className="w-14 h-14 mb-2" />
             <h1 className="text-xl font-display font-bold tracking-widest text-[var(--ui-text)]">
               CORE<span className="text-[var(--ui-accent)]">X</span> // TERMINAL
             </h1>
@@ -460,7 +460,7 @@ export default function App() {
                   value={signupForm.name}
                   onChange={(e) => setSignupForm({ ...signupForm, name: e.target.value })}
                   placeholder="e.g. John Doe"
-                  className="w-full p-2.5 rounded border text-xs text-[var(--ui-text)] focus:outline-none"
+                  className="w-full p-2.5 border text-xs text-[var(--ui-text)] focus:outline-none"
                   style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
                   required
                 />
@@ -477,7 +477,7 @@ export default function App() {
                   : setSigninForm({ ...signinForm, email: e.target.value })
                 }
                 placeholder="developer@corex.io (or admin@corex.io)"
-                className="w-full p-2.5 rounded border text-xs text-[var(--ui-text)] focus:outline-none"
+                className="w-full p-2.5 border text-xs text-[var(--ui-text)] focus:outline-none"
                 style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
                 required
               />
@@ -493,7 +493,7 @@ export default function App() {
                   : setSigninForm({ ...signinForm, password: e.target.value })
                 }
                 placeholder="••••••••"
-                className="w-full p-2.5 rounded border text-xs text-[var(--ui-text)] focus:outline-none"
+                className="w-full p-2.5 border text-xs text-[var(--ui-text)] focus:outline-none"
                 style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
                 required
               />
@@ -501,8 +501,8 @@ export default function App() {
 
             {authError && (
               <div 
-                className="text-[11px] p-2 rounded border border-[var(--ui-negative)] text-[var(--ui-negative)]"
-                style={{ backgroundColor: 'rgba(239, 68, 68, 0.05)' }}
+                className="text-[11px] p-2 border border-[var(--ui-negative)] text-[var(--ui-negative)]"
+                style={{ backgroundColor: 'var(--bg-raised)' }}
               >
                 {authError}
               </div>
@@ -511,11 +511,11 @@ export default function App() {
             <button 
               type="submit" 
               disabled={authLoading}
-              className="w-full py-2.5 text-xs font-bold uppercase tracking-widest rounded transition-all duration-200 cursor-pointer flex items-center justify-center gap-2 text-white"
+              className="w-full py-2.5 text-xs font-bold uppercase tracking-widest cursor-pointer flex items-center justify-center gap-2 text-white"
               style={{ backgroundColor: 'var(--ui-accent)' }}
             >
               {authLoading ? (
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white" />
               ) : (
                 <>
                   <Terminal size={14} />
@@ -608,7 +608,7 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 h-screen relative">
         {/* Topbar (h-14, fixed, border-bottom, glass blur bg) */}
         <header 
-          className="h-14 border-b flex items-center justify-between px-4 z-40 select-none backdrop-blur-md shrink-0"
+          className="h-14 border-b flex items-center justify-between px-4 z-40 select-none shrink-0"
           style={{ 
             borderColor: 'var(--ui-border)',
             backgroundColor: 'var(--ui-panel)'
@@ -628,9 +628,9 @@ export default function App() {
           <div className="flex items-center gap-1.5 sm:gap-2.5">
             {/* Account mode chip */}
             <div 
-              className="px-1.5 sm:px-2 py-0.5 rounded text-[9px] font-sans font-bold uppercase tracking-wider border cursor-pointer select-none flex items-center gap-1 hover:opacity-90 active:scale-95 transition-all"
+              className="px-1.5 sm:px-2 py-0.5 text-[9px] font-sans font-bold uppercase tracking-wider border cursor-pointer select-none flex items-center gap-1 hover:opacity-90"
               style={{
-                backgroundColor: activeAccountMode === 'LIVE' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(30, 144, 255, 0.12)',
+                backgroundColor: activeAccountMode === 'LIVE' ? 'var(--bg-raised)' : 'var(--bg-raised)',
                 borderColor: activeAccountMode === 'LIVE' ? 'var(--ui-warning)' : 'var(--ui-accent)',
                 color: activeAccountMode === 'LIVE' ? 'var(--ui-warning)' : 'var(--ui-accent)'
               }}
@@ -643,26 +643,26 @@ export default function App() {
 
             {/* Realtime chip */}
             <div 
-              className="px-1.5 sm:px-2 py-0.5 rounded text-[9px] font-sans font-bold uppercase tracking-wider border cursor-pointer select-none flex items-center gap-1 hover:opacity-90 active:scale-95 transition-all"
+              className="px-1.5 sm:px-2 py-0.5 text-[9px] font-sans font-bold uppercase tracking-wider border cursor-pointer select-none flex items-center gap-1 hover:opacity-90"
               style={{
-                backgroundColor: realtimeMode === 'WS' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                backgroundColor: realtimeMode === 'WS' ? 'var(--bg-raised)' : 'var(--bg-raised)',
                 borderColor: realtimeMode === 'WS' ? 'var(--ui-positive)' : 'var(--ui-warning)',
                 color: realtimeMode === 'WS' ? 'var(--ui-positive)' : 'var(--ui-warning)'
               }}
               onClick={() => setRealtimeMode(realtimeMode === 'WS' ? 'POLL' : 'WS')}
               title={`Stream Protocol (Current: ${realtimeMode})`}
             >
-              {realtimeMode === 'WS' ? <Radio size={10} className="animate-pulse" /> : <RefreshCw size={10} />}
+              {realtimeMode === 'WS' ? <Radio size={10} className="" /> : <RefreshCw size={10} />}
               <span className="hidden sm:inline">{realtimeMode}</span>
             </div>
 
             {/* Engine status pulse */}
             <div 
-              className="flex items-center gap-1 sm:gap-1.5 border border-[var(--ui-border)] px-1.5 sm:px-2 py-0.5 rounded"
+              className="flex items-center gap-1 sm:gap-1.5 border border-[var(--ui-border)] px-1.5 sm:px-2 py-0.5"
               title={`Engine Core: ${engineStatus}`}
             >
               <span 
-                className="w-1.5 h-1.5 rounded-full inline-block animate-pulse"
+                className="w-1.5 h-1.5 inline-block"
                 style={{ 
                   backgroundColor: engineStatus === 'STABLE' ? 'var(--ui-positive)' : 'var(--ui-warning)' 
                 }}
@@ -675,9 +675,9 @@ export default function App() {
             {/* Global Terminal toggle button */}
             <button 
               onClick={() => setIsTerminalVisible(!isTerminalVisible)}
-              className="p-1 rounded border cursor-pointer select-none transition-all duration-150 flex items-center justify-center hover:opacity-90 active:scale-95"
+              className="p-1 border cursor-pointer select-none flex items-center justify-center hover:opacity-90"
               style={{
-                backgroundColor: isTerminalVisible ? 'rgba(30, 144, 255, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                backgroundColor: isTerminalVisible ? 'var(--bg-raised)' : 'var(--bg-raised)',
                 borderColor: isTerminalVisible ? 'var(--ui-accent)' : 'var(--ui-border)',
                 color: isTerminalVisible ? 'var(--ui-text)' : 'var(--ui-muted)'
               }}
@@ -689,9 +689,9 @@ export default function App() {
             {/* Keyboard Shortcuts Trigger Button */}
             <button
               onClick={() => setIsShortcutsOpen(true)}
-              className="p-1 rounded border cursor-pointer select-none transition-all duration-150 flex items-center justify-center hover:opacity-90 active:scale-95 text-[var(--ui-muted)] hover:text-white"
+              className="p-1 border cursor-pointer select-none flex items-center justify-center hover:opacity-90 text-[var(--ui-muted)] hover:text-white"
               style={{
-                backgroundColor: isShortcutsOpen ? 'rgba(30, 144, 255, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                backgroundColor: isShortcutsOpen ? 'var(--bg-raised)' : 'var(--bg-raised)',
                 borderColor: isShortcutsOpen ? 'var(--ui-accent)' : 'var(--ui-border)'
               }}
               title="Keyboard Shortcuts Ledger (?)"
@@ -709,7 +709,7 @@ export default function App() {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
-                className="w-7 h-7 rounded-full flex items-center justify-center cursor-pointer border transition-colors hover:border-[var(--ui-accent)] font-display font-bold text-[10px]"
+                className="w-7 h-7 flex items-center justify-center cursor-pointer border hover:border-[var(--ui-accent)] font-display font-bold text-[10px]"
                 style={{
                   backgroundColor: 'var(--ui-panel-strong)',
                   borderColor: profileOpen ? 'var(--ui-accent)' : 'var(--ui-border)',
@@ -722,7 +722,7 @@ export default function App() {
               {/* Avatar dropdown panel */}
               {profileOpen && (
                 <div 
-                  className="absolute right-0 mt-2 w-72 rounded-lg border shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                  className="absolute right-0 mt-2 w-72 border z-50 overflow-hidden fade-in slide-in-"
                   style={{
                     backgroundColor: 'var(--ui-panel-strong)',
                     borderColor: 'var(--ui-border-strong)',
@@ -743,9 +743,9 @@ export default function App() {
                       {/* Role and Tier Badge */}
                       <div className="flex flex-col items-end gap-1">
                         <span 
-                          className="text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider"
+                          className="text-[9px] px-1.5 py-0.5 font-bold uppercase tracking-wider"
                           style={{
-                            backgroundColor: 'rgba(30, 144, 255, 0.15)',
+                            backgroundColor: 'var(--bg-raised)',
                             color: 'var(--ui-accent)'
                           }}
                         >
@@ -756,11 +756,11 @@ export default function App() {
 
                     <div className="mt-3 flex items-center gap-1.5">
                       <span className="text-[9px] text-[var(--ui-muted)] uppercase tracking-wider font-bold">Tier:</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-500 border border-amber-500/30 font-bold uppercase tracking-wider">
+                      <span className="text-[9px] px-1.5 py-0.2 bg-amber-500/15 text-amber-500 border border-amber-500/30 font-bold uppercase tracking-wider">
                         {authUser.subscriptionTier}
                       </span>
                       {isAdmin && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 font-bold uppercase tracking-wider">
+                        <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 font-bold uppercase tracking-wider">
                           Admin Panel
                         </span>
                       )}
@@ -780,13 +780,13 @@ export default function App() {
                       </div>
                       <button 
                         onClick={toggle2FA}
-                        className="w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer"
+                        className="w-8 h-4 p-0.5 cursor-pointer"
                         style={{
                           backgroundColor: securityPrefs.twoFA ? 'var(--ui-accent)' : 'var(--ui-border-strong)'
                         }}
                       >
                         <div 
-                          className="w-3 h-3 rounded-full bg-white transition-transform duration-200"
+                          className="w-3 h-3 bg-white"
                           style={{
                             transform: securityPrefs.twoFA ? 'translateX(16px)' : 'translateX(0)'
                           }}
@@ -801,13 +801,13 @@ export default function App() {
                       </div>
                       <button 
                         onClick={togglePasswordAlerts}
-                        className="w-8 h-4 rounded-full p-0.5 transition-colors cursor-pointer"
+                        className="w-8 h-4 p-0.5 cursor-pointer"
                         style={{
                           backgroundColor: securityPrefs.passwordAlerts ? 'var(--ui-accent)' : 'var(--ui-border-strong)'
                         }}
                       >
                         <div 
-                          className="w-3 h-3 rounded-full bg-white transition-transform duration-200"
+                          className="w-3 h-3 bg-white"
                           style={{
                             transform: securityPrefs.passwordAlerts ? 'translateX(16px)' : 'translateX(0)'
                           }}
@@ -824,7 +824,7 @@ export default function App() {
                         setProfileOpen(false);
                         window.dispatchEvent(new CustomEvent('corex:settings:focus'));
                       }}
-                      className="w-full text-left p-2 rounded text-xs flex items-center gap-2 hover:bg-[var(--ui-border)] text-[var(--ui-text)] cursor-pointer"
+                      className="w-full text-left p-2 text-xs flex items-center gap-2 hover:bg-[var(--ui-border)] text-[var(--ui-text)] cursor-pointer"
                     >
                       <Settings size={13} style={{ color: 'var(--ui-accent)' }} />
                       MT5/MetaAPI Settings
@@ -832,7 +832,7 @@ export default function App() {
                     
                     <button
                       onClick={handleSignout}
-                      className="w-full text-left p-2 rounded text-xs flex items-center gap-2 hover:bg-red-500/10 text-red-500 cursor-pointer"
+                      className="w-full text-left p-2 text-xs flex items-center gap-2 hover:bg-red-500/10 text-red-500 cursor-pointer"
                     >
                       <LogOut size={13} />
                       Sign Out Session

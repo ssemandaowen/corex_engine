@@ -271,12 +271,12 @@ export default function RunView() {
         <div className="relative md:hidden shrink-0 z-30">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="flex items-center gap-2 px-2.5 py-1 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)] text-white text-[10px] font-black uppercase tracking-wider cursor-pointer select-none active:scale-95"
+            className="flex items-center gap-2 px-2.5 py-1 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)] text-white text-[10px] font-black uppercase tracking-wider cursor-pointer select-none"
           >
             {activeTab === 'workspace' && <><Layers size={11} className="text-[var(--ui-accent)]" /> WORKSPACE CONTROL</>}
             {activeTab === 'backtest' && <><History size={11} className="text-[var(--ui-accent)]" /> BACKTEST LAB</>}
             {activeTab === 'monitor' && <><Activity size={11} className="text-[var(--ui-accent)]" /> WORKSTATION MONITOR</>}
-            <ChevronDown size={13} className={`text-[var(--ui-muted)] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={13} className={`text-[var(--ui-muted)]  ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </button>
           
           {isDropdownOpen && (
@@ -284,7 +284,7 @@ export default function RunView() {
               {/* Backdrop */}
               <div className="fixed inset-0 z-40" onClick={() => setIsDropdownOpen(false)} />
               <div 
-                className="absolute left-0 mt-1 w-56 rounded-lg border border-[var(--ui-border)] bg-[#070e20] shadow-2xl z-50 py-1"
+                className="absolute left-0 mt-1 w-56 border border-[var(--ui-border)] bg-[var(--bg-panel)] z-50 py-1"
               >
                 {[
                   { id: 'workspace', label: 'Workspace Control', icon: Layers },
@@ -300,7 +300,7 @@ export default function RunView() {
                         setActiveTab(item.id as any);
                         setIsDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[10px] uppercase tracking-wider font-bold transition-all cursor-pointer ${
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-left text-[10px] uppercase tracking-wider font-bold  cursor-pointer ${
                         isSelected 
                           ? 'bg-[var(--ui-accent)]/10 text-white border-l-2 border-[var(--ui-accent)]' 
                           : 'text-[var(--ui-muted)] hover:text-white hover:bg-white/5 border-l-2 border-transparent'
@@ -329,7 +329,7 @@ export default function RunView() {
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id as any)}
-                className={`flex items-center gap-1.5 h-full px-3 text-[10px] font-black uppercase tracking-wider border-b-2 transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 h-full px-3 text-[10px] font-black uppercase tracking-wider border-b-2  cursor-pointer ${
                   isSelected 
                     ? 'border-[var(--ui-accent)] text-white' 
                     : 'border-transparent text-[var(--ui-muted)] hover:text-white'
@@ -348,14 +348,14 @@ export default function RunView() {
             Engine State:
           </span>
           <div 
-            className="flex items-center gap-1.5 border px-2 py-0.5 rounded-full"
+            className="flex items-center gap-1.5 border px-2 py-0.5"
             style={{
-              backgroundColor: engineStatus === 'STABLE' ? 'rgba(16,185,129,0.1)' : engineStatus === 'DEGRADED' ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
-              borderColor: engineStatus === 'STABLE' ? 'rgba(16,185,129,0.2)' : engineStatus === 'DEGRADED' ? 'rgba(245,158,11,0.2)' : 'rgba(239,68,68,0.2)'
+              backgroundColor: engineStatus === 'STABLE' ? 'var(--bg-raised)' : engineStatus === 'DEGRADED' ? 'var(--bg-raised)' : 'var(--bg-raised)',
+              borderColor: engineStatus === 'STABLE' ? 'var(--bg-raised)' : engineStatus === 'DEGRADED' ? 'var(--bg-raised)' : 'var(--bg-raised)'
             }}
           >
             <span 
-              className="h-1.5 w-1.5 rounded-full animate-pulse"
+              className="h-1.5 w-1.5"
               style={{ 
                 backgroundColor: engineStatus === 'STABLE' ? 'var(--ui-positive)' : engineStatus === 'DEGRADED' ? 'var(--ui-warning)' : 'var(--ui-negative)'
               }}

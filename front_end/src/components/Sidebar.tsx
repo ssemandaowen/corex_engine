@@ -54,7 +54,7 @@ export default function Sidebar({
 
   return (
     <aside 
-      className="flex flex-col h-screen border-r shrink-0 transition-all duration-300 relative select-none"
+      className="flex flex-col h-screen border-r shrink-0 relative select-none"
       style={{
         width: collapsed ? '56px' : '160px',
         backgroundColor: 'var(--ui-sidebar-bg)',
@@ -74,7 +74,7 @@ export default function Sidebar({
           <div className="flex items-center gap-2 overflow-hidden flex-1">
             <div className="relative w-5 h-5 flex items-center justify-center shrink-0">
               {isHeaderHovered ? (
-                <ChevronLeft size={14} className="text-[var(--ui-accent)] transition-all duration-150" />
+                <ChevronLeft size={14} className="text-[var(--ui-accent)]" />
               ) : (
                 <img src="/corex.svg" alt="CoreX Logo" className="w-5 h-5" />
               )}
@@ -87,7 +87,7 @@ export default function Sidebar({
           <div className="flex justify-center w-full items-center">
             <div className="relative w-5 h-5 flex items-center justify-center shrink-0">
               {isHeaderHovered ? (
-                <ChevronRight size={14} className="text-[var(--ui-accent)] transition-all duration-150" />
+                <ChevronRight size={14} className="text-[var(--ui-accent)]" />
               ) : (
                 <img src="/corex.svg" alt="CoreX" className="w-5 h-5" />
               )}
@@ -100,7 +100,7 @@ export default function Sidebar({
       {!collapsed && (
         <div className="px-3 py-2 border-b flex items-center gap-2" style={{ borderColor: 'var(--ui-border)' }}>
           <span 
-            className="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse"
+            className="w-1.5 h-1.5 shrink-0"
             style={{ backgroundColor: getStatusColor(engineStatus) }}
           />
           <span className="text-[9px] font-mono uppercase tracking-wider" style={{ color: 'var(--ui-muted)' }}>
@@ -123,7 +123,7 @@ export default function Sidebar({
             >
               <button
                 onClick={() => setActiveTab(item.id)}
-                className="w-full flex items-center justify-center py-2 rounded transition-all duration-200 cursor-pointer relative"
+                className="w-full flex items-center justify-center py-2 cursor-pointer relative"
                 style={{
                   backgroundColor: isActive ? 'var(--ui-panel-soft)' : 'transparent',
                   color: isActive ? 'var(--ui-accent)' : 'var(--ui-muted)',
@@ -132,7 +132,7 @@ export default function Sidebar({
               >
                 {isActive && (
                   <span 
-                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4 rounded-r"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-4"
                     style={{ backgroundColor: 'var(--ui-accent)' }}
                   />
                 )}
@@ -143,7 +143,7 @@ export default function Sidebar({
               {/* Tooltip for collapsed state */}
               {collapsed && hoveredItem === item.id && (
                 <div 
-                  className="absolute left-14 top-1/2 -translate-y-1/2 px-2 py-1 rounded text-[10px] font-sans font-bold uppercase tracking-wider whitespace-nowrap z-50 border shadow-md"
+                  className="absolute left-14 top-1/2 -translate-y-1/2 px-2 py-1 text-[10px] font-sans font-bold uppercase tracking-wider whitespace-nowrap z-50 border"
                   style={{
                     backgroundColor: 'var(--ui-panel-strong)',
                     borderColor: 'var(--ui-border-strong)',
@@ -164,7 +164,7 @@ export default function Sidebar({
         style={{ borderColor: 'var(--ui-border)' }}
       >
         <div 
-          className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center border font-display font-bold text-[10px]"
+          className="w-7 h-7 shrink-0 flex items-center justify-center border font-display font-bold text-[10px]"
           style={{
             backgroundColor: 'var(--ui-panel-strong)',
             borderColor: 'var(--ui-border)',

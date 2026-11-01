@@ -86,11 +86,11 @@ export default function StrategyExplorer({
     return (
       <div 
         onClick={() => onToggleCollapse(false)}
-        className="w-11 border-r border-[var(--ui-border)] bg-[var(--ui-sidebar-bg)] hover:bg-[var(--ui-panel-soft)]/20 transition-all duration-200 cursor-pointer flex flex-col items-center py-4 gap-6 shrink-0 group select-none"
+        className="w-11 border-r border-[var(--ui-border)] bg-[var(--ui-sidebar-bg)] hover:bg-[var(--ui-panel-soft)]/20 cursor-pointer flex flex-col items-center py-4 gap-6 shrink-0 group select-none"
         title="Expand Strategy Explorer"
       >
-        <button className="text-[var(--ui-accent)] hover:text-white transition-all cursor-pointer">
-          <ChevronRight size={16} className="group-hover:translate-x-0.5 transition-transform" />
+        <button className="text-[var(--ui-accent)] hover:text-white cursor-pointer">
+          <ChevronRight size={16} className="group-hover:translate-x-0.5" />
         </button>
         <div className="h-px w-6 bg-[var(--ui-border)]/40" />
         <div className="flex flex-col gap-5 items-center">
@@ -102,8 +102,8 @@ export default function StrategyExplorer({
           </span>
           {activeRuntimes.length > 0 && (
             <div className="relative" title="Active Thread Running">
-              <Zap size={14} className="text-emerald-400 animate-pulse" />
-              <span className="absolute -top-1.5 -right-1.5 text-[7px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full px-1 py-0.2 leading-none">
+              <Zap size={14} className="text-emerald-400" />
+              <span className="absolute -top-1.5 -right-1.5 text-[7px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 leading-none">
                 {activeRuntimes.length}
               </span>
             </div>
@@ -118,7 +118,7 @@ export default function StrategyExplorer({
 
   return (
     <div 
-      className="w-60 border-r flex flex-col shrink-0 bg-[var(--ui-sidebar-bg)] transition-all duration-300 relative select-none"
+      className="w-60 border-r flex flex-col shrink-0 bg-[var(--ui-sidebar-bg)] relative select-none"
       style={{ borderColor: 'var(--ui-border)' }}
     >
       {/* Header section */}
@@ -132,7 +132,7 @@ export default function StrategyExplorer({
           </div>
           <button
             onClick={() => onToggleCollapse(true)}
-            className="text-[var(--ui-muted)] hover:text-white p-0.5 rounded cursor-pointer transition-colors"
+            className="text-[var(--ui-muted)] hover:text-white p-0.5 cursor-pointer"
             title="Collapse Sidebar"
           >
             <ChevronLeft size={13} />
@@ -146,7 +146,7 @@ export default function StrategyExplorer({
             placeholder="Search strategy cores..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full text-[10px] py-1.5 pl-7 pr-2 rounded border focus:outline-none font-mono"
+            className="w-full text-[10px] py-1.5 pl-7 pr-2 border focus:outline-none font-mono"
             style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
           />
         </div>
@@ -159,9 +159,9 @@ export default function StrategyExplorer({
         <div className="space-y-1">
           <div
             onClick={() => onSelectStrategy(null)}
-            className={`w-full text-left px-2.5 py-2 rounded border transition-all cursor-pointer flex items-center justify-between group font-mono ${
+            className={`w-full text-left px-2.5 py-2  border  cursor-pointer flex items-center justify-between group font-mono ${
               selectedStrategyId === null 
-                ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white font-black shadow' 
+                ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white font-black '
                 : 'bg-transparent border-transparent text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/10'
             }`}
           >
@@ -171,7 +171,7 @@ export default function StrategyExplorer({
                 ALL SYSTEM CORES
               </span>
             </div>
-            <span className="text-[8px] font-bold bg-[var(--ui-panel-strong)] px-1.5 py-0.5 rounded text-[var(--ui-muted)] border border-[var(--ui-border)] group-hover:text-white">
+            <span className="text-[8px] font-bold bg-[var(--ui-panel-strong)] px-1.5 py-0.5 text-[var(--ui-muted)] border border-[var(--ui-border)] group-hover:text-white">
               {strategies.length}
             </span>
           </div>
@@ -181,7 +181,7 @@ export default function StrategyExplorer({
         <div className="space-y-1.5">
           <div className="px-2 flex items-center justify-between">
             <span className="text-[8px] font-black text-[var(--ui-muted)] uppercase tracking-wider font-mono flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="h-1.5 w-1.5 bg-emerald-500" />
               Active Cores ({filteredActiveCores.length})
             </span>
           </div>
@@ -204,9 +204,9 @@ export default function StrategyExplorer({
                   <div
                     key={strat.id}
                     onClick={() => onSelectStrategy(strat.id)}
-                    className={`p-2 rounded border transition-all cursor-pointer flex flex-col gap-1 font-mono group ${
+                    className={`p-2  border  cursor-pointer flex flex-col gap-1 font-mono group ${
                       isSelected 
-                        ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white shadow-md' 
+                        ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white '
                         : 'bg-transparent border-transparent text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/20'
                     }`}
                   >
@@ -218,7 +218,7 @@ export default function StrategyExplorer({
                         {matchRuntimes.map((r, i) => (
                           <span 
                             key={r.id || i}
-                            className={`px-1 py-0.2 text-[7px] font-black rounded uppercase border ${
+                            className={`px-1 py-0.2 text-[7px] font-black  uppercase border ${
                               r.mode?.toLowerCase() === 'live' 
                                 ? 'bg-amber-500/15 text-amber-400 border-amber-500/30' 
                                 : 'bg-blue-500/15 text-blue-400 border-blue-500/30'
@@ -233,7 +233,7 @@ export default function StrategyExplorer({
                     <div className="flex items-center justify-between text-[8.5px] text-[var(--ui-muted)] leading-none mt-0.5">
                       <span>ID: {strat.id.slice(0, 6)}</span>
                       <span className="text-emerald-400 flex items-center gap-1 font-bold">
-                        <Activity size={8} className="animate-pulse" />
+                        <Activity size={8} className="" />
                         RUNNING
                       </span>
                     </div>
@@ -264,9 +264,9 @@ export default function StrategyExplorer({
                   <div
                     key={strat.id}
                     onClick={() => onSelectStrategy(strat.id)}
-                    className={`p-2 rounded border transition-all cursor-pointer flex flex-col gap-1 font-mono group ${
+                    className={`p-2  border  cursor-pointer flex flex-col gap-1 font-mono group ${
                       isSelected 
-                        ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white shadow-md' 
+                        ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white '
                         : 'bg-transparent border-transparent text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/10'
                     }`}
                   >
@@ -274,7 +274,7 @@ export default function StrategyExplorer({
                       <span className="text-[11px] font-semibold truncate group-hover:text-white">
                         {strat.name}
                       </span>
-                      <span className="h-1.5 w-1.5 rounded-full bg-slate-600 shrink-0" />
+                      <span className="h-1.5 w-1.5 bg-slate-600 shrink-0" />
                     </div>
 
                     <div className="flex items-center justify-between text-[8.5px] text-[var(--ui-muted)] leading-none mt-0.5">

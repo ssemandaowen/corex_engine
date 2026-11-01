@@ -45,13 +45,13 @@ export default function EditorPanel({
         { token: 'type', foreground: '38bdf8' },
       ],
       colors: {
-        'editor.background': '#070e20', // Matches --ui-panel
-        'editor.foreground': '#f8fafc', // Matches --ui-text
-        'editorLineNumber.foreground': '#475569',
-        'editorLineNumber.activeForeground': '#1e90ff',
-        'editor.lineHighlightBackground': '#0b1329', // Matches --ui-panel-strong
-        'editor.selectionBackground': '#1e293b',
-        'editorCursor.foreground': '#1e90ff',
+        'editor.background': 'var(--bg-panel)', // Matches --ui-panel
+        'editor.foreground': 'var(--text)', // Matches --ui-text
+        'editorLineNumber.foreground': 'var(--text-dim)',
+        'editorLineNumber.activeForeground': 'var(--accent)',
+        'editor.lineHighlightBackground': 'var(--bg-raised)', // Matches --ui-panel-strong
+        'editor.selectionBackground': 'var(--border)',
+        'editorCursor.foreground': 'var(--accent)',
       },
     });
 
@@ -67,13 +67,13 @@ export default function EditorPanel({
         { token: 'type', foreground: '0369a1' },
       ],
       colors: {
-        'editor.background': '#ffffff', // Matches --ui-panel
-        'editor.foreground': '#0f172a', // Matches --ui-text
-        'editorLineNumber.foreground': '#cbd5e1',
-        'editorLineNumber.activeForeground': '#1e90ff',
-        'editor.lineHighlightBackground': '#f1f5f9', // Matches --ui-panel-strong
-        'editor.selectionBackground': '#e2e8f0',
-        'editorCursor.foreground': '#1e90ff',
+        'editor.background': 'var(--text)', // Matches --ui-panel
+        'editor.foreground': 'var(--border)', // Matches --ui-text
+        'editorLineNumber.foreground': 'var(--border)',
+        'editorLineNumber.activeForeground': 'var(--accent)',
+        'editor.lineHighlightBackground': 'var(--bg-raised)', // Matches --ui-panel-strong
+        'editor.selectionBackground': 'var(--selection)',
+        'editorCursor.foreground': 'var(--accent)',
       },
     });
 
@@ -89,13 +89,13 @@ export default function EditorPanel({
         { token: 'type', foreground: '5fa5d5' },
       ],
       colors: {
-        'editor.background': '#20242c', // Matches --ui-panel
-        'editor.foreground': '#e0e1e5', // Matches --ui-text
-        'editorLineNumber.foreground': '#5b5f6c',
-        'editorLineNumber.activeForeground': '#478cbf',
-        'editor.lineHighlightBackground': '#2a2e37', // Matches --ui-panel-strong
-        'editor.selectionBackground': '#3f4756',
-        'editorCursor.foreground': '#478cbf',
+        'editor.background': 'var(--bg-panel)', // Matches --ui-panel
+        'editor.foreground': 'var(--text)', // Matches --ui-text
+        'editorLineNumber.foreground': 'var(--text-dim)',
+        'editorLineNumber.activeForeground': 'var(--accent)',
+        'editor.lineHighlightBackground': 'var(--bg-raised)', // Matches --ui-panel-strong
+        'editor.selectionBackground': 'var(--border-strong)',
+        'editorCursor.foreground': 'var(--accent)',
       },
     });
 
@@ -111,13 +111,13 @@ export default function EditorPanel({
         { token: 'type', foreground: '478cbf' },
       ],
       colors: {
-        'editor.background': '#f5f6f7', // Matches --ui-panel
-        'editor.foreground': '#24292e', // Matches --ui-text
-        'editorLineNumber.foreground': '#ccd0d5',
-        'editorLineNumber.activeForeground': '#478cbf',
-        'editor.lineHighlightBackground': '#dfe1e5', // Matches --ui-panel-strong
-        'editor.selectionBackground': '#b0b5bc',
-        'editorCursor.foreground': '#478cbf',
+        'editor.background': 'var(--bg-panel)', // Matches --ui-panel
+        'editor.foreground': 'var(--text)', // Matches --ui-text
+        'editorLineNumber.foreground': 'var(--border)',
+        'editorLineNumber.activeForeground': 'var(--accent)',
+        'editor.lineHighlightBackground': 'var(--bg-raised)', // Matches --ui-panel-strong
+        'editor.selectionBackground': 'var(--border-strong)',
+        'editorCursor.foreground': 'var(--accent)',
       },
     });
 
@@ -170,7 +170,7 @@ export default function EditorPanel({
         theme={getThemeName()}
         loading={
           <div className="flex flex-col items-center justify-center text-xs text-[var(--ui-muted)] gap-2 h-full bg-[var(--ui-panel)]">
-            <span className="w-5 h-5 border-2 border-[var(--ui-border)] border-t-[var(--ui-accent)] rounded-full animate-spin" />
+            <span className="w-5 h-5 border-2 border-[var(--ui-border)] border-t-[var(--ui-accent)]" />
             Loading Code Compiler...
           </div>
         }

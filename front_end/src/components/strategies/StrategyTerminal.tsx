@@ -95,7 +95,7 @@ export default function StrategyTerminal({
           {/* Pause/Resume */}
           <button 
             onClick={() => setIsPaused(!isPaused)}
-            className={`p-1 rounded hover:bg-[var(--ui-panel-soft)] transition-colors cursor-pointer text-xs font-mono font-bold flex items-center gap-1 ${isPaused ? 'text-[var(--ui-warning)]' : 'text-[var(--ui-muted)]'}`}
+            className={`p-1  hover:bg-[var(--ui-panel-soft)]  cursor-pointer text-xs font-mono font-bold flex items-center gap-1 ${isPaused ? 'text-[var(--ui-warning)]' : 'text-[var(--ui-muted)]'}`}
             title={isPaused ? "Resume Stream" : "Pause Stream"}
           >
             {isPaused ? <Play size={11} /> : <Pause size={11} />}
@@ -107,7 +107,7 @@ export default function StrategyTerminal({
           {/* Copy logs */}
           <button 
             onClick={handleCopy}
-            className="p-1 rounded text-[var(--ui-muted)] hover:text-[var(--ui-accent)] transition-colors hover:bg-[var(--ui-panel-soft)] cursor-pointer"
+            className="p-1 text-[var(--ui-muted)] hover:text-[var(--ui-accent)] hover:bg-[var(--ui-panel-soft)] cursor-pointer"
             title="Copy Filtered Logs"
           >
             <Copy size={11} />
@@ -116,7 +116,7 @@ export default function StrategyTerminal({
           {/* Download logs */}
           <button 
             onClick={handleDownload}
-            className="p-1 rounded text-[var(--ui-muted)] hover:text-emerald-400 transition-colors hover:bg-[var(--ui-panel-soft)] cursor-pointer"
+            className="p-1 text-[var(--ui-muted)] hover:text-emerald-400 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
             title="Download Logs"
           >
             <Download size={11} />
@@ -125,7 +125,7 @@ export default function StrategyTerminal({
           {/* Timestamp Toggle */}
           <button 
             onClick={() => setShowTimestamp(!showTimestamp)}
-            className={`p-1 rounded transition-colors hover:bg-[var(--ui-panel-soft)] cursor-pointer ${showTimestamp ? 'text-[var(--ui-accent)]' : 'text-[var(--ui-muted)]'}`}
+            className={`p-1   hover:bg-[var(--ui-panel-soft)] cursor-pointer ${showTimestamp ? 'text-[var(--ui-accent)]' : 'text-[var(--ui-muted)]'}`}
             title="Toggle Timestamps"
           >
             <Clock size={11} />
@@ -134,7 +134,7 @@ export default function StrategyTerminal({
           {/* Clear logs */}
           <button 
             onClick={onClear}
-            className="p-1 rounded text-[var(--ui-muted)] hover:text-red-500 transition-colors hover:bg-[var(--ui-panel-soft)] cursor-pointer"
+            className="p-1 text-[var(--ui-muted)] hover:text-red-500 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
             title="Clear Logs"
           >
             <Trash2 size={11} />
@@ -147,7 +147,7 @@ export default function StrategyTerminal({
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`text-[8px] px-1.5 py-0.5 rounded font-mono font-bold border transition-colors cursor-pointer ${
+              className={`text-[8px] px-1.5 py-0.5  font-mono font-bold border  cursor-pointer ${
                 filter === f 
                   ? 'bg-[var(--ui-accent)] text-white border-[var(--ui-accent)]' 
                   : 'bg-transparent text-[var(--ui-muted)] border-[var(--ui-border)]'
@@ -164,13 +164,13 @@ export default function StrategyTerminal({
         {filteredLogs.length > 0 ? (
           <>
             {filteredLogs.map((log) => (
-              <div key={log.id} className="flex items-start gap-2 hover:bg-white/5 p-0.5 rounded transition-colors">
+              <div key={log.id} className="flex items-start gap-2 hover:bg-white/5 p-0.5">
                 {showTimestamp && (
                   <span className="text-[var(--ui-muted)] select-none shrink-0">
                     [{log.timestamp}]
                   </span>
                 )}
-                <span className={`px-1 rounded border text-[8px] font-black leading-none py-0.5 mt-0.5 shrink-0 ${getLogBadgeStyle(log.level)}`}>
+                <span className={`px-1  border text-[8px] font-black leading-none py-0.5 mt-0.5 shrink-0 ${getLogBadgeStyle(log.level)}`}>
                   {log.level}
                 </span>
                 <span className="text-[var(--ui-text)] break-all flex-1 font-mono tracking-tight font-medium">
@@ -182,7 +182,7 @@ export default function StrategyTerminal({
           </>
         ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-center text-[var(--ui-muted)]">
-            <span className="animate-ping mb-1">_</span>
+            <span className="mb-1">_</span>
             <p className="text-[10px] uppercase tracking-wider">
               {isPaused ? 'Log stream paused' : 'Terminal output stream listening for transactions...'}
             </p>
@@ -193,7 +193,7 @@ export default function StrategyTerminal({
       {/* Toast alert indicator on copy */}
       {isCopied && (
         <div 
-          className="absolute right-4 bottom-4 px-2 py-1 rounded text-[10px] font-sans border font-bold uppercase tracking-wider text-emerald-400"
+          className="absolute right-4 bottom-4 px-2 py-1 text-[10px] font-sans border font-bold uppercase tracking-wider text-emerald-400"
           style={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)' }}
         >
           Copied to clipboard!

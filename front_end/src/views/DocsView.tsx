@@ -35,7 +35,7 @@ export default function DocsView() {
           </p>
 
           <h3 className="text-xs font-bold text-sky-400 mt-4">CORE CYCLE ARCHITECTURE</h3>
-          <pre className="p-3 rounded bg-[var(--ui-terminal-bg)] border border-[var(--ui-border)] font-mono text-[10px] text-white overflow-x-auto leading-normal">
+          <pre className="p-3 bg-[var(--ui-terminal-bg)] border border-[var(--ui-border)] font-mono text-[10px] text-white overflow-x-auto leading-normal">
 {`   [TICKS FEED CHANNELS]
              │
              ▼
@@ -62,28 +62,28 @@ export default function DocsView() {
           </p>
 
           <div className="space-y-3 pt-2">
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-sky-400 font-bold">buy(quantity)</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Dispatches a Market Buy order for the strategy symbol immediately. Returns void.
               </p>
             </div>
 
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-sky-400 font-bold">sell(quantity)</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Dispatches a Market Sell order (or closes long positions). Returns void.
               </p>
             </div>
 
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-sky-400 font-bold">log(message)</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Appends a custom log line to the Strategy Terminal. Output is color-coded automatically.
               </p>
             </div>
 
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-sky-400 font-bold">isLong() / isShort()</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Checks if the active container currently holds an active buy or sell margin.
@@ -105,21 +105,21 @@ export default function DocsView() {
           </p>
 
           <div className="space-y-3 pt-2">
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-emerald-400 font-bold">ema(bar, period)</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Calculates Exponential Moving Average over a period. e.g. <code className="text-white">const ma = ema(bar, 20);</code>
               </p>
             </div>
 
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-emerald-400 font-bold">rsi(bar, period)</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Calculates Relative Strength Index oscillators. Returns value between 0 and 100.
               </p>
             </div>
 
-            <div className="p-3 rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
+            <div className="p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)]">
               <span className="font-mono text-xs text-emerald-400 font-bold">macd(bar, fast, slow, signal)</span>
               <p className="text-[10px] text-[var(--ui-muted)] mt-1">
                 Calculates MACD indicators, returning a structured object: <code className="text-white">{`{ macd: number, signal: number, hist: number }`}</code>.
@@ -140,7 +140,7 @@ export default function DocsView() {
             This strategy demonstrates buying EURUSD when RSI drops beneath 30 (oversold conditions) and closing/selling once it crosses above 70:
           </p>
 
-          <pre className="p-3 rounded bg-[var(--ui-terminal-bg)] border border-[var(--ui-border)] font-mono text-[10px] text-emerald-400 overflow-x-auto leading-relaxed">
+          <pre className="p-3 bg-[var(--ui-terminal-bg)] border border-[var(--ui-border)] font-mono text-[10px] text-emerald-400 overflow-x-auto leading-relaxed">
 {`function onBar(bar) {
   // 1. Calculate RSI oscillator
   const value = rsi(bar, 14);
@@ -209,7 +209,7 @@ export default function DocsView() {
                       <button
                         key={art.id}
                         onClick={() => setActiveDocId(art.id)}
-                        className={`py-1.5 px-3 md:py-1 md:px-2.5 rounded text-[11px] font-bold transition-all flex items-center justify-between cursor-pointer text-nowrap shrink-0 ${
+                        className={`py-1.5 px-3 md:py-1 md:px-2.5  text-[11px] font-bold  flex items-center justify-between cursor-pointer text-nowrap shrink-0 ${
                           isActive 
                             ? 'bg-[var(--ui-panel-soft)] text-white font-black border-l-0 md:border-l-2 border-b-2 md:border-b-0 border-[var(--ui-accent)]' 
                             : 'text-[var(--ui-muted)] hover:text-white border-b-2 border-transparent md:border-b-0'
@@ -230,7 +230,7 @@ export default function DocsView() {
       {/* Right side page display */}
       <div className="flex-1 p-4 md:p-6 overflow-y-auto max-w-4xl bg-[var(--ui-bg)]">
         <div 
-          className="p-4 md:p-6 rounded-xl border space-y-4 bg-[var(--ui-panel)]"
+          className="p-4 md:p-6 border space-y-4 bg-[var(--ui-panel)]"
           style={{ borderColor: 'var(--ui-border)' }}
         >
           {activeDoc.content}

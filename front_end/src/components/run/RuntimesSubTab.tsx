@@ -246,7 +246,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                 placeholder="Search runtime/symbol..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full text-xs py-1.5 pl-8 pr-2.5 rounded border focus:outline-none"
+                className="w-full text-xs py-1.5 pl-8 pr-2.5 border focus:outline-none"
                 style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
               />
             </div>
@@ -254,12 +254,12 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
             <div className="w-px h-4 bg-[var(--ui-border)] hidden md:block" />
 
             {/* Mode filters */}
-            <div className="flex rounded border bg-[var(--ui-input-bg)] overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
+            <div className="flex border bg-[var(--ui-input-bg)] overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
               {(['ALL', 'PAPER', 'LIVE'] as const).map(m => (
                 <button
                   key={m}
                   onClick={() => setModeFilter(m)}
-                  className={`px-2.5 py-1 text-[9px] font-bold uppercase transition-colors cursor-pointer border-r last:border-r-0 ${
+                  className={`px-2.5 py-1 text-[9px] font-bold uppercase  cursor-pointer border-r last:border-r-0 ${
                     modeFilter === m ? 'bg-[var(--ui-accent)] text-white' : 'text-[var(--ui-muted)] hover:text-white'
                   }`}
                   style={{ borderColor: 'var(--ui-border)' }}
@@ -270,12 +270,12 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
             </div>
 
             {/* Status filters */}
-            <div className="flex rounded border bg-[var(--ui-input-bg)] overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
+            <div className="flex border bg-[var(--ui-input-bg)] overflow-hidden" style={{ borderColor: 'var(--ui-border)' }}>
               {(['ALL', 'RUNNING', 'STOPPED'] as const).map(s => (
                 <button
                   key={s}
                   onClick={() => setStatusFilter(s)}
-                  className={`px-2.5 py-1 text-[9px] font-bold uppercase transition-colors cursor-pointer border-r last:border-r-0 ${
+                  className={`px-2.5 py-1 text-[9px] font-bold uppercase  cursor-pointer border-r last:border-r-0 ${
                     statusFilter === s ? 'bg-[var(--ui-accent)] text-white' : 'text-[var(--ui-muted)] hover:text-white'
                   }`}
                   style={{ borderColor: 'var(--ui-border)' }}
@@ -290,9 +290,9 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
             {/* Toggle Launcher Button */}
             <button
               onClick={() => setIsLauncherOpen(!isLauncherOpen)}
-              className="px-2.5 py-1.5 rounded text-[9px] font-sans font-bold uppercase tracking-wider border cursor-pointer select-none transition-all flex items-center gap-1.5"
+              className="px-2.5 py-1.5 text-[9px] font-sans font-bold uppercase tracking-wider border cursor-pointer select-none flex items-center gap-1.5"
               style={{
-                backgroundColor: isLauncherOpen ? 'rgba(30, 144, 255, 0.1)' : 'rgba(255, 255, 255, 0.02)',
+                backgroundColor: isLauncherOpen ? 'var(--bg-raised)' : 'var(--bg-raised)',
                 borderColor: isLauncherOpen ? 'var(--ui-accent)' : 'var(--ui-border)',
                 color: isLauncherOpen ? 'var(--ui-text)' : 'var(--ui-muted)'
               }}
@@ -303,11 +303,11 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
 
             <button 
               onClick={fetchInstances}
-              className="p-1.5 rounded hover:bg-[var(--ui-panel-soft)] border text-[var(--ui-muted)] hover:text-white cursor-pointer"
+              className="p-1.5 hover:bg-[var(--ui-panel-soft)] border text-[var(--ui-muted)] hover:text-white cursor-pointer"
               style={{ borderColor: 'var(--ui-border)' }}
               title="Manual refresh"
             >
-              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={12} className={loading ? '' : ''} />
             </button>
           </div>
         </div>
@@ -323,7 +323,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                 return (
                   <div 
                     key={inst.id}
-                    className="rounded-xl border p-4 bg-[var(--ui-panel)] flex flex-col justify-between hover:border-[var(--ui-accent)] transition-all group"
+                    className="border p-4 bg-[var(--ui-panel)] flex flex-col justify-between hover:border-[var(--ui-accent)] group"
                     style={{ borderColor: 'var(--ui-border)' }}
                   >
                     <div>
@@ -337,7 +337,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                             <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[var(--ui-accent)]">
                               {inst.symbol}
                             </span>
-                            <span className={`text-[8px] font-bold uppercase px-1 rounded border leading-none py-0.5 ${getModeBadge(inst.mode)}`}>
+                            <span className={`text-[8px] font-bold uppercase px-1  border leading-none py-0.5 ${getModeBadge(inst.mode)}`}>
                               {inst.mode}
                             </span>
                           </div>
@@ -345,8 +345,8 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
 
                         {/* Status light */}
                         <span className="flex h-2 w-2 relative">
-                          <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isRunning ? 'bg-emerald-400' : 'bg-red-400'}`} />
-                          <span className={`relative inline-flex rounded-full h-2 w-2 ${isRunning ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          <span className={` absolute inline-flex h-full w-full  opacity-75 ${isRunning ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                          <span className={`relative inline-flex  h-2 w-2 ${isRunning ? 'bg-emerald-500' : 'bg-red-500'}`} />
                         </span>
                       </div>
 
@@ -354,7 +354,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                       <div className="mt-4 space-y-2 border-t border-[var(--ui-border)]/50 pt-3">
                         <div className="flex justify-between items-center text-[10px]">
                           <span style={{ color: 'var(--ui-muted)' }}>CURRENT HOLDING:</span>
-                          <span className={`px-1 rounded border text-[9px] ${getPositionBadge(inst.position)}`}>
+                          <span className={`px-1  border text-[9px] ${getPositionBadge(inst.position)}`}>
                             {inst.position}
                           </span>
                         </div>
@@ -393,7 +393,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                       {/* Monitor View */}
                       <button
                         onClick={() => onMonitorRuntime(inst.id)}
-                        className="flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded border border-[var(--ui-accent)]/30 text-[var(--ui-accent)] hover:bg-[var(--ui-accent)] hover:text-white transition-all cursor-pointer flex items-center justify-center gap-1"
+                        className="flex-1 py-1 text-[9px] font-bold uppercase tracking-wider border border-[var(--ui-accent)]/30 text-[var(--ui-accent)] hover:bg-[var(--ui-accent)] hover:text-white cursor-pointer flex items-center justify-center gap-1"
                       >
                         <Eye size={10} />
                         MONITOR
@@ -403,7 +403,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                       {isRunning && (
                         <button
                           onClick={() => handleStop(inst.id, inst.name)}
-                          className="p-1.5 rounded border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-colors cursor-pointer"
+                          className="p-1.5 border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white cursor-pointer"
                           title="Halt connection"
                         >
                           <Square size={10} />
@@ -415,8 +415,8 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
               })}
             </div>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center border border-dashed rounded-xl p-8 h-full" style={{ borderColor: 'var(--ui-border)' }}>
-              <Activity size={48} className="text-[var(--ui-muted)] animate-pulse mb-3" />
+            <div className="flex-1 flex flex-col items-center justify-center border border-dashed p-8 h-full" style={{ borderColor: 'var(--ui-border)' }}>
+              <Activity size={48} className="text-[var(--ui-muted)] mb-3" />
               <h3 className="text-sm font-display font-black uppercase tracking-wider text-[var(--ui-text)] mb-1">
                 Registry Container Empty
               </h3>
@@ -430,7 +430,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
 
       {/* STRATEGY LAUNCHER SIDE-PANE */}
       <div 
-        className="border-l border-[var(--ui-border)] flex flex-col h-full bg-[var(--ui-panel-strong)] overflow-hidden transition-all duration-300 ease-in-out shrink-0"
+        className="border-l border-[var(--ui-border)] flex flex-col h-full bg-[var(--ui-panel-strong)] overflow-hidden shrink-0"
         style={{ 
           width: isLauncherOpen ? '320px' : '0px',
           opacity: isLauncherOpen ? 1 : 0
@@ -445,7 +445,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
           </div>
           <button 
             onClick={() => setIsLauncherOpen(false)}
-            className="text-[10px] text-[var(--ui-muted)] hover:text-white transition-colors font-bold cursor-pointer"
+            className="text-[10px] text-[var(--ui-muted)] hover:text-white font-bold cursor-pointer"
           >
             HIDE
           </button>
@@ -453,7 +453,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
 
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {localStrategies.length === 0 ? (
-            <div className="text-center p-4 border border-dashed rounded-lg border-[var(--ui-border)] text-[var(--ui-muted)]">
+            <div className="text-center p-4 border border-dashed border-[var(--ui-border)] text-[var(--ui-muted)]">
               <span className="text-xs uppercase tracking-wider font-bold block mb-1">No Strategy Templates</span>
               <p className="text-[10px]">Create or upload strategies in the Strategy Library tab first.</p>
             </div>
@@ -467,7 +467,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                 <select
                   value={selectedLauncherStratId}
                   onChange={(e) => setSelectedLauncherStratId(e.target.value)}
-                  className="w-full text-xs p-2 rounded border focus:outline-none cursor-pointer"
+                  className="w-full text-xs p-2 border focus:outline-none cursor-pointer"
                   style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                 >
                   {localStrategies.map(strat => (
@@ -489,7 +489,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                     value={launchSymbol}
                     onChange={(e) => setLaunchSymbol(e.target.value.toUpperCase())}
                     placeholder="EURUSD"
-                    className="flex-1 text-xs p-2 rounded border focus:outline-none font-mono"
+                    className="flex-1 text-xs p-2 border focus:outline-none font-mono"
                     style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                   />
                   {/* Preset Quick Chips */}
@@ -497,7 +497,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                     <select
                       onChange={(e) => setLaunchSymbol(e.target.value)}
                       value={['EURUSD', 'GBPUSD', 'USDJPY', 'BTCUSD', 'ETHUSD'].includes(launchSymbol) ? launchSymbol : ''}
-                      className="text-[9px] px-1 py-1 rounded border bg-[var(--ui-panel-soft)] focus:outline-none"
+                      className="text-[9px] px-1 py-1 border bg-[var(--ui-panel-soft)] focus:outline-none"
                       style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-muted)' }}
                     >
                       <option value="" disabled>Presets</option>
@@ -516,11 +516,11 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                 <label className="text-[9px] uppercase tracking-wider font-bold" style={{ color: 'var(--ui-muted)' }}>
                   EXECUTION ENVIRONMENT
                 </label>
-                <div className="flex rounded border overflow-hidden bg-[var(--ui-input-bg)]" style={{ borderColor: 'var(--ui-border)' }}>
+                <div className="flex border overflow-hidden bg-[var(--ui-input-bg)]" style={{ borderColor: 'var(--ui-border)' }}>
                   <button
                     type="button"
                     onClick={() => setLaunchMode('PAPER')}
-                    className={`flex-1 py-1.5 text-[9px] font-bold uppercase cursor-pointer transition-colors ${
+                    className={`flex-1 py-1.5 text-[9px] font-bold uppercase cursor-pointer  ${
                       launchMode === 'PAPER' ? 'bg-[var(--ui-accent)] text-white' : 'text-[var(--ui-muted)] hover:text-white'
                     }`}
                   >
@@ -529,7 +529,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                   <button
                     type="button"
                     onClick={() => setLaunchMode('LIVE')}
-                    className={`flex-1 py-1.5 text-[9px] font-bold uppercase cursor-pointer transition-colors ${
+                    className={`flex-1 py-1.5 text-[9px] font-bold uppercase cursor-pointer  ${
                       launchMode === 'LIVE' ? 'bg-amber-500 text-white' : 'text-[var(--ui-muted)] hover:text-white'
                     }`}
                   >
@@ -563,11 +563,11 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                             <button
                               type="button"
                               onClick={() => updateParam(!currentVal)}
-                              className="w-8 h-4.5 rounded-full p-0.5 transition-all cursor-pointer relative"
+                              className="w-8 h-4.5 p-0.5 cursor-pointer relative"
                               style={{ backgroundColor: currentVal ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                             >
                               <div 
-                                className="w-3.5 h-3.5 rounded-full bg-white transition-transform duration-200"
+                                className="w-3.5 h-3.5 bg-white"
                                 style={{ transform: currentVal ? 'translateX(14px)' : 'translateX(0)' }}
                               />
                             </button>
@@ -576,7 +576,7 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                           <select
                             value={currentVal}
                             onChange={(e) => updateParam(e.target.value)}
-                            className="w-full text-[10px] p-1.5 rounded border focus:outline-none"
+                            className="w-full text-[10px] p-1.5 border focus:outline-none"
                             style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                           >
                             {config.enum.map((option: string) => (
@@ -592,14 +592,14 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                               step={config.type === 'number' ? 0.1 : 1}
                               value={currentVal || 0}
                               onChange={(e) => updateParam(config.type === 'number' ? parseFloat(e.target.value) : parseInt(e.target.value))}
-                              className="flex-1 accent-[var(--ui-accent)] h-1 rounded cursor-pointer"
+                              className="flex-1 accent-[var(--ui-accent)] h-1 cursor-pointer"
                               style={{ backgroundColor: 'var(--ui-border)' }}
                             />
                             <input
                               type="number"
                               value={currentVal || 0}
                               onChange={(e) => updateParam(config.type === 'number' ? parseFloat(e.target.value) : parseInt(e.target.value))}
-                              className="w-10 p-0.5 rounded border text-[10px] text-center font-mono"
+                              className="w-10 p-0.5 border text-[10px] text-center font-mono"
                               style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                             />
                           </div>
@@ -616,12 +616,12 @@ export default function RuntimesSubTab({ onMonitorRuntime }: RuntimesSubTabProps
                   type="button"
                   onClick={handleLaunch}
                   disabled={isDeploying}
-                  className="w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider text-white shadow-md transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 text-xs font-bold uppercase tracking-wider text-white flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                   style={{
                     backgroundColor: launchMode === 'LIVE' ? 'var(--ui-warning)' : 'var(--ui-accent)',
                   }}
                 >
-                  <Play size={12} className={isDeploying ? 'animate-spin' : ''} />
+                  <Play size={12} className={isDeploying ? '' : ''} />
                   {isDeploying ? 'DEPLOYING TO ENGINE...' : 'DEPLOY & START INSTANCE'}
                 </button>
               </div>

@@ -405,7 +405,7 @@ export default function StrategyView() {
     >
       {/* 1. LEFT PANE: Strategy list */}
       <div 
-        className="shrink-0 border-r flex flex-col h-full bg-[var(--ui-sidebar-bg)] overflow-hidden transition-all duration-300"
+        className="shrink-0 border-r flex flex-col h-full bg-[var(--ui-sidebar-bg)] overflow-hidden"
         style={{ 
           width: isLibraryOpen ? '240px' : '0px',
           borderColor: isLibraryOpen ? 'var(--ui-border)' : 'transparent',
@@ -415,7 +415,7 @@ export default function StrategyView() {
         <div className="p-3 border-b border-[var(--ui-border)] flex flex-col gap-2 shrink-0">
           <button 
             onClick={handleCreate}
-            className="w-full py-1.5 rounded text-xs font-bold uppercase tracking-widest text-white flex items-center justify-center gap-1 cursor-pointer hover:opacity-95"
+            className="w-full py-1.5 text-xs font-bold uppercase tracking-widest text-white flex items-center justify-center gap-1 cursor-pointer hover:opacity-95"
             style={{ backgroundColor: 'var(--ui-accent)' }}
           >
             <Plus size={14} />
@@ -430,7 +430,7 @@ export default function StrategyView() {
               placeholder="Filter by keyword..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs py-1.5 pl-8 pr-2.5 rounded border text-[var(--ui-text)] focus:outline-none"
+              className="w-full text-xs py-1.5 pl-8 pr-2.5 border text-[var(--ui-text)] focus:outline-none"
               style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
             />
           </div>
@@ -446,7 +446,7 @@ export default function StrategyView() {
               return (
                 <div
                   key={strat.id}
-                  className="group relative p-2.5 rounded border transition-colors cursor-pointer"
+                  className="group relative p-2.5 border cursor-pointer"
                   onClick={() => setSelectedStrategyId(strat.id)}
                   style={{
                     backgroundColor: isSelected ? 'var(--ui-panel-soft)' : 'transparent',
@@ -459,9 +459,9 @@ export default function StrategyView() {
                     </span>
                     {/* Status badge pill */}
                     <span 
-                      className={`text-[8px] font-black uppercase px-1 py-0.2 rounded border shrink-0 ${
+                      className={`text-[8px] font-black uppercase px-1 py-0.2  border shrink-0 ${
                         isRunning 
-                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25 animate-pulse' 
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25 '
                           : 'bg-slate-500/10 text-slate-400 border-slate-500/25'
                       }`}
                     >
@@ -474,7 +474,7 @@ export default function StrategyView() {
                   </span>
 
                   {/* Compact Quick Actions Row */}
-                  <div className={`mt-2 flex items-center gap-1.5 transition-all overflow-hidden ${
+                  <div className={`mt-2 flex items-center gap-1.5  overflow-hidden ${
                     isSelected ? 'max-h-8 opacity-100' : 'max-h-0 opacity-0 group-hover:max-h-8 group-hover:opacity-100'
                   }`}>
                     {isRunning ? (
@@ -492,7 +492,7 @@ export default function StrategyView() {
                               showToast('Error sending halt interrupt', 'error');
                             }
                           }}
-                          className="flex-1 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 hover:bg-red-500 hover:text-white transition-all cursor-pointer border border-red-500/20 text-center"
+                          className="flex-1 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-red-500/15 text-red-400 hover:bg-red-500 hover:text-white cursor-pointer border border-red-500/20 text-center"
                           title="Halt active thread"
                         >
                           Halt
@@ -506,7 +506,7 @@ export default function StrategyView() {
                               detail: { tab: 'run', subTab: 'monitor', runtimeId } 
                             }));
                           }}
-                          className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase bg-blue-500/15 text-blue-400 hover:bg-blue-500 hover:text-white transition-all cursor-pointer border border-blue-500/20 text-center"
+                          className="px-1.5 py-0.5 text-[8px] font-bold uppercase bg-blue-500/15 text-blue-400 hover:bg-blue-500 hover:text-white cursor-pointer border border-blue-500/20 text-center"
                           title="View Live Performance Monitor"
                         >
                           Monitor
@@ -532,7 +532,7 @@ export default function StrategyView() {
                             showToast(err.response?.data?.error || 'Failed to connect to engine', 'error');
                           }
                         }}
-                        className="flex-1 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer border border-emerald-500/20 text-center"
+                        className="flex-1 py-0.5 text-[8px] font-bold uppercase tracking-wider bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-white cursor-pointer border border-emerald-500/20 text-center"
                         title="Spin up paper sandbox container"
                       >
                         Start Sandbox
@@ -546,7 +546,7 @@ export default function StrategyView() {
                       e.stopPropagation();
                       handleDelete(strat.id, strat.name);
                     }}
-                    className="absolute right-1 top-2.5 p-1 rounded hover:bg-red-500/10 hover:text-red-500 text-[var(--ui-muted)] cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute right-1 top-2.5 p-1 hover:bg-red-500/10 hover:text-red-500 text-[var(--ui-muted)] cursor-pointer opacity-0 group-hover:opacity-100"
                     title="Delete assembly"
                   >
                     <Trash2 size={11} />
@@ -573,7 +573,7 @@ export default function StrategyView() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsLibraryOpen(!isLibraryOpen)}
-              className="p-1 rounded text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)] transition-colors cursor-pointer mr-1"
+              className="p-1 text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)] cursor-pointer mr-1"
               title={isLibraryOpen ? "Collapse Strategy Library" : "Expand Strategy Library"}
             >
               {isLibraryOpen ? <ChevronsLeft size={14} /> : <ChevronsRight size={14} />}
@@ -597,7 +597,7 @@ export default function StrategyView() {
               {/* Terminal collapse/expand toggle */}
               <button
                 onClick={() => setIsTerminalOpen(!isTerminalOpen)}
-                className={`px-2 py-1 rounded border transition-colors cursor-pointer flex items-center gap-1.5 text-[10px] font-bold ${
+                className={`px-2 py-1  border  cursor-pointer flex items-center gap-1.5 text-[10px] font-bold ${
                   isTerminalOpen 
                     ? 'text-[var(--ui-accent)] border-[var(--ui-accent)]/30 bg-[var(--ui-panel-soft)]' 
                     : 'text-[var(--ui-muted)] border-[var(--ui-border)] hover:text-white hover:bg-[var(--ui-panel-soft)]'
@@ -610,7 +610,7 @@ export default function StrategyView() {
 
               <button
                 onClick={handleSave}
-                className="px-2 py-1 text-[10px] font-bold rounded border cursor-pointer flex items-center gap-1 transition-colors hover:bg-[var(--ui-panel-soft)] text-emerald-400 border-emerald-500/30"
+                className="px-2 py-1 text-[10px] font-bold border cursor-pointer flex items-center gap-1 hover:bg-[var(--ui-panel-soft)] text-emerald-400 border-emerald-500/30"
                 title="Compile and Save Code (Ctrl + S)"
               >
                 <Save size={12} />
@@ -619,7 +619,7 @@ export default function StrategyView() {
 
               <button
                 onClick={() => setIsEditorConfigOpen(!isEditorConfigOpen)}
-                className={`px-2 py-1 text-[10px] font-bold rounded border cursor-pointer flex items-center gap-1 transition-colors ${
+                className={`px-2 py-1 text-[10px] font-bold  border cursor-pointer flex items-center gap-1  ${
                   isEditorConfigOpen 
                     ? 'text-[var(--ui-accent)] border-[var(--ui-accent)]/40 bg-[var(--ui-panel-soft)]' 
                     : 'text-[var(--ui-muted)] border-[var(--ui-border)] hover:text-white hover:bg-[var(--ui-panel-soft)]'
@@ -635,7 +635,7 @@ export default function StrategyView() {
               {activeStrat.status === 'running' ? (
                 <button
                   onClick={handleStop}
-                  className="px-2 py-1 text-[10px] font-bold rounded border cursor-pointer flex items-center gap-1 transition-colors hover:bg-[var(--ui-panel-soft)] text-red-500 border-red-500/30"
+                  className="px-2 py-1 text-[10px] font-bold border cursor-pointer flex items-center gap-1 hover:bg-[var(--ui-panel-soft)] text-red-500 border-red-500/30"
                   title="Stop Sandbox runtime"
                 >
                   <Square size={12} />
@@ -645,7 +645,7 @@ export default function StrategyView() {
                 <>
                   <button
                     onClick={() => handleStart('PAPER')}
-                    className="px-2 py-1 text-[10px] font-bold rounded border cursor-pointer flex items-center gap-1 transition-colors hover:bg-[var(--ui-panel-soft)] text-blue-400 border-blue-500/30"
+                    className="px-2 py-1 text-[10px] font-bold border cursor-pointer flex items-center gap-1 hover:bg-[var(--ui-panel-soft)] text-blue-400 border-blue-500/30"
                     title="Start Paper testing"
                   >
                     <Play size={11} />
@@ -653,7 +653,7 @@ export default function StrategyView() {
                   </button>
                   <button
                     onClick={() => handleStart('LIVE')}
-                    className="px-2 py-1 text-[10px] font-bold rounded border cursor-pointer flex items-center gap-1 transition-colors hover:bg-[var(--ui-panel-soft)] text-amber-500 border-amber-500/30 font-black"
+                    className="px-2 py-1 text-[10px] font-bold border cursor-pointer flex items-center gap-1 hover:bg-[var(--ui-panel-soft)] text-amber-500 border-amber-500/30 font-black"
                     title="Execute live connection!"
                   >
                     <Play size={11} />
@@ -669,11 +669,11 @@ export default function StrategyView() {
         <div className="flex-1 min-h-0 relative">
           {isEditorConfigOpen && (
             <div 
-              className="absolute right-4 top-2 z-40 w-64 p-3.5 rounded border shadow-2xl flex flex-col gap-3 select-none text-left"
+              className="absolute right-4 top-2 z-40 w-64 p-3.5 border flex flex-col gap-3 select-none text-left"
               style={{ 
                 backgroundColor: 'var(--ui-panel)', 
                 borderColor: 'var(--ui-border)',
-                boxShadow: 'var(--ui-shadow)',
+                boxShadow: 'var(--ui-)',
                 color: 'var(--ui-text)'
               }}
             >
@@ -693,7 +693,7 @@ export default function StrategyView() {
                 <select
                   value={editorTheme}
                   onChange={(e) => setEditorTheme(e.target.value as any)}
-                  className="text-[10px] p-1.5 rounded border focus:outline-none cursor-pointer bg-[var(--ui-input-bg)] text-[var(--ui-text)]"
+                  className="text-[10px] p-1.5 border focus:outline-none cursor-pointer bg-[var(--ui-input-bg)] text-[var(--ui-text)]"
                   style={{ borderColor: 'var(--ui-border)' }}
                 >
                   <option value="corex-dark">CoreX Twilight (Dark)</option>
@@ -716,7 +716,7 @@ export default function StrategyView() {
                   max="20" 
                   value={editorFontSize}
                   onChange={(e) => setEditorFontSize(parseInt(e.target.value))}
-                  className="w-full accent-[var(--ui-accent)] cursor-pointer h-1 rounded"
+                  className="w-full accent-[var(--ui-accent)] cursor-pointer h-1"
                   style={{ backgroundColor: 'var(--ui-border)' }}
                 />
               </div>
@@ -729,7 +729,7 @@ export default function StrategyView() {
                     <button
                       key={size}
                       onClick={() => setEditorTabSize(size)}
-                      className={`py-1 text-[10px] font-bold rounded border cursor-pointer transition-colors ${
+                      className={`py-1 text-[10px] font-bold  border cursor-pointer  ${
                         editorTabSize === size
                           ? 'border-[var(--ui-accent)] text-[var(--ui-accent)] bg-[var(--ui-accent)]/10 font-black'
                           : 'border-transparent text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]'
@@ -748,10 +748,10 @@ export default function StrategyView() {
                   <span className="text-[10px] font-bold text-[var(--ui-muted)] uppercase">Word Wrap</span>
                   <button
                     onClick={() => setEditorWordWrap(!editorWordWrap)}
-                    className="w-7 h-4 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-7 h-4 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: editorWordWrap ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-3 h-3 rounded-full bg-white transition-transform ${editorWordWrap ? 'translate-x-3' : 'translate-x-0'}`} />
+                    <div className={`w-3 h-3  bg-white  ${editorWordWrap ? 'translate-x-3' : 'translate-x-0'}`} />
                   </button>
                 </div>
 
@@ -760,10 +760,10 @@ export default function StrategyView() {
                   <span className="text-[10px] font-bold text-[var(--ui-muted)] uppercase">Minimap</span>
                   <button
                     onClick={() => setEditorMinimap(!editorMinimap)}
-                    className="w-7 h-4 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-7 h-4 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: editorMinimap ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-3 h-3 rounded-full bg-white transition-transform ${editorMinimap ? 'translate-x-3' : 'translate-x-0'}`} />
+                    <div className={`w-3 h-3  bg-white  ${editorMinimap ? 'translate-x-3' : 'translate-x-0'}`} />
                   </button>
                 </div>
 
@@ -772,10 +772,10 @@ export default function StrategyView() {
                   <span className="text-[10px] font-bold text-[var(--ui-muted)] uppercase">Line numbers</span>
                   <button
                     onClick={() => setEditorLineNumbers(!editorLineNumbers)}
-                    className="w-7 h-4 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-7 h-4 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: editorLineNumbers ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-3 h-3 rounded-full bg-white transition-transform ${editorLineNumbers ? 'translate-x-3' : 'translate-x-0'}`} />
+                    <div className={`w-3 h-3  bg-white  ${editorLineNumbers ? 'translate-x-3' : 'translate-x-0'}`} />
                   </button>
                 </div>
 
@@ -784,10 +784,10 @@ export default function StrategyView() {
                   <span className="text-[10px] font-bold text-[var(--ui-muted)] uppercase">Auto Brackets</span>
                   <button
                     onClick={() => setEditorAutoClosingBrackets(!editorAutoClosingBrackets)}
-                    className="w-7 h-4 rounded-full p-0.5 transition-colors relative cursor-pointer"
+                    className="w-7 h-4 p-0.5 relative cursor-pointer"
                     style={{ backgroundColor: editorAutoClosingBrackets ? 'var(--ui-accent)' : 'var(--ui-border-strong)' }}
                   >
-                    <div className={`w-3 h-3 rounded-full bg-white transition-transform ${editorAutoClosingBrackets ? 'translate-x-3' : 'translate-x-0'}`} />
+                    <div className={`w-3 h-3  bg-white  ${editorAutoClosingBrackets ? 'translate-x-3' : 'translate-x-0'}`} />
                   </button>
                 </div>
               </div>
@@ -802,7 +802,7 @@ export default function StrategyView() {
             />
           ) : (
             <div className="w-full h-full flex flex-col items-center justify-center text-[var(--ui-muted)] bg-[var(--ui-terminal-bg)]">
-              <Plus size={48} className="stroke-[1px] animate-pulse mb-2 text-[var(--ui-border-strong)]" />
+              <Plus size={48} className="stroke-[1px] mb-2 text-[var(--ui-border-strong)]" />
               <p className="text-xs uppercase tracking-wider">Select or create an assembly script</p>
             </div>
           )}
@@ -811,7 +811,7 @@ export default function StrategyView() {
         {/* Drag handle resize line */}
         {activeStrat && isTerminalOpen && (
           <div 
-            className="h-1 hover:bg-[var(--ui-accent)] cursor-row-resize z-30 transition-colors shrink-0"
+            className="h-1 hover:bg-[var(--ui-accent)] cursor-row-resize z-30 shrink-0"
             style={{ backgroundColor: 'var(--ui-border)' }}
             onMouseDown={handleMouseDown}
           />
@@ -835,7 +835,7 @@ export default function StrategyView() {
       {/* 3. RIGHT PANE: Parameter custom controls schema */}
       {activeStrat && (
         <div 
-          className="shrink-0 border-l flex flex-col h-full bg-[var(--ui-sidebar-bg)] overflow-hidden transition-all duration-300"
+          className="shrink-0 border-l flex flex-col h-full bg-[var(--ui-sidebar-bg)] overflow-hidden"
           style={{ 
             width: isParamsOpen ? '280px' : '36px',
             borderColor: 'var(--ui-border)' 
@@ -851,7 +851,7 @@ export default function StrategyView() {
                 <div className="flex gap-1.5 items-center">
                   <button
                     onClick={() => setActiveRightTab('params')}
-                    className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 border cursor-pointer ${
+                    className={`px-2 py-0.5  text-[9px] font-black uppercase tracking-wider  flex items-center gap-1 border cursor-pointer ${
                       activeRightTab === 'params'
                         ? 'bg-[var(--ui-accent)]/10 text-[var(--ui-accent)] border-[var(--ui-accent)]/20 font-black'
                         : 'border-transparent text-[var(--ui-muted)] hover:text-white'
@@ -862,7 +862,7 @@ export default function StrategyView() {
                   </button>
                   <button
                     onClick={() => setActiveRightTab('help')}
-                    className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1 border cursor-pointer ${
+                    className={`px-2 py-0.5  text-[9px] font-black uppercase tracking-wider  flex items-center gap-1 border cursor-pointer ${
                       activeRightTab === 'help'
                         ? 'bg-[var(--ui-accent)]/10 text-[var(--ui-accent)] border-[var(--ui-accent)]/20 font-black'
                         : 'border-transparent text-[var(--ui-muted)] hover:text-white'
@@ -874,7 +874,7 @@ export default function StrategyView() {
                 </div>
                 <button 
                   onClick={() => setIsParamsOpen(false)}
-                  className="p-1 rounded text-[var(--ui-muted)] hover:text-[var(--ui-accent)] transition-colors cursor-pointer"
+                  className="p-1 text-[var(--ui-muted)] hover:text-[var(--ui-accent)] cursor-pointer"
                   title="Collapse Parameter Pane"
                 >
                   <ChevronsRight size={14} />
@@ -883,7 +883,7 @@ export default function StrategyView() {
             ) : (
               <button 
                 onClick={() => setIsParamsOpen(true)}
-                className="w-full flex items-center justify-center p-1 rounded text-[var(--ui-muted)] hover:text-[var(--ui-accent)] transition-colors cursor-pointer"
+                className="w-full flex items-center justify-center p-1 text-[var(--ui-muted)] hover:text-[var(--ui-accent)] cursor-pointer"
                 title="Expand Parameter Pane"
               >
                 <ChevronsLeft size={14} />
@@ -903,7 +903,7 @@ export default function StrategyView() {
                     value={helpSearch}
                     onChange={(e) => setHelpSearch(e.target.value)}
                     placeholder="Search API Help..."
-                    className="w-full text-[11px] py-1 pl-8 pr-2 rounded border focus:outline-none bg-[var(--ui-input-bg)] font-sans"
+                    className="w-full text-[11px] py-1 pl-8 pr-2 border focus:outline-none bg-[var(--ui-input-bg)] font-sans"
                     style={{ borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
                   />
                 </div>
@@ -932,21 +932,21 @@ export default function StrategyView() {
                       };
 
                       return (
-                        <div key={doc.name} className="p-2.5 rounded border border-[var(--ui-border)]/50 bg-[var(--ui-panel-strong)] flex flex-col gap-1.5 transition-all hover:border-[var(--ui-accent)]/30">
+                        <div key={doc.name} className="p-2.5 border border-[var(--ui-border)]/50 bg-[var(--ui-panel-strong)] flex flex-col gap-1.5 hover:border-[var(--ui-accent)]/30">
                           <div className="flex items-center justify-between leading-none">
                             <span className="font-mono text-[10px] text-white font-black">{doc.name}</span>
-                            <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-[var(--ui-panel-soft)] text-[var(--ui-muted)] border border-[var(--ui-border)]/20">
+                            <span className="text-[8px] font-bold px-1 py-0.5 bg-[var(--ui-panel-soft)] text-[var(--ui-muted)] border border-[var(--ui-border)]/20">
                               {doc.type}
                             </span>
                           </div>
                           <p className="text-[10px] text-[var(--ui-muted)] leading-relaxed font-sans">{doc.desc}</p>
                           <div className="relative group mt-0.5">
-                            <pre className="p-2 rounded bg-[var(--ui-terminal-bg)] font-mono text-[9px] text-emerald-400 overflow-x-auto whitespace-pre leading-normal border border-black/20 select-all">
+                            <pre className="p-2 bg-[var(--ui-terminal-bg)] font-mono text-[9px] text-emerald-400 overflow-x-auto whitespace-pre leading-normal border border-black/20 select-all">
                               {doc.code}
                             </pre>
                             <button
                               onClick={handleCopy}
-                              className="absolute right-1 top-1 p-1 rounded bg-[var(--ui-panel-soft)] border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                              className="absolute right-1 top-1 p-1 bg-[var(--ui-panel-soft)] border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white opacity-0 group-hover:opacity-100 cursor-pointer"
                               title="Copy code snippet"
                             >
                               <Copy size={10} />
@@ -960,15 +960,15 @@ export default function StrategyView() {
             ) : (
               <div className="flex-1 p-4 overflow-y-auto space-y-5">
               {/* Core Engine Diagnostic Stats widget */}
-              <div className="border border-[var(--ui-border)]/60 rounded-lg p-3 bg-[var(--ui-panel-strong)] flex flex-col gap-2.5">
+              <div className="border border-[var(--ui-border)]/60 p-3 bg-[var(--ui-panel-strong)] flex flex-col gap-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--ui-muted)]">QUANT TELEMETRY</span>
                   <span className="flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full relative flex">
-                      <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping ${
+                    <span className="h-1.5 w-1.5 relative flex">
+                      <span className={`absolute inline-flex h-full w-full  opacity-75  ${
                         activeStrat.status === 'running' ? 'bg-emerald-400' : 'bg-slate-400'
                       }`} />
-                      <span className={`h-1.5 w-1.5 rounded-full ${
+                      <span className={`h-1.5 w-1.5  ${
                         activeStrat.status === 'running' ? 'bg-emerald-500' : 'bg-slate-500'
                       }`} />
                     </span>
@@ -1000,7 +1000,7 @@ export default function StrategyView() {
                         </div>
                         <div className="flex justify-between items-center leading-none">
                           <span style={{ color: 'var(--ui-muted)' }}>POSITION:</span>
-                          <span className={`font-black uppercase px-1 rounded text-[8px] ${
+                          <span className={`font-black uppercase px-1  text-[8px] ${
                             positionStr === 'LONG' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
                             positionStr === 'SHORT' ? 'bg-red-500/10 text-red-400 border border-red-500/20' :
                             'bg-slate-500/10 text-slate-400 border border-slate-500/20'
@@ -1030,7 +1030,7 @@ export default function StrategyView() {
                         <p className="leading-normal font-sans text-[10px]">
                           No active sandbox threads executing this script template. Core assembly cold.
                         </p>
-                        <div className="mt-1 p-1.5 rounded bg-[var(--ui-panel-soft)] text-[9px] font-mono flex flex-col gap-0.5 border border-[var(--ui-border)]/30">
+                        <div className="mt-1 p-1.5 bg-[var(--ui-panel-soft)] text-[9px] font-mono flex flex-col gap-0.5 border border-[var(--ui-border)]/30">
                           <div className="flex justify-between">
                             <span>LAST MODIFIED:</span>
                             <span className="text-white">{new Date(activeStrat.updatedAt).toLocaleTimeString()}</span>
@@ -1085,7 +1085,7 @@ export default function StrategyView() {
                               step={config.type === 'number' ? 0.1 : 1}
                               value={currentVal}
                               onChange={(e) => handleParamChange(key, config.type === 'integer' ? parseInt(e.target.value) : parseFloat(e.target.value))}
-                              className="w-full accent-[var(--ui-accent)] cursor-pointer h-1 rounded"
+                              className="w-full accent-[var(--ui-accent)] cursor-pointer h-1"
                               style={{ backgroundColor: 'var(--ui-border)' }}
                             />
                             <input 
@@ -1095,7 +1095,7 @@ export default function StrategyView() {
                               step={config.type === 'number' ? 0.1 : 1}
                               value={currentVal}
                               onChange={(e) => handleParamChange(key, config.type === 'integer' ? parseInt(e.target.value) : parseFloat(e.target.value))}
-                              className="w-14 p-1 rounded border text-[10px] font-mono focus:outline-none text-center"
+                              className="w-14 p-1 border text-[10px] font-mono focus:outline-none text-center"
                               style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
                             />
                           </div>
@@ -1106,13 +1106,13 @@ export default function StrategyView() {
                           <div className="flex items-center mt-1">
                             <button
                               onClick={() => handleParamChange(key, !currentVal)}
-                              className="w-9 h-5 rounded-full p-0.5 transition-all cursor-pointer relative"
+                              className="w-9 h-5 p-0.5 cursor-pointer relative"
                               style={{
                                 backgroundColor: currentVal ? 'var(--ui-accent)' : 'var(--ui-border-strong)'
                               }}
                             >
                               <div 
-                                className="w-4 h-4 rounded-full bg-white transition-transform duration-200"
+                                className="w-4 h-4 bg-white"
                                 style={{
                                   transform: currentVal ? 'translateX(16px)' : 'translateX(0)'
                                 }}
@@ -1127,7 +1127,7 @@ export default function StrategyView() {
                             <select
                               value={currentVal}
                               onChange={(e) => handleParamChange(key, e.target.value)}
-                              className="w-full text-xs p-1.5 rounded border text-[var(--ui-text)] focus:outline-none cursor-pointer pr-8"
+                              className="w-full text-xs p-1.5 border text-[var(--ui-text)] focus:outline-none cursor-pointer pr-8"
                               style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
                             >
                               {config.enum.map((opt: string) => (
@@ -1143,7 +1143,7 @@ export default function StrategyView() {
                             type="text"
                             value={currentVal}
                             onChange={(e) => handleParamChange(key, e.target.value)}
-                            className="w-full text-xs p-1.5 rounded border text-[var(--ui-text)] focus:outline-none mt-1"
+                            className="w-full text-xs p-1.5 border text-[var(--ui-text)] focus:outline-none mt-1"
                             style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)' }}
                           />
                         )}
@@ -1153,7 +1153,7 @@ export default function StrategyView() {
 
                   <button
                     onClick={handleSave}
-                    className="w-full py-2 bg-[var(--ui-accent-strong)] text-white font-bold text-xs uppercase tracking-widest rounded cursor-pointer transition-opacity hover:opacity-95 mt-4"
+                    className="w-full py-2 bg-[var(--ui-accent-strong)] text-white font-bold text-xs uppercase tracking-widest cursor-pointer hover:opacity-95 mt-4"
                   >
                     Apply Parameters
                   </button>

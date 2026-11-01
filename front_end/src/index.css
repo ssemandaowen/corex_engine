@@ -6,6 +6,25 @@
   --font-sans: "DM Sans", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   --font-display: "Space Grotesk", sans-serif;
+  --radius: 0px;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-full: 0px;
+}
+
+/* Global Safety-Net Rule for Flat 1990s Design Invariant */
+*, *::before, *::after {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  backdrop-filter: none !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 /* Custom global styles for CoreX Engine Theme */
@@ -38,18 +57,20 @@ body {
   color: var(--ui-muted);
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling - flat square 1px border */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--ui-panel-soft);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--ui-subtle);
-  border-radius: 3px;
+  background: var(--bg-raised);
+  border: 1px solid var(--border);
+  border-radius: 0;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--ui-muted);
+  background: var(--selection);
 }

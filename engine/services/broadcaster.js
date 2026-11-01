@@ -757,6 +757,22 @@ class Broadcaster {
         }
     }
 
+    // ── Settings Delta ─────────────────────────────────────────────────────────
+
+    sendSettingsDelta(userId, key, value, version) {
+        if (!this.wss?.clients || !userId) return;
+        const message = this._stringifyWsMessage(
+            WS_EVENT_TYPES.SETTINGS_DELTA,
+            { key, value, version },
+            { category: "system", channel: "settings", userId }
+        );
+        this.wss.clients.forEach((ws) => {
+            if (String(ws.userId || "") === String(userId)) {
+                this._safeSend(ws, message);
+            }
+        });
+    }
+
     // ── Teardown ──────────────────────────────────────────────────────────────
 
     stop() {
