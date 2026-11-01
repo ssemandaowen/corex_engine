@@ -550,6 +550,10 @@ describe("security.js — loop guards", () => {
         expect(() => validateStrategyCode(wrap("process.exit()"))).toThrow(/process/i);
     });
 
+    test("dynamic import is blocked", () => {
+        expect(() => validateStrategyCode(wrap("import('fs')"))).toThrow(/import/i);
+    });
+
     test("valid strategy passes scanner", () => {
         const valid = `
             const BaseStrategy = require("BaseStrategy");
