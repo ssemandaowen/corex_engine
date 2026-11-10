@@ -19,6 +19,14 @@ client.interceptors.request.use((config) => {
   return config;
 });
 
+// Remove Content-Type header for FormData so browser sets multipart/form-data with boundary
+client.interceptors.request.use((config) => {
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
+  }
+  return config;
+});
+
 // Handle unauthorized responses
 client.interceptors.response.use(
   (response) => response,
