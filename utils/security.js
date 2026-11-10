@@ -61,6 +61,10 @@ const ALLOWED_MODULES = new Set([
     "technicalindicators",
 ]);
 
+const ALLOWED_EXACT_MODULES = new Set([
+    "corex-strategy-engine",
+]);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Main validator
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,11 +122,12 @@ function validateStrategyCode(code) {
                     }
 
                     // Allow only: relative imports, BaseStrategy, and explicitly safe packages
-                    const isRelative    = mod.startsWith("./") || mod.startsWith("../");
-                    const isBaseStrategy = mod.toLowerCase().includes("basestrategy");
-                    const isAllowed     = ALLOWED_MODULES.has(base);
+                    const isRelative      = mod.startsWith("./") || mod.startsWith("../");
+                    const isBaseStrategy  = mod.toLowerCase().includes("basestrategy");
+                    const isAllowedBase   = ALLOWED_MODULES.has(base);
+                    const isAllowedExact  = ALLOWED_EXACT_MODULES.has(mod.toLowerCase());
 
-                    if (!isRelative && !isBaseStrategy && !isAllowed) {
+                    if (!isRelative && !isBaseStrategy && !isAllowedBase && !isAllowedExact) {
                         violations.push(`Unauthorized require: "${mod}"`);
                     }
                 } else if (!arg || arg.type !== "Literal") {
