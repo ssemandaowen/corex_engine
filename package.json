@@ -97,6 +97,7 @@
       "^@broker/corex-gateway$": "<rootDir>/packages/corex-gateway/index.js",
       "^@broker/corex-broker-contract$": "<rootDir>/packages/corex-broker-contract/index.js",
       "^@broker/(.*)$": "<rootDir>/broker/$1",
+      "^@data$": "<rootDir>/packages/corex-market-data/index.js",
       "^@data/(.*)$": "<rootDir>/packages/corex-market-data/$1",
       "^@auth/(.*)$": "<rootDir>/packages/corex-auth/$1",
       "^@portfolio/(.*)$": "<rootDir>/packages/corex-portfolio/$1",
