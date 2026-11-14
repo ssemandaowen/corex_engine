@@ -70,6 +70,7 @@ class RuntimeLifecycle {
         });
 
         let broker = null;
+        let registered = false;
 
         log.info(`Booting runtime: ${runtimeId}`);
 
@@ -127,6 +128,8 @@ class RuntimeLifecycle {
             }
 
             // ── Register workspace (atomic: reservation → live entry) ─────────
+            // The entry is stamped with this boot's token; every later step that
+            // removes it must present that token.
             runtimeRegistry.commitReservation(token, {
                 instance:     strategyInstance,
                 broker,
@@ -139,6 +142,7 @@ class RuntimeLifecycle {
                 params:       profile.params || {},
                 startedAt:    Date.now(),
             });
+            registered = true;
 
             // ── Wire broker + env into strategy instance ──────────────────────
             // Must happen after runtimeRegistry.set() so any tick that
@@ -211,22 +215,38 @@ class RuntimeLifecycle {
 
         } catch (error) {
             log.error(`[BOOT:${runtimeId}] Failed: ${error.message}`);
-            await this._rollbackBoot({ runtimeId, token, broker, strategyInstance, profile });
+            await this._rollbackBoot({ runtimeId, token, broker, strategyInstance, profile, registered });
             throw error;
         }
     }
 
     /**
      * Undo a boot that did not reach the "registered and running" state.
-     * Every step is attempted and none of them can mask the original error.
+     *
+     * Ownership is fenced by the boot's token and is never dropped mid-cleanup:
+     * an entry this boot registered is moved to STOPPING and stripped of its
+     * collaborators first, so it cannot be dispatched to, while the registry
+     * still refuses new creations for the identity. The entry is removed only
+     * after the resources are gone, and only if this boot still owns it — a boot
+     * that lost its claim can therefore never delete a newer boot's runtime.
      */
-    async _rollbackBoot({ runtimeId, token, broker, strategyInstance, profile }) {
-        // Drop the claim first so the identity is immediately available again.
-        runtimeRegistry.releaseReservation(token);
+    async _rollbackBoot({ runtimeId, token, broker, strategyInstance, profile, registered }) {
+        const entry = runtimeRegistry.get(runtimeId);
+        const ownsEntry = Boolean(entry) && runtimeRegistry.isOwnedBy(runtimeId, token);
 
-        const registered = runtimeRegistry.get(runtimeId);
-        if (registered) {
-            runtimeRegistry.delete(runtimeId);
+        if (registered && !ownsEntry) {
+            log.error(
+                `[ROLLBACK:${runtimeId}] Registry entry is no longer owned by this boot — ` +
+                "leaving it untouched (a newer owner holds the identity)"
+            );
+        }
+
+        if (ownsEntry) {
+            runtimeRegistry.transition(
+                runtimeId,
+                ["ACTIVE", "PAUSED", "WARMING_UP", "STOPPING"],
+                "STOPPING"
+            );
         }
 
         const mode = String(profile?.mode || "").toUpperCase();
@@ -238,17 +258,26 @@ class RuntimeLifecycle {
             }
         }
 
-        await destroyQuietly(broker, runtimeId, "ROLLBACK");
+        const brokerFailure = await destroyQuietly(broker, runtimeId, "ROLLBACK");
+        if (ownsEntry && !brokerFailure) entry.broker = null;
 
-        if (registered && strategyInstance && typeof strategyInstance.destroy === "function") {
+        if (strategyInstance && typeof strategyInstance.destroy === "function") {
             try {
                 await strategyInstance.destroy();
             } catch (e) {
                 log.warn(`[ROLLBACK:${runtimeId}] strategy.destroy() failed: ${e.message}`);
             }
         }
+        if (ownsEntry) entry.instance = null;
 
-        log.warn(`[ROLLBACK:${runtimeId}] Boot rolled back — identity released`);
+        // Remove our own entry (fenced), then drop the claim.
+        const removed = ownsEntry ? runtimeRegistry.delete(runtimeId, { token }) : false;
+        const released = runtimeRegistry.releaseReservation(token);
+
+        log.warn(
+            `[ROLLBACK:${runtimeId}] Boot rolled back — ` +
+            `entry removed: ${removed}, claim released: ${released}`
+        );
     }
 
     /**
@@ -402,8 +431,15 @@ class RuntimeLifecycle {
         entry.params = null;
         entry.cleanupFailures = [];
 
-        // ── Remove from registry ─────────────────────────────────────────────
-        runtimeRegistry.delete(runtimeId);
+        // ── Remove from registry (fenced by the entry's owner token) ─────────
+        const removed = runtimeRegistry.delete(runtimeId, { token: entry.ownerToken });
+        if (!removed) {
+            // The entry is no longer the one this termination claimed: report
+            // failure rather than a successful stop.
+            entry.cleanupFailures = [`registry.delete: ownership changed during termination`];
+            log.error(`[TERMINATE:${runtimeId}] Registry entry is no longer owned — stop not confirmed`);
+            return false;
+        }
 
         // ── State and event ──────────────────────────────────────────────────
         try {

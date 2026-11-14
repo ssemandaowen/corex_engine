@@ -295,6 +295,26 @@ router.delete("/:id", async (req, res) => {
         return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
     }
 
+    // Exclusive deletion claim: from here until the claim is released, no
+    // runtime can be created for this strategy, so the DELETE cannot race a
+    // creation. The claim is always released (success, failure or 404).
+    let claimToken;
+    try {
+        claimToken = runtimeRegistry.claimStrategyDeletion({ strategyName: id, userId });
+    } catch (err) {
+        if (err.code === "STRATEGY_DELETE_IN_PROGRESS") {
+            return res.status(409).json({
+                success: false,
+                error: "DELETE_IN_PROGRESS",
+                message: `Strategy ${req.params.id} is already being deleted`
+            });
+        }
+        if (err.code === "STRATEGY_OWNED_BY_RUNTIME") {
+            return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
+        }
+        return res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });
+    }
+
     try {
         const { rowCount } = await db.query(
             "DELETE FROM strategies WHERE name = $1",
@@ -302,25 +322,15 @@ router.delete("/:id", async (req, res) => {
         );
         if (rowCount === 0) return res.status(404).json({ success: false, error: "Strategy not found" });
 
-        // A creation that reserved this identity while the DELETE was in flight
-        // must not be reported as a clean deletion: stop it and fail loudly.
-        const raced = ownsAnyRuntime();
-        if (raced.length > 0) {
-            for (const runtime of raced) {
-                await loader.stop(id, { runtimeId: runtime.runtimeId }).catch(() => false);
-            }
-            return res.status(500).json({
-                success: false,
-                error: "DELETE_FAILED",
-                message: `Runtime '${raced[0].runtimeId}' was created while the strategy was being deleted`
-            });
-        }
-
         loader.invalidate(id);
         emitUserLog(req, `Strategy deleted: ${req.params.id}`);
         res.json({ success: true, message: "Purged." });
     } catch (err) {
         res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });
+    } finally {
+        // Released on success, on DB failure and on 404, so a failed delete
+        // never blocks a later attempt (or a later start).
+        runtimeRegistry.releaseStrategyDeletion(claimToken);
     }
 });
 

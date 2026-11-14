@@ -13,15 +13,27 @@ const PLOT_INTERVAL_MS = Math.max(1000, Number(process.env.COREX_WS_PLOT_INTERVA
  * runtime exist, who owns it, what state is it in" comes from this module —
  * there is no second registry.
  *
- * Two ledgers live here:
+ * Three ledgers live here:
  *
- *   _runtimes      — fully initialized, active runtimes. An entry exists here
- *                    only while a strategy is actually running. Removed by
- *                    terminate()/delete().
- *   _reservations  — in-progress creations (see reserve()). A reservation is an
- *                    ownership claim that is NOT yet a runtime: it blocks
- *                    duplicate/competing creation of the same identity while
- *                    asynchronous initialization runs.
+ *   _runtimes         — fully initialized, active runtimes. An entry exists here
+ *                       only while a strategy is actually running. Removed by
+ *                       terminate()/delete().
+ *   _reservations     — in-progress creations (see reserve()). A reservation is an
+ *                       ownership claim that is NOT yet a runtime: it blocks
+ *                       duplicate/competing creation of the same identity while
+ *                       asynchronous initialization runs.
+ *   _deletionClaims   — in-progress strategy deletions (see
+ *                       claimStrategyDeletion()). Blocks new reservations for
+ *                       that strategy so a delete cannot race a creation.
+ *
+ * Reservations have no expiry. They live in this process's memory, so a
+ * reservation disappears when the process exits; a slow boot must therefore
+ * never be mistaken for a dead one. Every claim is released by its owner
+ * (commit, rollback, abort or explicit release) or by process exit.
+ *
+ * Every claim carries a fencing token. Registry mutations that could destroy
+ * another owner's work (commit, release, delete) require the matching token, so
+ * a stale boot can never delete or release a newer owner's entry.
  *
  * Entry shape:
  * {
@@ -35,6 +47,7 @@ const PLOT_INTERVAL_MS = Math.max(1000, Number(process.env.COREX_WS_PLOT_INTERVA
  *   actualState:  string,   'ACTIVE' | 'PAUSED' | 'STOPPING' | 'STOPPED'
  *   params:       object,
  *   startedAt:    number,   ms timestamp
+ *   ownerToken:   string,   fencing token of the boot that registered this entry
  * }
  *
  * Reservation shape:
@@ -47,22 +60,11 @@ const PLOT_INTERVAL_MS = Math.max(1000, Number(process.env.COREX_WS_PLOT_INTERVA
  * }
  */
 
-/**
- * How long an uncommitted reservation may block creation before it is treated
- * as stale (a crashed/hung boot). This is crash recovery, not concurrency
- * protection: competing creations are rejected by identity, never by timing.
- * Operational value — env-configurable, validated, clamped.
- */
-const RESERVATION_TTL_MS = (() => {
-    const raw = Number(process.env.COREX_RUNTIME_RESERVATION_TTL_MS);
-    if (!Number.isFinite(raw) || raw <= 0) return 120000;
-    return Math.min(Math.max(Math.floor(raw), 1000), 3600000);
-})();
-
 class RuntimeRegistry {
     constructor() {
         this._runtimes = new Map();
         this._reservations = new Map();
+        this._deletionClaims = new Map();
     }
 
     /**
@@ -168,18 +170,21 @@ class RuntimeRegistry {
      * Claim a runtime identity before asynchronous initialization starts.
      *
      * The claim is the ownership decision: it rejects duplicate creation of the
-     * same identity and enforces one-active-runtime-per-account/symbol/mode
-     * against both live runtimes and other in-flight reservations.
+     * same identity, a strategy whose deletion is in progress, and enforces
+     * one-active-runtime-per-account/symbol/mode against both live runtimes and
+     * other in-flight reservations.
+     *
+     * Claims do not expire. A slow boot keeps exclusive ownership of its
+     * identity until it commits, rolls back or the process exits.
      *
      * @returns {string} ownership token (required by commitReservation/releaseReservation)
-     * @throws Error code RUNTIME_ALREADY_OWNED | RUNTIME_EXCLUSIVITY_VIOLATION
+     * @throws Error code RUNTIME_ALREADY_OWNED | RUNTIME_EXCLUSIVITY_VIOLATION |
+     *         RUNTIME_DELETION_IN_PROGRESS
      */
     reserve({ runtimeId, userId, accountId, strategyName, symbol, mode, owner }) {
         if (!runtimeId || typeof runtimeId !== "string") {
             throw new Error("[RuntimeRegistry] reserve(): runtimeId is required");
         }
-
-        this.pruneStaleReservations(Date.now());
 
         if (this._runtimes.has(runtimeId) || this._reservations.has(runtimeId)) {
             throw ownershipError(
@@ -192,6 +197,16 @@ class RuntimeRegistry {
         const canonicalSymbol = String(symbol || "").toUpperCase();
         const canonicalMode = String(mode || "PAPER").toUpperCase();
         const identifier = String(accountId || userId || "system");
+        const canonicalStrategy = strategyName || runtimeId;
+
+        const deletion = this._deletionClaims.get(canonicalStrategy);
+        if (deletion) {
+            throw ownershipError(
+                "RUNTIME_DELETION_IN_PROGRESS",
+                `[RuntimeRegistry] Strategy '${canonicalStrategy}' is being deleted; ` +
+                "new runtimes cannot be created for it."
+            );
+        }
 
         for (const entry of this._runtimes.values()) {
             if (!isLiveEntry(entry) || entry.actualState !== "ACTIVE") continue;
@@ -225,7 +240,7 @@ class RuntimeRegistry {
             runtimeId,
             userId:         userId || "system",
             accountId:      accountId || userId || "system",
-            strategyName:   strategyName || runtimeId,
+            strategyName:   canonicalStrategy,
             symbol:         canonicalSymbol,
             mode:           canonicalMode,
             owner:          owner || "unknown",
@@ -236,11 +251,12 @@ class RuntimeRegistry {
         return token;
     }
 
+    /**
+     * The reservation for an identity, regardless of how long its boot has been
+     * running (reservations never expire in-process).
+     */
     getReservation(runtimeId) {
-        const reservation = this._reservations.get(runtimeId);
-        if (!reservation) return null;
-        if (isReservationStale(reservation, Date.now())) return null;
-        return reservation;
+        return this._reservations.get(runtimeId) || null;
     }
 
     isReserved(runtimeId) {
@@ -274,7 +290,8 @@ class RuntimeRegistry {
     /**
      * Atomically convert a reservation into a registered runtime.
      * The reservation is released first, so a concurrent identity claim can only
-     * succeed after this entry exists.
+     * succeed after this entry exists. The entry is stamped with the caller's
+     * fencing token, which every later ownership-checked mutation requires.
      */
     commitReservation(token, entry) {
         const reservation = this._findReservationByToken(token);
@@ -286,7 +303,9 @@ class RuntimeRegistry {
         }
         this._reservations.delete(reservation.runtimeId);
         this.set(reservation.runtimeId, { ...entry, runtimeId: reservation.runtimeId });
-        return this._runtimes.get(reservation.runtimeId);
+        const committed = this._runtimes.get(reservation.runtimeId);
+        if (committed) committed.ownerToken = token;
+        return committed;
     }
 
     /**
@@ -297,6 +316,16 @@ class RuntimeRegistry {
         const reservation = this._findReservationByToken(token);
         if (!reservation) return false;
         return this._reservations.delete(reservation.runtimeId);
+    }
+
+    /**
+     * Who owns this identity's registration? Used by rollback to prove it is
+     * removing its own entry and not a newer boot's.
+     */
+    isOwnedBy(runtimeId, token) {
+        const entry = this._runtimes.get(runtimeId);
+        if (!entry || !token) return false;
+        return entry.ownerToken === token;
     }
 
     /**
@@ -313,21 +342,75 @@ class RuntimeRegistry {
         return true;
     }
 
+    // ── Ownership: strategy deletion claims ───────────────────────────────────
+
     /**
-     * Drop reservations whose boot never committed (crashed/hung initialization).
-     * Without this, a lost claim would block that identity forever.
+     * Claim exclusive right to delete a strategy, before its database row is
+     * touched. While the claim is held, `reserve()` refuses new runtimes for
+     * that strategy, so a creation cannot land between the ownership check and
+     * the DELETE.
+     *
+     * @returns {string} deletion token (required by releaseStrategyDeletion)
+     * @throws Error code STRATEGY_DELETE_IN_PROGRESS | STRATEGY_OWNED_BY_RUNTIME
      */
-    pruneStaleReservations(now = Date.now()) {
-        const stale = [];
-        for (const reservation of this._reservations.values()) {
-            if (isReservationStale(reservation, now)) stale.push(reservation.runtimeId);
+    claimStrategyDeletion({ strategyName, userId }) {
+        if (!strategyName || typeof strategyName !== "string") {
+            throw new Error("[RuntimeRegistry] claimStrategyDeletion(): strategyName is required");
         }
-        for (const runtimeId of stale) this._reservations.delete(runtimeId);
-        return stale;
+
+        const pending = this._deletionClaims.get(strategyName);
+        if (pending) {
+            throw ownershipError(
+                "STRATEGY_DELETE_IN_PROGRESS",
+                `[RuntimeRegistry] Strategy '${strategyName}' is already being deleted.`
+            );
+        }
+
+        // A runtime or an in-flight creation still owns the strategy: refuse.
+        if (this.findOwnedByStrategy(strategyName).length > 0) {
+            throw ownershipError(
+                "STRATEGY_OWNED_BY_RUNTIME",
+                `[RuntimeRegistry] Strategy '${strategyName}' still owns a runtime or a pending creation.`
+            );
+        }
+
+        const token = `delete:${strategyName}#${Date.now().toString(36)}#${Math.random().toString(36).slice(2, 10)}`;
+        this._deletionClaims.set(strategyName, {
+            strategyName,
+            userId: userId || "system",
+            token,
+            createdAt: Date.now()
+        });
+        return token;
+    }
+
+    getDeletionClaim(strategyName) {
+        return this._deletionClaims.get(strategyName) || null;
+    }
+
+    isDeletionClaimed(strategyName) {
+        return this._deletionClaims.has(strategyName);
+    }
+
+    /**
+     * Release a deletion claim. Token-scoped, so a stale request cannot release
+     * another request's claim.
+     *
+     * @returns {boolean} true when the claim was released by this caller
+     */
+    releaseStrategyDeletion(token) {
+        for (const [strategyName, claim] of this._deletionClaims) {
+            if (claim.token === token) return this._deletionClaims.delete(strategyName);
+        }
+        return false;
     }
 
     get pendingSize() {
         return this._reservations.size;
+    }
+
+    get deletionClaimCount() {
+        return this._deletionClaims.size;
     }
 
     _findReservationByToken(token) {
@@ -346,13 +429,28 @@ class RuntimeRegistry {
         return this._runtimes.has(runtimeId);
     }
 
-    delete(runtimeId) {
+    /**
+     * Remove a runtime entry.
+     *
+     * When a token is supplied the entry is only removed if that token still
+     * owns it. This is the fence that stops a stale boot from deleting a newer
+     * boot's registration during rollback.
+     *
+     * @param {string} runtimeId
+     * @param {{token?: string}} [options]
+     * @returns {boolean} true when this call removed the entry
+     */
+    delete(runtimeId, options = {}) {
+        const token = options && options.token;
         const entry = this._runtimes.get(runtimeId);
+        if (token && (!entry || entry.ownerToken !== token)) return false;
+
         if (entry && entry.plotInterval) {
             clearInterval(entry.plotInterval);
         }
         this._runtimes.delete(runtimeId);
         this._reservations.delete(runtimeId);
+        return true;
     }
 
     clear() {
@@ -363,6 +461,7 @@ class RuntimeRegistry {
         }
         this._runtimes.clear();
         this._reservations.clear();
+        this._deletionClaims.clear();
     }
 
     /**
@@ -465,10 +564,6 @@ class RuntimeRegistry {
  */
 function isLiveEntry(entry) {
     return Boolean(entry && entry.instance && entry.broker);
-}
-
-function isReservationStale(reservation, now) {
-    return (now - reservation.createdAt) > RESERVATION_TTL_MS;
 }
 
 function ownershipError(code, message) {

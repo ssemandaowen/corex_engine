@@ -611,7 +611,7 @@ router.post("/start/:id", async (req, res) => {
         });
         if (!result || !result.ok) {
             const reason = (result && result.reason) || "Unknown startup failure";
-            const status = reason === "START_IN_PROGRESS" ? 409
+            const status = (reason === "START_IN_PROGRESS" || reason === "STRATEGY_BEING_DELETED") ? 409
                 : reason.includes("not found") ? 404
                 : 500;
             return res.status(status).json({ success: false, error: "START_FAILED", message: reason });

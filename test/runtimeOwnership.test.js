@@ -118,6 +118,18 @@ function deferred() {
     return { promise, resolve, reject };
 }
 
+/**
+ * Test synchronization only (never a concurrency guard): waits until a condition
+ * produced by the implementation under test becomes true.
+ */
+async function waitFor(predicate, label) {
+    for (let i = 0; i < 500; i++) {
+        if (predicate()) return;
+        await new Promise((r) => setImmediate(r));
+    }
+    throw new Error(`waitFor timed out: ${label}`);
+}
+
 // ── DELETE handler (real route) ──────────────────────────────────────────────
 function deleteHandler() {
     const layer = strategyRouter.stack.find(
@@ -413,38 +425,195 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         await new RuntimeLifecycle().terminate(runtimeId);
     });
 
-    // Stale protection ───────────────────────────────────────────────────────
-    test("11. a stale reservation cannot block creation forever", async () => {
-        const runtimeId = "u1::StaleA::EURUSD::PAPER";
-        const lifecycle = new RuntimeLifecycle();
+    // Reservation expiry / rollback ownership ──────────────────────────────────
+    test("13. a slow boot keeps its claim: a competing boot cannot acquire the identity", async () => {
+        const runtimeId = "u1::SlowA::EURUSD::PAPER";
         const gate = deferred();
         control.onInitialize = () => gate.promise;
 
-        const booting = lifecycle.boot({
-            runtimeId,
-            strategyInstance: makeStrategy("StaleA"),
-            profile: profile("StaleA")
-        });
-
+        const booting = boot(makeStrategy("SlowA"));
         await new Promise((r) => setImmediate(r));
-        expect(runtimeRegistry.isReserved(runtimeId)).toBe(true);
 
-        // Age the reservation beyond the recovery TTL, then let the boot fail so
-        // it releases the (now stale) claim without registering.
         const reservation = runtimeRegistry.getReservation(runtimeId);
-        reservation.createdAt = Date.now() - (60 * 60 * 1000);
-        expect(runtimeRegistry.isReserved(runtimeId)).toBe(false);
+        expect(reservation).not.toBeNull();
+
+        // Age the claim far beyond any plausible TTL: it must still be owned.
+        reservation.createdAt = Date.now() - (24 * 60 * 60 * 1000);
+        expect(runtimeRegistry.isReserved(runtimeId)).toBe(true);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(true);
+
+        await expect(boot(makeStrategy("SlowA"))).rejects.toThrow(/already owned/i);
 
         gate.resolve();
         await expect(booting).resolves.toBe(true);
-
-        expect(runtimeRegistry.has(runtimeId)).toBe(true);
-        expect(runtimeRegistry.pendingSize).toBe(0);
+        expect(runtimeRegistry.get(runtimeId).actualState).toBe("ACTIVE");
 
         await new RuntimeLifecycle().terminate(runtimeId);
+    }, 15000);
+
+    test("14. a stale boot's rollback cannot delete a newer boot's entry", async () => {
+        const runtimeId = "u1::FenceA::EURUSD::PAPER";
+        const strategyName = "u1::FenceA";
+
+        // Boot A claims the identity.
+        const staleToken = runtimeRegistry.reserve({
+            runtimeId,
+            userId: "u1",
+            accountId: "u1",
+            strategyName,
+            symbol: "EURUSD",
+            mode: "PAPER",
+            owner: "bootA"
+        });
+
+        // Boot A loses the claim (released), boot B takes it and commits.
+        expect(runtimeRegistry.releaseReservation(staleToken)).toBe(true);
+        const freshToken = runtimeRegistry.reserve({
+            runtimeId,
+            userId: "u1",
+            accountId: "u1",
+            strategyName,
+            symbol: "EURUSD",
+            mode: "PAPER",
+            owner: "bootB"
+        });
+        const entryB = { instance: makeStrategy("FenceA"), broker: { id: "brokerB" }, symbol: "EURUSD", mode: "PAPER" };
+        runtimeRegistry.commitReservation(freshToken, entryB);
+
+        expect(runtimeRegistry.isOwnedBy(runtimeId, freshToken)).toBe(true);
+        expect(runtimeRegistry.isOwnedBy(runtimeId, staleToken)).toBe(false);
+
+        // Boot A's rollback must not remove boot B's entry.
+        expect(runtimeRegistry.delete(runtimeId, { token: staleToken })).toBe(false);
+        expect(runtimeRegistry.has(runtimeId)).toBe(true);
+        expect(runtimeRegistry.get(runtimeId).instance).toBe(entryB.instance);
+
+        // Its own rollback path can remove it.
+        expect(runtimeRegistry.delete(runtimeId, { token: freshToken })).toBe(true);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
     });
 
-    test("12. an entry that no longer holds its collaborators is not reported as active", async () => {
+    test("15. a post-registration failure keeps the identity owned until cleanup completes", async () => {
+        const runtimeId = "u1::PostRegA::EURUSD::PAPER";
+        const strategy = makeStrategy("PostRegA");
+        const lifecycle = new RuntimeLifecycle();
+
+        const cleanupGate = deferred();
+        let observedDuringCleanup = null;
+        control.onInitialize = async () => {};
+        control.onDestroy = async () => {
+            // While the rollback is destroying the broker: the runtime must not
+            // be dispatchable, but the identity must still be owned by this boot.
+            observedDuringCleanup = {
+                owned: runtimeRegistry.has(runtimeId),
+                dispatchable: runtimeRegistry.forSymbol("EURUSD").length > 0,
+                state: runtimeRegistry.get(runtimeId)?.actualState || null
+            };
+            await cleanupGate.promise;
+        };
+
+        // Commit succeeds, then wiring throws (post-registration failure).
+        strategy._attachRuntime = () => { throw new Error("WIRE_FAILED"); };
+
+        const booting = lifecycle.boot({
+            runtimeId,
+            strategyInstance: strategy,
+            profile: profile("PostRegA")
+        });
+        const rejection = expect(booting).rejects.toThrow("WIRE_FAILED");
+
+        // Observe the registry while the rollback is still cleaning up.
+        await waitFor(() => observedDuringCleanup !== null, "rollback cleanup to start");
+        cleanupGate.resolve();
+        await rejection;
+
+        expect(observedDuringCleanup).toEqual({ owned: true, dispatchable: false, state: "STOPPING" });
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+        expect(runtimeRegistry.pendingSize).toBe(0);
+        expect(strategy.destroyCalls).toBe(1);
+    }, 15000);
+
+    // Deletion claims ──────────────────────────────────────────────────────────
+    test("16. a deletion claim blocks a concurrent runtime creation", async () => {
+        const strategyName = "u1::DelClaimA";
+        const token = runtimeRegistry.claimStrategyDeletion({ strategyName, userId: "u1" });
+        expect(runtimeRegistry.isDeletionClaimed(strategyName)).toBe(true);
+
+        const lifecycle = new RuntimeLifecycle();
+        await expect(lifecycle.boot({
+            runtimeId: "u1::DelClaimA::EURUSD::PAPER",
+            strategyInstance: makeStrategy("DelClaimA"),
+            profile: profile("DelClaimA")
+        })).rejects.toThrow(/being deleted/i);
+
+        expect(runtimeRegistry.has("u1::DelClaimA::EURUSD::PAPER")).toBe(false);
+
+        expect(runtimeRegistry.releaseStrategyDeletion(token)).toBe(true);
+        expect(runtimeRegistry.isDeletionClaimed(strategyName)).toBe(false);
+    });
+
+    test("17. a creation reservation prevents a deletion claim", async () => {
+        const gate = deferred();
+        control.onInitialize = () => gate.promise;
+        const booting = boot(makeStrategy("ResvDelA"));
+
+        await new Promise((r) => setImmediate(r));
+        expect(runtimeRegistry.isReserved("u1::ResvDelA::EURUSD::PAPER")).toBe(true);
+
+        expect(() => runtimeRegistry.claimStrategyDeletion({
+            strategyName: "u1::ResvDelA",
+            userId: "u1"
+        })).toThrow(/still owns a runtime/i);
+        expect(runtimeRegistry.isDeletionClaimed("u1::ResvDelA")).toBe(false);
+
+        gate.resolve();
+        await expect(booting).resolves.toBe(true);
+        await new RuntimeLifecycle().terminate("u1::ResvDelA::EURUSD::PAPER");
+    }, 15000);
+
+    test("18. a failed database delete releases the claim and allows a later start", async () => {
+        db.query.mockRejectedValueOnce(new Error("DB_UNAVAILABLE"));
+
+        const failed = await invokeDelete({ userId: "u1", entityId: "DbFailA" });
+        expect(failed.statusCode).toBe(500);
+        expect(failed.body.error).toBe("DELETE_FAILED");
+
+        // Claim released → a later start is not blocked.
+        expect(runtimeRegistry.isDeletionClaimed("u1::DbFailA")).toBe(false);
+
+        const strategy = makeStrategy("DbFailA");
+        await expect(boot(strategy)).resolves.toBe(true);
+        expect(runtimeRegistry.has("u1::DbFailA::EURUSD::PAPER")).toBe(true);
+
+        await new RuntimeLifecycle().terminate("u1::DbFailA::EURUSD::PAPER");
+    });
+
+    test("19. two concurrent deletions: only one owns the operation", async () => {
+        const deleteGate = deferred();
+        db.query.mockImplementationOnce(() => deleteGate.promise);
+
+        const first = invokeDelete({ userId: "u1", entityId: "DupDelA" });
+        await new Promise((r) => setImmediate(r));
+
+        // Second request while the first still holds the claim.
+        const second = await invokeDelete({ userId: "u1", entityId: "DupDelA" });
+        expect(second.statusCode).toBe(409);
+        expect(second.body.error).toBe("DELETE_IN_PROGRESS");
+
+        deleteGate.resolve({ rows: [], rowCount: 1 });
+        const firstRes = await first;
+        expect(firstRes.statusCode).toBe(200);
+
+        // Claim released after success.
+        expect(runtimeRegistry.isDeletionClaimed("u1::DupDelA")).toBe(false);
+
+        // A later request is no longer blocked by a claim (row is gone → 404).
+        db.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+        const third = await invokeDelete({ userId: "u1", entityId: "DupDelA" });
+        expect(third.statusCode).toBe(404);
+    });
+
+    test("20. an entry that no longer holds its collaborators is not reported as active", async () => {
         const strategy = makeStrategy("GhostA");
         await boot(strategy);
         const runtimeId = "u1::GhostA::EURUSD::PAPER";

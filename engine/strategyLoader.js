@@ -477,6 +477,9 @@ async function startStrategy(id, options = {}) {
         if (err.code === "RUNTIME_ALREADY_OWNED" || err.code === "RUNTIME_ABORTED") {
             return { ok: false, reason: "START_IN_PROGRESS" };
         }
+        if (err.code === "RUNTIME_DELETION_IN_PROGRESS") {
+            return { ok: false, reason: "STRATEGY_BEING_DELETED" };
+        }
         return { ok: false, reason: err.message };
     } finally {
         _startInFlight.delete(id);
