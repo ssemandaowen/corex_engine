@@ -27,7 +27,7 @@ termination and deletion have deterministic ownership and ordering.
   reservations, concurrency reasons mapped to 409.
 - `engine/routes/strategyController.js` — registry-authoritative deletion gate,
   ownership check before delete, deletion claim held across the delete.
-- `test/runtimeOwnership.test.js` — 33 regression tests.
+- `test/runtimeOwnership.test.js` — 35 regression tests.
 
 ## Non-goals
 
@@ -71,8 +71,12 @@ termination and deletion have deterministic ownership and ordering.
 - [x] Strategy deletion is mutually exclusive with creation via
       `claimStrategyDeletion()` / `releaseStrategyDeletion()`; a concurrent delete
       gets 409, a failed DB delete releases the claim.
-- [x] Concurrent operations are covered by regression tests (33 tests).
-- [x] Existing tests remain green — full suite 60 suites / 659 tests.
+- [x] Concurrent operations are covered by regression tests (35 tests).
+- [x] Rollback cleanup ownership is pinned by tests 37/38: failed broker destroy keeps
+      the broker, failed strategy destroy keeps the instance, failed unsubscribe stays
+      retryable, the entry stays STOPPING, ownership is retained, and a later terminate
+      repeats only the failed steps.
+- [x] Existing tests remain green — full suite 60 suites / 661 tests.
 - [x] No unrelated work in the diff (5 source files + 1 test file, no engine
       reorganization, no schema change).
 
@@ -85,6 +89,45 @@ npm test
 
 Results are recorded in the implementation record
 (`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`).
+
+## Handoff — 2026-11-14 (S2-FIX-4 rollback cleanup ownership, PR #63)
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: `engine-01/stage-2-runtime-ownership`
+Last verified commit: see `git log -1` on the branch (S2-FIX-4 commit).
+Files changed: `test/runtimeOwnership.test.js` only (tests 37–38), plus this file, `plans/STATUS.md`
+and `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`. No runtime implementation change was
+needed: the guarantees were already implemented in S2-FIX-2/S2-FIX-3 and are now pinned by tests.
+Completed: (1) rollback cleanup ownership is proven for the six required properties — failed broker
+destroy keeps `entry.broker`/`reservation.pendingBroker`, failed strategy destroy keeps
+`entry.instance`/`reservation.pendingInstance`, failed unsubscribe stays retryable
+(`cleanupDone.unsubscribe` unset), the entry stays STOPPING, the claim is released only after every
+step succeeds, and a later terminate repeats only the failed steps (37/38, plus 23/28). (2) The two
+original blockers were re-verified on this branch: token-fenced `delete()` (tests 9/25), no
+reservation TTL, deletion claim vs `reserve()` (tests 16/17), concurrent delete 409 (test 19), DB
+delete failure releases the claim (test 18). (3) Lifecycle consistency: `terminate()` is idempotent
+(`_terminations` single-flight, test 23), failures stay visible on `holder.cleanupFailures` and
+retryable, registry state cannot outlive resource ownership (entry deleted only after every step
+succeeded), and no TTL recovery comments remain (only explicit "no expiry" statements).
+Commands and test results:
+- targeted: `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js`
+  → 2 suites / 39 tests pass (16.728 s).
+- `npm test` → 60 suites / 661 tests pass (70.646 s).
+- `node --test` is not applicable to this suite: these are Jest suites and fail at import with
+  `ReferenceError: jest is not defined` (pre-existing, unrelated to any change on this branch).
+Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (no credentials, broker
+factory mocked); ownership and deletion claims are per-process; no crash reconciliation of a runtime
+persisted as ACTIVE after a process death; a failed rollback does not persist STOPPING to
+`stateManager` (registry state is authoritative for this stage); `strategyLoader.startStrategy` is
+not unit-covered end to end; the lost-claim path is only reachable if claims ever expire or go
+cross-process.
+Decisions needed: whether cross-process runtime ownership is ever required (would need a DB-backed
+lease).
+Blockers: none.
+Exact next action: review the S2-FIX-4 diff, then merge PR #63 and open ENGINE-02 (engine folder
+reorganization) as a separate PR.
+May another agent continue? YES — resume this file and the implementation record.
 
 ## Handoff — 2026-11-14 (S2-FIX-3 warmup abort and orphan scope, PR #63)
 

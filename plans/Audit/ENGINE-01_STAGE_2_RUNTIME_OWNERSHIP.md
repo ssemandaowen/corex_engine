@@ -137,7 +137,7 @@ unchanged apart from the new 409 conflict.
 | `engine/strategyLoader.js` | Ownership-based start gate (`has` → already running, `isReserved` → `START_IN_PROGRESS` or `START_BLOCKED_CLEANUP_PENDING`), race reasons mapped to 409, stop targets from `registeredEntries()` **plus** parked reservations from `findOwnedByStrategy()` phase `"reserved"`, cleanup-failure logging, `getActiveSymbols()` fixed to `all()`. |
 | `engine/routes/strategyController.js` | Registry-authoritative `isStrategyBusy`, ownership-filtered delete gate, deletion claim taken before the DELETE and released on every outcome, 409 on claim contention. |
 | `engine/routes/executionController.js` | `STRATEGY_BEING_DELETED` and `START_BLOCKED_CLEANUP_PENDING` mapped to HTTP 409 alongside `START_IN_PROGRESS`. |
-| `test/runtimeOwnership.test.js` | New: 30 tests (see below). |
+| `test/runtimeOwnership.test.js` | New: 35 tests (see below). |
 
 ## 4. Tests
 
@@ -181,15 +181,40 @@ mocked.
 | 33 | Terminate during warmup | boot rejects with `RUNTIME_ABORTED`; broker and strategy destroyed exactly once (by the termination); `marketFeed.subscribe` not called; no `ACTIVE` commit; no `STRATEGY_START` event; identity free |
 | 34 | Committed rollback after removal | a late boot failure destroys nothing a second time |
 | 35 | Uncommitted boot, claim released mid-flight | commit fails with `RUNTIME_RESERVATION_LOST`, the boot's broker is destroyed once, nothing is released or created behind its back |
+| 36 | Entry without live collaborators | not reported as dispatchable/active; `isDispatchable` false |
+| 37 | Failed rollback, committed entry | entry stays `STOPPING`, keeps `broker` and ownership; strategy already destroyed (1 call), broker destroyed once; unsubscribe and broker failures recorded; a later `terminate()` retries exactly the failed steps (unsubscribe 2, broker 2, strategy still 1), removes the entry and frees the identity |
+| 38 | Failed rollback, reservation holder | no entry, reservation keeps ownership and parks `pendingBroker`/`pendingInstance`; both destroyed once; a later `terminate()` destroys the parked broker (2 calls), skips the destroyed strategy, releases the claim; identity immediately reusable |
+
+### Rollback cleanup ownership guarantees (item-by-item)
+
+| Guarantee | Where it holds | Evidence |
+|---|---|---|
+| Failed broker destruction preserves the broker reference | `_runCleanup` nulls `entry.broker` only on success; `_rollbackBoot` parks `reservation.pendingBroker` on failure | tests 28, 37, 38 |
+| Failed strategy destruction preserves the instance reference | `entry.instance` nulled only on success; `reservation.pendingInstance` parked on failure | tests 23, 37, 38 |
+| Failed feed unsubscription remains recoverable | `cleanupDone.unsubscribe` set only on success, so the step is retried on the holder | test 37 (fails once, retried, count 2) |
+| Runtime stays `STOPPING` while cleanup is incomplete | entry transitioned to `STOPPING` before cleanup, removed only in the success branch | tests 23, 37 |
+| Ownership retained until cleanup succeeds | claim released and entry deleted only after every step succeeded | tests 25, 37, 38 |
+| Later termination retries without repeating successful destruction | `holder.cleanupDone` gates each step; `_terminate` re-reads the holder | tests 23, 37, 38 |
+
+### Concurrency protections still in force (re-verified on this branch)
+
+| Protection | Mechanism | Evidence |
+|---|---|---|
+| Old boot cannot delete a newer runtime | `RuntimeRegistry.delete(runtimeId, {token})` compares `entry.ownerToken`; a stale token returns false and terminate reports "stop not confirmed" | tests 9, 25 |
+| Reservations cannot expire while a boot runs | `reserve()` records no expiry; claims and reservations have no TTL (only explicit "no expiry" comments remain) | `RuntimeRegistry.js:29,185,264`; suite has no TTL path |
+| Deletion claims prevent new reservations | `reserve()` throws `STRATEGY_DELETE_IN_PROGRESS` while a claim is held; mapped to `DELETE_IN_PROGRESS` / 409 | tests 16, 17 |
+| Concurrent deletion attempts handled safely | one claim per strategy; a second DELETE gets 409 `DELETE_IN_PROGRESS` | test 19 |
+| Database deletion failure releases the claim | `strategyController` releases in `finally`; a later start is not blocked | test 18 |
 
 ### Commands and results (exact)
 
 | Command | Suites | Tests | Result | Time |
 |---|---|---|---|---|
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js` | 1 | 33 | 33 passed | ~17 s |
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js` | 2 | 37 | 37 passed | 16.802 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js` | 1 | 35 | 35 passed | ~17 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js` | 2 | 39 | 39 passed | 16.728 s |
 | `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js engine/test` | 17 | 140 | 140 passed | 47.566 s |
 | `npm test` (S2-FIX-3) | 60 | 659 | 659 passed | 56.551 s |
+| `npm test` (S2-FIX-4) | 60 | 661 | 661 passed | 70.646 s |
 
 Baseline before this task: 59 suites / 626 tests (PR #62). Delta: +1 suite, +30 tests,
 exactly the new file.

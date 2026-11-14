@@ -72,6 +72,20 @@ Blockers: none for the cleanup.
 Exact next action: review `29ee775`, decide the overlap with PR #60 / PR #26, then push and open the PR.
 May another agent continue? YES — resume the task file and this dashboard.
 
+### Handoff — 2026-11-14 (ENGINE-01 S2 / S2-FIX-4 rollback cleanup ownership, PR #63)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: `engine-01/stage-2-runtime-ownership` (branched from `origin/main` @ `8dd6048`)
+Last verified commit: see `git log -1` on the branch (S2-FIX-4 commit).
+Files changed: `test/runtimeOwnership.test.js` (tests 37–38) and plans only; no runtime implementation change was required.
+Completed: rollback cleanup ownership pinned for all six required properties (failed broker destroy keeps the broker reference, failed strategy destroy keeps the instance, failed unsubscribe stays retryable, entry stays STOPPING, ownership retained until cleanup succeeds, later terminate repeats only failed steps); the two original blockers re-verified on this branch (token-fenced delete, no reservation TTL, deletion claim vs reserve, concurrent delete 409, DB delete failure releases the claim); `terminate()` idempotency and failure visibility confirmed; no TTL recovery comments remain.
+Commands and test results: targeted `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js` → 2 suites / 39 tests pass (16.728 s); `npm test` → 60 suites / 661 tests pass (70.646 s).
+Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (credentials absent, broker factory mocked); ownership and deletion claims are per-process; no crash reconciliation of a runtime persisted as ACTIVE; a failed rollback does not persist STOPPING to `stateManager`; `strategyLoader.startStrategy` not unit-covered end to end.
+Decisions needed: whether cross-process runtime ownership is ever required (would need a DB-backed lease).
+Blockers: none.
+Exact next action: review the S2-FIX-4 diff, then merge PR #63 and open ENGINE-02 (engine folder reorganization) as a separate PR.
+May another agent continue? YES — resume the task file and this dashboard.
+
 ### Handoff — 2026-11-14 (ENGINE-01 S2 / S2-FIX-3, PR #63)
 Owner / agent: Kilo Code
 Status: REVIEW
