@@ -567,4 +567,41 @@ describe("security.js — loop guards", () => {
         `;
         expect(() => validateStrategyCode(valid)).not.toThrow();
     });
+
+    test("corex-strategy-engine import passes scanner", () => {
+        const valid = `
+            const { Strategy } = require("corex-strategy-engine");
+            class MyStrat extends Strategy {
+                constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 50 }); }
+                onBar(ctx, bar) { return null; }
+            }
+            module.exports = MyStrat;
+        `;
+        expect(() => validateStrategyCode(valid)).not.toThrow();
+    });
+
+    test("corex-strategy-engine subpath import is blocked", () => {
+        const code = `
+            const { Strategy } = require("corex-strategy-engine/src/Strategy");
+            class MyStrat extends Strategy {
+                constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 50 }); }
+                onBar(ctx, bar) { return null; }
+            }
+            module.exports = MyStrat;
+        `;
+        expect(() => validateStrategyCode(code)).toThrow(/Unauthorized require/);
+    });
+
+    test("corex-strategy-engine indicators subpath import is blocked", () => {
+        const code = `
+            const { EMA } = require("corex-strategy-engine/src/indicators");
+            const { Strategy } = require("corex-strategy-engine");
+            class MyStrat extends Strategy {
+                constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 50 }); }
+                onBar(ctx, bar) { return null; }
+            }
+            module.exports = MyStrat;
+        `;
+        expect(() => validateStrategyCode(code)).toThrow(/Unauthorized require/);
+    });
 });
