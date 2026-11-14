@@ -7,7 +7,7 @@
  * Re-exports all providers, contract, factory, and the MarketFeed singleton.
  *
  * On load, auto-registers the default TwelveDataProvider (wrapping the
- * legacy @broker/twelvedata singleton) as the active provider so that
+ * legacy TwelveData singleton) as the active provider so that
  * integration points calling DataProviderFactory.fetchHistorical() work
  * without explicit setup.
  */
@@ -18,6 +18,8 @@ const { TwelveDataProvider } = require("./src/providers/TwelveDataProvider");
 const { FileDataProvider } = require("./src/providers/FileDataProvider");
 const { YahooFinanceProvider } = require("./src/providers/YahooFinanceProvider");
 const { fetchGuardedHistory, MAX_BARS_LIMIT } = require("./src/backtestDataResolver");
+const MarketFeed = require("./src/MarketFeed");
+const legacyMarketData = require("./src/legacy/twelvedata");
 
 // Auto-register default provider
 try {
@@ -39,5 +41,7 @@ module.exports = {
     FileDataProvider,
     YahooFinanceProvider,
     fetchGuardedHistory,
-    MAX_BARS_LIMIT
+    MAX_BARS_LIMIT,
+    MarketFeed,
+    legacyMarketData
 };

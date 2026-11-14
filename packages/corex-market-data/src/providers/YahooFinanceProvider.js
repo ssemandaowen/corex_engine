@@ -17,7 +17,7 @@
  * to verify end-to-end against live data (per AGENTS.md §Human verification).
  */
 
-const SymbolNormalizer = require("../../../corex-broker-contract/src/utils/SymbolNormalizer");
+const { SymbolNormalizer } = require("corex-broker-contract");
 const {
     DataProviderContract,
     validateProviderImplementation,

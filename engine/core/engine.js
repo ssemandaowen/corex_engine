@@ -2,8 +2,7 @@
 
 require("module-alias/register");
 
-const broker = require("@broker/twelvedata");
-const DataProviderFactory = require("@data/src/DataProviderFactory");
+const { DataProviderFactory, MarketFeed, legacyMarketData } = require("@data");
 const loader = require("@core/strategyLoader");
 const { bus, EVENTS } = require("@events/bus");
 const path = require("path");
@@ -20,11 +19,10 @@ const SignalProcessingEngine = require("@core/core/pipeline/SignalProcessingEngi
 const SignalExecutionEngine = require("@core/core/pipeline/SignalExecutionEngine");
 const SocketXRiskEngine = require("@core/core/pipeline/SocketXRiskEngine");
 const { RiskGateway, SocketXServer } = require("../../packages/corex-gateway/index.js");
-const BaseBroker = require("../../packages/corex-broker-contract/src/base/BaseBroker");
+const { BaseBroker } = require("corex-broker-contract");
 const { verifyToken } = require("../../packages/corex-auth/index.js");
 const strategyRuntime = require("@core/modules/strategyRuntime");
 const RuntimeRegistry = require("@core/core/runtime/RuntimeRegistry");
-const MarketFeed = require("@core/core/runtime/MarketFeed");
 const { parseScopedId } = require("@core/services/userScope");
 
 const BANNER_PATH = path.join(__dirname, "banner.txt");
@@ -639,7 +637,7 @@ class CoreXEngine {
         this.status = "STOPPING";
         this.lifecycle.transition(STATES.STOPPING, { reason: "shutdown" });
 
-        broker.cleanup();
+        legacyMarketData.cleanup();
         this.strategyCrashCounters?.clear();
 
         this.status = "IDLE";

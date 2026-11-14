@@ -444,3 +444,18 @@ Not implemented in this session — placed on the todo list for future work:
 3. **Phase D: Spatial-culling gate** in Strategy.js — performance optimization to skip indicator updates when price hasn't changed meaningfully.
 4. **Phase E: Package documentation** — AGENTS.md and README.md for the package (already written, verify completeness).
 
+---
+
+**[2026-11-14 02:50] Feature: P3-04 — Broker folder ownership cleanup**
+
+Decision:
+1. `corex-broker-contract` public API (`index.js`) is the authoritative import surface; its `package.json` `main` changed from `src/mt5Bridge.js` to `index.js`.
+2. Removed the `/broker` forwarding mirrors (`base/`, `connectors/`, `modes/`), the dead backtest modules (`BacktestFeed.js`, `SignalGenerationEngine.js`), the legacy `twelvedata.js` forwarding entry, and the broken `liveStore.js`/`paperStore.js` helpers.
+3. Removed the application-level forwarding shims `engine/services/mt5Bridge.js`, `engine/core/runtime/RuntimeBrokerFactory.js` and `engine/core/runtime/MarketFeed.js`; consumers now use `corex-broker-contract` / `corex-market-data`.
+4. Moved in-process paper/live broker lookup to `runtimeService.getBrokerForMode()`; the standalone reset script now updates persisted broker settings.
+5. Fixed `MetaApiDriver` connector selection and `MT5MQL5Connector` / `mt5Bridge` protocol mapping to match the Python receiver contract.
+
+Reason: The legacy folder duplicated package-owned implementations, exposed internal `src/` paths as application dependencies, and the store helpers used a key format that never matched `RuntimeRegistry`. The MT5 connector called a non-existent bridge method and checked a response field the receiver never sends.
+
+Consequence: One authoritative broker package surface; no remaining `@broker/*` forwarding consumers; MT5 connector/bridge protocol aligned on paper. Socket_X remains unmounted and `MetaApiConnector` remains a non-executing skeleton; both are recorded as blockers for the separate execution-authority task. Evidence: `plans/architecture/BROKER_OWNERSHIP_AND_SOCKETX_AUDIT.md`.
+

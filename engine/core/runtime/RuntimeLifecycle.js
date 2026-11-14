@@ -15,9 +15,9 @@
  */
 
 const runtimeRegistry    = require("./RuntimeRegistry");
-const RuntimeBrokerFactory = require("./RuntimeBrokerFactory");
-const marketFeed         = require("./MarketFeed");
-const DataProviderFactory = require("@data/src/DataProviderFactory");
+const { RuntimeBrokerFactory } = require("corex-broker-contract");
+const { MarketFeed: marketFeed } = require("@data");
+const { DataProviderFactory } = require("@data");
 const stateManager       = require("@utils/stateController");
 const pgStore            = require("@core/services/pgStore");
 const { bus, EVENTS }    = require("@events/bus");

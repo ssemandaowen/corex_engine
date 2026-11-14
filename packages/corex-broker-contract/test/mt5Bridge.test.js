@@ -78,6 +78,18 @@ describe("MT5Bridge", () => {
         expect(result).toBe("REJECTED");
     });
 
+    test("position helpers map to receiver protocol actions", async () => {
+        const requestSpy = jest.spyOn(mt5Bridge, "request").mockResolvedValue({ status: "executed" });
+
+        await mt5Bridge.openPosition({ symbol: "EURUSD" });
+        await mt5Bridge.closePosition({ symbol: "EURUSD" });
+        await mt5Bridge.closeAllPositions({});
+
+        expect(requestSpy).toHaveBeenNthCalledWith(1, "OPEN", { symbol: "EURUSD" });
+        expect(requestSpy).toHaveBeenNthCalledWith(2, "CLOSE", { symbol: "EURUSD" });
+        expect(requestSpy).toHaveBeenNthCalledWith(3, "CLOSEALL", {});
+    });
+
     test("getAccountSnapshot returns stored snapshot", () => {
         expect(mt5Bridge.getAccountSnapshot()).toBeNull();
         mt5Bridge.accountSnapshot = { balance: 50000, equity: 50000 };

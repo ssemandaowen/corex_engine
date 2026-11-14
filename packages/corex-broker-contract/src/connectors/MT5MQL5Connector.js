@@ -1,4 +1,4 @@
-// broker/connectors/MT5MQL5Connector.js
+// packages/corex-broker-contract/src/connectors/MT5MQL5Connector.js
 "use strict";
 
 const mt5Bridge = require("../mt5Bridge");
@@ -39,17 +39,16 @@ class MT5MQL5Connector {
         };
 
         try {
-            // Forward directly across your core socket handler instance
-            const response = await mt5Bridge.sendOrderRequest(payload);
-            
-            if (!response || response.retcode !== 0) {
-                throw new Error(response?.comment || "Terminal connection rejected order placement.");
+            const response = await mt5Bridge.openPosition(payload);
+
+            if (!response || response.status !== "executed") {
+                throw new Error(response?.error || response?.comment || "Terminal connection rejected order placement.");
             }
 
             try { if (intent.runtimeId) bus.emit(EVENTS.BROKER.STATE_CHANGED, { userId: intent.userId || null, mode: intent.mode || null, payload: {} }); } catch (e) {}
             return {
                 success: true,
-                orderId: response.order_ticket || `mt5_${Date.now()}`,
+                orderId: response.ticket || response.order_ticket || `mt5_${Date.now()}`,
                 executionPrice: response.price || intent.price,
                 raw: response
             };
@@ -69,16 +68,16 @@ class MT5MQL5Connector {
      */
     async liquidatePosition(symbol, runtimeId) {
         const payload = {
-            action: "CLOSE_ALL",
             symbol: symbol.toUpperCase(),
+            volume: 1,
             comment: String(runtimeId)
         };
 
         try {
-            const response = await mt5Bridge.sendOrderRequest(payload);
+            const response = await mt5Bridge.closePosition(payload);
             try { if (runtimeId) bus.emit(EVENTS.BROKER.STATE_CHANGED, { userId: null, mode: null, payload: {} }); } catch (e) {}
             return {
-                success: response?.retcode === 0,
+                success: response?.status === "executed",
                 raw: response
             };
         } catch (error) {
