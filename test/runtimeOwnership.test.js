@@ -985,7 +985,11 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
     // Terminate during warmup ──────────────────────────────────────────────────
     test("33. a terminate during warmup aborts the boot before subscribe/activate/announce", async () => {
         const gate = deferred();
+        // Park the termination inside its cleanup, so the STOPPING transition is
+        // observable while the warmup is still gated.
+        const destroyGate = deferred();
         DataProviderFactory.fetchHistorical.mockImplementation(() => gate.promise);
+        control.onDestroy = () => destroyGate.promise;
 
         const commitSpy = jest.spyOn(stateManager, "commit");
         const emitSpy = jest.spyOn(bus, "emit");
@@ -1008,7 +1012,11 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
 
         // A stop lands while warmup is still awaiting.
         const terminateOutcome = lifecycle.terminate(runtimeId);
-        await waitFor(() => runtimeRegistry.get(runtimeId) === undefined || true, "noop");
+        await waitFor(
+            () => runtimeRegistry.get(runtimeId)?.actualState === "STOPPING",
+            "runtime to enter STOPPING"
+        );
+        destroyGate.resolve();
         gate.resolve([]);
 
         const [code, terminated] = await Promise.all([bootOutcome, terminateOutcome]);
@@ -1031,6 +1039,7 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
 
         commitSpy.mockRestore();
         emitSpy.mockRestore();
+        control.onDestroy = null;
     }, 15000);
 
     test("34. a committed rollback after removal destroys nothing a second time", async () => {
