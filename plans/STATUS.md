@@ -23,6 +23,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | P0-06 | Test and known-issues baseline | Kilo Code | READY | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
 | P0-07 | Existing plans and PR/branch reconciliation | Jules | READY | None; verify current main | `plans/architecture/BRANCH_AND_PLAN_RECONCILIATION.md` |
 | P3-04 | Broker folder ownership cleanup & Socket_X integration audit | Kilo Code | REVIEW | P0-01 | `plans/tasks/P3-04-broker-ownership-cleanup.md` |
+| ENGINE-01 S2 | Atomic runtime ownership | Kilo Code | REVIEW (S2-FIX-3) | ENGINE-01 P0 (PR #62) | `plans/tasks/ENGINE-01-STAGE-2.md` |
 
 **Suggested owner is a proposed allocation, not a claim.** A task becomes CLAIMED only when the owner and branch are recorded here and in its task file.
 
@@ -34,6 +35,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
 - Phase 0 exit requires Owen to review P0-01 through P0-07. No broad rebuild is authorized before that gate.
 - P3-04 is Owen-directed bounded cleanup on the dedicated `fix/p3-04-broker-ownership` branch (the original `fix/upload-multipart-transport` branch is already PR #58 for unrelated upload work). It removes verified duplicate broker paths only; it does not authorize a full execution-authority rebuild.
+- ENGINE-01 S2 is Owen-directed runtime-ownership implementation on `engine-01/stage-2-runtime-ownership` (branched from `origin/main` @ `8dd6048`, which includes PR #62). `RuntimeRegistry` is the single authoritative runtime owner; the registry-based reservation/commit/abort protocol and the registry-authoritative deletion gate must not be duplicated in another module.
 - The old `plans/to_do.md` and PR #17 J1–J10 tracking proposal are historical inputs, not active task boards.
 
 ## Workstream / integration branch
@@ -68,6 +70,20 @@ Unverified items / limitations: real MT5/MetaAPI execution; Socket_X transport (
 Decisions needed: MT5 transport selection; MetaApiConnector disposition; approval for separate Socket_X execution-authority design; reconcile with PR #60 / PR #26 which overlap this work.
 Blockers: none for the cleanup.
 Exact next action: review `29ee775`, decide the overlap with PR #60 / PR #26, then push and open the PR.
+May another agent continue? YES — resume the task file and this dashboard.
+
+### Handoff — 2026-11-14 (ENGINE-01 S2 / S2-FIX-3, PR #63)
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: `engine-01/stage-2-runtime-ownership` (branched from `origin/main` @ `8dd6048`)
+Last verified commit: see `git log -1` on the branch (S2-FIX-3 commit).
+Files changed: `engine/core/runtime/RuntimeRegistry.js` (single owner, reserve/commit/abort, no TTL, fenced delete), `engine/core/runtime/RuntimeLifecycle.js` (ownership re-check after warmup, joinable serialized cleanup, orphan scope limited to uncommitted boots), `engine/strategyLoader.js`, `engine/routes/executionController.js`, `engine/routes/strategyController.js`, `test/runtimeOwnership.test.js`, plus `plans/tasks/ENGINE-01-STAGE-2.md`, `plans/STATUS.md`, `plans/KNOWN_ISSUES.md`, `plans/decisions.md`, `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+Completed: (1) a stop during warmup aborts the boot (`RUNTIME_ABORTED`) before subscribe/activate/announce and is reported as `START_CANCELLED` (409); (2) rollback and terminate share one cleanup in either order, both resolving to `{ failures, finalized, joined? }`; (3) orphan destruction restricted to boots that never committed, so no collaborator is destroyed twice; (4) tests 33–35 added (33 tests total).
+Commands and test results: targeted `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js` → 2 suites / 37 tests pass (16.802 s); `npm test` → 60 suites / 659 tests pass (56.551 s); baseline PR #62 59 suites / 626 tests.
+Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (credentials absent, broker factory mocked); ownership and deletion claims are per-process; no crash reconciliation of a runtime persisted as ACTIVE; `strategyLoader.startStrategy` is not unit-covered end to end; the lost-claim path is only reachable if claims ever expire or go cross-process.
+Decisions needed: whether cross-process runtime ownership is ever required (would need a DB-backed lease).
+Blockers: none.
+Exact next action: review the S2-FIX-3 diff and the implementation record; if accepted, merge PR #63.
 May another agent continue? YES — resume the task file and this dashboard.
 
 ### Acceptance — 2026-10-31 (P0-01)

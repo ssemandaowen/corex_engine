@@ -336,7 +336,7 @@ async function _handleRuntimeParamUpdate(id, params) {
 }
 
 function getActiveSymbols() {
-    return Array.from(new Set(runtimeRegistry.list().map(r => r.symbol)));
+    return Array.from(new Set(runtimeRegistry.all().map(r => r.symbol)));
 }
 
 function getBootStats() {
@@ -412,8 +412,20 @@ async function startStrategy(id, options = {}) {
         }
         const runtimeId = `${id}::${symbol}::${mode}`;
 
+        // Ownership is decided by the registry, not by this function: a live
+        // entry means "already running", a pending reservation means "another
+        // creation for this identity is still initializing".
         if (runtimeRegistry.has(runtimeId)) {
             return { ok: true, runtimeId, alreadyRunning: true };
+        }
+        if (runtimeRegistry.isReserved(runtimeId)) {
+            const reservation = runtimeRegistry.getReservation(runtimeId);
+            if (reservation && reservation.cleanupFailures && reservation.cleanupFailures.length > 0) {
+                // A rollback could not finish: the identity is owned by a cleanup
+                // that still has to be completed (stop), not by a running boot.
+                return { ok: false, reason: "START_BLOCKED_CLEANUP_PENDING" };
+            }
+            return { ok: false, reason: "START_IN_PROGRESS" };
         }
 
         const instance = new meta.StrategyClass();
@@ -467,6 +479,18 @@ async function startStrategy(id, options = {}) {
         return { ok: true, runtimeId, mode, symbol, params: mergedParams };
     } catch (err) {
         log.error(`[START] Failed to start ${id}: ${err.message}`);
+        // A lost ownership race is a concurrency signal, not a server fault.
+        if (err.code === "RUNTIME_ALREADY_OWNED") {
+            return { ok: false, reason: "START_IN_PROGRESS" };
+        }
+        // The start was cancelled by a stop while it was booting: report it as a
+        // cancellation, not as another start being in progress.
+        if (err.code === "RUNTIME_ABORTED") {
+            return { ok: false, reason: "START_CANCELLED" };
+        }
+        if (err.code === "RUNTIME_DELETION_IN_PROGRESS") {
+            return { ok: false, reason: "STRATEGY_BEING_DELETED" };
+        }
         return { ok: false, reason: err.message };
     } finally {
         _startInFlight.delete(id);
@@ -483,23 +507,46 @@ async function stopStrategy(id, options = {}) {
     if (options.runtimeId) {
         targets = [options.runtimeId];
     } else {
-        targets = runtimeRegistry.all()
-            .filter(r =>
-                (r.strategyName === id || r.strategyName === unscoped) &&
-                (!r.userId || r.userId === userId || userId === 'system'))
+        const matches = (r) =>
+            (r.strategyName === id || r.strategyName === unscoped) &&
+            (!r.userId || r.userId === userId || userId === 'system');
+
+        targets = runtimeRegistry.registeredEntries()
+            .filter(matches)
             .map(r => r.runtimeId);
+
+        // A rollback whose cleanup failed leaves no registered entry, only a
+        // reservation with cleanupFailures (and parked collaborators). Stop must
+        // reach those too, otherwise the identity stays owned and unusable.
+        const parked = runtimeRegistry.parkedReservations();
+        for (const strategyName of [id, unscoped]) {
+            for (const owned of runtimeRegistry.findOwnedByStrategy(strategyName)) {
+                if (owned.phase !== "reserved") continue;
+                const reservation = parked.find(r => r.runtimeId === owned.runtimeId);
+                if (!reservation || !matches(reservation)) continue;
+                if (!targets.includes(reservation.runtimeId)) targets.push(reservation.runtimeId);
+            }
+        }
     }
 
     if (!targets.length) return false;
 
     const lc = new RuntimeLifecycle();
     let anyOk = false;
+    let cleanupFailed = false;
     for (const runtimeId of targets) {
         const ok = await lc.terminate(runtimeId);
         if (ok) {
             anyOk = true;
             await _clearRuntimeDesiredState(runtimeId).catch(() => {});
+        } else if (runtimeRegistry.get(runtimeId) || runtimeRegistry.getReservation(runtimeId)) {
+            // Still registered/reserved but not cleaned up: never a successful stop.
+            cleanupFailed = true;
         }
+    }
+
+    if (cleanupFailed && !anyOk) {
+        log.error(`[STOP] Runtime(s) still hold resources after cleanup failure: ${targets.join(', ')}`);
     }
 
     if (anyOk) {
