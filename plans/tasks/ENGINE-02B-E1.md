@@ -8,6 +8,7 @@
 **Report:** `plans/Audit/ENGINE-02B_E1_engine_inventory.md`
 **Roadmap entry:** E1 — `plans/ROADMAP.md:57` and `:101`
 **Pull request:** https://github.com/ssemandaowen/corex_engine/pull/65 (OPEN, not merged)
+**Commits:** `8a59f44` — report, task record and E1 roadmap rows; `ba7fc18` — review correction separating worker-process shutdown from in-process runtime termination (§5.2.1). The branch head advances with each review fix; PR #65 is the merge target.
 
 ---
 
@@ -61,7 +62,7 @@ extraction.
 | Roadmap E1 entry updated | Pass |
 | Task file records completion and limitations | Pass — §5 below |
 | Diff contains only the three authorised documentation files | Pass |
-| Committed and pushed; PR opened, not merged | Pass — commit `8a59f44`, branch pushed, PR #65 OPEN |
+| Committed and pushed; PR opened, not merged | Pass — report commit `8a59f44`, review correction `ba7fc18`; PR #65 OPEN |
 
 ### Re-verification result summary
 
