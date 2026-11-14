@@ -47,16 +47,23 @@ termination and deletion have deterministic ownership and ordering.
       `releaseReservation`, `isOwnedBy`).
 - [x] Claims do not expire: an in-process claim is released by its owner or by
       process exit, so a slow boot is never treated as dead.
-- [x] Rollback of a committed boot keeps exclusive ownership through cleanup
-      (STOPPING → strip collaborators → destroy → remove own entry → release claim)
-      and stays retryable afterwards.
+- [x] Rollback cleanup is a success/failure operation: a failed broker or strategy destroy
+      keeps its reference on the entry/reservation, keeps the holder STOPPING, retains
+      ownership and releases nothing until a later `terminate()` finishes the job without
+      repeating successful steps.
+- [x] Claims do not expire: an in-process claim is released by its owner or by
+      process exit, so a slow boot is never treated as dead.
+- [x] Token fencing: a stale boot can never commit, release, delete or destroy another
+      boot's state (`ownerToken`, `delete(id, {token})`, token-scoped release, `isOwnedBy`).
+- [x] Rollback of a committed boot keeps ownership through cleanup
+      (STOPPING → destroy → remove own entry → release claim) and stays retryable.
 - [x] Strategy deletion is mutually exclusive with creation via
       `claimStrategyDeletion()` / `releaseStrategyDeletion()`; a concurrent delete
       gets 409, a failed DB delete releases the claim.
-- [x] Concurrent operations are covered by regression tests (19 tests).
-- [x] Existing tests remain green — full suite 60 suites / 645 tests.
+- [x] Concurrent operations are covered by regression tests (24 tests).
+- [x] Existing tests remain green — full suite 60 suites / 650 tests.
 - [x] No unrelated work in the diff (5 source files + 1 test file, no engine
-      reorganization, no schema change).
+      reorganization, no schema change, no TTL references left).
 
 ## Verification commands
 
@@ -67,6 +74,41 @@ npm test
 
 Results are recorded in the implementation record
 (`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`).
+
+## Handoff — 2026-11-14 (final rollback cleanup correction, PR #63)
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: `engine-01/stage-2-runtime-ownership`
+Last verified commit: see `git log -1` on the branch (rollback-cleanup commit).
+Files changed: `engine/core/runtime/RuntimeLifecycle.js` (rollback + terminate now share
+`_runCleanup`, with per-step completion records, deferred-cleanup parking and retry),
+`engine/core/runtime/RuntimeRegistry.js` (reservation shape documents the deferred-cleanup
+fields), `test/runtimeOwnership.test.js`, plus this file, `plans/STATUS.md`,
+`plans/KNOWN_ISSUES.md`, `plans/decisions.md` and
+`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+Completed: rollback cleanup is now success/failure — failed broker or strategy destroy
+retains the reference and ownership, the holder stays STOPPING, nothing is released until a
+later `terminate()` completes the remaining steps exactly once, and a stale boot still cannot
+touch another owner's entry. Obsolete reservation-TTL wording removed.
+Commands and test results:
+- targeted: `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js`
+  → 2 suites / 28 tests pass (19.216 s).
+- `test/runtimeOwnership.test.js test/runtimeExclusivity.test.js engine/test`
+  → 17 suites / 140 tests pass (47.566 s).
+- `npm test` → 60 suites / 650 tests pass (73.298 s).
+Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (no
+credentials, broker factory mocked in tests); ownership and deletion claims are
+per-process; no crash reconciliation of a runtime persisted as ACTIVE after a process
+death; `strategyLoader.startStrategy` is not unit-covered (needs compiler + DB); a stale
+boot that lost its claim drops its own broker/instance instead of destroying them (only
+reachable if claims ever expire or go cross-process).
+Decisions needed: whether cross-process runtime ownership is ever required
+(that would need a DB-backed lease, not implemented here).
+Blockers: none.
+Exact next action: review the rollback-cleanup diff and the implementation record; if
+accepted, merge PR #63.
+May another agent continue? YES — resume this file and the implementation record.
 
 ## Handoff — 2026-11-14 (review corrections, PR #63)
 

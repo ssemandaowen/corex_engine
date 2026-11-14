@@ -60,21 +60,35 @@ newer owner's state.
 
 **Creation (one controlled operation):** `reserve` → load settings → create broker →
 `initialize` → reconcile → abort check → `commitReservation` → wire instance → warmup →
-`stateManager`/`bus`. Any failure runs `_rollbackBoot()`: if the boot committed, the
-entry is CAS-moved to STOPPING and stripped of its collaborators (so it cannot be
-dispatched to) while the registry still refuses new creations for the identity; then
-the broker and instance are destroyed, the entry is removed with the boot's token
-(only if that token still owns it), and finally the claim is released. A failed boot
-therefore never exposes a half-initialized runtime and never blocks a later retry.
+`stateManager`/`bus`. Any failure runs `_rollbackBoot()`, which is a success/failure
+operation rather than a best-effort sequence (see the cleanup section): on failure the
+entry stays registered as `STOPPING` with its collaborators intact, ownership is retained,
+and `terminate(runtimeId)` finishes the cleanup later. A failed boot therefore never
+exposes a dispatchable half-initialized runtime and never releases an identity whose
+resources are still live.
 
 **Termination:** one operation per identity at a time via an in-flight promise map
-(no timers/locks). Unregistered + reserved → request abort, return false. Unregistered +
-unreserved → false. Otherwise CAS `ACTIVE|PAUSED|WARMING_UP → STOPPING`, then unsubscribe,
-destroy instance, destroy broker. Cleanup failures are collected in
-`entry.cleanupFailures`, the entry stays registered (marked STOPPING) and `terminate()`
-returns false, so no caller can report success. Removal is fenced by the entry's
-`ownerToken`; if the entry is no longer owned the stop is reported as unconfirmed. A
-later call retries the steps that still hold resources.
+(no timers/locks). Unregistered + reserved with no recorded failure → request abort, return
+false. Unregistered + reserved with a recorded rollback failure → retry exactly the failed
+steps and release the claim only when they succeed. Otherwise CAS
+`ACTIVE|PAUSED|WARMING_UP → STOPPING`, then run the same cleanup routine. Cleanup failures
+are collected in `holder.cleanupFailures`, the entry stays registered (marked STOPPING) and
+`terminate()` returns false, so no caller can report success. Removal is fenced by the
+entry's `ownerToken`; if the entry is no longer owned the stop is reported as unconfirmed. A
+later call retries only the steps that still hold resources.
+
+**Cleanup is a success/failure operation** (`_runCleanup`), used by both rollback and
+termination:
+
+- completed steps are recorded on the holder (`entry.cleanupDone` / `reservation.cleanupDone`),
+  so a retry never repeats a successful destroy or unsubscribe;
+- a failed step keeps its collaborator on the holder (`entry.broker` / `entry.instance` survive,
+  or `reservation.pendingBroker` / `pendingInstance` / `pendingProfile` when the boot never
+  committed);
+- the holder stays in `STOPPING` with ownership retained, and nothing is released or removed
+  until every required step succeeded;
+- a boot that lost its claim can neither destroy nor release another owner's resources
+  (token fence, early return).
 
 **Deletion:** `DELETE /api/strategies/:id` resolves the user-scoped id, refuses (403,
 unchanged message) when `findOwnedByStrategy()` returns anything owned by that user or the
@@ -89,12 +103,12 @@ unchanged apart from the new 409 conflict.
 
 | File | Change |
 |---|---|
-| `engine/core/runtime/RuntimeRegistry.js` | Reservation ledger, ownership API, fencing tokens (`ownerToken`, `isOwnedBy`, token-checked `delete`), CAS transition, duplicate-registration guard, deletion claims (`claimStrategyDeletion`/`releaseStrategyDeletion`), live-entry queries, `registeredEntries()`, `findOwnedByStrategy()`, `pendingSize`, `deletionClaimCount`. |
-| `engine/core/runtime/RuntimeLifecycle.js` | Reserve/commit/rollback in `boot()`, abort-aware boot, ownership-fenced `_rollbackBoot()` (STOPPING → strip collaborators → destroy → remove own entry → release claim), `destroyQuietly()`, serialized + idempotent `terminate()` with `cleanupFailures` and fenced removal. |
+| `engine/core/runtime/RuntimeRegistry.js` | Reservation ledger, ownership API, fencing tokens (`ownerToken`, `isOwnedBy`, token-checked `delete`), CAS transition, duplicate-registration guard, deletion claims (`claimStrategyDeletion`/`releaseStrategyDeletion`), live-entry queries, `registeredEntries()`, `findOwnedByStrategy()`, `pendingSize`, `deletionClaimCount`. Reservations also carry deferred-cleanup state (`cleanupDone`, `cleanupFailures`, `pendingBroker`/`pendingInstance`/`pendingProfile`). |
+| `engine/core/runtime/RuntimeLifecycle.js` | Reserve/commit/rollback in `boot()`, abort-aware boot, `_rollbackBoot()` and `_runCleanup()` (shared success/failure cleanup with per-step completion records, fenced removal, deferred-cleanup parking on the reservation, retry from `terminate()`), serialized + idempotent `terminate()`. |
 | `engine/strategyLoader.js` | Ownership-based start gate (`has` → already running, `isReserved` → `START_IN_PROGRESS`), race reasons mapped to `START_IN_PROGRESS`/`STRATEGY_BEING_DELETED`, stop targets from `registeredEntries()`, cleanup-failure logging, `getActiveSymbols()` fixed to `all()`. |
 | `engine/routes/strategyController.js` | Registry-authoritative `isStrategyBusy`, ownership-filtered delete gate, deletion claim taken before the DELETE and released on every outcome, 409 on claim contention. |
 | `engine/routes/executionController.js` | `STRATEGY_BEING_DELETED` mapped to HTTP 409 alongside `START_IN_PROGRESS`. |
-| `test/runtimeOwnership.test.js` | New: 19 tests (see below). |
+| `test/runtimeOwnership.test.js` | New: 24 tests (see below). |
 
 ## 4. Tests
 
@@ -124,21 +138,28 @@ mocked.
 | 18 | DB delete failure | 500 `DELETE_FAILED`, claim released, a later start succeeds |
 | 19 | Two concurrent deletions | second gets 409 `DELETE_IN_PROGRESS`; first succeeds; claim released; later request 404 |
 | 20 | Non-live entry | excluded from `all()`/`forSymbol()`/exclusivity, still registered |
+| 21 | Broker destroy fails in post-registration rollback | entry retained, `STOPPING`, `entry.broker` preserved, `cleanupFailures` names the broker error, ownership retained, successful steps recorded |
+| 22 | Strategy destroy fails in rollback | `entry.instance` preserved, `entry.broker` nulled (already destroyed), failure recorded, ownership retained |
+| 23 | Retry after failed rollback | `terminate()` returns true, removes the entry, broker destroyed exactly once more, strategy and feed not repeated, further terminate destroys nothing |
+| 24 | Clean rollback | entry and identity released immediately, one destroy per collaborator, later terminate destroys nothing |
+| 25 | Stale rollback (committed and uncommitted) | a boot that lost its claim cannot remove, release or destroy the newer owner's entry, broker or instance |
 
 ### Commands and results (exact)
 
 | Command | Suites | Tests | Result | Time |
 |---|---|---|---|---|
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js` | 1 | 19 | 19 passed | ~16 s |
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js` | 2 | 23 | 23 passed | 17.036 s |
-| `npm test` (after corrections) | 60 | 645 | 645 passed | 55.106 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js` | 1 | 24 | 24 passed | ~17 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js` | 2 | 28 | 28 passed | 19.216 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js engine/test` | 17 | 140 | 140 passed | 47.566 s |
+| `npm test` (final rollback correction) | 60 | 650 | 650 passed | 73.298 s |
 
-Baseline before this task: 59 suites / 626 tests (PR #62). Delta: +1 suite, +19 tests,
+Baseline before this task: 59 suites / 626 tests (PR #62). Delta: +1 suite, +24 tests,
 exactly the new file.
 
-Earlier runs on the first revision of this branch (kept for history): targeted 2 suites /
-17 tests; `npm test` 60 suites / 639 tests (one unrelated `packages/corex-gateway/test/socketx.test.js`
-flake in run 1, green in isolation and on rerun).
+Earlier runs on this branch (kept for history): 2 suites / 17 tests, then 2 suites / 23
+tests, then `npm test` 60 / 639 and 60 / 645 (one unrelated
+`packages/corex-gateway/test/socketx.test.js` flake in a run before the final correction,
+green in isolation and on rerun).
 
 `--runInBand` is used for targeted runs; `npm test` runs the default configuration and is
 the recorded baseline. Jest leaves open handles in some suites, hence `--forceExit` on
@@ -170,6 +191,11 @@ targeted runs.
 7. **Deletion claims are per-process only.** Two engine instances can each delete the same
    strategy row; the DB delete is idempotent there, but a cross-process delete lock would be
    needed for a hard guarantee.
+8. **A stale boot abandons its own resources.** If a boot that lost its claim (or whose claim
+   belongs to another boot) rolls back, the registry entry belongs to the new owner and must
+   not be touched, so its own broker/instance are logged and dropped rather than destroyed.
+   That cannot happen while claims never expire and the process is alive; it is recorded so the
+   leak path is explicit if the ownership model ever gains cross-process claims.
 
 ## 6. Pre-existing issues observed but not changed
 
