@@ -93,13 +93,20 @@ The documented `npm test` run below did not need it.
 
 | Command | Suites | Tests | Passed | Failed | Skipped | Time |
 |---|---|---|---|---|---|---|
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit <3 P0 suites>` | 3 | 23 | 23 | 0 | 0 | 23.962 s |
-| `npm test` (full suite, default workers) | 59 | 626 | 626 | 0 | 0 | 132.561 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit <3 P0 suites>` | 3 | 23 | 23 | 0 | 0 | 17.483 s |
+| `node ... <3 P0 suites>` (re-run at finalize) | 3 | 23 | 23 | 0 | 0 | 18.686 s |
+| `npm test` (full suite, run 1) | 59 | 626 | 625 | 1 | 0 | 60.081 s |
+| `npm test` (full suite, run 2) | 59 | 626 | 626 | 0 | 0 | 60.640 s |
+| `npm test` (full suite, run 3 — at finalize) | 59 | 626 | 626 | 0 | 0 | 69.801 s |
 
 Derived (subtraction, not measured separately): the full suite without the three P0 suites is
 **56 suites / 603 tests**.
 
-Pre-existing failures: **none observed** on `origin/main` with the P0 change applied.
+The single failure in run 1 was `test/IncrementalIndicators.test.js`, whose timing-sensitive
+benchmark assertions (test/IncrementalIndicators.test.js:109-110) fail under parallel workers.
+It passes in isolation (`--runInBand`: 5/5) and passed on runs 2 and 3, so it is a **pre-existing
+intermittent (timing) failure, not a P0 regression** — no P0 file is imported by it. Runs 2 and 3
+are green; the recorded baseline is **59 suites / 626 tests**.
 No suite was skipped and no test was marked `.skip`.
 
 Environment limitations that shape these numbers:
@@ -126,15 +133,20 @@ Investigation answers (all on `origin/main`, not on the WIP):
 | Why was `savedPath` reported as `undefined`? | In the WIP, `run()` assigns `const reportPath = await this._saveToFile(report)` while the new `_saveToFile` returns nothing. On `main` `savedPath` is not `undefined` — it is *recomputed*, which is the actual defect (see next row). |
 | Is report / trade persistence affected? | **Yes, both.** Any `runtimeId` containing `/` (i.e. every symbol like `BTC/USD`) produced the path `.../BTC/USD::BACKTEST.json`; `writeFile` failed with `ENOENT` and the failure was swallowed, so `REPORT_SAVED` advertised a file that did not exist. The trades CSV had the same defect. |
 
-Changes (3 code sites + 1 new helper):
+Changes (2 code sites):
 
 | Site | Change |
 |---|---|
-| `_saveToFile(report)` | Derives the file name through `_reportFileName(report.meta.id, ".json")`, returns the absolute path it wrote, and **propagates** write failures instead of swallowing them. |
+| `_saveToFile(report)` | Writes the raw file name (report id + `.json`) under `storagePath`, returns the absolute path it wrote, and **propagates** write failures instead of swallowing them. |
 | `_saveReport(report, fullTrades)` | Returns the path resolved by `_saveToFile` so callers cannot recompute a different one. |
 | `run()` | `const savedPath = await this._saveReport(report, fullTrades);` (was: ignore result + `path.join(this.storagePath, ...)`). |
-| `_reportFileName(reportId, extension)` (new) | `String(id).replace(/[^a-zA-Z0-9._-]+/g, "_") + extension`. Ids that are already safe are unchanged; `meta.id` (the DB/API identity) is never rewritten. |
-| `_saveTradesToCsv`, `getTradesCsvPath` | Use the same helper, so the CSV name and the report name agree. |
+| `_saveTradesToCsv`, `getTradesCsvPath` | **Unchanged.** Still derive raw `${id}.trades.csv` names and still swallow write failures. |
+
+File naming is deliberately **out of scope** for P0. `engine/routes/backtestController.js` reads
+and deletes report files using the raw id (`${scopedReportId}.json`, `${reportId}.json`), so any
+name rewriting done here would produce files the API can neither find nor delete. A shared
+`safeFilename` helper in `engine/services/userScope.js`, applied by writer **and** readers, is
+Stage 1 work.
 
 Behavior change (intentional, documented): a failed report write now fails the backtest run
 instead of emitting `REPORT_SAVED` for a non-existent file.
@@ -160,10 +172,10 @@ broker contract, strategy runtime, lifecycle); the `warmupStrategy` body and its
 |---|---|---|
 | A1 | A representative offline backtest runs end-to-end (120 synthetic 1m bars → 11 trades) and returns a report. | CONFIRMED |
 | A2 | `REPORT_SAVED.reportPath` is absolute, exists, and parses to the report structure. | CONFIRMED |
-| A3 | Before the fix, a `/`-containing `runtimeId` made both the report and the trades CSV unwritable (ENOENT) and the failure was silent. | CONFIRMED (reproduced pre-fix) |
+| A3 | Ids containing `:` or `/` produce file names that are **unwritable** (`/` becomes a non-existent directory segment → ENOENT; `:` is illegal on Windows) or **mismatched with the readers**: `backtestController` looks up and unlinks `${scopedReportId}.json` / `${reportId}.json`. Deferred to Stage 1's shared `safeFilename` helper in `userScope` (writer **and** readers). Not exercised here: the suite uses a filename-safe id. | INFERRED (the real API `runtimeId` is scoped `userId::jobId`, so it always contains `:`; no live API run was performed) |
 | A4 | Trades-CSV failures are still swallowed (`logger.warn` at `_saveTradesToCsv`); only the report path is now authoritative. | CONFIRMED |
 | A5 | `_saveToDatabase` throws `BACKTEST_DB_REQUIRED` when no DB is configured — **after** the report file has been written — so `run()` rejects even though a report exists. | CONFIRMED (code path; not executed with a real DB) |
-| A6 | Report file names are now derived from `meta.id`; the id inside the report is unchanged. | CONFIRMED |
+| A6 | Report and trades-CSV file names are the raw `meta.id`; the id stored inside the report is unchanged. | CONFIRMED |
 
 ### Test B — live/paper market-data delivery (`MarketFeed._feedRuntime`)
 
@@ -194,6 +206,7 @@ broker contract, strategy runtime, lifecycle); the `warmupStrategy` body and its
 | Defect | Location | Why left |
 |---|---|---|
 | Silent trades-CSV write failures | `engine/backtestManager.js` `_saveTradesToCsv` | Outside the confirmed `_saveToFile` defect; would change report semantics beyond P0. |
+| Report and CSV names are raw ids (`:` / `/` are unwritable and reader-mismatched) | `engine/backtestManager.js` `_saveToFile` / `getTradesCsvPath` vs `engine/routes/backtestController.js` | Naming is Stage 1's shared `safeFilename` helper in `userScope` (writer **and** readers). A writer-only sanitizer would produce files the API cannot find or delete. |
 | `BACKTEST_DB_REQUIRED` thrown after the file write | `_saveToDatabase` / `run()` ordering | Needs a decision on report-vs-DB precedence. |
 | Market-data timeout does not cancel, and does not serialize per runtime | `packages/corex-market-data/src/MarketFeed.js:196-218` | P0 is characterization only; cancellation/serialization is a design change. |
 | Warmup does not await `onBar`/`onTick`; `_warmedUp` set on failure | `engine/core/engine.js:542-565` | P0 must not redesign warmup. |
@@ -211,8 +224,9 @@ broker contract, strategy runtime, lifecycle); the `warmupStrategy` body and its
    the DB driver is stubbed in Test A. No migration, constraint or real `backtests` insert was exercised.
 3. **Synthetic data only** — all bars in Test A are generated in the test file. This is not real-market
    verification and must not be read as such.
-4. **Single full-suite run** — 59/626 is one measurement on one machine (Windows, Node 22); no
-   repeat-stability or CI comparison was performed.
+4. **Three full-suite runs** — 59/626 was measured three times on one machine (Windows, Node 22); the
+   first run hit a known timing flake in `test/IncrementalIndicators.test.js`, runs 2 and 3 were green.
+   No repeat-stability or CI comparison beyond that was performed.
 5. **No lint/type step** — the repo has no `lint` or `typecheck` script (no ESLint config installed),
    so style/typing was reviewed manually only.
 6. **Worktree-only dependency link** — `node_modules` is a junction to the main checkout; a clean CI

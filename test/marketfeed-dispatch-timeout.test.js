@@ -157,12 +157,14 @@ describe("ENGINE-01 P0 — MarketFeed strategy dispatch (characterization)", () 
         installDeps(entry);
 
         await MarketFeed.feedBar(RUNTIME_ID, makeBar());
+        // CHARACTERIZATION: flip when fixed
         expect(finished.value).toBe(false); // timed out, still running
 
         pending.resolve(null);
         await pending.promise;
         await new Promise((r) => setImmediate(r));
 
+        // CHARACTERIZATION: flip when fixed
         expect(finished.value).toBe(true);
         expect(entry.broker.handle).not.toHaveBeenCalled();
     });
@@ -191,6 +193,7 @@ describe("ENGINE-01 P0 — MarketFeed strategy dispatch (characterization)", () 
         await new Promise((r) => setImmediate(r)); // let the second call reach the strategy
 
         expect(onMarketData).toHaveBeenCalledTimes(2);
+        // CHARACTERIZATION: flip when fixed
         expect(maxInFlight).toBe(2); // no serialization / deduplication
 
         await secondRun;

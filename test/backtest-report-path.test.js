@@ -23,7 +23,10 @@ const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "corex-e01-backtest-"));
 const CSV_PATH = path.join(TMP_DIR, "synthetic_1m.csv");
 
 const SYMBOL = "BTC/USD";
-const RUNTIME_ID = "p0-user::baseline-strategy::BTC/USD::BACKTEST";
+// Filename-safe on every OS (no ":" or "/"): report files are named after the
+// raw id (`${id}.json`), so an id with a path separator or a Windows-illegal
+// character cannot be persisted. See plans/Audit/BASELINE.md finding A3.
+const RUNTIME_ID = "p0-baseline-report";
 
 function buildSyntheticCsv(bars = 120) {
     const base = Date.UTC(2026, 0, 1, 0, 0, 0);

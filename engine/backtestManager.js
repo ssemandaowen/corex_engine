@@ -805,23 +805,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
      * Resolve the absolute path to a trades CSV file.
      */
     getTradesCsvPath(reportId) {
-        return path.join(this.storagePath, this._reportFileName(reportId, ".trades.csv"));
-    }
-
-    /**
-     * Derive a filesystem-safe file name from a report/runtime id.
-     *
-     * Runtime ids follow `userId::strategyName::symbol::mode`, and symbols
-     * contain "/" (e.g. BTC/USD). Used raw, that produces a path with a
-     * non-existent directory segment (ENOENT). Ids that are already safe
-     * ([A-Za-z0-9._-]) are returned unchanged.
-     *
-     * The id stored inside the report (meta.id) is never rewritten — only the
-     * on-disk file name is derived from it.
-     */
-    _reportFileName(reportId, extension) {
-        const safe = String(reportId || "report").replace(/[^a-zA-Z0-9._-]+/g, "_");
-        return `${safe}${extension}`;
+        return path.join(this.storagePath, `${reportId}.trades.csv`);
     }
 
     // ── Persistence ───────────────────────────────────────────────────────────
@@ -850,7 +834,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
     async _saveTradesToCsv(reportId, trades) {
         if (!Array.isArray(trades) || trades.length === 0) return;
         
-        const filepath = path.join(this.storagePath, this._reportFileName(reportId, ".trades.csv"));
+        const filepath = path.join(this.storagePath, `${reportId}.trades.csv`);
         try {
             const data = trades.map(t => ({
                 direction: t.direction || t.side || "",
@@ -924,7 +908,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
      * swallowed write error would advertise a report path that does not exist.
      */
     async _saveToFile(report) {
-        const filepath = path.join(this.storagePath, this._reportFileName(report.meta.id, ".json"));
+        const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
         await fsp.writeFile(filepath, JSON.stringify(report));
         return filepath;
     }

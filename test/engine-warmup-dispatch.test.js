@@ -167,6 +167,7 @@ describe("ENGINE-01 P0 — engine warmup dispatch (characterization)", () => {
         const ok = await warmup(strategy);
 
         expect(ok).toBe(true);
+        // CHARACTERIZATION: flip when fixed
         expect(strategy._warmedUp).toBe(true); // set at engine.js:565 regardless of dispatch
     });
 
@@ -182,7 +183,9 @@ describe("ENGINE-01 P0 — engine warmup dispatch (characterization)", () => {
         const ok = await warmup(strategy);
 
         expect(ok).toBe(false);       // failure is reported
+        // CHARACTERIZATION: flip when fixed
         expect(onBar).toHaveBeenCalledTimes(2); // remaining bars skipped
+        // CHARACTERIZATION: flip when fixed
         expect(strategy._warmedUp).toBe(true);  // ...but warmup is still flagged complete
     });
 
@@ -210,6 +213,7 @@ describe("ENGINE-01 P0 — engine warmup dispatch (characterization)", () => {
 
         expect(ok).toBe(true);
         expect(onBar).toHaveBeenCalledTimes(20); // only the trailing `lookback` (20) of 30 fetched bars are replayed
+        // CHARACTERIZATION: flip when fixed
         expect(finished).toBe(false); // dispatch is fire-and-forget
 
         release();
@@ -240,7 +244,9 @@ describe("ENGINE-01 P0 — engine warmup dispatch (characterization)", () => {
         const ok = await warmup(strategy);
 
         expect(ok).toBe(false);
+        // CHARACTERIZATION: flip when fixed
         expect(strategyRuntime.warmupBar).toHaveBeenCalledTimes(2);
+        // CHARACTERIZATION: flip when fixed
         expect(strategy._warmedUp).toBe(true);
     });
 
