@@ -222,7 +222,22 @@ Does **not**:
 
 So **`index.js` does separately invoke `strategyRuntime.stop()`** — the engine does not own worker shutdown, and that is correct today. **CONFIRMED** (question answered: yes).
 
-But **no component terminates active runtimes**: `RuntimeRegistry` still holds live entries (with live brokers and plot intervals) when the process exits. `RuntimeLifecycle.terminate()` is never called on the shutdown path. **CONFIRMED**
+### 5.2.1 What `strategyRuntime.stop()` does and does not cover (CONFIRMED)
+
+These are two different responsibilities and must not be conflated:
+
+| Responsibility | Owner | What shutdown does to it | Evidence |
+|---|---|---|---|
+| Worker **infrastructure** — the `strategyWorker` child process, its request queue, its timeouts | `StrategyWorkerPool` (`engine/modules/strategyRuntime/workerPool.js`) | `stop()` sets `ready = false`, rejects every in-flight request with `WORKER_STOPPED`, clears their timers, `SIGTERM`s the child and drops the reference | `workerPool.js:65-84` |
+| Worker-**local** strategy instances (`activeStrategies`, one per `LOAD_STRATEGY`) | the child process, not the main process | Nothing — the child dies with the process; only `UNLOAD_STRATEGY` destroys an instance explicitly | `engine/workers/strategyWorker.js:16`, `:60`, `:82-85` |
+| In-process **runtimes** — `RuntimeRegistry` entries with a live `instance` + `broker` | `RuntimeLifecycle` / `RuntimeRegistry` (main process) | **Nothing.** `RuntimeRegistry` still holds live entries at exit; `RuntimeLifecycle.terminate()` is never called on the shutdown path | `engine/core/engine.js:635-647`; `index.js:173-180`; `engine/core/runtime/RuntimeRegistry.js:137-151` |
+
+Two facts make the distinction concrete:
+
+- `strategyRuntime.stop()` terminates the worker **process**; it does not, and cannot, terminate a `RuntimeRegistry` entry, because those entries hold strategy instances created in the main process by `strategyLoader.startStrategy()` (`engine/strategyLoader.js:431`, `:467-472`). The worker's own instance map is a separate structure in a separate process (`engine/workers/strategyWorker.js:16`).
+- The worker path is currently **dormant**: no production code calls `loadStrategy`, `execTick`, `execBar` or `warmupBar` (only `stop()` is called, from `index.js:176`). So on a normal shutdown `strategyRuntime.stop()` is stopping unused infrastructure — which is correct, but is not a substitute for terminating active runtimes.
+
+**Corrected statement:** no component on the shutdown path calls `RuntimeLifecycle.terminate()`, so in-process runtimes (instance, broker, feed subscription, plot interval) are not torn down; `strategyRuntime.stop()` covers the worker process only. **CONFIRMED**
 
 ### 5.3 Repeated `start()` — CONFIRMED duplicate listeners
 
@@ -242,7 +257,7 @@ But **no component terminates active runtimes**: `RuntimeRegistry` still holds l
 | Terminate runtime | `RuntimeLifecycle.terminate()` (idempotent, joins in-flight cleanup) | `RuntimeLifecycle.js:574-587`, `625-778` |
 | Stop by strategy | `strategyLoader.stopStrategy()` → `new RuntimeLifecycle().terminate()` per target | `engine/strategyLoader.js:500-569` |
 | Timer cleanup | `RuntimeRegistry.delete()` / `clear()` clear `plotInterval` | `RuntimeRegistry.js:468-470`, `477-481` |
-| Process shutdown | **nobody** calls `terminate()` | `index.js:173-180` |
+| Process shutdown | **nobody** calls `terminate()`; `strategyRuntime.stop()` stops worker infrastructure only (see §5.2.1) | `index.js:173-180` |
 
 ---
 
@@ -305,7 +320,7 @@ All eight were rechecked against `origin/main` = `20bad62`.
 | 5 | `engine.stop()` clears recovery timers and removes listeners | **REFUTED — it does neither** | `engine/core/engine.js:635-647`: no `_clearRecovery`, no `bus.off`, no `clearTimeout` over `strategyRecoveryStates`. |
 | 6 | Overall `index.js` shutdown separately invokes `strategyRuntime.stop()` | **CONFIRMED** | `index.js:176` — `try { await strategyRuntime.stop(); }`. |
 | 7 | `warmupStrategy()` has production callers | **REFUTED — it has none** | §1.2: only `test/engine-warmup-dispatch.test.js:110` calls it. |
-| 8 | Shutdown actually terminates active runtimes | **REFUTED — it does not** | `index.js:173-180` stops engine, server, worker pool, culler, dispatcher, job supervisor and DB; no `RuntimeRegistry` iteration and no `RuntimeLifecycle.terminate()`. Plot intervals (`RuntimeRegistry.js:116-135`) are `unref`'d, so the process still exits, but brokers/instances are never destroyed and feed subscriptions are never released. |
+| 8 | Shutdown actually terminates active runtimes | **REFUTED — it does not** | `index.js:173-180` stops engine, server, worker pool, culler, dispatcher, job supervisor and DB. `strategyRuntime.stop()` terminates the **worker process** only (`workerPool.js:65-84`); it is a different responsibility from in-process runtimes (`engine/workers/strategyWorker.js:16` is a separate instance map in a separate process). There is no `RuntimeRegistry` iteration and no `RuntimeLifecycle.terminate()` anywhere on the shutdown path, so in-process runtimes keep their instance, broker, feed subscription and plot interval. Plot intervals (`RuntimeRegistry.js:116-135`) are `unref`'d, so the process still exits. See §5.2.1. |
 
 ### Additional defect found during verification (new)
 
@@ -364,7 +379,7 @@ Categories: **P0** correctness/reliability defects demonstrated by evidence; **P
 |---|---|---|---|---|---|---|
 | P0-1 | Failed auto-restart is treated as success; recovery never retries | `engine/core/engine.js:262-286` (`_attemptRecovery`), esp. `:278-281` | `strategyLoader.startStrategy` always returns an object; `{ok:false}` is truthy | Check `result?.ok === true` (and treat `reason` as the failure), mirroring `runtimeService.js:24` | Needs a regression test that a failed start reschedules recovery. Behaviour change on a live trading path — audit trail (`[RECOVERY]` logs) must be preserved | `ENGINE-02B-P0-1` |
 | P0-2 | Recovery operates on the wrong identity (runtimeId used as strategyName) | `engine/core/engine.js:231-292`; `MarketFeed.js:214`; `RuntimeRegistry.js:517-524`; `engine/strategyLoader.js:413`, `471` | `forStrategy(runtimeId)` always `[]`; `startStrategy(runtimeId)` never finds a DB row | Resolve the strategy name from the registry entry (`runtimeRegistry.get(id)?.strategyName`) or from `parseScopedId`, then operate on `strategyName` | Must not weaken `runtimeId` scoping (protected boundary, AGENTS.md §7.6). Combine with P0-1 in one change so the recovery loop is testable end to end | `ENGINE-02B-P0-2` |
-| P0-3 | `engine.stop()` leaves runtimes, timers and listeners alive | `engine/core/engine.js:635-647`; `index.js:173-180`; `RuntimeRegistry.js:116-135`, `468-470` | No `terminate()`, no `_clearRecovery`, no `bus.off` | On stop: terminate all registered runtimes via `RuntimeLifecycle`, clear `strategyRecoveryStates`, remove the `STATE_CHANGED` listener (keep a handle) | Shutdown currently relies on forced exit (`COREX_SHUTDOWN_FORCE_MS`); adding termination can lengthen shutdown — must stay inside the force timer. Do not remove `strategyRuntime.stop()` from `index.js:176` | `ENGINE-02B-P0-3` |
+| P0-3 | `engine.stop()` leaves in-process runtimes, timers and listeners alive | `engine/core/engine.js:635-647`; `index.js:173-180`; `RuntimeRegistry.js:116-135`, `468-470` | No `terminate()`, no `_clearRecovery`, no `bus.off` (§5.1, §5.2.1) | On stop: terminate all registered runtimes via `RuntimeLifecycle`, clear `strategyRecoveryStates`, remove the `STATE_CHANGED` listener (keep a handle) | Shutdown currently relies on forced exit (`COREX_SHUTDOWN_FORCE_MS`); adding termination can lengthen shutdown — must stay inside the force timer. Keep `strategyRuntime.stop()` in `index.js:176`: it covers the worker process, not runtimes (§5.2.1) | `ENGINE-02B-P0-3` |
 | P0-4 | Listener leak across restart cycles (engine + bootloader) | `engine/core/engine.js:87`, `:104-110`, `:653-658`; `engine/strategyLoader.js:109-130` | Guard resets to `IDLE` on stop; listeners re-added per `start()`/`init()`; bus limit 1000 hides it | Register once (module scope or an `initialized` flag) or remove on stop; add an `init()` re-entry guard in the bootloader | Touches the bootloader's init contract; tests asserting listener counts may exist (`test/runtimeOwnership.test.js`) | `ENGINE-02B-P0-4` |
 
 ### P1 — Safe structural extraction
