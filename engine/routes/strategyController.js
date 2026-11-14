@@ -9,13 +9,22 @@ const fs = require("fs");
 const loader = require("@core/core/loader/StrategyLoader");
 const db = require("@core/services/postgres");
 const stateManager = require("@utils/stateController");
+const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 const { getStrategyManifestPayload } = require("@utils/strategy/StrategyManifest");
 const { toScopedId, fromScopedId, scopedLikePrefix } = require("@core/services/userScope");
 
-// HELPER: Check if strategy is untouchable
+// HELPER: Check if strategy is untouchable.
+//
+// The registry is authoritative for "is a runtime running or being created".
+// stateManager is a UI-facing state ledger and can be stale in either
+// direction (ACTIVE with no runtime, STOPPED while a runtime still runs), so it
+// is only a secondary signal: the registry decides, the ledger corroborates.
+const ownedRuntimes = (id) => runtimeRegistry.findOwnedByStrategy(id);
+
 const isStrategyBusy = (id) => {
+    if (ownedRuntimes(id).length > 0) return true;
     const status = stateManager.getStatus(id);
     return ["ACTIVE", "WARMING_UP", "STOPPING"].includes(status);
 };
@@ -271,22 +280,48 @@ router.put("/:id", async (req, res) => {
 });
 
 // 5. DELETE
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
     const id = scopedIdFor(req, req.params.id);
-    if (isStrategyBusy(id)) {
+    const userId = getUserId(req);
+
+    // Ownership gate: a strategy may only be deleted when no runtime of this
+    // (user-scoped) identity is registered or reserved. The registry entry's
+    // strategyName is the scoped id, so this cannot block another user's delete.
+    const ownsAnyRuntime = () => ownedRuntimes(id).filter(
+        (runtime) => runtime.userId === userId || runtime.userId === "system"
+    );
+
+    if (ownsAnyRuntime().length > 0 || isStrategyBusy(id)) {
         return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
     }
-    db.query(
-        "DELETE FROM strategies WHERE name = $1",
-        [id]
-    ).then(({ rowCount }) => {
+
+    try {
+        const { rowCount } = await db.query(
+            "DELETE FROM strategies WHERE name = $1",
+            [id]
+        );
         if (rowCount === 0) return res.status(404).json({ success: false, error: "Strategy not found" });
+
+        // A creation that reserved this identity while the DELETE was in flight
+        // must not be reported as a clean deletion: stop it and fail loudly.
+        const raced = ownsAnyRuntime();
+        if (raced.length > 0) {
+            for (const runtime of raced) {
+                await loader.stop(id, { runtimeId: runtime.runtimeId }).catch(() => false);
+            }
+            return res.status(500).json({
+                success: false,
+                error: "DELETE_FAILED",
+                message: `Runtime '${raced[0].runtimeId}' was created while the strategy was being deleted`
+            });
+        }
+
         loader.invalidate(id);
         emitUserLog(req, `Strategy deleted: ${req.params.id}`);
         res.json({ success: true, message: "Purged." });
-    }).catch((err) => {
+    } catch (err) {
         res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });
-    });
+    }
 });
 
 module.exports = router;

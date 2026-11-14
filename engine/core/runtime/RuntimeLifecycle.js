@@ -25,9 +25,22 @@ const logger             = require("@utils/logger");
 
 const log = logger.createModuleLogger("LIFECYCLE");
 
+/**
+ * In-flight terminations, keyed by runtimeId. Lifecycle operations on one
+ * identity are serialized through this map; nothing here is a lock file, a
+ * database lock or a delay.
+ */
+const _terminations = new Map();
+
 class RuntimeLifecycle {
     /**
      * Boot a runtime workspace.
+     *
+     * Creation is one controlled operation: the identity is reserved first, the
+     * broker is initialized while the reservation blocks competitors, and the
+     * runtime is registered only after initialization succeeded. Any failure
+     * releases the reservation and destroys the partially built broker, so a
+     * failed boot leaves no phantom runtime and does not block a later retry.
      *
      * @param {object} config
      * @param {string} config.runtimeId        - Composite ID "userId::strategy::SYMBOL::MODE"
@@ -39,30 +52,24 @@ class RuntimeLifecycle {
         if (!strategyInstance) throw new Error("[RuntimeLifecycle] strategyInstance is required");
         if (!profile)          throw new Error("[RuntimeLifecycle] profile is required");
 
-        if (runtimeRegistry.has(runtimeId)) {
-            throw new Error(
-                `[RuntimeLifecycle] Collision: runtime '${runtimeId}' is already registered. ` +
-                "Call terminate() before booting again."
-            );
-        }
-
         const accountId = profile.accountId || profile.userId || "system";
         const symbol = profile.symbol;
         const mode = profile.mode;
 
-        const conflict = runtimeRegistry.hasActiveForAccountSymbolMode({
+        // ── Claim ownership before any asynchronous work ──────────────────────
+        // Rejects duplicate creation of this identity, an already-registered
+        // runtime, and the one-runtime-per-account/symbol/mode rule.
+        const token = runtimeRegistry.reserve({
+            runtimeId,
+            userId:       profile.userId,
             accountId,
+            strategyName: profile.strategyName,
             symbol,
             mode,
-            excludeRuntimeId: runtimeId
+            owner:        "RuntimeLifecycle.boot",
         });
 
-        if (conflict) {
-            throw new Error(
-                `[RuntimeLifecycle] Exclusivity Violation: Symbol '${symbol}' is already actively traded by strategy '${conflict.strategyName}' ` +
-                `for account '${accountId}' in mode '${mode}'. Only one runtime per symbol is allowed per account and mode.`
-            );
-        }
+        let broker = null;
 
         log.info(`Booting runtime: ${runtimeId}`);
 
@@ -86,7 +93,7 @@ class RuntimeLifecycle {
             }
 
             // ── Create broker ────────────────────────────────────────────────
-            const broker = RuntimeBrokerFactory.createBroker(profile.mode, {
+            broker = RuntimeBrokerFactory.createBroker(profile.mode, {
                 runtimeId:     profile.runtimeId || runtimeId,
                 symbol:        profile.symbol,
                 userId:        profile.userId,
@@ -114,8 +121,13 @@ class RuntimeLifecycle {
                 }
             }
 
-            // ── Register workspace ───────────────────────────────────────────
-            runtimeRegistry.set(runtimeId, {
+            // ── A terminate() during initialization abandons this boot ─────────
+            if (runtimeRegistry.isAbortRequested(token)) {
+                throw abortError(runtimeId);
+            }
+
+            // ── Register workspace (atomic: reservation → live entry) ─────────
+            runtimeRegistry.commitReservation(token, {
                 instance:     strategyInstance,
                 broker,
                 symbol:       profile.symbol,
@@ -199,10 +211,44 @@ class RuntimeLifecycle {
 
         } catch (error) {
             log.error(`[BOOT:${runtimeId}] Failed: ${error.message}`);
-            // Ensure nothing is left half-registered
-            runtimeRegistry.delete(runtimeId);
+            await this._rollbackBoot({ runtimeId, token, broker, strategyInstance, profile });
             throw error;
         }
+    }
+
+    /**
+     * Undo a boot that did not reach the "registered and running" state.
+     * Every step is attempted and none of them can mask the original error.
+     */
+    async _rollbackBoot({ runtimeId, token, broker, strategyInstance, profile }) {
+        // Drop the claim first so the identity is immediately available again.
+        runtimeRegistry.releaseReservation(token);
+
+        const registered = runtimeRegistry.get(runtimeId);
+        if (registered) {
+            runtimeRegistry.delete(runtimeId);
+        }
+
+        const mode = String(profile?.mode || "").toUpperCase();
+        if (mode === "PAPER" || mode === "LIVE") {
+            try {
+                marketFeed.unsubscribe(runtimeId, profile.symbol);
+            } catch (e) {
+                log.warn(`[ROLLBACK:${runtimeId}] MarketFeed unsubscribe failed: ${e.message}`);
+            }
+        }
+
+        await destroyQuietly(broker, runtimeId, "ROLLBACK");
+
+        if (registered && strategyInstance && typeof strategyInstance.destroy === "function") {
+            try {
+                await strategyInstance.destroy();
+            } catch (e) {
+                log.warn(`[ROLLBACK:${runtimeId}] strategy.destroy() failed: ${e.message}`);
+            }
+        }
+
+        log.warn(`[ROLLBACK:${runtimeId}] Boot rolled back — identity released`);
     }
 
     /**
@@ -251,52 +297,110 @@ class RuntimeLifecycle {
      * Terminate a runtime workspace.
      * Destroys strategy instance and broker, removes from registry, emits stop event.
      *
+     * Idempotent: terminating a runtime that is already gone (or whose creation
+     * never committed) is safe and reports "nothing to terminate". Repeated
+     * calls on the same identity converge on the same end state.
+     *
+     * Returns false — and leaves the entry in the registry marked STOPPING with
+     * `cleanupFailures` — when a required cleanup step failed, so callers never
+     * report a successful stop for a runtime that still holds resources.
+     *
      * @param {string} runtimeId
-     * @returns {boolean} true if terminated, false if not found
+     * @returns {boolean} true if terminated, false if not found or cleanup failed
      */
     async terminate(runtimeId) {
+        // One termination per identity at a time. A concurrent caller joins the
+        // running cleanup instead of racing it (no timers, no sleeps).
+        const inFlight = _terminations.get(runtimeId);
+        if (inFlight) return inFlight;
+
+        const running = this._terminate(runtimeId);
+        _terminations.set(runtimeId, running);
+        try {
+            return await running;
+        } finally {
+            _terminations.delete(runtimeId);
+        }
+    }
+
+    async _terminate(runtimeId) {
+        // ── Creation still in flight: abandon it, nothing to tear down ────────
+        // The reservation stays until the boot path observes the abort and
+        // releases it, so the identity cannot be re-created behind the boot's
+        // back. A boot that never returns is recovered by the registry's
+        // reservation TTL.
+        const reservation = runtimeRegistry.getReservation(runtimeId);
+        if (reservation) {
+            runtimeRegistry.requestAbortReservation(reservation.token);
+            log.warn(`[TERMINATE:${runtimeId}] Cancelled pending creation (no runtime was registered)`);
+            return false;
+        }
+
         const entry = runtimeRegistry.get(runtimeId);
         if (!entry) {
             log.warn(`[TERMINATE] Runtime '${runtimeId}' not found — nothing to terminate`);
             return false;
         }
 
+        // ── Claim the transition. A losing caller must not tear down state it
+        //    does not own; an entry already STOPPING is cleaned up again below
+        //    (idempotent retry after a partial cleanup).
+        if (entry.actualState !== "STOPPING") {
+            const claimed = runtimeRegistry.transition(
+                runtimeId,
+                ["ACTIVE", "PAUSED", "WARMING_UP"],
+                "STOPPING"
+            );
+            if (!claimed) {
+                log.warn(`[TERMINATE:${runtimeId}] Rejected transition from '${entry.actualState}' to STOPPING`);
+                return false;
+            }
+        }
+        entry.stoppingSince = entry.stoppingSince || Date.now();
+
         log.info(`Terminating runtime: ${runtimeId}`);
-        entry.actualState = "STOPPING";
+
+        const failures = [];
 
         // ── Unsubscribe from live market feed (PAPER/LIVE only) ────────────
         if (entry.mode === "PAPER" || entry.mode === "LIVE") {
             try {
                 marketFeed.unsubscribe(runtimeId, entry.symbol);
             } catch (e) {
-                log.warn(`[TERMINATE:${runtimeId}] MarketFeed unsubscribe failed: ${e.message}`);
+                failures.push(`marketFeed.unsubscribe: ${e.message}`);
             }
         }
 
         // ── Destroy strategy instance ────────────────────────────────────────
         if (entry.instance) {
             if (typeof entry.instance.destroy === "function") {
-                try { entry.instance.destroy(); }
-                catch (e) { log.warn(`[TERMINATE:${runtimeId}] strategy.destroy() threw: ${e.message}`); }
+                try { await entry.instance.destroy(); }
+                catch (e) { failures.push(`strategy.destroy: ${e.message}`); }
             }
-            // Null the reference immediately so GC can reclaim
-            entry.instance = null;
+            if (!failures.some((f) => f.startsWith("strategy.destroy"))) {
+                // Null the reference immediately so GC can reclaim
+                entry.instance = null;
+            }
         }
 
         // ── Destroy broker ───────────────────────────────────────────────────
         if (entry.broker) {
-            if (typeof entry.broker.destroy === "function") {
-                try { await entry.broker.destroy(); }
-                catch (e) { log.warn(`[TERMINATE:${runtimeId}] broker.destroy() threw: ${e.message}`); }
-            } else if (typeof entry.broker.cleanup === "function") {
-                try { await entry.broker.cleanup(); }
-                catch (e) { log.warn(`[TERMINATE:${runtimeId}] broker.cleanup() threw: ${e.message}`); }
-            }
-            entry.broker = null;
+            const brokerFailure = await destroyQuietly(entry.broker, runtimeId, "TERMINATE");
+            if (brokerFailure) failures.push(brokerFailure);
+            else entry.broker = null;
+        }
+
+        if (failures.length > 0) {
+            // Keep the entry (marked STOPPING) so the failure is inspectable and
+            // a later terminate() can retry the steps that still hold resources.
+            entry.cleanupFailures = failures;
+            log.error(`[TERMINATE:${runtimeId}] Cleanup incomplete: ${failures.join("; ")}`);
+            return false;
         }
 
         // Null remaining runtime references before removal
         entry.params = null;
+        entry.cleanupFailures = [];
 
         // ── Remove from registry ─────────────────────────────────────────────
         runtimeRegistry.delete(runtimeId);
@@ -319,6 +423,36 @@ class RuntimeLifecycle {
         log.info(`Runtime terminated: ${runtimeId}`);
         return true;
     }
+}
+
+/**
+ * Destroy a broker, preferring destroy() and falling back to cleanup().
+ * Failures are logged and returned (never swallowed) so the caller can decide
+ * whether termination succeeded.
+ *
+ * @returns {Promise<string|null>} failure description, or null on success
+ */
+async function destroyQuietly(broker, runtimeId, phase) {
+    if (!broker) return null;
+    const method = typeof broker.destroy === "function" ? "destroy"
+        : typeof broker.cleanup === "function" ? "cleanup"
+        : null;
+    if (!method) return null;
+    try {
+        await broker[method]();
+        return null;
+    } catch (e) {
+        log.warn(`[${phase}:${runtimeId}] broker.${method}() threw: ${e.message}`);
+        return `broker.${method}: ${e.message}`;
+    }
+}
+
+function abortError(runtimeId) {
+    const error = new Error(
+        `[RuntimeLifecycle] Boot aborted for '${runtimeId}': termination was requested during initialization`
+    );
+    error.code = "RUNTIME_ABORTED";
+    return error;
 }
 
 module.exports = RuntimeLifecycle;

@@ -336,7 +336,7 @@ async function _handleRuntimeParamUpdate(id, params) {
 }
 
 function getActiveSymbols() {
-    return Array.from(new Set(runtimeRegistry.list().map(r => r.symbol)));
+    return Array.from(new Set(runtimeRegistry.all().map(r => r.symbol)));
 }
 
 function getBootStats() {
@@ -412,8 +412,14 @@ async function startStrategy(id, options = {}) {
         }
         const runtimeId = `${id}::${symbol}::${mode}`;
 
+        // Ownership is decided by the registry, not by this function: a live
+        // entry means "already running", a pending reservation means "another
+        // creation for this identity is still initializing".
         if (runtimeRegistry.has(runtimeId)) {
             return { ok: true, runtimeId, alreadyRunning: true };
+        }
+        if (runtimeRegistry.isReserved(runtimeId)) {
+            return { ok: false, reason: "START_IN_PROGRESS" };
         }
 
         const instance = new meta.StrategyClass();
@@ -467,6 +473,10 @@ async function startStrategy(id, options = {}) {
         return { ok: true, runtimeId, mode, symbol, params: mergedParams };
     } catch (err) {
         log.error(`[START] Failed to start ${id}: ${err.message}`);
+        // A lost ownership race is a concurrency signal, not a server fault.
+        if (err.code === "RUNTIME_ALREADY_OWNED" || err.code === "RUNTIME_ABORTED") {
+            return { ok: false, reason: "START_IN_PROGRESS" };
+        }
         return { ok: false, reason: err.message };
     } finally {
         _startInFlight.delete(id);
@@ -483,7 +493,7 @@ async function stopStrategy(id, options = {}) {
     if (options.runtimeId) {
         targets = [options.runtimeId];
     } else {
-        targets = runtimeRegistry.all()
+        targets = runtimeRegistry.registeredEntries()
             .filter(r =>
                 (r.strategyName === id || r.strategyName === unscoped) &&
                 (!r.userId || r.userId === userId || userId === 'system'))
@@ -494,12 +504,20 @@ async function stopStrategy(id, options = {}) {
 
     const lc = new RuntimeLifecycle();
     let anyOk = false;
+    let cleanupFailed = false;
     for (const runtimeId of targets) {
         const ok = await lc.terminate(runtimeId);
         if (ok) {
             anyOk = true;
             await _clearRuntimeDesiredState(runtimeId).catch(() => {});
+        } else if (runtimeRegistry.get(runtimeId)) {
+            // Registered but not cleaned up: never reported as a successful stop.
+            cleanupFailed = true;
         }
+    }
+
+    if (cleanupFailed && !anyOk) {
+        log.error(`[STOP] Runtime(s) still hold resources after cleanup failure: ${targets.join(', ')}`);
     }
 
     if (anyOk) {
