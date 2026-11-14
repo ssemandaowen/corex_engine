@@ -419,6 +419,12 @@ async function startStrategy(id, options = {}) {
             return { ok: true, runtimeId, alreadyRunning: true };
         }
         if (runtimeRegistry.isReserved(runtimeId)) {
+            const reservation = runtimeRegistry.getReservation(runtimeId);
+            if (reservation && reservation.cleanupFailures && reservation.cleanupFailures.length > 0) {
+                // A rollback could not finish: the identity is owned by a cleanup
+                // that still has to be completed (stop), not by a running boot.
+                return { ok: false, reason: "START_BLOCKED_CLEANUP_PENDING" };
+            }
             return { ok: false, reason: "START_IN_PROGRESS" };
         }
 
@@ -496,11 +502,26 @@ async function stopStrategy(id, options = {}) {
     if (options.runtimeId) {
         targets = [options.runtimeId];
     } else {
+        const matches = (r) =>
+            (r.strategyName === id || r.strategyName === unscoped) &&
+            (!r.userId || r.userId === userId || userId === 'system');
+
         targets = runtimeRegistry.registeredEntries()
-            .filter(r =>
-                (r.strategyName === id || r.strategyName === unscoped) &&
-                (!r.userId || r.userId === userId || userId === 'system'))
+            .filter(matches)
             .map(r => r.runtimeId);
+
+        // A rollback whose cleanup failed leaves no registered entry, only a
+        // reservation with cleanupFailures (and parked collaborators). Stop must
+        // reach those too, otherwise the identity stays owned and unusable.
+        const parked = runtimeRegistry.parkedReservations();
+        for (const strategyName of [id, unscoped]) {
+            for (const owned of runtimeRegistry.findOwnedByStrategy(strategyName)) {
+                if (owned.phase !== "reserved") continue;
+                const reservation = parked.find(r => r.runtimeId === owned.runtimeId);
+                if (!reservation || !matches(reservation)) continue;
+                if (!targets.includes(reservation.runtimeId)) targets.push(reservation.runtimeId);
+            }
+        }
     }
 
     if (!targets.length) return false;
@@ -513,8 +534,8 @@ async function stopStrategy(id, options = {}) {
         if (ok) {
             anyOk = true;
             await _clearRuntimeDesiredState(runtimeId).catch(() => {});
-        } else if (runtimeRegistry.get(runtimeId)) {
-            // Registered but not cleaned up: never reported as a successful stop.
+        } else if (runtimeRegistry.get(runtimeId) || runtimeRegistry.getReservation(runtimeId)) {
+            // Still registered/reserved but not cleaned up: never a successful stop.
             cleanupFailed = true;
         }
     }

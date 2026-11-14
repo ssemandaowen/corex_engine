@@ -297,9 +297,14 @@ class RuntimeRegistry {
 
     /**
      * Atomically convert a reservation into a registered runtime.
-     * The reservation is released first, so a concurrent identity claim can only
-     * succeed after this entry exists. The entry is stamped with the caller's
-     * fencing token, which every later ownership-checked mutation requires.
+     *
+     * The claim is dropped and re-instated around `set()`: registration can throw
+     * (a malformed entry, or a live entry that must not be overwritten), and in
+     * that case the caller still owns the identity and must be able to roll back
+     * and release it. Keeping the reservation also blocks a competing boot from
+     * taking the identity while the failed commit is being unwound. The entry is
+     * stamped with the caller's fencing token, which every later
+     * ownership-checked mutation requires.
      */
     commitReservation(token, entry) {
         const reservation = this._findReservationByToken(token);
@@ -309,9 +314,16 @@ class RuntimeRegistry {
                 `[RuntimeRegistry] commit() failed: no reservation for token '${token}'`
             );
         }
-        this._reservations.delete(reservation.runtimeId);
-        this.set(reservation.runtimeId, { ...entry, runtimeId: reservation.runtimeId });
-        const committed = this._runtimes.get(reservation.runtimeId);
+        const runtimeId = reservation.runtimeId;
+        this._reservations.delete(runtimeId);
+        try {
+            this.set(runtimeId, { ...entry, runtimeId });
+        } catch (err) {
+            // Restore the claim (same object, so cleanup progress is preserved).
+            this._reservations.set(runtimeId, reservation);
+            throw err;
+        }
+        const committed = this._runtimes.get(runtimeId);
         if (committed) committed.ownerToken = token;
         return committed;
     }
@@ -535,6 +547,18 @@ class RuntimeRegistry {
             }
         }
         return owned;
+    }
+
+    /**
+     * Reservations whose deferred cleanup has not finished yet.
+     *
+     * Such a reservation owns an identity with no runtime behind it: the boot
+     * rolled back and could not destroy everything. `terminate()`/stop routes use
+     * this to retry the remaining steps instead of treating the identity as free.
+     */
+    parkedReservations() {
+        return Array.from(this._reservations.values())
+            .filter((reservation) => Array.isArray(reservation.cleanupFailures) && reservation.cleanupFailures.length > 0);
     }
 
     /**

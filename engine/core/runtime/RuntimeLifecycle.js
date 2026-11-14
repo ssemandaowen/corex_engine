@@ -229,11 +229,15 @@ class RuntimeLifecycle {
      *     STOPPING and stripped of whatever has been destroyed so far;
      *   - completed steps are recorded (`cleanupDone`) so a retry never repeats a
      *     successful destroy;
+     *   - the cleanup runs under `holder.cleanupPromise`, so a concurrent
+     *     `terminate()` joins this cleanup instead of starting a second one;
      *   - on any failure the collaborators that could not be destroyed stay on the
-     *     entry/reservation, ownership is retained, and nothing is released or
-     *     removed, so `terminate(runtimeId)` can finish the job later;
+     *     holder, ownership is retained, and nothing is released or removed, so
+     *     `terminate(runtimeId)` can finish the job later;
      *   - ownership is fenced by the boot's token, so a boot that lost its claim
-     *     can neither delete nor release another owner's state.
+     *     can neither delete nor release another owner's state — but it still
+     *     destroys the objects it created itself, provided the registry entry does
+     *     not reference them.
      */
     async _rollbackBoot({ runtimeId, token, broker, strategyInstance, profile, registered }) {
         const entry = runtimeRegistry.get(runtimeId);
@@ -244,8 +248,7 @@ class RuntimeLifecycle {
                 `[ROLLBACK:${runtimeId}] Registry entry is no longer owned by this boot — ` +
                 "leaving it untouched (a newer owner holds the identity)"
             );
-            // Do not release a claim that is not ours to release either.
-            runtimeRegistry.releaseReservation(token);
+            await this._destroyOrphaned({ runtimeId, token, broker, strategyInstance, entry, profile });
             return false;
         }
 
@@ -261,48 +264,150 @@ class RuntimeLifecycle {
         const reservation = ownsEntry ? null : runtimeRegistry.getReservation(runtimeId);
         if (!ownsEntry && reservation && reservation.token !== token) {
             log.error(`[ROLLBACK:${runtimeId}] Reservation is owned by another boot — nothing released`);
+            await this._destroyOrphaned({ runtimeId, token, broker, strategyInstance, entry, profile });
             return false;
         }
 
         const holder = ownsEntry ? entry : reservation;
         if (!holder) {
             log.warn(`[ROLLBACK:${runtimeId}] No entry or reservation to clean up`);
+            await this._destroyOrphaned({ runtimeId, token, broker, strategyInstance, entry, profile });
             return false;
         }
 
-        const failures = await this._runCleanup({
-            runtimeId,
-            holder,
-            entry: ownsEntry ? entry : null,
-            broker,
-            strategyInstance,
-            profile,
-            reason: "ROLLBACK",
-        });
+        // The whole rollback (cleanup + finalization) is published on the holder, so
+        // a concurrent terminate() joins this operation instead of starting a second
+        // cleanup or racing the removal.
+        const operation = (async () => {
+            const failures = await this._runCleanup({
+                runtimeId,
+                holder,
+                entry: ownsEntry ? entry : null,
+                broker,
+                strategyInstance,
+                profile,
+                reason: "ROLLBACK",
+            });
 
-        if (failures.length > 0) {
-            // Park the still-live collaborators on the holder so a later
-            // terminate() can retry without needing this boot's stack.
-            if (!ownsEntry && reservation) {
-                reservation.pendingBroker = broker || null;
-                reservation.pendingInstance = strategyInstance || null;
-                reservation.pendingProfile = profile || null;
+            // The holder may already have been removed by a joined terminate().
+            const holderAlive = ownsEntry ? runtimeRegistry.has(runtimeId) : runtimeRegistry.isReserved(runtimeId);
+            if (!holderAlive) {
+                log.warn(`[ROLLBACK:${runtimeId}] Holder already cleaned up by a concurrent termination`);
+                return { failures: [], finalized: true, joined: true };
             }
-            log.error(
-                `[ROLLBACK:${runtimeId}] Cleanup incomplete — ownership retained: ${failures.join("; ")}`
+
+            if (failures.length > 0) {
+                // Park the still-live collaborators on the holder so a later
+                // terminate() can retry without needing this boot's stack.
+                if (!ownsEntry && reservation) {
+                    reservation.pendingBroker = broker || null;
+                    reservation.pendingInstance = strategyInstance || null;
+                    reservation.pendingProfile = profile || null;
+                }
+                log.error(
+                    `[ROLLBACK:${runtimeId}] Cleanup incomplete — ownership retained: ${failures.join("; ")}`
+                );
+                return { failures, finalized: false };
+            }
+
+            // All required cleanup succeeded: remove our own entry (fenced) and release.
+            const removed = ownsEntry ? runtimeRegistry.delete(runtimeId, { token }) : false;
+            const released = runtimeRegistry.releaseReservation(token);
+
+            log.warn(
+                `[ROLLBACK:${runtimeId}] Boot rolled back — ` +
+                `entry removed: ${removed}, claim released: ${released}`
             );
-            return false;
+            return { failures: [], finalized: true, removed, released };
+        })();
+
+        const outcome = await this._publishHolderOperation(holder, operation);
+        return this._rollbackSucceeded(outcome);
+    }
+
+    /**
+     * Publish one holder operation (cleanup + finalization) so concurrent lifecycle
+     * calls join it, and clear the reference when it settles.
+     *
+     * @returns {Promise<object>} the operation result ({failures, finalized, ...})
+     */
+    async _publishHolderOperation(holder, operation) {
+        holder.cleanupPromise = operation;
+        try {
+            return await operation;
+        } finally {
+            if (holder.cleanupPromise === operation) holder.cleanupPromise = null;
+        }
+    }
+
+    /**
+     * True when the rollback finished every required step (the holder is gone or
+     * was never needed), false when cleanup is incomplete or ownership was lost.
+     */
+    _rollbackSucceeded(outcome) {
+        return Boolean(outcome && outcome.finalized === true && (!outcome.failures || outcome.failures.length === 0));
+    }
+
+    /**
+     * Destroy the resources this boot created when it holds no registry state for
+     * them (claim lost, or no holder at all).
+     *
+     * The registry is never mutated here: an object referenced by the current entry
+     * belongs to whoever owns that entry and must not be destroyed. Only objects the
+     * registry does not reference are destroyed, and destroy failures are logged —
+     * there is no holder left to record them on.
+     */
+    async _destroyOrphaned({ runtimeId, broker, strategyInstance, entry, profile }) {
+        const entryBroker = entry && entry.broker;
+        const entryInstance = entry && entry.instance;
+        const mode = String(profile?.mode || "").toUpperCase();
+
+        if (broker && broker !== entryBroker) {
+            const failure = await destroyQuietly(broker, runtimeId, "ROLLBACK_ORPHAN");
+            if (failure) log.error(`[ROLLBACK:${runtimeId}] Orphaned broker cleanup failed: ${failure}`);
         }
 
-        // All required cleanup succeeded: remove our own entry (fenced) and release.
-        const removed = ownsEntry ? runtimeRegistry.delete(runtimeId, { token }) : false;
-        const released = runtimeRegistry.releaseReservation(token);
+        if (strategyInstance && strategyInstance !== entryInstance &&
+            typeof strategyInstance.destroy === "function") {
+            try {
+                await strategyInstance.destroy();
+            } catch (e) {
+                log.error(`[ROLLBACK:${runtimeId}] Orphaned strategy cleanup failed: ${e.message}`);
+            }
+        }
 
-        log.warn(
-            `[ROLLBACK:${runtimeId}] Boot rolled back — ` +
-            `entry removed: ${removed}, claim released: ${released}`
-        );
-        return true;
+        // The feed is keyed by runtime identity, which now belongs to someone else;
+        // only drop it when this boot is the one that subscribed for this identity
+        // and no entry owns the identity any more.
+        if (!entry && (mode === "PAPER" || mode === "LIVE")) {
+            try {
+                marketFeed.unsubscribe(runtimeId, profile?.symbol);
+            } catch (e) {
+                log.error(`[ROLLBACK:${runtimeId}] Orphaned feed cleanup failed: ${e.message}`);
+            }
+        }
+    }
+
+    /**
+     * Run cleanup for a holder, joining a cleanup that is already in flight for it
+     * instead of starting a second one. The promise is parked on the holder so a
+     * concurrent terminate() can await the same work.
+     *
+     * @returns {Promise<string[]>} failure descriptions (empty when cleanup is complete)
+     */
+    async _runCleanupSerialized(args) {
+        const holder = args.holder;
+        if (!holder) return [];
+
+        if (holder.cleanupPromise) return holder.cleanupPromise;
+
+        const running = (async () => this._runCleanup(args))();
+        holder.cleanupPromise = running;
+        try {
+            return await running;
+        } finally {
+            if (holder.cleanupPromise === running) holder.cleanupPromise = null;
+        }
     }
 
     /**
@@ -438,7 +543,70 @@ class RuntimeLifecycle {
         }
     }
 
+    /**
+     * Await a cleanup that is already running for this identity (started by a
+     * rollback), instead of starting a second one.
+     *
+     * A rollback publishes its whole operation (cleanup + removal/release), so a
+     * joined caller sees the final state: `holderGone` means the identity is free
+     * again and the caller has nothing left to do.
+     *
+     * @returns {Promise<{joined: boolean, holderGone: boolean, entry: object|null, failures: string[]|null}>}
+     */
+    async _joinHolderCleanup(runtimeId) {
+        const holder = runtimeRegistry.get(runtimeId) || runtimeRegistry.getReservation(runtimeId);
+        const pending = holder && holder.cleanupPromise;
+        if (!pending) return { joined: false, holderGone: false, entry: null, failures: null };
+
+        let result = null;
+        try {
+            result = await pending;
+        } catch (e) {
+            // The owner logs the real error; treat the cleanup as unfinished.
+            result = { failures: [`joined cleanup failed: ${e.message}`] };
+        }
+
+        const entry = runtimeRegistry.get(runtimeId);
+        const reservation = runtimeRegistry.getReservation(runtimeId);
+        const current = entry || reservation;
+
+        if (!current) return { joined: true, holderGone: true, entry: null, failures: [] };
+
+        const failures = (result && Array.isArray(result.failures))
+            ? result.failures
+            : (Array.isArray(result) ? result : (current.cleanupFailures || []));
+
+        return { joined: true, holderGone: false, entry, failures };
+    }
+
     async _terminate(runtimeId) {
+        // ── Join a rollback that is still cleaning up ──────────────────────────
+        // A rollback owns the same holder; running a second cleanup would destroy
+        // the same collaborators twice. Awaiting the in-flight promise and then
+        // re-reading the holder keeps a single cleanup and a single outcome.
+        const joining = await this._joinHolderCleanup(runtimeId);
+        if (joining.joined) {
+            if (joining.holderGone) return true;
+            if (joining.failures && joining.failures.length > 0) {
+                log.error(
+                    `[TERMINATE:${runtimeId}] Cleanup still incomplete: ${joining.failures.join("; ")}`
+                );
+                return false;
+            }
+            if (!joining.entry) {
+                // Reservation holder whose cleanup finished: release the claim.
+                const current = runtimeRegistry.getReservation(runtimeId);
+                if (current) {
+                    current.pendingBroker = null;
+                    current.pendingInstance = null;
+                    runtimeRegistry.releaseReservation(current.token);
+                    log.warn(`[TERMINATE:${runtimeId}] Joined rollback cleanup — claim released`);
+                }
+                return true;
+            }
+            // Entry survived: fall through to the normal completion path.
+        }
+
         const reservation = runtimeRegistry.getReservation(runtimeId);
         const entry = runtimeRegistry.get(runtimeId);
 
@@ -453,7 +621,7 @@ class RuntimeLifecycle {
                 const pendingInstance = reservation.pendingInstance || null;
                 const pendingProfile = reservation.pendingProfile || null;
 
-                const failures = await this._runCleanup({
+                const failures = await this._runCleanupSerialized({
                     runtimeId,
                     holder: reservation,
                     entry: null,
@@ -507,7 +675,7 @@ class RuntimeLifecycle {
 
         // ── Required cleanup. Completed steps are recorded on the entry, so a
         //    retry after a failure does not destroy anything twice.
-        const failures = await this._runCleanup({
+        const failures = await this._runCleanupSerialized({
             runtimeId,
             holder: entry,
             entry,

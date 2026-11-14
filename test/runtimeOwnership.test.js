@@ -43,6 +43,7 @@ jest.mock("corex-broker-contract", () => {
 
 const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const RuntimeLifecycle = require("@core/core/runtime/RuntimeLifecycle");
+const strategyLoader = require("@core/strategyLoader");
 const strategyRouter = require("@core/routes/strategyController");
 const loader = require("@core/core/loader/StrategyLoader");
 const db = require("@core/services/postgres");
@@ -763,7 +764,217 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         expect(runtimeRegistry.has(runtimeId)).toBe(false);
     }, 15000);
 
-    test("26. an entry that no longer holds its collaborators is not reported as active", async () => {
+    // 1. Rollback cleanup is joinable by terminate ─────────────────────────────
+    test("27. a terminate() during a rollback joins the cleanup instead of running a second one", async () => {
+        const strategy = makeStrategy("JoinA");
+        strategy._attachRuntime = () => { throw new Error("WIRE_FAILED"); };
+
+        const runtimeId = "u1::JoinA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+
+        // Gate broker.destroy so the rollback is caught mid-cleanup.
+        const gate = deferred();
+        control.onDestroy = () => gate.promise;
+
+        const booting = lifecycle.boot({
+            runtimeId,
+            strategyInstance: strategy,
+            profile: profile("JoinA")
+        });
+        const bootOutcome = booting.then(() => "resolved", (e) => e.message);
+
+        await waitFor(() => control.brokers.length === 1 && control.brokers[0].destroyCalls === 1,
+            "rollback broker destroy to start");
+        const entry = runtimeRegistry.get(runtimeId);
+        expect(entry).not.toBeNull();
+        expect(entry.actualState).toBe("STOPPING");
+        expect(entry.cleanupPromise).toBeInstanceOf(Promise);
+
+        // Terminate while the rollback cleanup is in flight.
+        const terminateOutcome = lifecycle.terminate(runtimeId);
+
+        gate.resolve();
+        const [bootError, terminateResult] = await Promise.all([bootOutcome, terminateOutcome]);
+
+        expect(bootError).toBe("WIRE_FAILED");
+        expect(terminateResult).toBe(true);
+        // One cleanup, one destroy of each collaborator, for both callers.
+        expect(control.brokers[0].destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+        expect(runtimeRegistry.get(runtimeId)).toBeNull();
+    }, 15000);
+
+    // 2. Parked cleanup is retryable from the routes ───────────────────────────
+    test("28. stopStrategy(id) without runtimeId retries a parked pre-commit cleanup and unblocks a later start", async () => {
+        // Broker is created, initialize fails (pre-commit failure), and the
+        // rollback cannot destroy the broker: the reservation stays parked.
+        control.initializeError = new Error("BROKER_INIT_FAILED");
+        control.destroyError = new Error("BROKER_DESTROY_FAILED");
+
+        const runtimeId = "u1::ParkA::EURUSD::PAPER";
+        await expect(boot(makeStrategy("ParkA"))).rejects.toThrow("BROKER_INIT_FAILED");
+
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isReserved(runtimeId)).toBe(true);
+        const parked = runtimeRegistry.getReservation(runtimeId);
+        expect(parked.cleanupFailures.join(" ")).toMatch(/BROKER_DESTROY_FAILED/);
+        expect(runtimeRegistry.parkedReservations().map((r) => r.runtimeId)).toEqual([runtimeId]);
+
+        // The start gate reports the cleanup state rather than "in progress".
+        expect(parked.cleanupFailures.length).toBeGreaterThan(0);
+        expect(runtimeRegistry.parkedReservations().length).toBe(1);
+
+        // Stop with no runtimeId must find the parked reservation and retry.
+        const broker = control.brokers[control.brokers.length - 1];
+        await expect(strategyLoader.stopStrategy("u1::ParkA", {})).resolves.toBe(false);
+        expect(broker.destroyCalls).toBe(2);
+        expect(runtimeRegistry.isReserved(runtimeId)).toBe(true);
+
+        // Once the broker can be destroyed, the same call clears the identity.
+        control.destroyError = null;
+        await expect(strategyLoader.stopStrategy("u1::ParkA", {})).resolves.toBe(true);
+        expect(broker.destroyCalls).toBe(3);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+        expect(runtimeRegistry.parkedReservations()).toHaveLength(0);
+
+        // A later start is no longer blocked.
+        control.initializeError = null;
+        await expect(boot(makeStrategy("ParkA"))).resolves.toBe(true);
+        await new RuntimeLifecycle().terminate(runtimeId);
+    }, 15000);
+
+    // 3a. commitReservation keeps the claim when set() throws ──────────────────
+    test("29. a commit rejected by set() restores the claim, so the boot can still roll back", async () => {
+        const runtimeId = "u1::RestoreA::EURUSD::PAPER";
+        const strategyName = "u1::RestoreA";
+        const token = runtimeRegistry.reserve({
+            runtimeId, userId: "u1", accountId: "u1",
+            strategyName, symbol: "EURUSD", mode: "PAPER", owner: "test"
+        });
+
+        // Registration is refused (malformed entry); the claim must survive it.
+        expect(() => runtimeRegistry.commitReservation(token, {
+            instance: null, broker: null, symbol: "EURUSD", mode: "PAPER"
+        })).toThrow(/both instance and broker/);
+
+        // Same claim object, same token: the boot can still roll back and release.
+        const restored = runtimeRegistry.getReservation(runtimeId);
+        expect(restored).not.toBeNull();
+        expect(restored.token).toBe(token);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(true);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+
+        expect(runtimeRegistry.releaseReservation(token)).toBe(true);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+    });
+
+    test("30. a failed commit rolls back the boot's broker and releases the claim", async () => {
+        const runtimeId = "u1::NoInstA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+        const cfg = profile("NoInstA");
+        const strategy = makeStrategy("NoInstA");
+
+        // Commit path fails (nothing was registered), which is exactly the state
+        // boot() leaves for its catch block: claim held, broker built, no entry.
+        const token = runtimeRegistry.reserve({
+            runtimeId,
+            userId: "u1",
+            accountId: "u1",
+            strategyName: "u1::NoInstA",
+            symbol: "EURUSD",
+            mode: "PAPER",
+            owner: "RuntimeLifecycle.boot"
+        });
+        const broker = global.__corexTestCreateBroker("PAPER", { runtimeId });
+        await broker.initialize({ runtimeId, mode: "PAPER", symbol: "EURUSD" });
+
+        await expect(lifecycle._rollbackBoot({
+            runtimeId,
+            token,
+            broker,
+            strategyInstance: strategy,
+            profile: cfg,
+            registered: false
+        })).resolves.toBe(true);
+
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        expect(runtimeRegistry.getReservation(runtimeId)).toBeNull();
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+
+        // The identity is immediately reusable.
+        await expect(boot(makeStrategy("NoInstA"))).resolves.toBe(true);
+        await new RuntimeLifecycle().terminate(runtimeId);
+    }, 15000);
+
+    // 3b. A lost-claim rollback destroys only its own objects ──────────────────
+    test("31. a lost-claim rollback destroys only the objects it created", async () => {
+        const runtimeId = "u1::OrphanA::EURUSD::PAPER";
+        const strategyName = "u1::OrphanA";
+        const lifecycle = new RuntimeLifecycle();
+
+        // Boot B owns the identity and the registry entry.
+        const fresh = makeStrategy("OrphanA");
+        await expect(boot(fresh)).resolves.toBe(true);
+        const freshBroker = control.brokers[control.brokers.length - 1];
+        const freshEntry = runtimeRegistry.get(runtimeId);
+
+        // Boot A's own objects, which the registry does not reference.
+        const staleStrategy = makeStrategy("OrphanA");
+        const staleBroker = { destroyCalls: 0, async destroy() { this.destroyCalls += 1; } };
+
+        const result = await lifecycle._rollbackBoot({
+            runtimeId,
+            token: "stale-token",
+            broker: staleBroker,
+            strategyInstance: staleStrategy,
+            profile: profile("OrphanA"),
+            registered: true
+        });
+
+        expect(result).toBe(false);
+        // Its own resources are released, the newer owner's are not.
+        expect(staleBroker.destroyCalls).toBe(1);
+        expect(staleStrategy.destroyCalls).toBe(1);
+        expect(freshBroker.destroyCalls).toBe(0);
+        expect(fresh.destroyCalls).toBe(0);
+        // The registry is untouched.
+        expect(runtimeRegistry.get(runtimeId)).toBe(freshEntry);
+        expect(runtimeRegistry.get(runtimeId).instance).toBe(fresh);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(true);
+
+        await lifecycle.terminate(runtimeId);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(freshBroker.destroyCalls).toBe(1);
+    }, 15000);
+
+    test("32. an orphaned rollback with no holder destroys its own objects and mutates nothing", async () => {
+        const runtimeId = "u1::OrphanB::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+        const strategy = makeStrategy("OrphanB");
+        const broker = { destroyCalls: 0, async destroy() { this.destroyCalls += 1; } };
+
+        // No entry, no reservation: nothing to own, nothing to release.
+        const result = await lifecycle._rollbackBoot({
+            runtimeId,
+            token: "no-holder-token",
+            broker,
+            strategyInstance: strategy,
+            profile: profile("OrphanB"),
+            registered: false
+        });
+
+        expect(result).toBe(false);
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+        expect(runtimeRegistry.getReservation(runtimeId)).toBeNull();
+    }, 15000);
+
+    test("33. an entry that no longer holds its collaborators is not reported as active", async () => {
         const strategy = makeStrategy("GhostA");
         await boot(strategy);
         const runtimeId = "u1::GhostA::EURUSD::PAPER";
