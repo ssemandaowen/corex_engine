@@ -43,3 +43,9 @@ This document records known failing tests that are deliberately left as an ackno
 
 - `eslint.config.js` exists but `eslint` is not a dependency and there is no `lint` script in `package.json` or package manifests. `npx eslint` attempts to download ESLint 10.
 - `node --check` was used for syntax verification of changed files.
+
+## 7. Duplicate Broker-Cleanup Efforts in Flight
+
+- Three independent efforts remove the same legacy broker paths: this branch (ix/p3-04-broker-ownership), PR #60 (efactor/broker-backtest-public-api, draft: BacktestBroker mirror + broker public API) and PR #26 (efactor(j8): retire the legacy broker/ tree, open).
+- All three touch engine/backtestManager.js and roker/modes/BacktestBroker.js, so merging more than one will conflict and may leave two competing "authoritative" import paths.
+- Classification: coordination debt. One effort must be designated authoritative (or rebased onto another) before any of them merges.

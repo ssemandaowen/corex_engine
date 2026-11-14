@@ -33,7 +33,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 - P0-04 waits for the backend, frontend and persistence maps.
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
 - Phase 0 exit requires Owen to review P0-01 through P0-07. No broad rebuild is authorized before that gate.
-- P3-04 is Owen-directed bounded cleanup on the existing `fix/upload-multipart-transport` branch. It removes verified duplicate broker paths only; it does not authorize a full execution-authority rebuild.
+- P3-04 is Owen-directed bounded cleanup on the dedicated `fix/p3-04-broker-ownership` branch (the original `fix/upload-multipart-transport` branch is already PR #58 for unrelated upload work). It removes verified duplicate broker paths only; it does not authorize a full execution-authority rebuild.
 - The old `plans/to_do.md` and PR #17 J1–J10 tracking proposal are historical inputs, not active task boards.
 
 ## Workstream / integration branch
@@ -49,7 +49,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 
 - Owen accepted P0-01 on 2026-10-31. PR #53 was squash-merged to `main` as `a97ae6359b0d1b960b19368e2bbff476e16b4405`.
 - P0-02 is approved to begin. It remains READY until Kilo records its workstream branch and claims it in this dashboard and task file.
-- P3-04 is claimed by Kilo Code on `fix/upload-multipart-transport` (Owen-directed 2026-11-14). It is bounded to verified broker-folder ownership cleanup and does not change protected broker/execution architecture.
+- P3-04 is claimed by Kilo Code on `fix/p3-04-broker-ownership` (Owen-directed 2026-11-14; branched from `origin/main` @ `1d67733`). It is bounded to verified broker-folder ownership cleanup and does not change protected broker/execution architecture.
 - Review existing open PRs as evidence; do not merge or close them as part of a read-only audit.
 - Any protected architecture, broker/execution/risk behavior, database schema or public-contract change requires the approval specified in the roadmap.
 - Socket_X is not mounted by `engine/server.js`. Wiring it to the strategy execution authority remains a separate, unapproved task; see P3-04 evidence.
@@ -59,15 +59,15 @@ This file is the **current ownership and progress dashboard**. It does not repla
 ### Handoff — 2026-11-14 (P3-04)
 Owner / agent: Kilo Code
 Status: REVIEW
-Branch: `fix/upload-multipart-transport`
-Last verified commit: `b7cf611` (baseline); implementation uncommitted at handoff.
+Branch: `fix/p3-04-broker-ownership` (branched from `origin/main` @ `1d67733`)
+Last verified commit: `29ee775`.
 Files changed: broker package entry point; deleted `/broker` mirrors + dead backtest modules; deleted `engine/services/mt5Bridge.js`, `engine/core/runtime/RuntimeBrokerFactory.js`, `engine/core/runtime/MarketFeed.js`; market-data legacy singleton exposure; runtimeService broker lookup; MetaApiDriver connector selection; MT5 connector/bridge protocol mapping; tests; plans.
-Completed: Repository investigation, consumer migration, verified deletions, confirmed MT5/driver fixes, regression tests, documentation.
-Commands and test results: broker-contract 12/165 pass; gateway 3/85 pass; market-data 6/70 pass; strategy-engine 10/87 pass; portfolio 2/12 pass; root targeted 7 suites pass with 1 pre-existing `runtime-lifecycle-provider` failure; `node --check` pass; ESLint unavailable.
-Unverified items / limitations: real MT5/MetaAPI execution; Socket_X transport; end-to-end boot with credentials.
-Decisions needed: MT5 transport selection; MetaApiConnector disposition; approval for separate Socket_X execution-authority design.
+Completed: Repository investigation, consumer migration, verified deletions, confirmed MT5/driver fixes, regression tests, documentation, rebase onto `origin/main`.
+Commands and test results: broker-contract 12/165 pass; market-data 6/70 pass; gateway 3/85 pass; strategy-engine 10/87 pass; portfolio 2/12 pass; root targeted 8 suites/97 tests pass; `node --check` pass; ESLint unavailable. Pre-existing unrelated failure remains in the untracked `test/runtime-lifecycle-provider.test.js`.
+Unverified items / limitations: real MT5/MetaAPI execution; Socket_X transport (not mounted); end-to-end boot with credentials.
+Decisions needed: MT5 transport selection; MetaApiConnector disposition; approval for separate Socket_X execution-authority design; reconcile with PR #60 / PR #26 which overlap this work.
 Blockers: none for the cleanup.
-Exact next action: review diff, commit the cleanup, and open follow-ups for Socket_X mounting, `RuntimeLifecycle.reattemptWarmup`, and MT5 transport.
+Exact next action: review `29ee775`, decide the overlap with PR #60 / PR #26, then push and open the PR.
 May another agent continue? YES — resume the task file and this dashboard.
 
 ### Acceptance — 2026-10-31 (P0-01)
