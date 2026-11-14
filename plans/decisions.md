@@ -459,3 +459,19 @@ Reason: The legacy folder duplicated package-owned implementations, exposed inte
 
 Consequence: One authoritative broker package surface; no remaining `@broker/*` forwarding consumers; MT5 connector/bridge protocol aligned on paper. Socket_X remains unmounted and `MetaApiConnector` remains a non-executing skeleton; both are recorded as blockers for the separate execution-authority task. Evidence: `plans/architecture/BROKER_OWNERSHIP_AND_SOCKETX_AUDIT.md`.
 
+
+---
+
+**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 — Atomic runtime ownership**
+
+Decision:
+1. `engine/core/runtime/RuntimeRegistry.js` is the single authoritative runtime owner. It keeps two ledgers in one module: `_runtimes` (live runtimes) and `_reservations` (claims for creations in flight). No second registry was introduced.
+2. Creation is `reserve()` -> initialize broker -> `commitReservation()`. A claim carries a token; `set()` refuses to overwrite a live entry or register over a pending reservation.
+3. Lifecycle transitions use a compare-and-set (`transition()`), and one termination per identity runs at a time via an in-flight promise map (no timers, no locks, no delays).
+4. Cleanup failures are recorded on the entry (`cleanupFailures`), the entry stays registered as `STOPPING`, and `terminate()` returns false so no caller can report success.
+5. `DELETE /api/strategies/:id` uses `findOwnedByStrategy()` (registry) as the authoritative gate; `stateController` is demoted to a corroborating signal.
+6. Reservation staleness is recovered by TTL (`COREX_RUNTIME_RESERVATION_TTL_MS`, default 120000 ms, validated and clamped). This is crash/hang recovery, not concurrency protection.
+
+Reason: the registry had no notion of "being created", so two concurrent boots could both pass the `has()` check and the second `set()` silently orphaned a live instance and broker; failed boots leaked brokers; concurrent terminates double-destroyed; cleanup failures were swallowed and the entry deleted anyway; the deletion route trusted a separate state ledger.
+
+Consequence: one ownership decision point for creation, activation, termination and deletion; duplicate/competing creation is rejected by identity; failed operations leave no phantom registry state. Ownership is per-process (in-memory), and the delete path corrects rather than prevents a mid-delete creation race; both are recorded in `plans/KNOWN_ISSUES.md`. Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.

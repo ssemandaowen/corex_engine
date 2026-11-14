@@ -23,6 +23,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 | P0-06 | Test and known-issues baseline | Kilo Code | READY | P0-01 | `plans/architecture/QUALITY_BASELINE.md` |
 | P0-07 | Existing plans and PR/branch reconciliation | Jules | READY | None; verify current main | `plans/architecture/BRANCH_AND_PLAN_RECONCILIATION.md` |
 | P3-04 | Broker folder ownership cleanup & Socket_X integration audit | Kilo Code | REVIEW | P0-01 | `plans/tasks/P3-04-broker-ownership-cleanup.md` |
+| ENGINE-01 S2 | Atomic runtime ownership | Kilo Code | REVIEW | ENGINE-01 P0 (PR #62) | `plans/tasks/ENGINE-01-STAGE-2.md` |
 
 **Suggested owner is a proposed allocation, not a claim.** A task becomes CLAIMED only when the owner and branch are recorded here and in its task file.
 
@@ -34,6 +35,7 @@ This file is the **current ownership and progress dashboard**. It does not repla
 - Prefer read-only audits in parallel. Assign a single writer for shared files/branches.
 - Phase 0 exit requires Owen to review P0-01 through P0-07. No broad rebuild is authorized before that gate.
 - P3-04 is Owen-directed bounded cleanup on the dedicated `fix/p3-04-broker-ownership` branch (the original `fix/upload-multipart-transport` branch is already PR #58 for unrelated upload work). It removes verified duplicate broker paths only; it does not authorize a full execution-authority rebuild.
+- ENGINE-01 S2 is Owen-directed runtime-ownership implementation on `engine-01/stage-2-runtime-ownership` (branched from `origin/main` @ `8dd6048`, which includes PR #62). `RuntimeRegistry` is the single authoritative runtime owner; the registry-based reservation/commit/abort protocol and the registry-authoritative deletion gate must not be duplicated in another module.
 - The old `plans/to_do.md` and PR #17 J1–J10 tracking proposal are historical inputs, not active task boards.
 
 ## Workstream / integration branch

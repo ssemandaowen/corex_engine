@@ -49,3 +49,10 @@ This document records known failing tests that are deliberately left as an ackno
 - Three independent efforts remove the same legacy broker paths: this branch (ix/p3-04-broker-ownership), PR #60 (efactor/broker-backtest-public-api, draft: BacktestBroker mirror + broker public API) and PR #26 (efactor(j8): retire the legacy broker/ tree, open).
 - All three touch engine/backtestManager.js and roker/modes/BacktestBroker.js, so merging more than one will conflict and may leave two competing "authoritative" import paths.
 - Classification: coordination debt. One effort must be designated authoritative (or rebased onto another) before any of them merges.
+
+## 8. Runtime Ownership Is Per-Process
+
+- `RuntimeRegistry` reservations are in-memory, so two engine processes sharing one database can each start the same runtime; cross-process ownership would need a DB-backed lease or advisory lock (not implemented: no evidence the deployment runs multiple engine instances).
+- `DELETE /api/strategies/:id` detects a creation that lands between the ownership check and the DB delete, stops it and returns 500 `DELETE_FAILED`; it does not prevent the race up front.
+- `stateController` is still read by the UI status path (`runtimeService.getStatus`/`getAllStatus`) while the registry is authoritative for lifecycle; the two can disagree until that read path is migrated.
+- Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
