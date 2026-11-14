@@ -248,9 +248,7 @@ class BacktestManager {
             });
 
             abortIfRequested();
-            await this._saveReport(report, fullTrades);
-
-            const savedPath = path.join(this.storagePath, `${report.meta.id}.json`);
+            const savedPath = await this._saveReport(report, fullTrades);
             const duration  = ((Date.now() - startMs) / 1000).toFixed(2);
 
             logger.info(`[BT:SAVE] Report saved -> ${savedPath}`);
@@ -807,14 +805,33 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
      * Resolve the absolute path to a trades CSV file.
      */
     getTradesCsvPath(reportId) {
-        return path.join(this.storagePath, `${reportId}.trades.csv`);
+        return path.join(this.storagePath, this._reportFileName(reportId, ".trades.csv"));
+    }
+
+    /**
+     * Derive a filesystem-safe file name from a report/runtime id.
+     *
+     * Runtime ids follow `userId::strategyName::symbol::mode`, and symbols
+     * contain "/" (e.g. BTC/USD). Used raw, that produces a path with a
+     * non-existent directory segment (ENOENT). Ids that are already safe
+     * ([A-Za-z0-9._-]) are returned unchanged.
+     *
+     * The id stored inside the report (meta.id) is never rewritten — only the
+     * on-disk file name is derived from it.
+     */
+    _reportFileName(reportId, extension) {
+        const safe = String(reportId || "report").replace(/[^a-zA-Z0-9._-]+/g, "_");
+        return `${safe}${extension}`;
     }
 
     // ── Persistence ───────────────────────────────────────────────────────────
 
     async _saveReport(report, fullTrades = []) {
         // Always attempt file save first — it's the offline fallback.
-        await this._saveToFile(report);
+        // The resolved path is the authoritative report location; callers must
+        // not recompute it (a recomputed path can advertise a file that was
+        // never written when the save fails).
+        const filepath = await this._saveToFile(report);
 
         // If trades exist, save full list as CSV for external analysis download.
         if (fullTrades.length > 0) {
@@ -823,6 +840,8 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
 
         // Persist to Postgres if configured
         await this._saveToDatabase(report);
+
+        return filepath;
     }
 
     /**
@@ -831,7 +850,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
     async _saveTradesToCsv(reportId, trades) {
         if (!Array.isArray(trades) || trades.length === 0) return;
         
-        const filepath = path.join(this.storagePath, `${reportId}.trades.csv`);
+        const filepath = path.join(this.storagePath, this._reportFileName(reportId, ".trades.csv"));
         try {
             const data = trades.map(t => ({
                 direction: t.direction || t.side || "",
@@ -898,13 +917,16 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
         }
     }
 
+    /**
+     * Persist the report as JSON and return the absolute path that was written.
+     *
+     * Failure is propagated: run() reports REPORT_SAVED to the caller, so a
+     * swallowed write error would advertise a report path that does not exist.
+     */
     async _saveToFile(report) {
-        const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
-        try {
-            await fsp.writeFile(filepath, JSON.stringify(report));
-        } catch (err) {
-            logger.warn(`Backtest file save failed: ${err.message}`);
-        }
+        const filepath = path.join(this.storagePath, this._reportFileName(report.meta.id, ".json"));
+        await fsp.writeFile(filepath, JSON.stringify(report));
+        return filepath;
     }
 }
 
