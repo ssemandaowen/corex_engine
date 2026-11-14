@@ -19,8 +19,9 @@ differed from reality, reality is recorded and the difference is listed in the c
    after it has been written into a task file under `plans/tasks/` or into a row of this roadmap.
 2. **Reviewers are reviewers.** ChatGPT, Gemini and Claude may review; they never approve. A plan is
    approved only by Owen, and the approval is recorded here (row status + date + PR).
-3. **At most two workstreams open at a time.** "Open" = status `IN PROGRESS` (a PR exists and is not
-   merged) or `NEXT` with an active branch.
+3. **At most two workstreams open at a time.** Only phase/stage workstreams count toward the limit:
+   rows in section 3 with an ID of `ROADMAP`, `STAGE-n`, `E-n` or `P-n`. Backlog items (B-series)
+   and completed workstreams do not count.
 4. **One PR per phase.** Phases do not share PRs. No merging before review. A PR that completes a
    workstream updates its row in this file in the same PR.
 5. **Old audits live in `plans/archive/`** with a supersession header. They are history, not authority.
@@ -31,6 +32,8 @@ differed from reality, reality is recorded and the difference is listed in the c
 8. **Scope changes need Owen.** Any change to a protected boundary (`AGENTS.md` §11) stops the work.
 
 ## 2. Locked decisions (do not reopen without Owen)
+
+> L8–L10 are taken from `AGENTS.md` and the merged Stage 2 work; they are recorded here, not new decisions.
 
 | # | Decision |
 |---|---|
@@ -49,9 +52,9 @@ differed from reality, reality is recorded and the difference is listed in the c
 
 | Order | ID | Title | Status | Depends on | Branch / PR | Task file | Notes |
 |---|---|---|---|---|---|---|---|
-| 1 | STAGE-1 | Dataset upload multipart fix with a genuine regression test | IN PROGRESS | — | `fix/upload-multipart-transport` / PR #58 (OPEN) | task file created when the workstream starts | Verified: PR #58 head `b7cf6116d7f751410f815ab8bd3ced1f6311eb2b`, base `main`, 3 files (`front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `package.json`). **The fix is not yet covered by a genuine test:** `test/multipart-upload-fix.test.js` never imports `client.ts`, re-implements the interceptor inline, and its third test asserts the broken behaviour as expected — verified by reverting `client.ts` in a scratch worktree (3/3 still pass). Blocked on the decision to extract the interceptor so the test imports it. |
-| 2 | ROADMAP | Consolidate plans into this single roadmap | IN PROGRESS | — | `docs/roadmap-consolidation` / PR (opened by this change) | task file created when the workstream starts | This document; `plans/STATUS.md` banner; archive; ENGINE-01A report added. |
-| 3 | E1 | `engine.js` caller inventory and ownership mapping — **INVENTORY ONLY** | NEXT | ROADMAP reviewed | task file created when the workstream starts | task file created when the workstream starts | **Read-only report. It does NOT repoint any caller.** Repointing is a separately approved implementation step (P7). |
+| 1 | STAGE-1 | Dataset upload multipart fix with a genuine regression test | IN PROGRESS | — | `fix/upload-multipart-transport` / PR #58 (OPEN) | task file created when the workstream starts | Verified: PR #58 head `b7cf6116d7f751410f815ab8bd3ced1f6311eb2b`, base `main`, 3 files (`front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `package.json`). **The fix is not yet covered by a genuine test:** `test/multipart-upload-fix.test.js` never imports `client.ts`, re-implements the interceptor inline, and its third test asserts the broken behaviour as expected — verified by reverting `client.ts` in a scratch worktree (3/3 still pass). Blocked on the decision to extract the interceptor so the test imports it. → **Decision (Owen):** a genuine test imports the REAL axios instance exported by `client.ts` (stub adapter); extract a module only if importing `client.ts` proves infeasible. Plan: new PR from `main` containing only the `client.ts` fix + that test; then close PR #58 as superseded (no force-push; leave its branch). #58's branch carries the divergent `7401e35` commit. |
+| 2 | ROADMAP | Consolidate plans into this single roadmap | IN PROGRESS | — | PR #64 | task file created when the workstream starts | This document; `plans/STATUS.md` banner; archive; ENGINE-01A report added. |
+| 3 | E1 | `engine.js` caller inventory and ownership mapping — **INVENTORY ONLY** | NEXT | ROADMAP reviewed | task file created when the workstream starts | task file created when the workstream starts | **Read-only report. It does NOT repoint any caller.** Repointing callers happens inside E2–E4 (and E5), each PR moving only its own methods and separately approved. |
 | 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | NEXT | STAGE-1 PR opened (rebase if needed) | task file created when the workstream starts | task file created when the workstream starts | Scanner = pre-execution layer; instance check = post-construction layer. Two layers, one guard. |
 | 5 | B3 | Sandbox module resolution (`strategyCompiler`) + `security.js` exact `corex-strategy-engine` allow-list | NEXT | Stage 2 (DONE, PR #63) | PRs #56 and #57 (both OPEN, duplicate pair) | task file created when the workstream starts | Must precede P2. Work also exists uncommitted in the Stage 1 worktree (`engine/services/strategyCompiler.js`, `utils/security.js`, `test/security-exact-package-allow.test.js`). Two open PRs describe the same security change — one must be closed. |
 | 6 | P2 | Retire `StrategyContract`; move `getStateSnapshot`, `__corexApi`, symbol normalization into the `Strategy` base class | LATER | P1, B3 | task file created when the workstream starts | task file created when the workstream starts | Requires a class-identity test: loader, compiler, runtime and backtest must see the same `Strategy` class. |
@@ -95,7 +98,7 @@ differed from reality, reality is recorded and the difference is listed in the c
 
 | ID | Title | Status | Depends on |
 |---|---|---|---|
-| E1 | `engine.js` caller inventory (inventory only, no repointing) | NEXT | ROADMAP |
+| E1 | `engine.js` caller inventory — inventory only; repointing happens in E2–E4 (and E5) | NEXT | ROADMAP |
 | E2 | `StrategySupervisor` extraction (+ listener/timer fixes) | LATER | E1 |
 | E3 | Banner + wiring extraction | LATER | E1 |
 | E4 | Telemetry extraction | LATER | E1 |
