@@ -2,7 +2,7 @@
 
 const logger = require("@utils/logger");
 const db = require("@core/services/postgres");
-const mt5Bridge = require("@core/services/mt5Bridge");
+const { mt5Bridge } = require("corex-broker-contract");
 
 const log = logger.createModuleLogger("LIVE_DISPATCHER", { category: "execution" });
 

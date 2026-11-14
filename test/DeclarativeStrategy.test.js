@@ -1,8 +1,7 @@
 "use strict";
 
 const DeclarativeStrategy = require("../utils/DeclarativeStrategy");
-const CoreXPaperDriver = require("corex-broker-contract/src/drivers/CoreXPaperDriver");
-const BaseBroker = require("corex-broker-contract/src/base/BaseBroker");
+const { CoreXPaperDriver, BaseBroker } = require("corex-broker-contract");
 const { validateStrategyCode } = require("../utils/security");
 
 describe("Declarative Strategy Base Class & Pipeline Integration", () => {

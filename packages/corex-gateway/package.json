@@ -26,7 +26,6 @@
     "@core": "../../engine",
     "@strategies": "../../strategies",
     "@utils": "../../utils",
-    "@broker": "../corex-broker-contract/src",
     "@gateway": "./src",
     "@events": "../../events",
     "@config": "../../config"
@@ -40,10 +39,10 @@
       "^@core/(.*)$": "<rootDir>/../../engine/$1",
       "^@strategies/(.*)$": "<rootDir>/../../strategies/$1",
       "^@utils/(.*)$": "<rootDir>/../../utils/$1",
-      "^@broker/(.*)$": "<rootDir>/../corex-broker-contract/src/$1",
       "^@gateway/(.*)$": "<rootDir>/src/$1",
       "^@events/(.*)$": "<rootDir>/../../events/$1",
-      "^@config/(.*)$": "<rootDir>/../../config/$1"
+      "^@config/(.*)$": "<rootDir>/../../config/$1",
+      "^corex-broker-contract$": "<rootDir>/../corex-broker-contract/index.js"
     }
   }
 }

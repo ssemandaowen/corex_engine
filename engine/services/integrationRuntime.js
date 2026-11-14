@@ -49,7 +49,7 @@ async function refresh() {
         applyEnvVar("COREX_MT5_BRIDGE_PORT", mt5Bridge.port);
         applyEnvVar("COREX_MT5_HEARTBEAT_MS", mt5Bridge.heartbeatMs);
 
-        const marketBroker = require("@broker/twelvedata");
+        const marketBroker = require("@data").legacyMarketData;
         if (typeof marketBroker.applyRuntimeConfig === "function") {
             marketBroker.applyRuntimeConfig({
                 apiKey: marketData.twelveDataApiKey,
@@ -57,7 +57,7 @@ async function refresh() {
             });
         }
 
-        const mt5BridgeSvc = require("@core/services/mt5Bridge");
+        const mt5BridgeSvc = require("corex-broker-contract").mt5Bridge;
         if (typeof mt5BridgeSvc.applyRuntimeConfig === "function") {
             mt5BridgeSvc.applyRuntimeConfig({
                 bridgeToken: mt5Bridge.bridgeToken,

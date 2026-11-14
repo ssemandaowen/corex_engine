@@ -36,7 +36,7 @@
       "^@utils/(.*)$": "<rootDir>/../../utils/$1",
       "^@config/(.*)$": "<rootDir>/../../config/$1",
       "^@events/(.*)$": "<rootDir>/../../events/$1",
-      "^corex-broker-contract/(.*)$": "<rootDir>/../../packages/corex-broker-contract/$1",
+      "^corex-broker-contract$": "<rootDir>/../../packages/corex-broker-contract/index.js",
       "^corex-strategy-engine$": "<rootDir>/index.js"
     }
   }

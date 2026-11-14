@@ -5,7 +5,7 @@ Package: `corex-gateway` — Socket_X protocol, account model, connection lifecy
 ## Conventions
 - Node.js >= 18. CommonJS modules (`require`/`module.exports`).
 - Tests: `npm test` runs `jest --passWithNoTests --testTimeout=20000`. All specs in `test/**/*.test.js`.
-- Path aliases via `moduleNameMapper` in `package.json` jest config: `@events`, `@utils`, `@config`, `@core`, `@broker`, `@gateway`.
+- Path aliases via `moduleNameMapper` in `package.json` jest config: `@events`, `@utils`, `@config`, `@core`, `@gateway`, `corex-broker-contract`.
 - One commit per component change (protocol, account, test). Run tests after each commit.
 
 ## Architecture

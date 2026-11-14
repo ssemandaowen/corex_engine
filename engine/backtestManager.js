@@ -22,8 +22,8 @@ const crypto    = require("crypto");
 const dataForge = require("data-forge");
 
 const logger    = require("@utils/logger");
-const DataProviderFactory = require("@data/src/DataProviderFactory");
-const BacktestBroker = require("@broker/modes/BacktestBroker");
+const { DataProviderFactory } = require("@data");
+const { BacktestBroker } = require("corex-broker-contract");
 const { fetchGuardedHistory, MAX_BARS_LIMIT } = require("@data");
 const db        = require("@core/services/postgres");
 const pgStore   = require("@core/services/pgStore");

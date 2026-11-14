@@ -1,5 +1,5 @@
 const { bus, EVENTS } = require("@events/bus");
-const PaperBroker = require("@broker/modes/PaperBroker");
+const PaperBroker = require("corex-broker-contract").CoreXPaperDriver;
 
 bus.on(EVENTS.BROKER.STATE_CHANGED, (payload) => {
     console.log("EVENT_EMIT:", payload);

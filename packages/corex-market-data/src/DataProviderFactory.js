@@ -14,7 +14,7 @@
  *   const bars   = factory.fetchHistorical({...});  // for historical fetches with pagination
  */
 
-const DataPaginationLayer = require("../../corex-broker-contract/src/utils/DataPaginationLayer");
+const { DataPaginationLayer } = require("corex-broker-contract");
 const { DataProviderError } = require("./DataProviderContract");
 const logger = require("@utils/logger");
 
