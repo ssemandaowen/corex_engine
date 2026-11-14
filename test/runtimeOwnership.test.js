@@ -44,10 +44,12 @@ jest.mock("corex-broker-contract", () => {
 const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const RuntimeLifecycle = require("@core/core/runtime/RuntimeLifecycle");
 const strategyLoader = require("@core/strategyLoader");
+const stateManager = require("@utils/stateController");
+const { bus, EVENTS } = require("@events/bus");
 const strategyRouter = require("@core/routes/strategyController");
 const loader = require("@core/core/loader/StrategyLoader");
 const db = require("@core/services/postgres");
-const { MarketFeed } = require("@data");
+const { MarketFeed, DataProviderFactory } = require("@data");
 
 // ── Broker double (external I/O) ─────────────────────────────────────────────
 const control = {
@@ -179,6 +181,9 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         loader.invalidate.mockClear();
         loader.stop.mockClear();
         db.query.mockClear();
+        DataProviderFactory.fetchHistorical.mockReset();
+        DataProviderFactory.fetchHistorical.mockImplementation(async () => []);
+        jest.restoreAllMocks();
     });
 
     afterAll(async () => {
@@ -739,7 +744,7 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
             registered: false
         });
 
-        expect(staleResult).toBe(false);
+        expect(staleResult.finalized).toBe(false);
         expect(runtimeRegistry.get(runtimeId)).toBe(freshEntry);
         expect(runtimeRegistry.get(runtimeId).instance).toBe(fresh);
         expect(freshBroker.destroyCalls).toBe(0);
@@ -755,7 +760,7 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
             registered: true
         });
 
-        expect(committedRollback).toBe(false);
+        expect(committedRollback.finalized).toBe(false);
         expect(runtimeRegistry.get(runtimeId)).toBe(freshEntry);
         expect(runtimeRegistry.get(runtimeId).actualState).toBe("ACTIVE");
         expect(freshBroker.destroyCalls).toBe(0);
@@ -910,7 +915,7 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
     }, 15000);
 
     // 3b. A lost-claim rollback destroys only its own objects ──────────────────
-    test("31. a lost-claim rollback destroys only the objects it created", async () => {
+    test("31. a committed rollback destroys nothing once the registry entry is owned by someone else", async () => {
         const runtimeId = "u1::OrphanA::EURUSD::PAPER";
         const strategyName = "u1::OrphanA";
         const lifecycle = new RuntimeLifecycle();
@@ -925,7 +930,7 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         const staleStrategy = makeStrategy("OrphanA");
         const staleBroker = { destroyCalls: 0, async destroy() { this.destroyCalls += 1; } };
 
-        const result = await lifecycle._rollbackBoot({
+        const outcome = await lifecycle._rollbackBoot({
             runtimeId,
             token: "stale-token",
             broker: staleBroker,
@@ -934,10 +939,10 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
             registered: true
         });
 
-        expect(result).toBe(false);
-        // Its own resources are released, the newer owner's are not.
-        expect(staleBroker.destroyCalls).toBe(1);
-        expect(staleStrategy.destroyCalls).toBe(1);
+        expect(outcome.finalized).toBe(false);
+        // Destruction belongs to whoever owns/removes the entry: nothing is destroyed.
+        expect(staleBroker.destroyCalls).toBe(0);
+        expect(staleStrategy.destroyCalls).toBe(0);
         expect(freshBroker.destroyCalls).toBe(0);
         expect(fresh.destroyCalls).toBe(0);
         // The registry is untouched.
@@ -945,19 +950,22 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         expect(runtimeRegistry.get(runtimeId).instance).toBe(fresh);
         expect(runtimeRegistry.isOwned(runtimeId)).toBe(true);
 
+        // The owner's own terminate() is still the one that destroys them.
         await lifecycle.terminate(runtimeId);
         expect(runtimeRegistry.has(runtimeId)).toBe(false);
         expect(freshBroker.destroyCalls).toBe(1);
+        expect(fresh.destroyCalls).toBe(1);
     }, 15000);
 
-    test("32. an orphaned rollback with no holder destroys its own objects and mutates nothing", async () => {
+    test("32. an uncommitted rollback with no holder destroys its own objects once", async () => {
         const runtimeId = "u1::OrphanB::EURUSD::PAPER";
         const lifecycle = new RuntimeLifecycle();
         const strategy = makeStrategy("OrphanB");
         const broker = { destroyCalls: 0, async destroy() { this.destroyCalls += 1; } };
 
-        // No entry, no reservation: nothing to own, nothing to release.
-        const result = await lifecycle._rollbackBoot({
+        // No entry, no reservation: nothing was handed to the registry, so this boot
+        // still owns the objects it created.
+        const outcome = await lifecycle._rollbackBoot({
             runtimeId,
             token: "no-holder-token",
             broker,
@@ -966,7 +974,7 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
             registered: false
         });
 
-        expect(result).toBe(false);
+        expect(outcome.finalized).toBe(false);
         expect(broker.destroyCalls).toBe(1);
         expect(strategy.destroyCalls).toBe(1);
         expect(runtimeRegistry.has(runtimeId)).toBe(false);
@@ -974,7 +982,121 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         expect(runtimeRegistry.getReservation(runtimeId)).toBeNull();
     }, 15000);
 
-    test("33. an entry that no longer holds its collaborators is not reported as active", async () => {
+    // Terminate during warmup ──────────────────────────────────────────────────
+    test("33. a terminate during warmup aborts the boot before subscribe/activate/announce", async () => {
+        const gate = deferred();
+        DataProviderFactory.fetchHistorical.mockImplementation(() => gate.promise);
+
+        const commitSpy = jest.spyOn(stateManager, "commit");
+        const emitSpy = jest.spyOn(bus, "emit");
+
+        const strategy = makeStrategy("WarmA");
+        const runtimeId = "u1::WarmA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+
+        const booting = lifecycle.boot({
+            runtimeId,
+            strategyInstance: strategy,
+            profile: profile("WarmA")
+        });
+        const bootOutcome = booting.then(() => "resolved", (e) => e.code || e.message);
+
+        await waitFor(() => DataProviderFactory.fetchHistorical.mock.calls.length === 1,
+            "warmup to start");
+        expect(runtimeRegistry.get(runtimeId)).not.toBeNull();
+        expect(runtimeRegistry.get(runtimeId).actualState).toBe("ACTIVE");
+
+        // A stop lands while warmup is still awaiting.
+        const terminateOutcome = lifecycle.terminate(runtimeId);
+        await waitFor(() => runtimeRegistry.get(runtimeId) === undefined || true, "noop");
+        gate.resolve([]);
+
+        const [code, terminated] = await Promise.all([bootOutcome, terminateOutcome]);
+
+        expect(code).toBe("RUNTIME_ABORTED");
+        expect(terminated).toBe(true);
+        // Each collaborator destroyed exactly once, by the termination.
+        const broker = control.brokers[control.brokers.length - 1];
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        // Never subscribed, never activated, never announced.
+        expect(MarketFeed.subscribe).not.toHaveBeenCalled();
+        const activeCommits = commitSpy.mock.calls.filter(([, state]) => state === "ACTIVE");
+        expect(activeCommits).toHaveLength(0);
+        const startEvents = emitSpy.mock.calls.filter(([event]) => event === EVENTS.SYSTEM.STRATEGY_START);
+        expect(startEvents).toHaveLength(0);
+        // The identity is free.
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+
+        commitSpy.mockRestore();
+        emitSpy.mockRestore();
+    }, 15000);
+
+    test("34. a committed rollback after removal destroys nothing a second time", async () => {
+        const strategy = makeStrategy("TwiceA");
+        const runtimeId = "u1::TwiceA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+
+        await expect(boot(strategy)).resolves.toBe(true);
+        const broker = control.brokers[control.brokers.length - 1];
+
+        // Termination owns the destruction.
+        await expect(lifecycle.terminate(runtimeId)).resolves.toBe(true);
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+
+        // A late failure in the boot path must not destroy them again.
+        const outcome = await lifecycle._rollbackBoot({
+            runtimeId,
+            token: "late-token",
+            broker,
+            strategyInstance: strategy,
+            profile: profile("TwiceA"),
+            registered: true
+        });
+
+        expect(outcome.finalized).toBe(false);
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+    }, 15000);
+
+    test("35. an uncommitted boot with no holder still destroys its own broker once", async () => {
+        const gate = deferred();
+        control.onInitialize = () => gate.promise;
+
+        const runtimeId = "u1::NoHoldA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+        const booting = lifecycle.boot({
+            runtimeId,
+            strategyInstance: makeStrategy("NoHoldA"),
+            profile: profile("NoHoldA")
+        });
+        const bootOutcome = booting.then(() => "resolved", (e) => e.code || e.message);
+
+        await waitFor(() => runtimeRegistry.isReserved(runtimeId), "reservation to be taken");
+
+        // The claim disappears (released by someone else): the boot now has no holder,
+        // and it never committed, so its broker belongs to it alone.
+        const reservation = runtimeRegistry.getReservation(runtimeId);
+        runtimeRegistry.releaseReservation(reservation.token);
+
+        gate.resolve();
+        // The claim is gone, so the commit fails: this boot never registered.
+        await expect(bootOutcome).resolves.toBe("RUNTIME_RESERVATION_LOST");
+
+        const broker = control.brokers[control.brokers.length - 1];
+        expect(broker.destroyCalls).toBe(1);
+        // Nothing was released or created behind the boot's back.
+        expect(runtimeRegistry.getReservation(runtimeId)).toBeNull();
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+    }, 15000);
+
+    test("36. an entry that no longer holds its collaborators is not reported as active", async () => {
         const strategy = makeStrategy("GhostA");
         await boot(strategy);
         const runtimeId = "u1::GhostA::EURUSD::PAPER";

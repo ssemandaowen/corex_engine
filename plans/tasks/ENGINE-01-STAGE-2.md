@@ -27,7 +27,7 @@ termination and deletion have deterministic ownership and ordering.
   reservations, concurrency reasons mapped to 409.
 - `engine/routes/strategyController.js` — registry-authoritative deletion gate,
   ownership check before delete, deletion claim held across the delete.
-- `test/runtimeOwnership.test.js` — 30 regression tests.
+- `test/runtimeOwnership.test.js` — 33 regression tests.
 
 ## Non-goals
 
@@ -53,9 +53,14 @@ termination and deletion have deterministic ownership and ordering.
       process exit, so a slow boot is never treated as dead.
 - [x] Token fencing: a stale boot can never commit, release, delete or destroy another
       boot's state (`ownerToken`, `delete(id, {token})`, token-scoped release, `isOwnedBy`).
-- [x] Rollback cleanup is serialized with terminate: the in-flight cleanup is published on
-      the holder, so a concurrent `terminate()` joins it (one destroy per collaborator,
-      one outcome for both callers).
+- [x] Rollback cleanup is serialized with terminate: the in-flight cleanup is published on the
+      holder, so a concurrent `terminate()` joins it (one destroy per collaborator,
+      one outcome for both callers), and both sides resolve to
+      `{ failures, finalized, joined? }`.
+- [x] `boot()` re-checks ownership after warmup and before subscribe/activate/announce, so a stop
+      during start aborts the boot (`RUNTIME_ABORTED`) and is reported as `START_CANCELLED` (409).
+- [x] Orphan destruction is limited to boots that never committed; a committed boot that lost its
+      entry destroys nothing further.
 - [x] Parked cleanup is retryable from the routes: `stopStrategy(id)` targets parked
       reservations, and `startStrategy` reports `START_BLOCKED_CLEANUP_PENDING` (409)
       while a cleanup is still owed.
@@ -66,8 +71,8 @@ termination and deletion have deterministic ownership and ordering.
 - [x] Strategy deletion is mutually exclusive with creation via
       `claimStrategyDeletion()` / `releaseStrategyDeletion()`; a concurrent delete
       gets 409, a failed DB delete releases the claim.
-- [x] Concurrent operations are covered by regression tests (30 tests).
-- [x] Existing tests remain green — full suite 60 suites / 656 tests.
+- [x] Concurrent operations are covered by regression tests (33 tests).
+- [x] Existing tests remain green — full suite 60 suites / 659 tests.
 - [x] No unrelated work in the diff (5 source files + 1 test file, no engine
       reorganization, no schema change).
 
@@ -80,6 +85,41 @@ npm test
 
 Results are recorded in the implementation record
 (`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`).
+
+## Handoff — 2026-11-14 (S2-FIX-3 warmup abort and orphan scope, PR #63)
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: `engine-01/stage-2-runtime-ownership`
+Last verified commit: see `git log -1` on the branch (S2-FIX-3 commit).
+Files changed: `engine/core/runtime/RuntimeLifecycle.js` (`_assertOwnership` after warmup and
+before activate/announce, rollback joins an in-flight cleanup, `_destroyOrphaned` restricted to
+uncommitted boots, unified `{failures, finalized, joined?}` shape, terminate tolerates a
+finalized holder), `engine/strategyLoader.js` (`RUNTIME_ABORTED` → `START_CANCELLED`),
+`engine/routes/executionController.js` (409 for `START_CANCELLED`), `test/runtimeOwnership.test.js`,
+plus this file, `plans/STATUS.md`, `plans/KNOWN_ISSUES.md`, `plans/decisions.md` and
+`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+Completed: a stop during warmup now aborts the boot before `marketFeed.subscribe`,
+`stateManager.commit(ACTIVE)` and the `STRATEGY_START` emit, and is reported as
+`START_CANCELLED` (409) rather than `START_IN_PROGRESS`; rollback and terminate share one cleanup
+in either order (each resolves to `{failures, finalized, joined?}`); orphan destruction is limited
+to boots that never committed, so a committed boot that lost its entry destroys nothing further.
+Commands and test results:
+- targeted: `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js`
+  → 2 suites / 37 tests pass (16.802 s).
+- `npm test` → 60 suites / 659 tests pass (56.551 s).
+Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (no
+credentials, broker factory mocked in tests); ownership and deletion claims are
+per-process; no crash reconciliation of a runtime persisted as ACTIVE after a process
+death; `strategyLoader.startStrategy` is not unit-covered end to end (needs compiler + DB),
+its gates are covered through the registry/lifecycle suites; the lost-claim path is only
+reachable if claims ever expire or go cross-process.
+Decisions needed: whether cross-process runtime ownership is ever required
+(that would need a DB-backed lease, not implemented here).
+Blockers: none.
+Exact next action: review the S2-FIX-3 diff and the implementation record; if accepted,
+merge PR #63.
+May another agent continue? YES — resume this file and the implementation record.
 
 ## Handoff — 2026-11-14 (S2-FIX-2 ownership gaps, PR #63)
 

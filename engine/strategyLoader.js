@@ -480,8 +480,13 @@ async function startStrategy(id, options = {}) {
     } catch (err) {
         log.error(`[START] Failed to start ${id}: ${err.message}`);
         // A lost ownership race is a concurrency signal, not a server fault.
-        if (err.code === "RUNTIME_ALREADY_OWNED" || err.code === "RUNTIME_ABORTED") {
+        if (err.code === "RUNTIME_ALREADY_OWNED") {
             return { ok: false, reason: "START_IN_PROGRESS" };
+        }
+        // The start was cancelled by a stop while it was booting: report it as a
+        // cancellation, not as another start being in progress.
+        if (err.code === "RUNTIME_ABORTED") {
+            return { ok: false, reason: "START_CANCELLED" };
         }
         if (err.code === "RUNTIME_DELETION_IN_PROGRESS") {
             return { ok: false, reason: "STRATEGY_BEING_DELETED" };

@@ -92,10 +92,24 @@ termination:
 
 **Rollback cleanup is serialized with terminate.** `_rollbackBoot` publishes its whole operation
 (cleanup **and** finalization) as `holder.cleanupPromise`; `_terminate()` calls
-`_joinHolderCleanup()` first and awaits that promise instead of starting a second cleanup. When
-the joined operation removes the holder, terminate reports success with the same single outcome
-both callers observed (one destroy per collaborator). When it fails, terminate reports false and
-the holder is left for a retry.
+`_joinHolderCleanup()` first and awaits that promise instead of starting a second cleanup, and a
+rollback that finds a cleanup already in flight joins it instead of re-running the steps. Both
+sides resolve to the same shape `{ failures, finalized, joined? }`. A joined caller observes the
+final state (holder removed, claim released) and reports the same outcome (one destroy per
+collaborator). On failure the holder is left for a retry.
+
+**Ownership is re-checked after every long asynchronous step.** `boot()` calls
+`_assertOwnership(runtimeId, token)` after `_warmup()` (before `marketFeed.subscribe`) and again
+before `stateManager.commit(ACTIVE)` and the `STRATEGY_START` emit. A `terminate()` landing during
+warmup therefore aborts the boot with `RUNTIME_ABORTED` and the runtime is never subscribed,
+activated or announced. `startStrategy` maps that code to `START_CANCELLED` (409), distinct from
+`START_IN_PROGRESS`.
+
+**Orphan destruction is limited to boots that never committed.** `_destroyOrphaned()` runs only
+when `registered === false`: nothing was handed to the registry, so the broker and instance belong
+to that boot alone. When a committed boot has lost its entry, destruction belongs to whoever
+owns/removes it, so the rollback logs and returns without destroying anything or dropping a feed
+subscription. A committed boot whose cleanup already ran never destroys a collaborator twice.
 
 **Parked cleanup is retryable from the routes.** A pre-commit rollback that cannot destroy its
 broker leaves a reservation with `cleanupFailures`, `pendingBroker`, `pendingInstance`,
@@ -162,17 +176,20 @@ mocked.
 | 28 | Parked pre-commit cleanup | `stopStrategy(id)` without `runtimeId` finds the parked reservation, retries it (second destroy attempt), then clears it; a later start succeeds |
 | 29 | Commit rejected by `set()` | the claim is restored with the same token and the identity stays owned; `releaseReservation` then frees it |
 | 30 | Failed commit rollback | the boot's broker and instance are destroyed, the claim is released, the identity is immediately reusable |
-| 31 | Lost-claim rollback with objects | only the objects the boot created are destroyed; the newer owner's entry, broker and instance are untouched |
-| 32 | Holder-less rollback | the boot's own objects are destroyed, the registry is not mutated, no claim is released |
+| 31 | Committed rollback, entry owned elsewhere | nothing is destroyed or released (the entry's owner owns destruction); the owner's own terminate still destroys its collaborators |
+| 32 | Uncommitted rollback with no holder | the boot's own broker and instance are destroyed exactly once; the registry is not mutated |
+| 33 | Terminate during warmup | boot rejects with `RUNTIME_ABORTED`; broker and strategy destroyed exactly once (by the termination); `marketFeed.subscribe` not called; no `ACTIVE` commit; no `STRATEGY_START` event; identity free |
+| 34 | Committed rollback after removal | a late boot failure destroys nothing a second time |
+| 35 | Uncommitted boot, claim released mid-flight | commit fails with `RUNTIME_RESERVATION_LOST`, the boot's broker is destroyed once, nothing is released or created behind its back |
 
 ### Commands and results (exact)
 
 | Command | Suites | Tests | Result | Time |
 |---|---|---|---|---|
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js` | 1 | 30 | 30 passed | ~17 s |
-| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js` | 2 | 34 | 34 passed | 17.708 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js` | 1 | 33 | 33 passed | ~17 s |
+| `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js` | 2 | 37 | 37 passed | 16.802 s |
 | `node node_modules/jest/bin/jest.js --runInBand --forceExit test/runtimeOwnership.test.js test/runtimeExclusivity.test.js engine/test` | 17 | 140 | 140 passed | 47.566 s |
-| `npm test` (S2-FIX-2) | 60 | 656 | 656 passed | 68.523 s |
+| `npm test` (S2-FIX-3) | 60 | 659 | 659 passed | 56.551 s |
 
 Baseline before this task: 59 suites / 626 tests (PR #62). Delta: +1 suite, +30 tests,
 exactly the new file.
@@ -231,12 +248,13 @@ reservation, so it cannot destroy another owner's state either.
 7. **Deletion claims are per-process only.** Two engine instances can each delete the same
    strategy row; the DB delete is idempotent there, but a cross-process delete lock would be
    needed for a hard guarantee.
-8. **A lost-claim rollback destroys only what it owns.** When a boot's claim is gone (or it has
-   no holder at all) the registry entry belongs to someone else, so `_rollbackBoot` never mutates
-   the registry; it destroys only the broker/instance it created, and skips any object the current
-   entry still references, so a shared object can never be destroyed twice. Destroy failures there
-   are logged rather than recorded (there is no holder left). This path is only reachable if claims
-   ever expire or go cross-process.
+8. **Orphan destruction is limited to boots that never committed.** `_destroyOrphaned()` runs only
+   when `registered === false` — nothing was handed to the registry, so the broker/instance belong to
+   that boot alone, no entry references them, and nothing is unsubscribed. When a committed boot has
+   lost its entry, destruction belongs to whoever owns/removes it: the rollback logs and returns
+   without destroying anything, so no collaborator is ever destroyed twice. Destroy failures on the
+   uncommitted path are logged rather than recorded (there is no holder left). The lost-claim path is
+   only reachable if claims ever expire or go cross-process.
 
 ## 6. Pre-existing issues observed but not changed
 
