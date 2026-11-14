@@ -248,9 +248,7 @@ class BacktestManager {
             });
 
             abortIfRequested();
-            await this._saveReport(report, fullTrades);
-
-            const savedPath = path.join(this.storagePath, `${report.meta.id}.json`);
+            const savedPath = await this._saveReport(report, fullTrades);
             const duration  = ((Date.now() - startMs) / 1000).toFixed(2);
 
             logger.info(`[BT:SAVE] Report saved -> ${savedPath}`);
@@ -814,7 +812,10 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
 
     async _saveReport(report, fullTrades = []) {
         // Always attempt file save first — it's the offline fallback.
-        await this._saveToFile(report);
+        // The resolved path is the authoritative report location; callers must
+        // not recompute it (a recomputed path can advertise a file that was
+        // never written when the save fails).
+        const filepath = await this._saveToFile(report);
 
         // If trades exist, save full list as CSV for external analysis download.
         if (fullTrades.length > 0) {
@@ -823,6 +824,8 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
 
         // Persist to Postgres if configured
         await this._saveToDatabase(report);
+
+        return filepath;
     }
 
     /**
@@ -898,13 +901,16 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
         }
     }
 
+    /**
+     * Persist the report as JSON and return the absolute path that was written.
+     *
+     * Failure is propagated: run() reports REPORT_SAVED to the caller, so a
+     * swallowed write error would advertise a report path that does not exist.
+     */
     async _saveToFile(report) {
         const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
-        try {
-            await fsp.writeFile(filepath, JSON.stringify(report));
-        } catch (err) {
-            logger.warn(`Backtest file save failed: ${err.message}`);
-        }
+        await fsp.writeFile(filepath, JSON.stringify(report));
+        return filepath;
     }
 }
 
