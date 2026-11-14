@@ -7,6 +7,7 @@
 **Based on:** `origin/main` = `20bad625434dcbefcd7bea2a5d389ff887159d82` (PR #64 merged)
 **Report:** `plans/Audit/ENGINE-02B_E1_engine_inventory.md`
 **Roadmap entry:** E1 — `plans/ROADMAP.md:57` and `:101`
+**Pull request:** https://github.com/ssemandaowen/corex_engine/pull/65 (OPEN, not merged)
 
 ---
 
@@ -60,7 +61,7 @@ extraction.
 | Roadmap E1 entry updated | Pass |
 | Task file records completion and limitations | Pass — §5 below |
 | Diff contains only the three authorised documentation files | Pass |
-| Committed and pushed; PR opened, not merged | Pass |
+| Committed and pushed; PR opened, not merged | Pass — commit `8a59f44`, branch pushed, PR #65 OPEN |
 
 ### Re-verification result summary
 
