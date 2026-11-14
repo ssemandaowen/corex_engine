@@ -15,23 +15,27 @@ termination and deletion have deterministic ownership and ordering.
 
 ## Scope
 
-- `engine/core/runtime/RuntimeRegistry.js` — reservations, atomic commit,
-  transition compare-and-set, stale-reservation recovery, ownership queries.
+- `engine/core/runtime/RuntimeRegistry.js` — reservations (no expiry), atomic commit,
+  transition compare-and-set, token fencing, deletion claims, parked-reservation
+  queries, ownership queries.
 - `engine/core/runtime/RuntimeLifecycle.js` — reserve → initialize → register,
-  rollback on failure, abort-aware boot, serialized and idempotent terminate
-  with explicit cleanup-failure recording.
-- `engine/strategyLoader.js` — ownership-based start gate, stop targeting that
-  includes still-tearing-down entries, concurrency reasons mapped to 409.
+  rollback on failure as a success/failure operation, abort-aware boot, serialized
+  and idempotent terminate with explicit cleanup-failure recording, cleanup that a
+  concurrent terminate can join.
+- `engine/strategyLoader.js` — ownership-based start gate (including
+  `START_BLOCKED_CLEANUP_PENDING`), stop targeting that includes parked
+  reservations, concurrency reasons mapped to 409.
 - `engine/routes/strategyController.js` — registry-authoritative deletion gate,
-  ownership check before delete, race detection around the delete.
-- `test/runtimeOwnership.test.js` — 13 regression tests.
+  ownership check before delete, deletion claim held across the delete.
+- `test/runtimeOwnership.test.js` — 30 regression tests.
 
 ## Non-goals
 
 - No change to the strategy lifecycle contract (`onBar`/`onTick`/`_attachRuntime`).
 - No P1 prototype-pollution work, no P2 `StrategyContract` retirement.
 - No backtest/risk redesign, no new DB schema, no distributed locking.
-- No rewrite of boot reconciliation beyond reservation/entry staleness.
+- No rewrite of boot reconciliation beyond reservation/entry ownership (claims do
+  not expire; crash reconciliation of persisted ACTIVE runtimes stays out of scope).
 
 ## Acceptance criteria and status
 
@@ -47,23 +51,25 @@ termination and deletion have deterministic ownership and ordering.
       `releaseReservation`, `isOwnedBy`).
 - [x] Claims do not expire: an in-process claim is released by its owner or by
       process exit, so a slow boot is never treated as dead.
-- [x] Rollback cleanup is a success/failure operation: a failed broker or strategy destroy
-      keeps its reference on the entry/reservation, keeps the holder STOPPING, retains
-      ownership and releases nothing until a later `terminate()` finishes the job without
-      repeating successful steps.
-- [x] Claims do not expire: an in-process claim is released by its owner or by
-      process exit, so a slow boot is never treated as dead.
 - [x] Token fencing: a stale boot can never commit, release, delete or destroy another
       boot's state (`ownerToken`, `delete(id, {token})`, token-scoped release, `isOwnedBy`).
+- [x] Rollback cleanup is serialized with terminate: the in-flight cleanup is published on
+      the holder, so a concurrent `terminate()` joins it (one destroy per collaborator,
+      one outcome for both callers).
+- [x] Parked cleanup is retryable from the routes: `stopStrategy(id)` targets parked
+      reservations, and `startStrategy` reports `START_BLOCKED_CLEANUP_PENDING` (409)
+      while a cleanup is still owed.
+- [x] `commitReservation` restores the claim when registration throws, and a rollback
+      with no holder destroys only the objects that boot created (never the registry's).
 - [x] Rollback of a committed boot keeps ownership through cleanup
       (STOPPING → destroy → remove own entry → release claim) and stays retryable.
 - [x] Strategy deletion is mutually exclusive with creation via
       `claimStrategyDeletion()` / `releaseStrategyDeletion()`; a concurrent delete
       gets 409, a failed DB delete releases the claim.
-- [x] Concurrent operations are covered by regression tests (24 tests).
-- [x] Existing tests remain green — full suite 60 suites / 650 tests.
+- [x] Concurrent operations are covered by regression tests (30 tests).
+- [x] Existing tests remain green — full suite 60 suites / 656 tests.
 - [x] No unrelated work in the diff (5 source files + 1 test file, no engine
-      reorganization, no schema change, no TTL references left).
+      reorganization, no schema change).
 
 ## Verification commands
 
@@ -75,7 +81,44 @@ npm test
 Results are recorded in the implementation record
 (`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`).
 
-## Handoff — 2026-11-14 (final rollback cleanup correction, PR #63)
+## Handoff — 2026-11-14 (S2-FIX-2 ownership gaps, PR #63)
+
+Owner / agent: Kilo Code
+Status: REVIEW
+Branch: `engine-01/stage-2-runtime-ownership`
+Last verified commit: see `git log -1` on the branch (S2-FIX-2 commit).
+Files changed: `engine/core/runtime/RuntimeLifecycle.js` (rollback operation published on
+the holder and joinable by terminate, `_destroyOrphaned` for lost-claim/no-holder rollbacks,
+`_joinHolderCleanup`), `engine/core/runtime/RuntimeRegistry.js` (`commitReservation` restores
+the claim when `set()` throws, `parkedReservations()`), `engine/strategyLoader.js`
+(parked reservations in stop targets, `START_BLOCKED_CLEANUP_PENDING`),
+`engine/routes/executionController.js` (409 for that reason), `test/runtimeOwnership.test.js`,
+plus this file, `plans/STATUS.md`, `plans/KNOWN_ISSUES.md`, `plans/decisions.md` and
+`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+Completed: (1) rollback cleanup serialized with terminate — the in-flight operation is
+published on the holder, so a concurrent terminate joins it and both see one destroy per
+collaborator; (2) parked cleanup reachable from the routes — `stopStrategy(id)` targets parked
+reservations and a later start reports `START_BLOCKED_CLEANUP_PENDING`; (3a) a failed
+`commitReservation` restores the claim so the boot can roll back and release it; (3b) a
+lost-claim or holder-less rollback destroys only the objects it created, never the registry's;
+(3c) unfenced `delete()`/`clear()` callers inventoried in the implementation record.
+Commands and test results:
+- targeted: `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js`
+  → 2 suites / 34 tests pass (17.708 s).
+- `npm test` → 60 suites / 656 tests pass (68.523 s).
+Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (no
+credentials, broker factory mocked in tests); ownership and deletion claims are
+per-process; no crash reconciliation of a runtime persisted as ACTIVE after a process
+death; `strategyLoader.startStrategy` is not unit-covered end to end (needs compiler + DB),
+its gates are covered through the registry/lifecycle suites; a boot that lost its claim
+destroys its own objects only when the registry entry does not reference them, so a shared
+object is never destroyed.
+Decisions needed: whether cross-process runtime ownership is ever required
+(that would need a DB-backed lease, not implemented here).
+Blockers: none.
+Exact next action: review the S2-FIX-2 diff and the implementation record; if accepted,
+merge PR #63.
+May another agent continue? YES — resume this file and the implementation record.
 
 Owner / agent: Kilo Code
 Status: REVIEW
