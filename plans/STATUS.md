@@ -1,5 +1,7 @@
 # CoreX Work Status
 
+> **SUPERSEDED on 2026-11-14 by `plans/ROADMAP.md`. Kept for history; do not update.**
+
 > Last updated: 2026-10-31
 > Active phase: Phase 0 — Current-state architecture audits
 > Authoritative roadmap: `plans/COREX_DEVELOPMENT_PLAN.md`
