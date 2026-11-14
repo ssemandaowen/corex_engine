@@ -52,7 +52,7 @@ This document records known failing tests that are deliberately left as an ackno
 
 ## 8. Runtime Ownership Is Per-Process
 
-- `RuntimeRegistry` reservations are in-memory, so two engine processes sharing one database can each start the same runtime; cross-process ownership would need a DB-backed lease or advisory lock (not implemented: no evidence the deployment runs multiple engine instances).
-- `DELETE /api/strategies/:id` detects a creation that lands between the ownership check and the DB delete, stops it and returns 500 `DELETE_FAILED`; it does not prevent the race up front.
+- `RuntimeRegistry` claims (creation reservations and deletion claims) are in-memory, so two engine processes sharing one database can each start the same runtime or delete the same strategy; cross-process ownership would need a DB-backed lease or advisory lock (not implemented: no evidence the deployment runs multiple engine instances). Within one process, claims are exclusive and fenced by token.
+- Claims have no expiry by design: a claim is released by its owner (commit, rollback, abort, release) or by process exit, so a slow boot is never mistaken for a dead one. A process crash therefore leaves no in-memory claim to recover, but an interrupted boot that was already persisted as ACTIVE is not reconciled on restart yet (recoverable-state gap, not an ownership gap).
 - `stateController` is still read by the UI status path (`runtimeService.getStatus`/`getAllStatus`) while the registry is authoritative for lifecycle; the two can disagree until that read path is migrated.
 - Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.

@@ -42,9 +42,21 @@ termination and deletion have deterministic ownership and ordering.
 - [x] Failed operations leave no misleading registry state
       (rollback releases reservation and destroys the partial broker; cleanup
       failures keep the entry STOPPING with `cleanupFailures` and return false).
-- [x] Concurrent operations are covered by regression tests (13 tests).
-- [x] Existing tests remain green — full suite 60 suites / 639 tests.
-- [x] No unrelated Stage 1 work in the diff (4 source files + 1 test file).
+- [x] Registry mutations that could destroy another owner's work are fenced by the
+      claim token (`ownerToken`, `delete(id, {token})`, token-scoped
+      `releaseReservation`, `isOwnedBy`).
+- [x] Claims do not expire: an in-process claim is released by its owner or by
+      process exit, so a slow boot is never treated as dead.
+- [x] Rollback of a committed boot keeps exclusive ownership through cleanup
+      (STOPPING → strip collaborators → destroy → remove own entry → release claim)
+      and stays retryable afterwards.
+- [x] Strategy deletion is mutually exclusive with creation via
+      `claimStrategyDeletion()` / `releaseStrategyDeletion()`; a concurrent delete
+      gets 409, a failed DB delete releases the claim.
+- [x] Concurrent operations are covered by regression tests (19 tests).
+- [x] Existing tests remain green — full suite 60 suites / 645 tests.
+- [x] No unrelated work in the diff (5 source files + 1 test file, no engine
+      reorganization, no schema change).
 
 ## Verification commands
 
@@ -56,38 +68,35 @@ npm test
 Results are recorded in the implementation record
 (`plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`).
 
-## Handoff — 2026-11-14
+## Handoff — 2026-11-14 (review corrections, PR #63)
 
 Owner / agent: Kilo Code
 Status: REVIEW
 Branch: `engine-01/stage-2-runtime-ownership`
-Last verified commit: see `git log -1` on the branch (implementation commit).
-Files changed: 4 source files (`engine/core/runtime/RuntimeRegistry.js`,
+Last verified commit: see `git log -1` on the branch (corrections commit).
+Files changed: `engine/core/runtime/RuntimeRegistry.js`,
 `engine/core/runtime/RuntimeLifecycle.js`, `engine/strategyLoader.js`,
-`engine/routes/strategyController.js`) + `test/runtimeOwnership.test.js` +
-this file, `plans/STATUS.md`, `plans/KNOWN_ISSUES.md`, `plans/decisions.md` and
+`engine/routes/strategyController.js`, `engine/routes/executionController.js`,
+`test/runtimeOwnership.test.js`, plus this file, `plans/STATUS.md`,
+`plans/KNOWN_ISSUES.md`, `plans/decisions.md` and
 `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
-Completed: ownership reservation, atomic creation with rollback, abort-aware
-boot, serialized/idempotent termination with cleanup accounting, registry-
-authoritative deletion gate, stale-reservation and non-live-entry protection,
-13 regression tests, documentation.
+Completed: the two review defects — (1) reservation TTL expiry replaced by
+never-expiring claims plus token-fenced commit/release/delete and an ordered
+rollback that holds ownership until cleanup finishes; (2) deletion claim taken
+before the DB delete and released on every outcome. Six new regression tests
+(13–19) plus the rewritten slow-boot/fencing tests.
 Commands and test results:
 - targeted: `test/runtimeOwnership.test.js` + `test/runtimeExclusivity.test.js`
-  → 2 suites / 17 tests pass.
-- `npm test` → 60 suites / 639 tests pass (run 2; run 1 had one unrelated
-  flake in `packages/corex-gateway/test/socketx.test.js`, which passes in
-  isolation and on rerun).
+  → 2 suites / 23 tests pass (17.036 s).
+- `npm test` → 60 suites / 645 tests pass (55.106 s).
 Unverified items / limitations: no real broker/PAPER/LIVE end-to-end boot (no
-credentials, broker factory mocked in tests); no multi-process/multi-instance
-deployment (ownership is per-process; reservations are in-memory by design);
-`strategyLoader.startStrategy` is not unit-covered (needs compiler + DB);
-deletion race handling stops the runtime and returns 500 rather than
-preventing the race with a lock.
+credentials, broker factory mocked in tests); ownership is per-process and
+deletion claims are per-process; no crash reconciliation of a runtime persisted
+as ACTIVE after a process death; `strategyLoader.startStrategy` is not
+unit-covered (needs compiler + DB).
 Decisions needed: whether cross-process runtime ownership is ever required
 (that would need a DB-backed lease, not implemented here).
 Blockers: none.
-Exact next action: review the diff and the implementation record; if accepted,
-merge the PR. Follow-ups: cross-process ownership (if required),
-`strategyLoader.startStrategy` coverage, `stateController` vs registry
-reconciliation for the UI status path.
+Exact next action: review the corrections diff and the implementation record; if
+accepted, merge PR #63.
 May another agent continue? YES — resume this file and the implementation record.
