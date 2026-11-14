@@ -223,12 +223,17 @@ class RuntimeLifecycle {
     /**
      * Undo a boot that did not reach the "registered and running" state.
      *
-     * Ownership is fenced by the boot's token and is never dropped mid-cleanup:
-     * an entry this boot registered is moved to STOPPING and stripped of its
-     * collaborators first, so it cannot be dispatched to, while the registry
-     * still refuses new creations for the identity. The entry is removed only
-     * after the resources are gone, and only if this boot still owns it — a boot
-     * that lost its claim can therefore never delete a newer boot's runtime.
+     * Cleanup is a success/failure operation, not a best-effort sequence:
+     *
+     *   - the entry (or the reservation, when the boot never committed) is moved to
+     *     STOPPING and stripped of whatever has been destroyed so far;
+     *   - completed steps are recorded (`cleanupDone`) so a retry never repeats a
+     *     successful destroy;
+     *   - on any failure the collaborators that could not be destroyed stay on the
+     *     entry/reservation, ownership is retained, and nothing is released or
+     *     removed, so `terminate(runtimeId)` can finish the job later;
+     *   - ownership is fenced by the boot's token, so a boot that lost its claim
+     *     can neither delete nor release another owner's state.
      */
     async _rollbackBoot({ runtimeId, token, broker, strategyInstance, profile, registered }) {
         const entry = runtimeRegistry.get(runtimeId);
@@ -239,6 +244,9 @@ class RuntimeLifecycle {
                 `[ROLLBACK:${runtimeId}] Registry entry is no longer owned by this boot — ` +
                 "leaving it untouched (a newer owner holds the identity)"
             );
+            // Do not release a claim that is not ours to release either.
+            runtimeRegistry.releaseReservation(token);
+            return false;
         }
 
         if (ownsEntry) {
@@ -249,28 +257,44 @@ class RuntimeLifecycle {
             );
         }
 
-        const mode = String(profile?.mode || "").toUpperCase();
-        if (mode === "PAPER" || mode === "LIVE") {
-            try {
-                marketFeed.unsubscribe(runtimeId, profile.symbol);
-            } catch (e) {
-                log.warn(`[ROLLBACK:${runtimeId}] MarketFeed unsubscribe failed: ${e.message}`);
-            }
+        // Before commit the reservation is the only place to park a failed cleanup.
+        const reservation = ownsEntry ? null : runtimeRegistry.getReservation(runtimeId);
+        if (!ownsEntry && reservation && reservation.token !== token) {
+            log.error(`[ROLLBACK:${runtimeId}] Reservation is owned by another boot — nothing released`);
+            return false;
         }
 
-        const brokerFailure = await destroyQuietly(broker, runtimeId, "ROLLBACK");
-        if (ownsEntry && !brokerFailure) entry.broker = null;
-
-        if (strategyInstance && typeof strategyInstance.destroy === "function") {
-            try {
-                await strategyInstance.destroy();
-            } catch (e) {
-                log.warn(`[ROLLBACK:${runtimeId}] strategy.destroy() failed: ${e.message}`);
-            }
+        const holder = ownsEntry ? entry : reservation;
+        if (!holder) {
+            log.warn(`[ROLLBACK:${runtimeId}] No entry or reservation to clean up`);
+            return false;
         }
-        if (ownsEntry) entry.instance = null;
 
-        // Remove our own entry (fenced), then drop the claim.
+        const failures = await this._runCleanup({
+            runtimeId,
+            holder,
+            entry: ownsEntry ? entry : null,
+            broker,
+            strategyInstance,
+            profile,
+            reason: "ROLLBACK",
+        });
+
+        if (failures.length > 0) {
+            // Park the still-live collaborators on the holder so a later
+            // terminate() can retry without needing this boot's stack.
+            if (!ownsEntry && reservation) {
+                reservation.pendingBroker = broker || null;
+                reservation.pendingInstance = strategyInstance || null;
+                reservation.pendingProfile = profile || null;
+            }
+            log.error(
+                `[ROLLBACK:${runtimeId}] Cleanup incomplete — ownership retained: ${failures.join("; ")}`
+            );
+            return false;
+        }
+
+        // All required cleanup succeeded: remove our own entry (fenced) and release.
         const removed = ownsEntry ? runtimeRegistry.delete(runtimeId, { token }) : false;
         const released = runtimeRegistry.releaseReservation(token);
 
@@ -278,6 +302,68 @@ class RuntimeLifecycle {
             `[ROLLBACK:${runtimeId}] Boot rolled back — ` +
             `entry removed: ${removed}, claim released: ${released}`
         );
+        return true;
+    }
+
+    /**
+     * Run the required cleanup steps for one runtime identity and record progress.
+     *
+     * Steps already recorded in `holder.cleanupDone` are skipped, so a retry only
+     * repeats what previously failed. Every unresolved step leaves its collaborator
+     * on the holder (registry entry or reservation) and is reported in the returned
+     * failure list; nothing is released or removed by this method.
+     *
+     * @returns {Promise<string[]>} failure descriptions (empty when cleanup is complete)
+     */
+    async _runCleanup({ runtimeId, holder, entry, broker, strategyInstance, profile, reason }) {
+        holder.cleanupDone = holder.cleanupDone || {};
+        holder.cleanupFailures = [];
+
+        const failures = [];
+        const mode = String(profile?.mode || holder.mode || "").toUpperCase();
+        const symbol = profile?.symbol || holder.symbol;
+
+        const entryBroker = entry ? entry.broker : broker;
+        const entryInstance = entry ? entry.instance : strategyInstance;
+
+        // ── Feed subscription (PAPER/LIVE only) ───────────────────────────────
+        if ((mode === "PAPER" || mode === "LIVE") && !holder.cleanupDone.unsubscribe) {
+            try {
+                marketFeed.unsubscribe(runtimeId, symbol);
+                holder.cleanupDone.unsubscribe = true;
+            } catch (e) {
+                failures.push(`marketFeed.unsubscribe: ${e.message}`);
+            }
+        }
+
+        // ── Strategy instance ─────────────────────────────────────────────────
+        if (entryInstance && !holder.cleanupDone.strategy) {
+            if (typeof entryInstance.destroy === "function") {
+                try {
+                    await entryInstance.destroy();
+                    holder.cleanupDone.strategy = true;
+                    if (entry) entry.instance = null;
+                } catch (e) {
+                    failures.push(`strategy.destroy: ${e.message}`);
+                }
+            } else {
+                holder.cleanupDone.strategy = true;
+                if (entry) entry.instance = null;
+            }
+        }
+
+        // ── Broker ────────────────────────────────────────────────────────────
+        if (entryBroker && !holder.cleanupDone.broker) {
+            const brokerFailure = await destroyQuietly(entryBroker, runtimeId, reason);
+            if (brokerFailure) failures.push(brokerFailure);
+            else {
+                holder.cleanupDone.broker = true;
+                if (entry) entry.broker = null;
+            }
+        }
+
+        holder.cleanupFailures = failures;
+        return failures;
     }
 
     /**
@@ -353,19 +439,49 @@ class RuntimeLifecycle {
     }
 
     async _terminate(runtimeId) {
-        // ── Creation still in flight: abandon it, nothing to tear down ────────
-        // The reservation stays until the boot path observes the abort and
-        // releases it, so the identity cannot be re-created behind the boot's
-        // back. A boot that never returns is recovered by the registry's
-        // reservation TTL.
         const reservation = runtimeRegistry.getReservation(runtimeId);
-        if (reservation) {
+        const entry = runtimeRegistry.get(runtimeId);
+
+        // ── Creation still in flight, or a rollback that could not finish ──────
+        // No entry exists, so the reservation (when the boot committed nothing) is
+        // the only owner. If an earlier cleanup recorded failures, retry exactly
+        // those steps; otherwise abandon the creation. The reservation is released
+        // only by the boot that owns it or by a completed retry.
+        if (!entry && reservation) {
+            if (reservation.cleanupFailures && reservation.cleanupFailures.length > 0) {
+                const pendingBroker = reservation.pendingBroker || null;
+                const pendingInstance = reservation.pendingInstance || null;
+                const pendingProfile = reservation.pendingProfile || null;
+
+                const failures = await this._runCleanup({
+                    runtimeId,
+                    holder: reservation,
+                    entry: null,
+                    broker: pendingBroker,
+                    strategyInstance: pendingInstance,
+                    profile: pendingProfile,
+                    reason: "TERMINATE_RETRY",
+                });
+
+                if (failures.length > 0) {
+                    log.error(
+                        `[TERMINATE:${runtimeId}] Cleanup still incomplete: ${failures.join("; ")}`
+                    );
+                    return false;
+                }
+
+                reservation.pendingBroker = null;
+                reservation.pendingInstance = null;
+                runtimeRegistry.releaseReservation(reservation.token);
+                log.warn(`[TERMINATE:${runtimeId}] Completed deferred rollback cleanup — claim released`);
+                return true;
+            }
+
             runtimeRegistry.requestAbortReservation(reservation.token);
             log.warn(`[TERMINATE:${runtimeId}] Cancelled pending creation (no runtime was registered)`);
             return false;
         }
 
-        const entry = runtimeRegistry.get(runtimeId);
         if (!entry) {
             log.warn(`[TERMINATE] Runtime '${runtimeId}' not found — nothing to terminate`);
             return false;
@@ -389,40 +505,21 @@ class RuntimeLifecycle {
 
         log.info(`Terminating runtime: ${runtimeId}`);
 
-        const failures = [];
-
-        // ── Unsubscribe from live market feed (PAPER/LIVE only) ────────────
-        if (entry.mode === "PAPER" || entry.mode === "LIVE") {
-            try {
-                marketFeed.unsubscribe(runtimeId, entry.symbol);
-            } catch (e) {
-                failures.push(`marketFeed.unsubscribe: ${e.message}`);
-            }
-        }
-
-        // ── Destroy strategy instance ────────────────────────────────────────
-        if (entry.instance) {
-            if (typeof entry.instance.destroy === "function") {
-                try { await entry.instance.destroy(); }
-                catch (e) { failures.push(`strategy.destroy: ${e.message}`); }
-            }
-            if (!failures.some((f) => f.startsWith("strategy.destroy"))) {
-                // Null the reference immediately so GC can reclaim
-                entry.instance = null;
-            }
-        }
-
-        // ── Destroy broker ───────────────────────────────────────────────────
-        if (entry.broker) {
-            const brokerFailure = await destroyQuietly(entry.broker, runtimeId, "TERMINATE");
-            if (brokerFailure) failures.push(brokerFailure);
-            else entry.broker = null;
-        }
+        // ── Required cleanup. Completed steps are recorded on the entry, so a
+        //    retry after a failure does not destroy anything twice.
+        const failures = await this._runCleanup({
+            runtimeId,
+            holder: entry,
+            entry,
+            broker: null,
+            strategyInstance: null,
+            profile: { mode: entry.mode, symbol: entry.symbol },
+            reason: "TERMINATE",
+        });
 
         if (failures.length > 0) {
             // Keep the entry (marked STOPPING) so the failure is inspectable and
             // a later terminate() can retry the steps that still hold resources.
-            entry.cleanupFailures = failures;
             log.error(`[TERMINATE:${runtimeId}] Cleanup incomplete: ${failures.join("; ")}`);
             return false;
         }

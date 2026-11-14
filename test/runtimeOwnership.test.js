@@ -613,7 +613,157 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
         expect(third.statusCode).toBe(404);
     });
 
-    test("20. an entry that no longer holds its collaborators is not reported as active", async () => {
+    // Rollback cleanup is success/failure, not best-effort ────────────────────
+    test("21. a broker destroy failure in post-registration rollback retains the entry, broker and ownership", async () => {
+        const strategy = makeStrategy("RollBrokerA");
+        strategy._attachRuntime = () => { throw new Error("WIRE_FAILED"); };
+        control.destroyError = new Error("BROKER_DESTROY_FAILED");
+
+        const runtimeId = "u1::RollBrokerA::EURUSD::PAPER";
+        await expect(boot(strategy)).rejects.toThrow("WIRE_FAILED");
+
+        const entry = runtimeRegistry.get(runtimeId);
+        expect(entry).not.toBeNull();
+        expect(entry.actualState).toBe("STOPPING");
+        // Broker could not be destroyed → its reference is preserved.
+        expect(entry.broker).not.toBeNull();
+        expect(entry.cleanupFailures.join(" ")).toMatch(/BROKER_DESTROY_FAILED/);
+        // Ownership is retained: no other boot can take this identity.
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(true);
+        expect(runtimeRegistry.getReservation(runtimeId)).toBeNull();
+
+        // Steps that succeeded are recorded, so a retry does not repeat them.
+        expect(strategy.destroyCalls).toBe(1);
+        expect(MarketFeed.unsubscribe).toHaveBeenCalledTimes(1);
+    }, 15000);
+
+    test("22. a strategy destroy failure in rollback retains the instance reference and ownership", async () => {
+        const strategy = makeStrategy("RollStratA");
+        strategy._attachRuntime = () => { throw new Error("WIRE_FAILED"); };
+        strategy.destroy = () => { strategy.destroyCalls += 1; throw new Error("STRATEGY_DESTROY_FAILED"); };
+
+        const runtimeId = "u1::RollStratA::EURUSD::PAPER";
+        await expect(boot(strategy)).rejects.toThrow("WIRE_FAILED");
+
+        const entry = runtimeRegistry.get(runtimeId);
+        expect(entry).not.toBeNull();
+        expect(entry.actualState).toBe("STOPPING");
+        expect(entry.instance).toBe(strategy);
+        // The broker was destroyed successfully and must not be retried.
+        expect(entry.broker).toBeNull();
+        expect(entry.cleanupFailures.join(" ")).toMatch(/STRATEGY_DESTROY_FAILED/);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(true);
+    }, 15000);
+
+    test("23. a later terminate() finishes a failed rollback cleanup without repeating successful steps", async () => {
+        const strategy = makeStrategy("RollRetryA");
+        strategy._attachRuntime = () => { throw new Error("WIRE_FAILED"); };
+        control.destroyError = new Error("BROKER_DESTROY_FAILED");
+
+        const runtimeId = "u1::RollRetryA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+        await expect(boot(strategy)).rejects.toThrow("WIRE_FAILED");
+
+        const broker = control.brokers[control.brokers.length - 1];
+        expect(runtimeRegistry.has(runtimeId)).toBe(true);
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+        expect(MarketFeed.unsubscribe).toHaveBeenCalledTimes(1);
+
+        // Broker can be destroyed now: the retry finishes the job.
+        control.destroyError = null;
+        await expect(lifecycle.terminate(runtimeId)).resolves.toBe(true);
+
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+        expect(broker.destroyCalls).toBe(2);          // broker retried once
+        expect(strategy.destroyCalls).toBe(1);        // strategy not destroyed twice
+        expect(MarketFeed.unsubscribe).toHaveBeenCalledTimes(1); // feed not re-unsubscribed
+
+        // A further terminate() has nothing left to destroy.
+        await expect(lifecycle.terminate(runtimeId)).resolves.toBe(false);
+        expect(broker.destroyCalls).toBe(2);
+        expect(strategy.destroyCalls).toBe(1);
+    }, 15000);
+
+    test("24. a successful rollback removes the entry and releases the identity immediately", async () => {
+        const strategy = makeStrategy("RollCleanA");
+        strategy._attachRuntime = () => { throw new Error("WIRE_FAILED"); };
+
+        const runtimeId = "u1::RollCleanA::EURUSD::PAPER";
+        const lifecycle = new RuntimeLifecycle();
+        await expect(boot(strategy)).rejects.toThrow("WIRE_FAILED");
+
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+        expect(runtimeRegistry.isOwned(runtimeId)).toBe(false);
+        expect(strategy.destroyCalls).toBe(1);
+
+        const broker = control.brokers[control.brokers.length - 1];
+        expect(broker.destroyCalls).toBe(1);
+
+        // Nothing left to clean up: a retry destroys nothing.
+        await expect(lifecycle.terminate(runtimeId)).resolves.toBe(false);
+        expect(broker.destroyCalls).toBe(1);
+        expect(strategy.destroyCalls).toBe(1);
+    }, 15000);
+
+    test("25. a stale rollback cannot remove or release a newer owner's state", async () => {
+        const runtimeId = "u1::FenceRollA::EURUSD::PAPER";
+        const strategyName = "u1::FenceRollA";
+        const lifecycle = new RuntimeLifecycle();
+
+        // Boot A claims the identity, then loses the claim (released) before it
+        // commits. Boot B takes the claim and registers.
+        const staleToken = runtimeRegistry.reserve({
+            runtimeId, userId: "u1", accountId: "u1",
+            strategyName, symbol: "EURUSD", mode: "PAPER", owner: "bootA"
+        });
+        runtimeRegistry.releaseReservation(staleToken);
+
+        const fresh = makeStrategy("FenceRollA");
+        await expect(boot(fresh)).resolves.toBe(true);
+
+        const freshBroker = control.brokers[control.brokers.length - 1];
+        const freshEntry = runtimeRegistry.get(runtimeId);
+        expect(freshEntry).not.toBeNull();
+        expect(freshEntry.ownerToken).not.toBe(staleToken);
+
+        // Boot A's rollback: it never committed, so it must not touch boot B.
+        const staleResult = await lifecycle._rollbackBoot({
+            runtimeId,
+            token: staleToken,
+            broker: null,
+            strategyInstance: null,
+            profile: profile("FenceRollA"),
+            registered: false
+        });
+
+        expect(staleResult).toBe(false);
+        expect(runtimeRegistry.get(runtimeId)).toBe(freshEntry);
+        expect(runtimeRegistry.get(runtimeId).instance).toBe(fresh);
+        expect(freshBroker.destroyCalls).toBe(0);
+        expect(fresh.destroyCalls).toBe(0);
+
+        // A committed-but-lost boot is equally fenced.
+        const committedRollback = await lifecycle._rollbackBoot({
+            runtimeId,
+            token: staleToken,
+            broker: { destroy: async () => { throw new Error("STALE_BROKER_DESTROY"); } },
+            strategyInstance: { destroy: async () => { throw new Error("STALE_STRATEGY_DESTROY"); } },
+            profile: profile("FenceRollA"),
+            registered: true
+        });
+
+        expect(committedRollback).toBe(false);
+        expect(runtimeRegistry.get(runtimeId)).toBe(freshEntry);
+        expect(runtimeRegistry.get(runtimeId).actualState).toBe("ACTIVE");
+        expect(freshBroker.destroyCalls).toBe(0);
+
+        await lifecycle.terminate(runtimeId);
+        expect(runtimeRegistry.has(runtimeId)).toBe(false);
+    }, 15000);
+
+    test("26. an entry that no longer holds its collaborators is not reported as active", async () => {
         const strategy = makeStrategy("GhostA");
         await boot(strategy);
         const runtimeId = "u1::GhostA::EURUSD::PAPER";

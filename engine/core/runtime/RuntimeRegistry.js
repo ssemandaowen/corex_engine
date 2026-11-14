@@ -56,8 +56,16 @@ const PLOT_INTERVAL_MS = Math.max(1000, Number(process.env.COREX_WS_PLOT_INTERVA
  *   token:        string,   ownership token required to commit/release
  *   owner:        string,   diagnostic label (caller)
  *   createdAt:    number,
- *   abortRequested: boolean
+ *   abortRequested: boolean,
+ *   cleanupDone:  object?,  steps already completed by a failed rollback
+ *   cleanupFailures: string[]?,
+ *   pendingBroker / pendingInstance / pendingProfile: object?
  * }
+ *
+ * When a boot fails before committing and its cleanup cannot finish, the still-live
+ * collaborators are parked on the reservation (`pending*`) so `terminate()` can
+ * retry them without the boot's stack. The claim is released only when that
+ * cleanup completes.
  */
 
 class RuntimeRegistry {
