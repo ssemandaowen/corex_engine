@@ -262,7 +262,7 @@ class CoreXEngine {
             log.warn(`[RECOVERY] Strategy ${id} exceeded max recovery attempts (${this.recoveryMaxAttempts}); ${reason}.`);
 
             // Only report DISABLED when the state controller accepted it.
-            const committed = stateManager.commit(id, "DISABLED", { reason });
+            const committed = stateManager.commit(id, "DISABLED", { reason, attempts });
             if (committed) {
                 log.warn(`[RECOVERY] Strategy ${id} DISABLED (${reason}).`);
             } else {

@@ -179,39 +179,112 @@ Tests:       10 passed, 10 total
 
 ```text
 Test Suites: 61 passed, 61 total
-Tests:       671 passed, 671 total
-Time:        62.811 s
+Tests:       673 passed, 673 total
+Time:        147.702 s
 ```
 
-Baseline on `main` was 60 suites / 661 tests; the delta is exactly this task's suite (10 tests). One earlier run showed 3 failures (`FileDataProvider`, `IncrementalIndicators`, `SoACandleStore`); all three pass in isolation and in the recorded re-run, so they are load-related flakes, not regressions from this change.
+Baseline on `main` was 60 suites / 661 tests; the delta is exactly this task's suite (12 tests after the amendment). One earlier run showed 3 failures (`FileDataProvider`, `IncrementalIndicators`, `SoACandleStore`); all three pass in isolation and in the recorded re-run, so they are load-related flakes, not regressions from this change. The amended suite also failed once under a 4-way parallel full-suite run (the T3 timer assertion, see §12.4) and passed in every other run including the recorded green full suite.
 
 ## 10. Diff scope and PR
 
 `git diff --stat` against the branch base (`467e79c` plus this task's earlier commit):
 
 ```text
- engine/core/engine.js        | 129 +++++++++++++++++++++++++++++++++++--------
- test/engine-recovery.test.js | 100 +++++++++++++++++++++++++++++++--
- 2 files changed, 199 insertions(+), 30 deletions(-)
+ engine/core/engine.js         | 130 ++++++++++++++++++++++++++++++++++++++++++++++++-----
+ engine/strategyLoader.js      |   9 +++
+ test/engine-recovery.test.js  | 189 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ utils/stateController.js      |   5 +-
+ 4 files changed, 191 insertions(+), 14 deletions(-)
 ```
 
-Only `engine/core/engine.js` and `test/engine-recovery.test.js` changed in this round; the task file and the `plans/ROADMAP.md` row come from the earlier commit on the same branch. No file outside `plans/` and `test/` was touched, and `plans/STATUS.md` was deliberately left alone.
+Only the four files named in the amendment changed in this round. No file outside `engine/core/engine.js`, `engine/strategyLoader.js`, `utils/stateController.js`, `test/engine-recovery.test.js` and `plans/` was touched, and `plans/STATUS.md` was deliberately left alone.
 
 PR: https://github.com/ssemandaowen/corex_engine/pull/66 - OPEN, not merged. Head `fix/engine-recovery-correctness`; pushed with a normal `git push` (no force-push, no new PR).
 
-## 11. Escalation - `STOPPED -> DISABLED` (not edited)
+## 11. Escalation - `STOPPED -> DISABLED` (approved, amended in)
 
-Required transition, if Owen approves it:
+This section was the escalation; Owen approved it with the P0-1 amendment. The transition is now made, exactly as approved:
 
 ```text
-utils/stateController.js, rules table (line 18)
+utils/stateController.js, rules table
 - "STOPPED": ["STAGED", "WARMING_UP", "STOPPING"],
 + "STOPPED": ["STAGED", "WARMING_UP", "STOPPING", "DISABLED"],
 ```
 
-Scope impact:
+Scope impact (unchanged from the escalation, still accurate):
 
-- `utils/stateController.js` is a shared state machine used by the engine, the loader, the runtime lifecycle and the routes. Adding `DISABLED` as a legal target from `STOPPED` widens what every caller may commit, not only recovery.
+- `utils/stateController.js` is a shared state machine used by the engine, the loader, the runtime lifecycle and the routes. Adding `DISABLED` as a legal target from `STOPPED` widens what every caller may commit, not only recovery. T11 now pins that this is the only change to the table.
 - `DISABLED` is already reachable from `WARMING_UP`, `ACTIVE` and `ERROR` (`utils/stateController.js:19-24`), so the change only adds a terminal transition from an already-terminal state; it does not alter any existing legal path.
-- It would make the recovery terminal state real (`RECOVERY_MAX_ATTEMPTS_EXCEEDED` would persist on the runtime ledger) and remove the honest-rejection log path added in S7.
-- It is a state-machine change with trading-state impact, so it is **not** made here; the engine currently reports `DISABLED` only when the controller accepts it.
+- It makes the recovery terminal state real (`RECOVERY_MAX_ATTEMPTS_EXCEEDED` persists on the runtime ledger) and removes the honest-rejection log path added in S7.
+- `DISABLED` is now terminal: the only way out is `STAGED` (`utils/stateController.js:25`), which only the loader's `startStrategy` takes, and only for a manual restart (§12.3). Recovery itself never re-enables a disabled runtime.
+
+## 12. Amendment - terminal DISABLED with a safe re-enable path
+
+### 12.1 Changes
+
+| # | File | Change |
+| --- | --- | --- |
+| 1 | `utils/stateController.js` | `STOPPED` gains `DISABLED`, with a comment naming recovery as the reason. No other rule touched. |
+| 2 | `engine/core/engine.js` | The exhaustion commit now carries `attempts` alongside `reason`, on the runtimeId ledger `recovery` operates on. |
+| 3 | `engine/strategyLoader.js` | `startStrategy` reopens the runtimeId ledger (`DISABLED -> STAGED`, reason `manual_restart_after_disable`) immediately before `lifecycle.boot()`. Nothing else in the loader changed. |
+| 4 | `test/engine-recovery.test.js` | T3 strengthened, T10 and T11 added (see §12.3). |
+
+The re-enable key is the `runtimeId`, because that is the ledger recovery writes to. The loader's `commit(id, "ACTIVE")` after boot uses the strategy id and is untouched.
+
+### 12.2 Fail-then-pass
+
+Baseline = the amendment reverted in the three source files (`git stash push -- engine/core/engine.js utils/stateController.js engine/strategyLoader.js`), tests kept.
+
+**On main (amendment reverted) - T3 and T10 fail**
+
+```text
+  √ uses RuntimeRegistry.get(runtimeId) and passes the strategy name to the loader
+  × reschedules with base*factor^1, counts attempts, then stops recovery at the cap
+  × boots through the real startStrategy and crashes back into recovery with a fresh counter
+  × adds only STOPPED -> DISABLED to the rules table
+Tests:       3 failed, 9 passed, 12 total
+```
+
+T1/T6/T7/T8 still pass in this run because the stash only reverts the amendment; the earlier round already recorded those failing on true `origin/main`.
+
+**With the fix - 12 passed, 12 total**
+
+```text
+  √ T1 identity resolution > uses RuntimeRegistry.get(runtimeId) and passes the strategy name to the loader
+  √ T3 failed attempt handling > reschedules with base*factor^1, counts attempts, then stops recovery at the cap
+  √ T4 thrown error > reschedules after a throw and stops at the cap
+  √ T5 successful recovery > does not reschedule and clears the recovery state
+  √ T6 attempt counter across STOPPED > does not reset attempts when recovery's own stop moves the runtime to STOPPED
+  √ T7 user stop > clears the pending recovery timer, and a later _attemptRecovery is a no-op
+  √ T7 user stop > does not reschedule when a stop request for the strategy lands during the restart
+  √ T7 user stop > treats a runtime removed by a concurrent stop as cancelled, not as a failed attempt
+  √ T8 sibling isolation > stops and restarts only the crashed runtime
+  √ T9 unresolvable target > counts as failed attempts and terminates without ever reporting success
+  √ T10 re-enable after DISABLED > boots through the real startStrategy and crashes back into recovery with a fresh counter
+  √ T11 state machine rules > adds only STOPPED -> DISABLED to the rules table
+Tests:       12 passed, 12 total
+```
+
+### 12.3 What the new tests assert
+
+- **T3 (strengthened).** `getStatus(runtimeId) === "DISABLED"`; the ledger tail entry is `DISABLED` with `meta.reason === "RECOVERY_MAX_ATTEMPTS_EXCEEDED"` and `meta.attempts === 3`; the rejection log path is gone; `strategyRecoveryStates` is empty; advancing 600000 ms produces no fourth start attempt.
+- **T10.** Exhaustion → `DISABLED`; then the **real** `strategyLoader.startStrategy` with only the broker, feed, provider, DB and compiler boundary mocked: the ledger reads `WARMING_UP, ACTIVE, ERROR, STOPPED, DISABLED, STAGED, WARMING_UP, ACTIVE` and the runtime is registered and `ACTIVE`. A later crash schedules recovery with `attempts === 1` (fresh counter) and reaches 2 on the next delay.
+- **T11.** The whole `rules` table is compared against the main baseline; the only reported difference must be `{ state: "STOPPED", added: ["DISABLED"], removed: [] }`.
+
+### 12.4 Limitation - no exact `jest.getTimerCount() === 0`
+
+T3 asserts the timer count is bounded by the pre-crash baseline, not `=== 0`. In this suite the `DISABLED` transition emits unrelated timers (boot plot interval, DB mocks, logger), so the count rises by ~4 per crash regardless of recovery; the exact-zero form is not reachable here. The substantive guarantee is covered behaviourally: the recovery record is deleted (it owns the only retry timer) and a 600 s advance produces no further attempt.
+
+### 12.5 Limitation - stop-during-own-stop race (unfixed, B9)
+
+If a stop request for the strategy lands while `_attemptRecovery` is awaiting `loader.stopStrategy()` and that stop already removed the runtime entry, the recovery sees a `false` stop result with no ledger record to cancel against, treats it as "nothing to stop", and still restarts the runtime. This is the loader-boundary blind spot recorded as **B9** in `plans/ROADMAP.md`; the fix needs a stop-request marker that survives the loader boundary, which this task does not implement. Risk is highest in LIVE mode (an unintended restart of a live runtime).
+
+## 13. Session handoff
+
+Last verified commit: `3a2bdbd` plus this amendment commit on `fix/engine-recovery-correctness`.
+
+Changed in this round: `utils/stateController.js`, `engine/strategyLoader.js`, `engine/core/engine.js`, `test/engine-recovery.test.js`, `plans/tasks/ENGINE-02B-P0-1.md`, `plans/ROADMAP.md`.
+
+Tests: `test/engine-recovery.test.js` 12/12; full suite 61 suites / 673 tests green (one load-related flake in T3, §12.4).
+
+Next action: none inside P0-1. PR #66 is ready for review; B9 is the follow-up.

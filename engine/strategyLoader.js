@@ -465,6 +465,15 @@ async function startStrategy(id, options = {}) {
         }
 
         const lifecycle = new RuntimeLifecycle();
+
+        // Recovery disables a runtime on the runtimeId ledger when its retries are
+        // exhausted. A manual start is the re-enable path: reopen the ledger first,
+        // otherwise boot's WARMING_UP transition is rejected and the runtime is
+        // stuck in DISABLED.
+        if (stateManager.getStatus(runtimeId) === "DISABLED") {
+            stateManager.commit(runtimeId, "STAGED", { reason: "manual_restart_after_disable" });
+        }
+
         await lifecycle.boot({
             runtimeId,
             strategyInstance: instance,

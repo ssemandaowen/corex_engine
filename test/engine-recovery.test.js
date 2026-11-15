@@ -49,6 +49,27 @@ jest.mock("corex-broker-contract", () => {
     };
 });
 
+// Compiler-side dependencies of the real startStrategy (T10). The strategy class
+// under test is supplied by the test, not by the real compiler.
+jest.mock("@utils/security", () => ({ validateStrategyCode: () => true }));
+
+jest.mock("@core/services/hashVerifier", () => ({
+    verifyStrategyFile: jest.fn(async () => ({ ok: true }))
+}));
+
+jest.mock("@core/services/strategyCompiler", () => ({
+    StrategyCompiler: class {
+        async compile() {
+            return {
+                success: true,
+                instance: new global.__corexP01StrategyClass(),
+                schema: {},
+                metadata: { symbols: ["EURUSD"] }
+            };
+        }
+    }
+}));
+
 const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const RuntimeLifecycle = require("@core/core/runtime/RuntimeLifecycle");
 const strategyLoader = require("@core/strategyLoader");
@@ -56,6 +77,7 @@ const stateManager = require("@utils/stateController");
 const { bus, EVENTS } = require("@events/bus");
 const engine = require("@core/core/engine");
 const log = require("@utils/logger");
+const db = require("@core/services/postgres");
 
 // ── Broker double (external I/O only) ────────────────────────────────────────
 function installBrokerFactory() {
@@ -83,6 +105,33 @@ function makeStrategy(strategyName, symbol) {
         _attachRuntime() {},
         destroy() { this.destroyCalls += 1; }
     };
+}
+
+/** Strategy class handed to the mocked compiler (T10). */
+class FakeStrategy {
+    constructor() {
+        this.symbols = ["EURUSD"];
+        this.timeframe = "1m";
+        this.lookback = 5;
+        this.params = {};
+        this.dataManager = { ingestBar: jest.fn() };
+        this.state = {};
+        this.destroyCalls = 0;
+    }
+    _attachRuntime() {}
+    destroy() { this.destroyCalls += 1; }
+}
+
+function installStrategyClass() {
+    global.__corexP01StrategyClass = FakeStrategy;
+}
+
+/** Ledger states recorded for an id, oldest first. */
+function ledgerStates(id) {
+    const ledger = stateManager.registry.get(id);
+    const states = [];
+    for (let node = ledger?.head || null; node; node = node.next) states.push(node.state);
+    return states;
 }
 
 function makeProfile({ strategyName, userId, symbol, mode }) {
@@ -119,6 +168,7 @@ async function advance(ms) {
 
 beforeAll(async () => {
     installBrokerFactory();
+    installStrategyClass();
     // Register the real STATE_CHANGED listener once. Calling start() per test
     // would duplicate it — that is P0-4, out of scope here.
     jest.spyOn(strategyLoader, "init").mockResolvedValue(undefined);
@@ -135,8 +185,10 @@ beforeEach(() => {
     engine.recoveryMaxDelay = 300000;
     engine.recoveryFactor = 2;
     engine.recoveryMaxAttempts = 10;
-    runtimeRegistry.clear();
+runtimeRegistry.clear();
     stateManager.resetAll();
+    db.query.mockResolvedValue({ rows: [], rowCount: 0 });
+    strategyLoader.invalidateMeta("u1::StratA");
 });
 
 afterEach(() => {
@@ -187,12 +239,14 @@ describe("T3 failed attempt handling", () => {
 
         const commitSpy = jest.spyOn(stateManager, "commit");
         const logErrorSpy = jest.spyOn(log, "error").mockImplementation(() => {});
-        const startSpy = jest
+const startSpy = jest
             .spyOn(strategyLoader, "startStrategy")
             .mockResolvedValue({ ok: false, reason: "NO_META" });
 
         engine.handleStrategyCrash(runtimeId, new Error("boom"));
         expect(engine.strategyRecoveryStates.get(runtimeId).attempts).toBe(1);
+        // the retry timer is the only one this recovery owns
+        const timersBeforeCrash = jest.getTimerCount();
 
         // attempt 1 at t=5000 fails -> next delay 5000 * 2^1 = 10000
         await advance(5000);
@@ -207,30 +261,43 @@ describe("T3 failed attempt handling", () => {
         expect(engine.strategyRecoveryStates.get(runtimeId).attempts).toBe(3);
         expect(engine.strategyRecoveryStates.get(runtimeId).nextDelay).toBe(20000);
 
-        // attempt 2 fails -> next delay 5000 * 2^2 = 20000
+// attempt 2 fails -> next delay 5000 * 2^2 = 20000
         await advance(19999);
         expect(startSpy).toHaveBeenCalledTimes(2);
+
+        // one timer (the 20000 retry) is pending before the terminal attempt
+
+        // attempt 3 fails -> the cap is reached on the reschedule
         await advance(1);
         expect(startSpy).toHaveBeenCalledTimes(3);
 
-        // attempt 3 hits the cap. The DISABLED commit is attempted with the
-        // required reason, and the REAL state controller decides whether it sticks.
+        // The commit is made on the runtime ledger, and the state controller
+        // accepts it: STOPPED -> DISABLED is now a legal transition.
         expect(commitSpy).toHaveBeenCalledWith(
             runtimeId,
             "DISABLED",
-            expect.objectContaining({ reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED" })
+            expect.objectContaining({ reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED", attempts: 3 })
         );
+        expect(stateManager.getStatus(runtimeId)).toBe("DISABLED");
 
-        // STOPPED -> DISABLED is not an allowed transition (utils/stateController.js),
-        // so the real final state is STOPPED and the engine must not claim DISABLED.
-        expect(stateManager.getStatus(runtimeId)).toBe("STOPPED");
-        expect(logErrorSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain(
+        // the ledger entry itself carries the reason
+        const ledger = stateManager.registry.get(runtimeId);
+        expect(ledger.tail.state).toBe("DISABLED");
+        expect(ledger.tail.meta.reason).toBe("RECOVERY_MAX_ATTEMPTS_EXCEEDED");
+        expect(ledger.tail.meta.attempts).toBe(3);
+
+        // nothing claims a rejection any more
+        expect(logErrorSpy.mock.calls.map((c) => String(c[0])).join("\n")).not.toContain(
             "DISABLED was rejected by the state controller"
         );
 
-        // terminal: no recovery record, nothing scheduled, no further attempts
+        // terminal: no recovery record, no timer left, no further attempts
         expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
         expect(engine.strategyRecoveryStates.size).toBe(0);
+        // no recovery timer is left. The DISABLED transition itself emits unrelated
+        // timers in this suite (plot interval, db mocks, logger), so the count is
+        // bounded by the pre-crash baseline rather than zero.
+        expect(jest.getTimerCount()).toBeLessThanOrEqual(timersBeforeCrash);
 
         await advance(600000);
         expect(startSpy).toHaveBeenCalledTimes(3);
@@ -456,5 +523,102 @@ describe("T9 unresolvable target", () => {
         expect(startSpy).not.toHaveBeenCalled();
         expect(stopSpy).not.toHaveBeenCalled();
         expect(engine.strategyRecoveryStates.has(ghostId)).toBe(false);
+    });
+});
+// ── T10: a DISABLED runtime can be re-enabled by a manual start ──────────────
+describe("T10 re-enable after DISABLED", () => {
+    it("boots through the real startStrategy and crashes back into recovery with a fresh counter", async () => {
+        engine.recoveryMaxAttempts = 1;
+        const { runtimeId } = await bootRuntime({ strategyName: "StratA" });
+
+        // recovery gives up on the first failed attempt
+        jest.spyOn(strategyLoader, "startStrategy").mockResolvedValue({ ok: false, reason: "NO_META" });
+        engine.handleStrategyCrash(runtimeId, new Error("boom"));
+        await advance(5000);
+
+        expect(stateManager.getStatus(runtimeId)).toBe("DISABLED");
+        expect(runtimeRegistry.get(runtimeId)).toBeNull();
+
+        // the manual re-enable path: the REAL startStrategy, with only the DB,
+        // broker, feed and compiler boundary mocked
+        jest.restoreAllMocks();
+        db.query.mockResolvedValue({
+            rows: [{
+                name: "u1::StratA",
+                script_body: "class X {}",
+                updated_at: new Date().toISOString(),
+                runtime_mode: "PAPER",
+                runtime_params: {},
+                runtime_state: "STOPPED",
+                schema: null,
+                compiled_hash: null,
+                compiled_metadata: null
+            }],
+            rowCount: 1
+        });
+
+        const result = await strategyLoader.startStrategy("u1::StratA", {
+            userId: "u1",
+            mode: "PAPER",
+            symbol: "EURUSD"
+        });
+        expect(result.ok).toBe(true);
+        expect(result.runtimeId).toBe(runtimeId);
+
+// DISABLED was reopened, then booted: the ledger ends ACTIVE
+        expect(ledgerStates(runtimeId)).toEqual([
+            "WARMING_UP", "ACTIVE",           // initial boot
+            "ERROR", "STOPPED", "DISABLED",   // crash, recovery stop, exhausted recovery
+            "STAGED", "WARMING_UP", "ACTIVE"  // manual re-enable + boot
+        ]);
+        expect(stateManager.getStatus(runtimeId)).toBe("ACTIVE");
+        expect(runtimeRegistry.get(runtimeId)).not.toBeNull();
+
+// a later crash schedules recovery again, with a fresh attempt counter
+        engine.recoveryMaxAttempts = 3;
+        jest.spyOn(strategyLoader, "startStrategy").mockResolvedValue({ ok: false, reason: "STILL_BAD" });
+        engine.handleStrategyCrash(runtimeId, new Error("boom again"));
+        expect(engine.strategyRecoveryStates.get(runtimeId).attempts).toBe(1);
+
+        await advance(5000);
+        expect(engine.strategyRecoveryStates.get(runtimeId).attempts).toBe(2);
+    });
+});
+
+// ── T11: the state machine differs from main by exactly one edge ─────────────
+describe("T11 state machine rules", () => {
+    it("adds only STOPPED -> DISABLED to the rules table", () => {
+        // Baseline copied from utils/stateController.js on main (467e79c).
+        const MAIN_RULES = {
+            "OFFLINE": ["STAGED", "WARMING_UP", "STOPPING"],
+            "STOPPED": ["STAGED", "WARMING_UP", "STOPPING"],
+            "STAGED": ["WARMING_UP", "ACTIVE", "OFFLINE", "STOPPED", "STOPPING"],
+            "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE", "STOPPED", "DISABLED"],
+            "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE", "STOPPED", "DISABLED"],
+            "PAUSED": ["ACTIVE", "STOPPING", "OFFLINE", "STOPPED"],
+            "STOPPING": ["OFFLINE", "STOPPED"],
+            "ERROR": ["STAGED", "OFFLINE", "STOPPED", "WARMING_UP", "STOPPING", "DISABLED"],
+            "DISABLED": ["STAGED"]
+        };
+
+        const keys = new Set([...Object.keys(MAIN_RULES), ...Object.keys(stateManager.rules)]);
+        const changes = [];
+        for (const key of keys) {
+            const before = MAIN_RULES[key] || [];
+            const after = stateManager.rules[key] || [];
+            const added = after.filter((s) => !before.includes(s));
+            const removed = before.filter((s) => !after.includes(s));
+            if (added.length || removed.length) changes.push({ state: key, added, removed });
+        }
+
+        expect(changes).toEqual([
+            { state: "STOPPED", added: ["DISABLED"], removed: [] }
+        ]);
+
+        // and the full table matches that one change
+        expect(stateManager.rules).toEqual({
+            ...MAIN_RULES,
+            "STOPPED": ["STAGED", "WARMING_UP", "STOPPING", "DISABLED"]
+        });
     });
 });
