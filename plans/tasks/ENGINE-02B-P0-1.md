@@ -271,9 +271,19 @@ Tests:       12 passed, 12 total
 - **T10.** Exhaustion → `DISABLED`; then the **real** `strategyLoader.startStrategy` with only the broker, feed, provider, DB and compiler boundary mocked: the ledger reads `WARMING_UP, ACTIVE, ERROR, STOPPED, DISABLED, STAGED, WARMING_UP, ACTIVE` and the runtime is registered and `ACTIVE`. A later crash schedules recovery with `attempts === 1` (fresh counter) and reaches 2 on the next delay.
 - **T11.** The whole `rules` table is compared against the main baseline; the only reported difference must be `{ state: "STOPPED", added: ["DISABLED"], removed: [] }`.
 
-### 12.4 Limitation - no exact `jest.getTimerCount() === 0`
+### 12.4 Timer verification - targeted, not a global count
 
-T3 asserts the timer count is bounded by the pre-crash baseline, not `=== 0`. In this suite the `DISABLED` transition emits unrelated timers (boot plot interval, DB mocks, logger), so the count rises by ~4 per crash regardless of recovery; the exact-zero form is not reachable here. The substantive guarantee is covered behaviourally: the recovery record is deleted (it owns the only retry timer) and a 600 s advance produces no further attempt.
+T3 proves the recovery retry timer is cleared by handle identity, not by counting timers:
+
+```text
+const retryTimer = engine.strategyRecoveryStates.get(runtimeId).timer;  // the 20000 handle
+await advance(1);                                                        // terminal attempt
+expect(clearTimeoutSpy).toHaveBeenCalledWith(retryTimer);                // that handle was cleared
+```
+
+`strategyRecoveryStates.get(id).timer` is the only handle the record owns (`engine/core/engine.js:287-298`), and `_attemptRecovery` clears it at `engine/core/engine.js:318-321`. The handle is created for the 20000 delay, so only the terminal attempt can clear it — unrelated timers emitted by the `DISABLED` transition (plot interval, DB mocks, logger) can neither satisfy nor break the assertion.
+
+The global `jest.getTimerCount()` assertion was removed: it compared against a pre-crash baseline that drifts by ~4 per crash in this suite, which is what made it flaky under parallel load. Behavioural coverage is unchanged and stronger: the record is deleted (it owns the only retry timer) and a 600 s advance produces no further attempt.
 
 ### 12.5 Limitation - stop-during-own-stop race (unfixed, B9)
 
@@ -281,10 +291,10 @@ If a stop request for the strategy lands while `_attemptRecovery` is awaiting `l
 
 ## 13. Session handoff
 
-Last verified commit: `3a2bdbd` plus this amendment commit on `fix/engine-recovery-correctness`.
+Last verified commit: `81739e9` (amendment) plus the T3 timer-verification commit on `fix/engine-recovery-correctness`.
 
-Changed in this round: `utils/stateController.js`, `engine/strategyLoader.js`, `engine/core/engine.js`, `test/engine-recovery.test.js`, `plans/tasks/ENGINE-02B-P0-1.md`, `plans/ROADMAP.md`.
+Changed in this round: `test/engine-recovery.test.js` and `plans/tasks/ENGINE-02B-P0-1.md` only; the amendment's source changes are unchanged from `81739e9`.
 
-Tests: `test/engine-recovery.test.js` 12/12; full suite 61 suites / 673 tests green (one load-related flake in T3, §12.4).
+Tests: `test/engine-recovery.test.js` 12/12, T3 run 15x in isolation with no failure; full suite 61 suites / 673 tests green with default workers and in 2 of 3 `--maxWorkers=4` runs (the third failed only in the pre-existing `Strategy.test.js` allocation benchmark, which passes in isolation and in the other runs).
 
 Next action: none inside P0-1. PR #66 is ready for review; B9 is the follow-up.

@@ -239,14 +239,18 @@ describe("T3 failed attempt handling", () => {
 
         const commitSpy = jest.spyOn(stateManager, "commit");
         const logErrorSpy = jest.spyOn(log, "error").mockImplementation(() => {});
-const startSpy = jest
+        // Targeted timer check: the recovery record owns exactly one handle
+        // (strategyRecoveryStates.get(id).timer). Watching clearTimeout lets us
+        // prove THAT handle was cleared, without depending on unrelated timers
+        // the DISABLED transition emits in this suite.
+        const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
+        const startSpy = jest
             .spyOn(strategyLoader, "startStrategy")
             .mockResolvedValue({ ok: false, reason: "NO_META" });
 
         engine.handleStrategyCrash(runtimeId, new Error("boom"));
         expect(engine.strategyRecoveryStates.get(runtimeId).attempts).toBe(1);
-        // the retry timer is the only one this recovery owns
-        const timersBeforeCrash = jest.getTimerCount();
+        expect(engine.strategyRecoveryStates.get(runtimeId).timer).toBeTruthy();
 
         // attempt 1 at t=5000 fails -> next delay 5000 * 2^1 = 10000
         await advance(5000);
@@ -261,15 +265,23 @@ const startSpy = jest
         expect(engine.strategyRecoveryStates.get(runtimeId).attempts).toBe(3);
         expect(engine.strategyRecoveryStates.get(runtimeId).nextDelay).toBe(20000);
 
-// attempt 2 fails -> next delay 5000 * 2^2 = 20000
+        // attempt 2 fails -> next delay 5000 * 2^2 = 20000
         await advance(19999);
         expect(startSpy).toHaveBeenCalledTimes(2);
 
-        // one timer (the 20000 retry) is pending before the terminal attempt
+        // the 20000 retry is the live handle this recovery owns. Only the terminal
+        // attempt can clear it: it was created for the 20000 delay.
+        const retryTimer = engine.strategyRecoveryStates.get(runtimeId).timer;
+        expect(retryTimer).toBeTruthy();
 
         // attempt 3 fails -> the cap is reached on the reschedule
         await advance(1);
         expect(startSpy).toHaveBeenCalledTimes(3);
+
+        // the recovery's own retry handle was cleared: no retry is left behind.
+        // This is a handle-identity check, so unrelated timers the DISABLED
+        // transition emits in this suite cannot satisfy or break it.
+        expect(clearTimeoutSpy).toHaveBeenCalledWith(retryTimer);
 
         // The commit is made on the runtime ledger, and the state controller
         // accepts it: STOPPED -> DISABLED is now a legal transition.
@@ -291,13 +303,10 @@ const startSpy = jest
             "DISABLED was rejected by the state controller"
         );
 
-        // terminal: no recovery record, no timer left, no further attempts
+        // terminal: no recovery record (it owns the only retry timer), and no
+        // retry fires afterwards
         expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
         expect(engine.strategyRecoveryStates.size).toBe(0);
-        // no recovery timer is left. The DISABLED transition itself emits unrelated
-        // timers in this suite (plot interval, db mocks, logger), so the count is
-        // bounded by the pre-crash baseline rather than zero.
-        expect(jest.getTimerCount()).toBeLessThanOrEqual(timersBeforeCrash);
 
         await advance(600000);
         expect(startSpy).toHaveBeenCalledTimes(3);
