@@ -18,10 +18,16 @@ jest.mock("@data", () => ({
     legacyMarketData: {}
 }));
 
-jest.mock("@core/services/postgres", () => ({
-    hasDbConfig: () => false,
-    query: jest.fn(async () => ({ rows: [], rowCount: 0 }))
-}));
+jest.mock("@core/services/postgres", () => {
+    // The transaction client shares the query mock, so assertions on db.query
+    // keep working and the SQL a transaction issues stays visible.
+    const query = jest.fn(async () => ({ rows: [], rowCount: 0 }));
+    return {
+        hasDbConfig: () => false,
+        query,
+        withTransaction: jest.fn(async (fn) => fn({ query }))
+    };
+});
 
 // strategyController only needs metadata lookup/invalidation and stop from the
 // loader facade; keeping it real would pull in the compiler and the DB.
@@ -1244,5 +1250,80 @@ describe("ENGINE-01 Stage 2 — runtime ownership", () => {
 
         entry.instance = strategy;
         await new RuntimeLifecycle().terminate(runtimeId);
+    });
+});
+// ── B10: strategy deletion is one transaction ────────────────────────────────
+describe("B10 atomic strategy deletion", () => {
+    beforeEach(() => {
+        runtimeRegistry.clear();
+        db.query.mockReset();
+        loader.invalidate.mockClear();
+    });
+
+    /** Make the transactional client answer per statement. */
+    function scriptQueries({ strategyRowCount = 1, runtimeRowCount = 0, failOn } = {}) {
+        const statements = [];
+        db.query.mockImplementation(async (sql) => {
+            const text = String(sql);
+            statements.push(text);
+            if (failOn && text.includes(failOn)) {
+                throw new Error('insert or update on table "orders" violates foreign key constraint');
+            }
+            if (text.includes("DELETE FROM strategies")) return { rowCount: strategyRowCount, rows: [] };
+            if (text.includes("DELETE FROM strategy_runtimes")) return { rowCount: runtimeRowCount, rows: [] };
+            return { rows: [], rowCount: 0 };
+        });
+        return statements;
+    }
+
+    test("4. a deleted strategy cannot leave a desired-state row behind", async () => {
+        const statements = scriptQueries({ strategyRowCount: 1, runtimeRowCount: 2 });
+
+        const res = await invokeDelete({ userId: "u1", entityId: "GoneA" });
+
+        expect(res.statusCode).toBe(200);
+        // both statements ran inside the transaction, scoped to the same id
+        expect(statements).toContain("DELETE FROM strategies WHERE name = $1");
+        expect(statements).toContain("DELETE FROM strategy_runtimes WHERE strategy_name = $1");
+        const runtimeDelete = db.query.mock.calls.find(
+            ([sql]) => String(sql).includes("DELETE FROM strategy_runtimes")
+        );
+        expect(runtimeDelete[1]).toEqual(["u1::GoneA"]);
+        expect(loader.invalidate).toHaveBeenCalledWith("u1::GoneA");
+    });
+
+    test("5. a failed strategy delete rolls back the runtime-record change", async () => {
+        // The strategy delete throws (e.g. the orders FK). The runtime delete must
+        // never be issued, so nothing can be committed without the strategy row.
+        const statements = scriptQueries({ failOn: "DELETE FROM strategies" });
+
+        const res = await invokeDelete({ userId: "u1", entityId: "GoneA" });
+
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe("DELETE_FAILED");
+        expect(statements).not.toContain("DELETE FROM strategy_runtimes WHERE strategy_name = $1");
+        expect(loader.invalidate).not.toHaveBeenCalled();
+        // the deletion claim is released, so a later attempt is not blocked
+        expect(runtimeRegistry.pendingSize).toBe(0);
+    });
+
+    test("6. an order-history FK failure still fails and mutates nothing", async () => {
+        const statements = scriptQueries({ failOn: "DELETE FROM strategies" });
+
+        const res = await invokeDelete({ userId: "u1", entityId: "WithOrders" });
+
+        expect(res.statusCode).toBe(500);
+        expect(res.body.message).toContain("foreign key");
+        // the strategy row and its runtime rows are both untouched
+        expect(statements.filter((s) => s.startsWith("DELETE"))).toHaveLength(1);
+    });
+
+    test("a missing strategy reports 404 and deletes no runtime row", async () => {
+        const statements = scriptQueries({ strategyRowCount: 0 });
+
+        const res = await invokeDelete({ userId: "u1", entityId: "MissingA" });
+
+        expect(res.statusCode).toBe(404);
+        expect(statements).not.toContain("DELETE FROM strategy_runtimes WHERE strategy_name = $1");
     });
 });
