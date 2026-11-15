@@ -80,7 +80,10 @@ class CoreXEngine {
         this.recoveryMaxDelay = 300000; // 5 minutes
         this.recoveryFactor = 2;
         this.recoveryMaxAttempts = 10;  // limit of 10 retries
-        this.strategyRecoveryStates = new Map(); // id -> { attempts, timer }
+        this.strategyRecoveryStates = new Map(); // id -> { attempts, timer, snapshot }
+        // Ids whose runtime is being stopped BY the recovery loop itself. The
+        // resulting STOPPED transition must not clear the recovery record.
+        this.recoveryInFlight = new Set();
     }
 
     async start() {
@@ -105,6 +108,9 @@ class CoreXEngine {
             if (to === "ERROR") {
                 this._scheduleRecovery(id);
             } else if (["ACTIVE", "STOPPED", "OFFLINE", "DISABLED"].includes(to)) {
+                // The STOPPED that recovery itself causes must not drop the
+                // recovery record: that is the attempt counter and the snapshot.
+                if (to === "STOPPED" && this.recoveryInFlight.has(id)) return;
                 this._clearRecovery(id);
             }
         });
@@ -232,57 +238,128 @@ class CoreXEngine {
         const currentState = stateManager.getStatus(id);
         if (currentState !== "ERROR") return;
 
-        let recovery = this.strategyRecoveryStates.get(id) || { attempts: 0, timer: null };
-        if (recovery.timer) clearTimeout(recovery.timer);
+        const recovery = this.strategyRecoveryStates.get(id) || { attempts: 0, timer: null, snapshot: null };
+        this._scheduleRetry(id, recovery.attempts, recovery.snapshot);
+    }
 
-        if (this.recoveryMaxAttempts > 0 && recovery.attempts >= this.recoveryMaxAttempts) {
+    /**
+     * Schedule the next attempt for `id` from a known attempt count.
+     * Kept separate from _scheduleRecovery so a retry can be scheduled after
+     * recovery's own stop moved the ledger away from ERROR.
+     */
+    _scheduleRetry(id, attempts, snapshot = null) {
+        const existing = this.strategyRecoveryStates.get(id);
+        if (existing?.timer) clearTimeout(existing.timer);
+
+        if (this.recoveryMaxAttempts > 0 && attempts >= this.recoveryMaxAttempts) {
             log.warn(`[RECOVERY] Strategy ${id} exceeded max recovery attempts (${this.recoveryMaxAttempts}). Disabling.`);
-            stateManager.commit(id, "DISABLED", { reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED" });
+            const committed = stateManager.commit(id, "DISABLED", { reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED" });
+            if (!committed) {
+                log.warn(`[RECOVERY] DISABLED not recorded for ${id} (state transition rejected by the state ledger); recovery stopped.`);
+            }
             this._clearRecovery(id);
             return;
         }
 
         const delay = Math.min(
             this.recoveryMaxDelay,
-            this.recoveryBaseDelay * Math.pow(this.recoveryFactor, recovery.attempts)
+            this.recoveryBaseDelay * Math.pow(this.recoveryFactor, attempts)
         );
 
-        log.info(`[RECOVERY] Strategy ${id} scheduled for auto-restart in ${delay / 1000}s (Attempt ${recovery.attempts + 1})`);
+        log.info(`[RECOVERY] Strategy ${id} scheduled for auto-restart in ${delay / 1000}s (Attempt ${attempts + 1})`);
 
-        recovery.timer = setTimeout(() => {
+        const timer = setTimeout(() => {
             this._attemptRecovery(id).catch(err => {
                 log.error(`[RECOVERY] Critical failure in recovery loop for ${id}: ${err.message}`);
             });
         }, delay);
 
-        recovery.attempts += 1;
-        this.strategyRecoveryStates.set(id, recovery);
+        this.strategyRecoveryStates.set(id, {
+            attempts: attempts + 1,
+            timer,
+            nextDelay: delay,
+            snapshot: snapshot || existing?.snapshot || null
+        });
     }
 
+    /**
+     * Resolve the runtime that crashed and restart exactly that one.
+     *
+     * @param {string} id - runtimeId of the crashed runtime (the only form the
+     *                      market-data feed produces: MarketFeed calls
+     *                      onStrategyCrash(entry.runtimeId, err)).
+     */
     async _attemptRecovery(id) {
-        const currentState = stateManager.getStatus(id);
-        if (currentState !== "ERROR") {
+        const recovery = this.strategyRecoveryStates.get(id);
+        // Captured BEFORE anything is stopped: the stop moves the ledger to
+        // STOPPED and would otherwise reset the counter and drop the snapshot.
+        const attempts = recovery ? recovery.attempts : 0;
+
+        if (recovery?.timer) {
+            clearTimeout(recovery.timer);
+            this.strategyRecoveryStates.set(id, { ...recovery, attempts, timer: null });
+        }
+
+        const entry = RuntimeRegistry.get(id);
+        const snapshot = entry
+            ? {
+                strategyName: entry.strategyName,
+                runtimeId: entry.runtimeId,
+                mode: entry.mode,
+                symbol: entry.symbol,
+                userId: entry.userId,
+                params: entry.params || {}
+            }
+            : (recovery?.snapshot || null);
+
+        if (entry && snapshot) {
+            this.strategyRecoveryStates.set(id, {
+                attempts,
+                timer: null,
+                snapshot
+            });
+        }
+
+        if (!snapshot || !snapshot.strategyName) {
+            // Unresolvable target: a failed attempt, never a success.
+            log.error(`[RECOVERY] No runtime or snapshot could be resolved for ${id}; counting it as a failed attempt.`);
+            this._scheduleRetry(id, attempts);
+            return;
+        }
+
+        log.info(`[RECOVERY] Attempting auto-restart for ${id} (${snapshot.strategyName} ${snapshot.symbol} ${snapshot.mode})...`);
+
+        let ok = false;
+        this.recoveryInFlight.add(id);
+        try {
+            // 1. Stop the exact runtime that crashed (never a sibling).
+            await loader.stopStrategy(snapshot.strategyName, { runtimeId: snapshot.runtimeId });
+
+            // 2. Start it again from the snapshot.
+            const result = await loader.startStrategy(snapshot.strategyName, {
+                userId: snapshot.userId,
+                mode: snapshot.mode,
+                symbol: snapshot.symbol,
+                params: snapshot.params
+            });
+
+            ok = Boolean(result && result.ok === true);
+            if (!ok) {
+                log.warn(`[RECOVERY] Restart rejected for ${id}: ${result?.reason || "no reason reported"}`);
+            }
+        } catch (err) {
+            log.error(`[RECOVERY] Auto-restart execution failed for ${id}: ${err.message}`);
+            ok = false;
+        } finally {
+            this.recoveryInFlight.delete(id);
+        }
+
+        if (ok) {
             this._clearRecovery(id);
             return;
         }
 
-        log.info(`[RECOVERY] Attempting auto-restart for ${id}...`);
-        try {
-            // 1. Force termination of any partial runtime state
-            const activeRuntimes = RuntimeRegistry.forStrategy(id);
-            for (const r of activeRuntimes) {
-                await loader.stopStrategy(id, { runtimeId: r.runtimeId });
-            }
-
-            // 2. Request start via bootloader (uses persisted mode/symbol/params)
-            const success = await loader.startStrategy(id);
-            if (!success) {
-                this._scheduleRecovery(id);
-            }
-        } catch (err) {
-            log.error(`[RECOVERY] Auto-restart execution failed for ${id}: ${err.message}`);
-            this._scheduleRecovery(id);
-        }
+        this._scheduleRetry(id, attempts);
     }
 
     _clearRecovery(id) {

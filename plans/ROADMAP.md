@@ -70,6 +70,7 @@ differed from reality, reality is recorded and the difference is listed in the c
 | 14 | STAGE-4 | Stage 4 — Dataset resource model | UNCONFIRMED | Owen confirmation of status | — | task file created when the workstream starts | Blocks the data-acquisition part of the `backtestManager` split (P7). |
 | 15 | P7 | Recomposition: `backtestManager` split; `StrategyLoader` facade collapse into `engine/strategyLoader.js` | LATER | P5, P6, STAGE-4 | task file created when the workstream starts | task file created when the workstream starts | ENGINE-03 implementation half; derived from the E1 register (L7). |
 | 16 | P8 | Boundary enforcement (`madge` / `dependency-cruiser` rules) | LATER | P5, P6 | task file created when the workstream starts | task file created when the workstream starts | ENGINE-03 enforcement half. Rule set derived from P7's register. |
+| 17 | ENGINE-02B-P0-1 | Recovery correctness: exact runtime target, `result.ok` check, attempt counter across recovery's own `STOPPED` | IN PROGRESS | E1 (DONE, `467e79c`) | `fix/engine-recovery-correctness` | `plans/tasks/ENGINE-02B-P0-1.md` | Fixes E1 report §10 P0-1 + P0-2 (D1 result handling, D2 identity, D3 hidden retry drop). No extraction, no shutdown or listener-lifecycle change. P0-2..P0-4 are not yet represented as rows. |
 
 ### Completed workstreams (for traceability)
 
