@@ -1,6 +1,6 @@
 # ENGINE-02B-P0-1 â€” Recovery correctness (`engine.js` auto-recovery)
 
-**Status:** IN PROGRESS
+**Status:** PR OPEN — awaiting review (not merged)
 **Owner:** Kilo Code
 **Branch:** `fix/engine-recovery-correctness`
 **Worktree:** `../corex-p0-1`
@@ -189,4 +189,4 @@ Baseline on `main` was 60 suites / 661 tests (E1 records the same figures); the 
 
 Only `engine/core/engine.js`, the new test file, this task file and the `plans/ROADMAP.md` row. No file outside `plans/` and `test/` was touched; `plans/STATUS.md` was deliberately left alone because this task's diff is restricted to the four paths above.
 
-PR: <pending>
+PR: https://github.com/ssemandaowen/corex_engine/pull/66 — OPEN, not merged. Head `fix/engine-recovery-correctness`, 4 files, +666 / -24, `mergeable: MERGEABLE`, `reviewDecision` empty.
