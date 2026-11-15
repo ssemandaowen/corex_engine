@@ -1,4 +1,4 @@
-"use strict";
+﻿"use strict";
 
 /**
  * ENGINE-02B-P0-1 — engine.js auto-recovery.
@@ -55,6 +55,7 @@ const strategyLoader = require("@core/strategyLoader");
 const stateManager = require("@utils/stateController");
 const { bus, EVENTS } = require("@events/bus");
 const engine = require("@core/core/engine");
+const log = require("@utils/logger");
 
 // ── Broker double (external I/O only) ────────────────────────────────────────
 function installBrokerFactory() {
@@ -178,13 +179,14 @@ describe("T1 identity resolution", () => {
     });
 });
 
-// ── T3: {ok:false} schedules the next attempt and eventually disables ────────
+// ── T3: {ok:false} schedules the next attempt and then stops recovery ────────
 describe("T3 failed attempt handling", () => {
-    it("reschedules with base*factor^1, counts attempts, then DISABLED", async () => {
+    it("reschedules with base*factor^1, counts attempts, then stops recovery at the cap", async () => {
         engine.recoveryMaxAttempts = 3;
         const { runtimeId } = await bootRuntime({ strategyName: "StratA" });
 
         const commitSpy = jest.spyOn(stateManager, "commit");
+        const logErrorSpy = jest.spyOn(log, "error").mockImplementation(() => {});
         const startSpy = jest
             .spyOn(strategyLoader, "startStrategy")
             .mockResolvedValue({ ok: false, reason: "NO_META" });
@@ -211,13 +213,24 @@ describe("T3 failed attempt handling", () => {
         await advance(1);
         expect(startSpy).toHaveBeenCalledTimes(3);
 
-        // attempt 3 hits the cap -> DISABLED, nothing scheduled
+        // attempt 3 hits the cap. The DISABLED commit is attempted with the
+        // required reason, and the REAL state controller decides whether it sticks.
         expect(commitSpy).toHaveBeenCalledWith(
             runtimeId,
             "DISABLED",
             expect.objectContaining({ reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED" })
         );
+
+        // STOPPED -> DISABLED is not an allowed transition (utils/stateController.js),
+        // so the real final state is STOPPED and the engine must not claim DISABLED.
+        expect(stateManager.getStatus(runtimeId)).toBe("STOPPED");
+        expect(logErrorSpy.mock.calls.map((c) => String(c[0])).join("\n")).toContain(
+            "DISABLED was rejected by the state controller"
+        );
+
+        // terminal: no recovery record, nothing scheduled, no further attempts
         expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
+        expect(engine.strategyRecoveryStates.size).toBe(0);
 
         await advance(600000);
         expect(startSpy).toHaveBeenCalledTimes(3);
@@ -289,22 +302,97 @@ describe("T6 attempt counter across STOPPED", () => {
     });
 });
 
-// ── T7: a user stop clears a pending timer (characterisation) ────────────────
+// ── T7: a user stop cancels recovery and is never a failed attempt ───────────
 describe("T7 user stop", () => {
-    it("clears the pending recovery timer and no attempt runs afterwards", async () => {
+    it("clears the pending recovery timer, and a later _attemptRecovery is a no-op", async () => {
         const { runtimeId } = await bootRuntime({ strategyName: "StratA" });
         const startSpy = jest
             .spyOn(strategyLoader, "startStrategy")
             .mockResolvedValue({ ok: true, runtimeId });
+        const stopSpy = jest.spyOn(strategyLoader, "stopStrategy");
 
         engine.handleStrategyCrash(runtimeId, new Error("boom"));
+        expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(true);
 
         // the user presses STOP while the retry timer is pending
         await strategyLoader.stopStrategy("u1::StratA", { runtimeId });
         expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
 
+        const callsAfterStop = stopSpy.mock.calls.length;
+
+        // a late attempt for a cancelled recovery does nothing at all
+        await engine._attemptRecovery(runtimeId);
+        await flush();
+
+        expect(stopSpy.mock.calls.length).toBe(callsAfterStop);
+        expect(startSpy).not.toHaveBeenCalled();
+        expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
+
+        // and the cancelled recovery is not resurrected by the clock
         await advance(600000);
         expect(startSpy).not.toHaveBeenCalled();
+        expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
+    });
+
+    it("does not reschedule when a stop request for the strategy lands during the restart", async () => {
+        const a = await bootRuntime({ strategyName: "StratA", symbol: "EURUSD", mode: "PAPER" });
+        await bootRuntime({ strategyName: "StratA", symbol: "GBPUSD", mode: "PAPER" });
+        // the real startStrategy commits ACTIVE for the strategy id (strategyLoader.js:474);
+        // startStrategy is mocked here, so the ledger state is reproduced.
+        stateManager.commit(a.profile.strategyName, "WARMING_UP");
+        stateManager.commit(a.profile.strategyName, "ACTIVE");
+
+        // the restart hangs until the test resolves it, so the stop can land first
+        let resolveStart;
+        const startSpy = jest.spyOn(strategyLoader, "startStrategy").mockImplementation(
+            () => new Promise((resolve) => { resolveStart = resolve; })
+        );
+
+        engine.handleStrategyCrash(a.runtimeId, new Error("boom"));
+        await advance(5000); // attempt begins: real stop, then the pending start
+        expect(startSpy).toHaveBeenCalledTimes(1);
+        expect(engine.strategyRecoveryStates.has(a.runtimeId)).toBe(true);
+
+        // The user stops the whole strategy while the restart is in flight. The
+        // sibling is still registered, so stopStrategy emits STATE_CHANGED(STOPPED)
+        // for the strategy id — the signal the engine can see once the crashed
+        // runtime's entry is already gone.
+        await strategyLoader.stopStrategy(a.profile.strategyName);
+        expect(engine.strategyRecoveryStates.has(a.runtimeId)).toBe(false);
+
+        // the restart finishes rejected; a cancelled recovery must not retry
+        resolveStart({ ok: false, reason: "STOPPED_BY_USER" });
+        await flush();
+
+        expect(engine.strategyRecoveryStates.has(a.runtimeId)).toBe(false);
+
+        await advance(600000);
+        expect(startSpy).toHaveBeenCalledTimes(1);
+        expect(engine.strategyRecoveryStates.has(a.runtimeId)).toBe(false);
+    });
+
+    it("treats a runtime removed by a concurrent stop as cancelled, not as a failed attempt", async () => {
+        const { runtimeId } = await bootRuntime({ strategyName: "StratA" });
+
+        // The user's stop landed before recovery's: the entry is gone, so the real
+        // stopStrategy had nothing left to terminate and reports false without
+        // emitting anything (stopStrategy only commits STOPPED when anyOk).
+        const stopSpy = jest.spyOn(strategyLoader, "stopStrategy").mockImplementation(async () => {
+            runtimeRegistry.delete(runtimeId);
+            return false;
+        });
+        const startSpy = jest.spyOn(strategyLoader, "startStrategy").mockResolvedValue({ ok: true });
+
+        engine.handleStrategyCrash(runtimeId, new Error("boom"));
+        await advance(5000);
+
+        expect(stopSpy).toHaveBeenCalledTimes(1);
+        expect(startSpy).not.toHaveBeenCalled();
+        expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
+
+        await advance(600000);
+        expect(startSpy).not.toHaveBeenCalled();
+        expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
     });
 });
 

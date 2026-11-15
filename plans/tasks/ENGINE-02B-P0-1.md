@@ -1,6 +1,6 @@
-# ENGINE-02B-P0-1 — Recovery correctness (`engine.js` auto-recovery)
+﻿# ENGINE-02B-P0-1 — Recovery correctness (`engine.js` auto-recovery)
 
-**Status:** PR OPEN � awaiting review (not merged)
+**Status:** PR OPEN � awaiting review (not merged)
 **Owner:** Kilo Code
 **Branch:** `fix/engine-recovery-correctness`
 **Worktree:** `../corex-p0-1`
@@ -83,9 +83,10 @@ The blocked transition that *does* occur is the terminal one: `STOPPED → DISAB
 1. **Exact target resolution.** `_attemptRecovery(id)` resolves `RuntimeRegistry.get(id)`; `strategyName` comes from that entry. `forStrategy` is never used to find the target and no sibling is ever selected. The strategy-id form does not occur (§0a) and is not implemented. An unresolvable target is a **failed attempt**, bounded by `recoveryMaxAttempts`, never a success.
 2. **Snapshot then stop/start.** `{ strategyName, runtimeId, mode, symbol, userId, params }` is captured **before** anything is stopped; `loader.stopStrategy(strategyName, { runtimeId })` then `loader.startStrategy(strategyName, { userId, mode, symbol, params })`. The runtimeId is never passed as the strategy id. Siblings are untouched.
 3. **Success** is `result && result.ok === true`. Anything else, or a throw, is a failed attempt.
-4. **Every failed attempt schedules the next** with `min(recoveryMaxDelay, recoveryBaseDelay * recoveryFactor^attempts)`; at `recoveryMaxAttempts` the recovery is stopped with `RECOVERY_MAX_ATTEMPTS_EXCEEDED`.
-5. **The attempt counter survives recovery's own `STOPPED`.** Attempts and the snapshot are captured/reused from `strategyRecoveryStates` before the stop; a `recoveryInFlight` guard stops the `STATE_CHANGED` listener from clearing the recovery record for the `STOPPED` that recovery itself caused. The `ERROR` guard stays in `_scheduleRecovery` (first schedule, from the listener). The record also carries `nextDelay` (the backoff that was actually scheduled) so the schedule is observable without asserting on timer internals.
-6. **`initialCash` / `connectorType`** are not on the registry entry and are not invented — see §7.
+4. **Every failed attempt schedules the next** with `min(recoveryMaxDelay, recoveryBaseDelay * recoveryFactor^attempts)`; at `recoveryMaxAttempts` the recovery stops and the terminal commit is made with `RECOVERY_MAX_ATTEMPTS_EXCEEDED`. `DISABLED` is reported **only if the state controller accepted it**; a rejected transition is logged as an error naming the reason and the current state (§7, §11).
+5. **The attempt counter survives recovery's own `STOPPED`.** Attempts and the snapshot are captured/reused from `strategyRecoveryStates` before the stop; a `recoveryStopping` guard suppresses the `STATE_CHANGED` listener for the `STOPPED` that recovery itself caused. The `ERROR` guard stays in `_scheduleRecovery` (first schedule, from the listener). The record also carries `nextDelay` (the backoff that was actually scheduled) so the schedule is observable without asserting on timer internals.
+6. **A stop request cancels recovery, and is never a failed attempt.** A `STOPPED` outside recovery's own stop window clears the recovery record for that runtime and, being a strategy-level intent, for the other runtimes of the same strategy. An attempt that finds its record gone (or finds the runtime already removed by a concurrent stop) stops without restarting, without rescheduling and without counting a failure. `_attemptRecovery` with no record at all is a no-op.
+7. **`initialCash` / `connectorType`** are not on the registry entry and are not invented - see S7.
 
 ## 5. Scope
 
@@ -97,69 +98,77 @@ The blocked transition that *does* occur is the terminal one: `STOPPED → DISAB
 
 | # | Criterion | State |
 |---|---|---|
-| 1 | Step 0 findings recorded with file:line | Met (§3) |
-| 2 | T1, T3, T6, T8 fail on `main` and pass with the fix, both runs pasted | Met (§9) |
-| 3 | `npm test` green with real counts recorded | Met (§9) |
-| 4 | `git diff` limited to `engine/core/engine.js`, the test file(s), this file, `plans/ROADMAP.md` | Met (§10) |
-| 5 | PR opened, not merged | Met (§10) |
+| 1 | Step 0 findings recorded with file:line | Met (S3) |
+| 2 | T1, T3, T6, T8 fail on `main` and pass with the fix, both runs pasted | Met (S9) |
+| 3 | Full Jest suite run, real counts recorded | Met (S9) |
+| 4 | `git diff` limited to `engine/core/engine.js`, the test file(s), this file, `plans/ROADMAP.md` | Met (S10) |
+| 5 | PR kept open on the same branch, no force-push, no new PR, not merged | Met (S10) |
 
 ## 7. Known limitations
 
-- **`initialCash` / `connectorType` are not on the registry entry.** `commitReservation` (`engine/core/runtime/RuntimeLifecycle.js:133-144`) stores neither, so the recovery snapshot cannot restore them. `startStrategy` falls back to `options.initialCash || 100000` and `options.connectorType || 'metaapi'` (`engine/strategyLoader.js:471`), i.e. a restarted runtime may come back with a different cash/connector than the one that crashed. Fixing this requires adding the fields to the reservation/commit payload — outside P0-1.
-- **`STOPPED → DISABLED` is not an allowed transition** (`utils/stateController.js:18`), so the `RECOVERY_MAX_ATTEMPTS_EXCEEDED` commit is attempted but may be rejected by the ledger once recovery's own stop has moved the runtime to `STOPPED`. The code logs the rejection explicitly instead of pretending it succeeded. Relaxing the rules table is outside this task.
+- **`initialCash` / `connectorType` are not on the registry entry.** `commitReservation` (`engine/core/runtime/RuntimeLifecycle.js:133-144`) stores neither, so the recovery snapshot cannot restore them. `startStrategy` falls back to `options.initialCash || 100000` and `options.connectorType || 'metaapi'` (`engine/strategyLoader.js:471`), i.e. a restarted runtime may come back with a different cash/connector than the one that crashed. Fixing this requires adding the fields to the reservation/commit payload - outside P0-1.
+- **`STOPPED -> DISABLED` is not an allowed transition** (`utils/stateController.js:18`). After recovery's own stop the runtime ledger is `STOPPED`, so the terminal `DISABLED` commit for `RECOVERY_MAX_ATTEMPTS_EXCEEDED` is rejected by the real state controller. The engine now verifies the commit result: it reports `DISABLED` only when the commit was accepted, and otherwise logs an explicit error naming the reason and the current state. **The rules table was not edited** - see S11.
+- **A stop that lands inside recovery's own stop window is not observable.** `strategyLoader.stopStrategy` commits `STOPPED` only when `anyOk` (`engine/strategyLoader.js:566`), and the STOPPED that recovery's own stop produces is indistinguishable from a user stop landing in the same window. Closing that window needs a stop-request marker at the loader boundary - outside this task. What is covered: a stop that arrives before the attempt (timer pending) and a stop that arrives after recovery's stop has resolved (strategy-level STOPPED, including via a sibling runtime) both cancel the restart and are never counted as failed attempts.
 - **Recovery state is per-process** (`strategyRecoveryStates` is in memory), so a restart loses pending attempts. Deferred (roadmap L-5).
 
 ## 8. Regression tests
 
-`test/engine-recovery.test.js` — jest fake timers; mocks limited to the loader's `init`/`startStrategy`, `@data`, the broker factory, `@utils/storageManager` and `@core/services/postgres`. **Real:** `RuntimeRegistry`, `RuntimeLifecycle`, `stateController`, the event bus, and the real `strategyLoader.stopStrategy` (so the `STOPPED` transition and `terminate()` are genuinely exercised — that is what makes D3 a real test rather than a mock).
+`test/engine-recovery.test.js` - jest fake timers; mocks limited to the loader's `init`/`startStrategy`, `@data`, the broker factory, `@utils/storageManager` and `@core/services/postgres`. **Real:** `RuntimeRegistry`, `RuntimeLifecycle`, `stateController`, the event bus, and the real `strategyLoader.stopStrategy` (so the `STOPPED` transition and `terminate()` are genuinely exercised - that is what makes D3 a real test rather than a mock). `stateController.commit` is spied on only to observe calls; the state transitions themselves are real.
 
 | ID | Assertion |
 |---|---|
-| T1 | runtimeId crash → `RuntimeRegistry.get(runtimeId)` used, `forStrategy` never called, `stopStrategy(strategyName, {runtimeId})`, `startStrategy(strategyName, {userId, mode, symbol, params})`, runtimeId never passed as strategy id |
-| T2 | not implemented — the strategy-id form does not occur (§0a) |
-| T3 | `{ok:false}` → next attempt scheduled with `attempts` incremented and delay `base*factor^1`; repeats to the cap, then `DISABLED` with `RECOVERY_MAX_ATTEMPTS_EXCEEDED`; no timer left |
-| T4 | thrown error → reschedules (existing behaviour kept) |
-| T5 | `{ok:true}` → no reschedule, recovery state cleared |
+| T1 | runtimeId crash -> `RuntimeRegistry.get(runtimeId)` used, `forStrategy` never called, `stopStrategy(strategyName, {runtimeId})`, `startStrategy(strategyName, {userId, mode, symbol, params})`, runtimeId never passed as strategy id |
+| T2 | not implemented - the strategy-id form does not occur (S0a) |
+| T3 | `{ok:false}` -> next attempt with `attempts` incremented and `nextDelay = base*factor^attempts`; repeats to the cap; then the real final state is `STOPPED` (the `DISABLED` commit is rejected by the real state controller), the rejection is logged, the record is dropped, and nothing is rescheduled |
+| T4 | thrown error -> reschedules (existing behaviour kept) |
+| T5 | `{ok:true}` -> no reschedule, recovery state cleared |
 | T6 | attempts not reset by the `STOPPED` transition recovery itself causes |
-| T7 | user stop while a timer is pending → timer cleared, `_attemptRecovery` is a no-op (characterisation of existing behaviour) |
-| T8 | two runtimes of one strategy → crashing A stops/restarts only A (A's symbol/mode); B stays registered and its broker/instance `destroy` is never called |
-| T9 | unresolvable target → counted as a failed attempt, bounded, eventually terminal; never success |
+| T7a | user stop while a timer is pending -> timer and record cleared; a later direct `_attemptRecovery` is a no-op (no stop, no start, no timer, no record) |
+| T7b | user stops the whole strategy while the restart is in flight -> recovery for the crashed runtime is cancelled, and a rejected restart does not reschedule |
+| T7c | the runtime was already removed by a concurrent stop -> cancelled, never counted as a failed attempt |
+| T8 | two runtimes of one strategy -> crashing A stops/restarts only A (A's symbol/mode); B stays registered and its broker/instance `destroy` is never called |
+| T9 | unresolvable target -> counted as a failed attempt, bounded, eventually terminal; never success |
 
-T1, T3, T6 and T8 must fail on `main` and pass with the fix; both runs are recorded in §9.
+T1, T3, T6 and T8 must fail on `main` and pass with the fix; both runs are recorded in S9.
+
 ## 9. Verification (real runs)
 
 ### 9.1 Fail-then-pass
 
-Both runs use the **final** test file. `main` = `467e79c` with `engine/core/engine.js` reverted to that revision (`git stash push -- engine/core/engine.js`).
+The `main` run uses `git checkout origin/main -- engine/core/engine.js` (true `467e79c` baseline, verified: no `_scheduleRetry`/`_cancelRecovery` in the file), with the final test file.
 
-**On `main` (no fix) � 6 failed, 2 passed, 8 total**
+**On `main` (no fix) - 7 failed, 3 passed, 10 total**
 
 ```text
-  � uses RuntimeRegistry.get(runtimeId) and passes the strategy name to the loader        (T1)
-  � reschedules with base*factor^1, counts attempts, then DISABLED                       (T3)
-  v reschedules after a throw and stops at the cap                                       (T4)
-  � does not reschedule and clears the recovery state                                    (T5)
-  � does not reset attempts when recovery's own stop moves the runtime to STOPPED        (T6)
-  v clears the pending recovery timer and no attempt runs afterwards                     (T7)
-  � stops and restarts only the crashed runtime                                          (T8)
-  � counts as failed attempts and terminates without ever reporting success              (T9)
-Tests:       6 failed, 2 passed, 8 total
+  x uses RuntimeRegistry.get(runtimeId) and passes the strategy name to the loader        (T1)
+  x reschedules with base*factor^1, counts attempts, then stops recovery at the cap       (T3)
+  √ reschedules after a throw and stops at the cap                                        (T4)
+  x does not reschedule and clears the recovery state                                     (T5)
+  x does not reset attempts when recovery's own stop moves the runtime to STOPPED         (T6)
+  √ clears the pending recovery timer, and a later _attemptRecovery is a no-op            (T7a)
+  √ does not reschedule when a stop request for the strategy lands during the restart     (T7b)
+  x treats a runtime removed by a concurrent stop as cancelled, not as a failed attempt   (T7c)
+  x stops and restarts only the crashed runtime                                           (T8)
+  x counts as failed attempts and terminates without ever reporting success               (T9)
+Tests:       7 failed, 3 passed, 10 total
 ```
 
-T4 passes on `main` because a throw happens before the stop, so the ledger is still `ERROR`; it is a behaviour-preservation test, not a regression test. T7 is a characterisation test (the listener's clear-on-STOPPED already exists) and passes on both revisions.
+T4 and T7a pass on `main` by design (T4 is behaviour preservation, T7a characterises the listener's existing clear-on-STOPPED).
 
-**With the fix � 8 passed, 8 total**
+**With the fix - 10 passed, 10 total**
 
 ```text
-  v T1 identity resolution � uses RuntimeRegistry.get(runtimeId) and passes the strategy name to the loader
-  v T3 failed attempt handling � reschedules with base*factor^1, counts attempts, then DISABLED
-  v T4 thrown error � reschedules after a throw and stops at the cap
-  v T5 successful recovery � does not reschedule and clears the recovery state
-  v T6 attempt counter across STOPPED � does not reset attempts when recovery's own stop moves the runtime to STOPPED
-  v T7 user stop � clears the pending recovery timer and no attempt runs afterwards
-  v T8 sibling isolation � stops and restarts only the crashed runtime
-  v T9 unresolvable target � counts as failed attempts and terminates without ever reporting success
-Tests:       8 passed, 8 total
+  √ T1 identity resolution > uses RuntimeRegistry.get(runtimeId) and passes the strategy name to the loader
+  √ T3 failed attempt handling > reschedules with base*factor^1, counts attempts, then stops recovery at the cap
+  √ T4 thrown error > reschedules after a throw and stops at the cap
+  √ T5 successful recovery > does not reschedule and clears the recovery state
+  √ T6 attempt counter across STOPPED > does not reset attempts when recovery's own stop moves the runtime to STOPPED
+  √ T7 user stop > clears the pending recovery timer, and a later _attemptRecovery is a no-op
+  √ T7 user stop > does not reschedule when a stop request for the strategy lands during the restart
+  √ T7 user stop > treats a runtime removed by a concurrent stop as cancelled, not as a failed attempt
+  √ T8 sibling isolation > stops and restarts only the crashed runtime
+  √ T9 unresolvable target > counts as failed attempts and terminates without ever reporting success
+Tests:       10 passed, 10 total
 ```
 
 **Required set (T1, T3, T6, T8): fails on `main`, passes with the fix.**
@@ -170,23 +179,39 @@ Tests:       8 passed, 8 total
 
 ```text
 Test Suites: 61 passed, 61 total
-Tests:       669 passed, 669 total
+Tests:       671 passed, 671 total
+Time:        62.811 s
 ```
 
-Baseline on `main` was 60 suites / 661 tests (E1 records the same figures); the delta is exactly this task's one new suite and eight new tests. No other suite changed.
+Baseline on `main` was 60 suites / 661 tests; the delta is exactly this task's suite (10 tests). One earlier run showed 3 failures (`FileDataProvider`, `IncrementalIndicators`, `SoACandleStore`); all three pass in isolation and in the recorded re-run, so they are load-related flakes, not regressions from this change.
 
 ## 10. Diff scope and PR
 
-`git diff --stat origin/main` (tracked files) plus the two new untracked files:
+`git diff --stat` against the branch base (`467e79c` plus this task's earlier commit):
 
 ```text
- engine/core/engine.js            | 125 ++++++++++++++++++++++++++++++++++++++++----------
- plans/ROADMAP.md                 |   1 +
- 2 files changed, 102 insertions(+), 24 deletions(-)
-
- untracked: plans/tasks/ENGINE-02B-P0-1.md, test/engine-recovery.test.js
+ engine/core/engine.js        | 129 +++++++++++++++++++++++++++++++++++--------
+ test/engine-recovery.test.js | 100 +++++++++++++++++++++++++++++++--
+ 2 files changed, 199 insertions(+), 30 deletions(-)
 ```
 
-Only `engine/core/engine.js`, the new test file, this task file and the `plans/ROADMAP.md` row. No file outside `plans/` and `test/` was touched; `plans/STATUS.md` was deliberately left alone because this task's diff is restricted to the four paths above.
+Only `engine/core/engine.js` and `test/engine-recovery.test.js` changed in this round; the task file and the `plans/ROADMAP.md` row come from the earlier commit on the same branch. No file outside `plans/` and `test/` was touched, and `plans/STATUS.md` was deliberately left alone.
 
-PR: https://github.com/ssemandaowen/corex_engine/pull/66 � OPEN, not merged. Head `fix/engine-recovery-correctness`, 4 files, +666 / -24, `mergeable: MERGEABLE`, `reviewDecision` empty.
+PR: https://github.com/ssemandaowen/corex_engine/pull/66 - OPEN, not merged. Head `fix/engine-recovery-correctness`; pushed with a normal `git push` (no force-push, no new PR).
+
+## 11. Escalation - `STOPPED -> DISABLED` (not edited)
+
+Required transition, if Owen approves it:
+
+```text
+utils/stateController.js, rules table (line 18)
+- "STOPPED": ["STAGED", "WARMING_UP", "STOPPING"],
++ "STOPPED": ["STAGED", "WARMING_UP", "STOPPING", "DISABLED"],
+```
+
+Scope impact:
+
+- `utils/stateController.js` is a shared state machine used by the engine, the loader, the runtime lifecycle and the routes. Adding `DISABLED` as a legal target from `STOPPED` widens what every caller may commit, not only recovery.
+- `DISABLED` is already reachable from `WARMING_UP`, `ACTIVE` and `ERROR` (`utils/stateController.js:19-24`), so the change only adds a terminal transition from an already-terminal state; it does not alter any existing legal path.
+- It would make the recovery terminal state real (`RECOVERY_MAX_ATTEMPTS_EXCEEDED` would persist on the runtime ledger) and remove the honest-rejection log path added in S7.
+- It is a state-machine change with trading-state impact, so it is **not** made here; the engine currently reports `DISABLED` only when the controller accepts it.
