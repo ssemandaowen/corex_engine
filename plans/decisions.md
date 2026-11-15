@@ -483,3 +483,18 @@ Decision:
 Reason: the registry had no notion of "being created", so two concurrent boots could both pass the `has()` check and the second `set()` silently orphaned a live instance and broker; failed boots leaked brokers; concurrent terminates double-destroyed; cleanup failures were swallowed and the entry deleted anyway; the deletion route trusted a separate state ledger, checked ownership before the DELETE and then could only report a 500 after the row was already gone.
 
 Consequence: one ownership decision point for creation, activation, termination and deletion; duplicate/competing creation is rejected by identity; a stale boot cannot destroy a newer boot's runtime; failed operations leave no phantom registry state and stay retryable. Ownership is per-process (in-memory), recorded in `plans/KNOWN_ISSUES.md`. Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+
+---
+
+**[2026-11-15 15:05] Feature: B9 — recovery must not restart a runtime the user stopped**
+
+Decision:
+1. The stop-request marker lives in `engine/strategyLoader.js`, because every stop (routes, runtimeService, recovery) passes through `stopStrategy` and the loader is the boundary where the request becomes an action.
+2. The marker is a monotonic per-runtimeId counter, incremented for each target *before* termination. Keying by runtimeId is required because a strategy-wide stop targets every runtime of the strategy, including the recovering one.
+3. `stopStrategy(id, { runtimeId, internal: true })` does not move the counter. Only the recovery loop uses `internal`; a user stop never does, so the flag cannot be forged by the path it is meant to detect.
+4. `_attemptRecovery` reads the counter before its own stop and compares it after the await. A change means a stop was requested inside the window, which is neither a failed attempt nor a retry: recovery drops the record and does not restart.
+5. The existing registry/ledger inferences are kept (`removedByOther`, missing recovery record) because they cover the other orderings; the counter covers the one they cannot see.
+
+Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped — a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
+
+Consequence: a stop request is now an observable intent rather than an inference. Cost: one Map entry per stopped runtime (small, bounded by runtimes), plus a counter read on each recovery attempt. No change to `terminate` semantics, the STOPPED ledger flow or the recovery schedule. Evidence: `plans/tasks/B9.md`, `test/engine-recovery.test.js` T12/T12b (T12 fails on `da7dfd6` with 1 start call, passes with the fix).

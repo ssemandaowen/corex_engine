@@ -631,3 +631,71 @@ describe("T11 state machine rules", () => {
         });
     });
 });
+
+// ── T12 (B9): a user stop landing inside recovery's own stop must win ────────
+describe("T12 stop-during-own-stop (B9)", () => {
+    it("does not restart a runtime the user stopped while recovery was stopping it", async () => {
+        const { runtimeId } = await bootRuntime({ strategyName: "StratA" });
+
+        // RuntimeLifecycle.terminate is single-flight per identity: a concurrent
+        // caller joins the running cleanup. Model exactly that so the user stop
+        // joins recovery's stop, which is the production ordering.
+        const realTerminate = RuntimeLifecycle.prototype.terminate;
+        let release;
+        const gate = new Promise((resolve) => { release = resolve; });
+        let shared = null;
+        jest.spyOn(RuntimeLifecycle.prototype, "terminate").mockImplementation(function (id) {
+            if (id !== runtimeId) return realTerminate.call(this, id);
+            if (!shared) shared = gate.then(() => realTerminate.call(this, id));
+            return shared;
+        });
+
+        const startSpy = jest.spyOn(strategyLoader, "startStrategy").mockResolvedValue({ ok: true });
+
+        engine.handleStrategyCrash(runtimeId, new Error("boom"));
+
+        // Fire the recovery attempt: it stops the crashed runtime and parks there.
+        jest.advanceTimersByTime(5000);
+        await flush();
+        expect(engine.recoveryStopping.has(runtimeId)).toBe(true);
+
+        // The user stops the strategy while recovery's stop is in flight.
+        const userStop = strategyLoader.stopStrategy("u1::StratA", { runtimeId });
+
+        release();
+        await userStop;
+        await flush();
+
+        // The recovery saw a stop request it did not make: no restart, no retry.
+        expect(startSpy).not.toHaveBeenCalled();
+        expect(engine.strategyRecoveryStates.has(runtimeId)).toBe(false);
+
+        await advance(600000);
+        expect(startSpy).not.toHaveBeenCalled();
+    });
+});
+
+// ── T12b (B9): the stop-request counter itself ───────────────────────────────
+describe("T12 stop-request marker", () => {
+    it("counts user stops per runtime and ignores the recovery loop's own stop", async () => {
+        const { runtimeId } = await bootRuntime({ strategyName: "StratA" });
+        const otherId = "u1::Other::EURUSD::PAPER";
+
+        // Deltas, not absolutes: the counter is per-process production state that
+        // other tests in this file also move.
+        const before = strategyLoader.getStopRequestSeq(runtimeId);
+        const otherBefore = strategyLoader.getStopRequestSeq(otherId);
+
+        await strategyLoader.stopStrategy("u1::StratA", { runtimeId, internal: true });
+        expect(strategyLoader.getStopRequestSeq(runtimeId)).toBe(before);
+
+        await strategyLoader.stopStrategy("u1::StratA", { runtimeId });
+        expect(strategyLoader.getStopRequestSeq(runtimeId)).toBe(before + 1);
+
+        await strategyLoader.stopStrategy("u1::StratA", { runtimeId });
+        expect(strategyLoader.getStopRequestSeq(runtimeId)).toBe(before + 2);
+
+        // a stop of this runtime does not move another runtime's counter
+        expect(strategyLoader.getStopRequestSeq(otherId)).toBe(otherBefore);
+    });
+});

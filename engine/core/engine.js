@@ -352,6 +352,11 @@ class CoreXEngine {
         let ok = false;
         let cancelled = false;
         this.recoveryInFlight.add(id);
+        // A stop request is an intent that outlives the stop itself. The loader
+        // counts user stops per runtime; recovery's own stop is passed as
+        // `internal` and does not move that counter, so a change across the await
+        // below can only be a user stop landing inside the window.
+        const stopSeqAtStart = loader.getStopRequestSeq(snapshot.runtimeId);
         try {
             // 1. Stop the exact runtime that crashed (never a sibling). Both the
             // runtimeId and the strategyName are suppressed for the duration of
@@ -360,17 +365,22 @@ class CoreXEngine {
             this.recoveryStopping.add(snapshot.strategyName);
             let stopResult;
             try {
-                stopResult = await loader.stopStrategy(snapshot.strategyName, { runtimeId: snapshot.runtimeId });
+                stopResult = await loader.stopStrategy(snapshot.strategyName, {
+                    runtimeId: snapshot.runtimeId,
+                    internal: true
+                });
             } finally {
                 this.recoveryStopping.delete(id);
                 this.recoveryStopping.delete(snapshot.strategyName);
             }
 
             // 2. A stop request that arrived while the runtime was being stopped
-            // cancels the restart: either the recovery record is gone, or the
-            // runtime was already removed by someone else before our stop landed.
+            // cancels the restart: either a user stop was recorded, the recovery
+            // record is gone, or the runtime was already removed by someone else
+            // before our stop landed.
             const removedByOther = Boolean(entry) && stopResult === false && !RuntimeRegistry.get(id);
-            if (!this.strategyRecoveryStates.has(id) || removedByOther) {
+            const stopRequested = loader.getStopRequestSeq(snapshot.runtimeId) !== stopSeqAtStart;
+            if (!this.strategyRecoveryStates.has(id) || removedByOther || stopRequested) {
                 cancelled = true;
                 log.info(`[RECOVERY] Restart for ${id} cancelled by a stop request; not restarting.`);
             } else {

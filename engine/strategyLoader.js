@@ -43,6 +43,26 @@ const log = logger.createModuleLogger('STRATEGY_BOOTLOADER', {
 const _metaRegistry = new Map();
 const _startInFlight = new Set();
 
+// Monotonic stop-request counters, one per runtimeId. A stop request is a user
+// intent that outlives the stop itself: the engine's recovery loop must not
+// restart a runtime the user asked to stop, and a request that lands while
+// recovery is already awaiting its own stop leaves no registry entry and no
+// ledger record to observe. Callers that are not user-initiated (the recovery
+// loop) pass `internal: true` and do not move the counter.
+const _stopRequestSeq = new Map();
+
+function noteStopRequest(runtimeId) {
+    const key = String(runtimeId || '');
+    if (!key) return 0;
+    const next = (_stopRequestSeq.get(key) || 0) + 1;
+    _stopRequestSeq.set(key, next);
+    return next;
+}
+
+function getStopRequestSeq(runtimeId) {
+    return _stopRequestSeq.get(String(runtimeId || '')) || 0;
+}
+
 let _engine    = null;
 let _compiler  = null;
 let _lifecycle = null;
@@ -540,6 +560,12 @@ async function stopStrategy(id, options = {}) {
 
     if (!targets.length) return false;
 
+    // Record the request before terminating: a stop that lands while the engine's
+    // recovery loop is awaiting this call must still be observable to it.
+    if (options.internal !== true) {
+        for (const runtimeId of targets) noteStopRequest(runtimeId);
+    }
+
     const lc = new RuntimeLifecycle();
     let anyOk = false;
     let cleanupFailed = false;
@@ -664,6 +690,7 @@ module.exports = {
     reloadStrategy,
     startStrategy,
     stopStrategy,
+    getStopRequestSeq,
     getStrategy,
     getMeta,
     invalidateMeta,
