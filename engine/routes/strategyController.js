@@ -291,7 +291,13 @@ router.delete("/:id", async (req, res) => {
         (runtime) => runtime.userId === userId || runtime.userId === "system"
     );
 
-    if (ownsAnyRuntime().length > 0 || isStrategyBusy(id)) {
+    // A start owns nothing until it reserves its runtime identity (it loads and
+    // compiles the strategy first), so an in-flight start is invisible to the
+    // registry. Deleting under it would commit while that start is mid-boot and
+    // let the runtime come up against a strategy row that no longer exists.
+    const startInFlight = typeof loader.isStartInFlight === "function" && loader.isStartInFlight(id);
+
+    if (ownsAnyRuntime().length > 0 || isStrategyBusy(id) || startInFlight) {
         return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
     }
 

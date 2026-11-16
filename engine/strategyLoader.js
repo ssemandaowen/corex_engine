@@ -571,6 +571,18 @@ async function startStrategy(id, options = {}) {
     }
 }
 
+/**
+ * True while a start for this strategy id is still running.
+ *
+ * A start reserves its runtime identity only after loading and compiling the
+ * strategy, so until then the registry cannot see it. Anything that would make
+ * the strategy unreachable (a delete) has to treat it as busy, otherwise the
+ * start would finish against a strategy row that no longer exists.
+ */
+function isStartInFlight(id) {
+    return _startInFlight.has(String(id || '').trim());
+}
+
 async function stopStrategy(id, options = {}) {
     const userId = options.userId || parseScopedId(id).userId || 'system';
     // The frontend may send either the scoped id (userId::strategyName) or the
@@ -734,6 +746,7 @@ module.exports = {
     bootStrategy,
     reloadStrategy,
     startStrategy,
+    isStartInFlight,
     stopStrategy,
     getStopRequestSeq,
     getStrategy,

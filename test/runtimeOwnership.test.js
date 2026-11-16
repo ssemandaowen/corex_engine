@@ -34,7 +34,8 @@ jest.mock("@core/services/postgres", () => {
 jest.mock("@core/core/loader/StrategyLoader", () => ({
     invalidate: jest.fn(),
     stop: jest.fn(async () => true),
-    getMeta: jest.fn(() => null)
+    getMeta: jest.fn(() => null),
+    isStartInFlight: jest.fn(() => false)
 }));
 
 jest.mock("corex-broker-contract", () => {
@@ -1257,7 +1258,68 @@ describe("B10 atomic strategy deletion", () => {
     beforeEach(() => {
         runtimeRegistry.clear();
         db.query.mockReset();
+        // Default transaction behaviour: the client shares the query mock, so a
+        // test that replaces it must not leak into the next one.
+        db.withTransaction.mockReset();
+        db.withTransaction.mockImplementation(async (fn) => fn({ query: db.query }));
         loader.invalidate.mockClear();
+        loader.isStartInFlight.mockReturnValue(false);
+    });
+
+    test("a delete during an in-flight start is refused and deletes nothing", async () => {
+        // The start owns nothing yet (it is still loading/compiling), so the
+        // registry and the ledger both look idle. Only the loader knows.
+        loader.isStartInFlight.mockReturnValue(true);
+        const statements = scriptQueries({ strategyRowCount: 1, runtimeRowCount: 1 });
+
+        const res = await invokeDelete({ userId: "u1", entityId: "StartingA" });
+
+        expect(res.statusCode).toBe(403);
+        expect(statements).toHaveLength(0);
+        expect(loader.invalidate).not.toHaveBeenCalled();
+    });
+
+    test("5b. a failure in the second delete rolls the strategy delete back", async () => {
+        // Real transaction semantics for the fake: both deletes land in a
+        // snapshot, and a throw restores it. A route that used two plain
+        // queries would leave the strategy row deleted here.
+        const state = {
+            strategies: ["u1::BothA"],
+            runtimes: ["u1::BothA::EURUSD::PAPER"]
+        };
+        db.withTransaction.mockImplementation(async (fn) => {
+            const snapshot = [...state.strategies, ...state.runtimes];
+            try {
+                return await fn({
+                    query: async (sql, params) => {
+                        const text = String(sql);
+                        if (text.includes("DELETE FROM strategies")) {
+                            state.strategies = state.strategies.filter((n) => n !== params[0]);
+                            return { rowCount: 1 };
+                        }
+                        if (text.includes("DELETE FROM strategy_runtimes")) {
+                            state.runtimes = state.runtimes.filter((n) => n !== params[0]);
+                            throw new Error("deadlock detected");
+                        }
+                        return { rows: [], rowCount: 0 };
+                    }
+                });
+            } catch (err) {
+                state.strategies = snapshot.slice(0, 1);
+                state.runtimes = snapshot.slice(1);
+                throw err;
+            }
+        });
+
+        const res = await invokeDelete({ userId: "u1", entityId: "BothA" });
+
+        expect(res.statusCode).toBe(500);
+        expect(res.body.error).toBe("DELETE_FAILED");
+        // the strategy row survived, so the two tables still agree
+        expect(state.strategies).toEqual(["u1::BothA"]);
+        expect(state.runtimes).toEqual(["u1::BothA::EURUSD::PAPER"]);
+        expect(loader.invalidate).not.toHaveBeenCalled();
+        expect(runtimeRegistry.deletionClaimCount).toBe(0);
     });
 
     /** Make the transactional client answer per statement. */
