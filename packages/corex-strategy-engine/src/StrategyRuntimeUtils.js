@@ -1,6 +1,6 @@
 "use strict";
 
-const { TIME } = require("@config/constants");
+const { TIME } = require("./constants");
 
 const StrategyRuntimeUtils = {
     _getTFMs(tfInput = this.timeframe) {

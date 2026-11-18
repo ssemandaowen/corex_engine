@@ -1,6 +1,6 @@
 "use strict";
 
-const StrategyParamUtils = require("@utils/strategy/StrategyParamUtils");
+const StrategyParamUtils = require("./StrategyParamUtils");
 
 function collectStaticParams(StrategyClass, stopAt) {
     let curr = StrategyClass;
