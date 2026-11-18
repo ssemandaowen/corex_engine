@@ -196,15 +196,59 @@ class MarketFeed {
         let signal = null;
         try {
             const STRATEGY_TIMEOUT_MS = Number(process.env.COREX_STRATEGY_TIMEOUT_MS || 2000);
-            const strategyResult = await Promise.race([
-                Promise.resolve().then(() => instance.onMarketData(packet, context)),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error(
-                        `STRATEGY_TIMEOUT: next() did not return within ${STRATEGY_TIMEOUT_MS}ms. ` +
-                        `Tick dropped. Check for blocking computation in your strategy.`
-                    )), STRATEGY_TIMEOUT_MS)
-                )
-            ]);
+            // Strategy execution is synchronous by contract (package AGENTS.md), but a
+            // never-settling or slow promise must not wedge the live feed. Race the
+            // strategy against a timeout and clear the timer when the strategy settles
+            // so a compliant strategy never leaks a pending timer (roadmap F-1).
+            //
+            // Contract: strategy hooks must resolve synchronously. A hook that settles
+            // after the timeout is a contract violation, not a cancellation: the race
+            // stops waiting but the original promise continues in the background. The
+            // timeout only prevents the feed from hanging indefinitely. A late
+            // settlement from a tick that already timed out is ignored (see the
+            // `completed` flag below) — it must not be processed as a signal, and the
+            // strategy's own state mutation is its own responsibility.
+            let timer = null;
+            let completed = false;
+            const clearTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
+            const timeoutPromise = new Promise((_, reject) => {
+                timer = setTimeout(() => {
+                    if (!completed) {
+                        completed = true;
+                        reject(new Error(
+                            `STRATEGY_TIMEOUT: onMarketData did not settle within ${STRATEGY_TIMEOUT_MS}ms. ` +
+                            `Tick dropped. Check for blocking computation in your strategy.`
+                        ));
+                    }
+                }, STRATEGY_TIMEOUT_MS);
+            });
+            const strategyPromise = Promise.resolve().then(() => instance.onMarketData(packet, context));
+            // Attach handlers that clear the timer on settle AND ignore late
+            // settlements from a tick that already timed out. A timeout does not
+            // cancel the underlying Promise — the strategy can still mutate state
+            // after the feed has moved on — so the feed must not process that late
+            // result as a signal. The strategy's own state mutation is its own
+            // responsibility; strategies are synchronous by contract (package
+            // AGENTS.md), and an async hook is a contract violation.
+            strategyPromise.then(
+                () => {
+                    clearTimer();
+                    if (completed) {
+                        log.warn(`[STRATEGY:${entry.runtimeId}] late onMarketData settlement ignored (tick already timed out)`);
+                        return;
+                    }
+                    completed = true;
+                },
+                () => {
+                    clearTimer();
+                    if (completed) {
+                        log.warn(`[STRATEGY:${entry.runtimeId}] late onMarketData rejection ignored (tick already timed out)`);
+                        return;
+                    }
+                    completed = true;
+                }
+            );
+            const strategyResult = await Promise.race([strategyPromise, timeoutPromise]);
             signal = strategyResult;
         } catch (e) {
             log.error(`[STRATEGY:${entry.runtimeId}] onMarketData threw: ${e.message}`);

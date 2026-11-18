@@ -57,3 +57,11 @@ This document records known failing tests that are deliberately left as an ackno
 - Rollback cleanup is success/failure: a step that fails keeps its collaborator on the entry/reservation and ownership, so the identity stays STOPPING until `terminate()` completes it. Orphan destruction is limited to boots that never committed: `_destroyOrphaned()` destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry. A committed boot that lost its entry destroys nothing further — destruction belongs to whoever owns/removes the entry, so nothing is destroyed twice (only reachable if claims ever expire or go cross-process).
 - `stateController` is still read by the UI status path (`runtimeService.getStatus`/`getAllStatus`) while the registry is authoritative for lifecycle; the two can disagree until that read path is migrated.
 - Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+
+## 9. Legacy `utils/BaseStrategy.js` Still Uses Legacy `utils/strategy/StrategyDataManager.js`
+
+- `utils/BaseStrategy.js` imports `StrategyDataManager` (and other strategy helpers) from `./strategy` — the legacy `utils/strategy/index.js` barrel — instead of the package-owned `packages/corex-strategy-engine/src/StrategyDataManager.js`.
+- The package-owned copy exists at `packages/corex-strategy-engine/src/StrategyDataManager.js` and is used by `packages/corex-strategy-engine/src/Strategy.js`.
+- The legacy `utils/strategy/StrategyDataManager.js` is retained solely because `utils/BaseStrategy.js` still depends on it.
+- Classification: deferred migration. Per AGENTS.md §3.10 (Legacy Code, Shims, and Migration), the legacy copy is a temporary shim. Remove when `utils/BaseStrategy.js` is updated to import the package-owned `StrategyDataManager`.
+- Evidence: `utils/BaseStrategy.js:17-25` (import), `:197` and `:309` (usage).
