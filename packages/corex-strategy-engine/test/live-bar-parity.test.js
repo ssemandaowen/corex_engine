@@ -224,7 +224,7 @@ describe("live-bar-parity (diagnosis)", () => {
         strat.destroy();
     });
 
-    test("T5 MarketFeed: every timer handle is cleared on settle (PERF-1 fixed)", async () => {
+    test("T5 MarketFeed: every allocated timer handle is cleared on settle (PERF-1 fixed)", async () => {
         const { ticks } = buildSeries();
         const MarketFeed = require("@data/src/MarketFeed");
         const entry = {
@@ -240,9 +240,13 @@ describe("live-bar-parity (diagnosis)", () => {
 
         // PERF-1: the old implementation allocated one setTimeout per tick via
         // Promise.race that was never cleared when the strategy resolved first.
-        // The fix clears the timer on settle: every allocated handle must be
-        // matched by a clearTimeout call on the same handle.
-        const setTimeoutSpy = jest.spyOn(global, "setTimeout");
+        // The fix clears the timer on settle. This test verifies handle identity,
+        // not just call counts: every handle returned by setTimeout must appear
+        // as the argument to a clearTimeout call on the same handle.
+        let handleCounter = 0;
+        const setTimeoutSpy = jest.spyOn(global, "setTimeout").mockImplementation(((fn, ms) => {
+            return ++handleCounter;
+        }));
         const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
         try {
             const promises = [];
@@ -250,8 +254,21 @@ describe("live-bar-parity (diagnosis)", () => {
                 promises.push(MarketFeed._feedRuntime(entry, { ...ticks[k % ticks.length] }, { source: "tick" }));
             }
             await Promise.all(promises);
+
+            // Every setTimeout call must be matched by a clearTimeout call.
             expect(setTimeoutSpy).toHaveBeenCalledTimes(1000);
             expect(clearTimeoutSpy).toHaveBeenCalledTimes(1000);
+
+            // Handle identity: the return value of each setTimeout must be the
+            // exact object passed to a clearTimeout call. A count-only assertion
+            // would pass even if different handles were cleared.
+            const allocated = new Set(setTimeoutSpy.mock.results.map(r => r.value));
+            const cleared = new Set(clearTimeoutSpy.mock.calls.map(c => c[0]));
+            expect(allocated.size).toBe(1000);
+            expect(cleared.size).toBe(1000);
+            for (const handle of allocated) {
+                expect(cleared.has(handle)).toBe(true);
+            }
         } finally {
             setTimeoutSpy.mockRestore();
             clearTimeoutSpy.mockRestore();
@@ -444,6 +461,58 @@ describe("live-bar-parity (diagnosis)", () => {
         for (const bar of seenA) expect(bar.symbol).toBe(symA);
         for (const bar of seenB) expect(bar.symbol).toBe(symB);
         strat.destroy();
+    });
+
+    test("T11 MarketFeed: late strategy settlement after timeout does not produce a signal (async-hook safety)", async () => {
+        const { ticks } = buildSeries(1);
+        const MarketFeed = require("@data/src/MarketFeed");
+        const crashCalls = [];
+        MarketFeed.setDeps({
+            registry: { forSymbol: () => [], get: () => null },
+            onStrategyCrash: (runtimeId, error) => crashCalls.push({ runtimeId, message: error.message })
+        });
+        try {
+            let lateResolve = null;
+            const latePromise = new Promise((resolve) => { lateResolve = resolve; });
+            let signalCalls = 0;
+            const entry = {
+                instance: {
+                    onMarketData: () => latePromise,
+                    _syncPositionSnapshot: () => {}
+                },
+                broker: {
+                    onTick: () => {},
+                    getPositionSnapshot: () => ({}),
+                    handle: () => {
+                        signalCalls++;
+                        return { status: "ok" };
+                    }
+                }
+            };
+
+            const original = process.env.COREX_STRATEGY_TIMEOUT_MS;
+            process.env.COREX_STRATEGY_TIMEOUT_MS = "100";
+            try {
+                const r1 = await MarketFeed._feedRuntime(
+                    entry, { ...ticks[0] }, { source: "tick" }
+                );
+                expect(r1).toBeUndefined();
+                // The timeout must fire exactly once and report via onStrategyCrash.
+                expect(crashCalls.length).toBe(1);
+                expect(crashCalls[0].message).toContain("STRATEGY_TIMEOUT");
+                // Feed has already moved on; the late settlement must NOT be
+                // treated as a signal.
+                expect(signalCalls).toBe(0);
+            } finally {
+                if (original === undefined) delete process.env.COREX_STRATEGY_TIMEOUT_MS;
+                else process.env.COREX_STRATEGY_TIMEOUT_MS = original;
+                // Release the dangling promise handle.
+                lateResolve(null);
+            }
+        } finally {
+            MarketFeed._deps = null;
+            MarketFeed._depsInjected = false;
+        }
     });
 
 });

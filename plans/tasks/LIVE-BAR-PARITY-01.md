@@ -2,8 +2,8 @@
 
 **Worktree:** `C:\Users\SBUM\Desktop\corex_diag_livebar`
 **Branch:** `diag/live-bar-parity` (pushed to `origin/diag/live-bar-parity`)
-**Commit:** `1617bbd` — `fix(strategy): restore live closed-bar parity`
-**Base:** `6d35335b81caaee538b7997b6106d10b276b8995` (B9: recovery must not restart a runtime the user stopped)
+**Commit:** `c5c93ff` — `fix(strategy): strengthen parity tests T5/T10, finalize docs`
+**Base:** `574fa7b` (B10: keep desired runtime state consistent with the strategy registry); branch merged main via `c5c93ff^` (no force-push)
 **Status:** committed and pushed; PR #74 open (draft); awaiting review
 **Origin:** read-only investigation (LIVE-BAR-PARITY-01) confirmed three bugs on baseline; this task resolves ownership and verification gaps.
 
@@ -75,21 +75,23 @@ Three defects in the live/paper bar pipeline diverge from backtest behavior:
 - [x] T2: `onBar` receives complete closed candle OHLC, never raw tick (10/10 pass).
 - [x] T3: Live EMA matches backtest EMA at every bar, full parity (10/10 pass).
 - [x] T4: Each tick aggregated exactly once via `updateTick` (10/10 pass).
-- [x] T5: every `setTimeout` call is matched by a `clearTimeout` call across 1,000 awaited feed operations (10/10 pass).
+- [x] T5: every `setTimeout` call is matched by a `clearTimeout` call across 1,000 awaited feed operations; every allocated handle is cleared on settle, and handle identity is verified (each `setTimeout` return value is the exact object passed to a `clearTimeout` call) (10/10 pass).
 - [x] T6: `candleBased: true` → `onBar` only; `candleBased: false` → `onTick` every tick (10/10 pass).
 - [x] T7: never-settling strategy promise triggers `onStrategyCrash` with `STRATEGY_TIMEOUT` (10/10 pass).
 - [x] T8: rejected strategy promise triggers `onStrategyCrash` with the rejection reason (10/10 pass).
 - [x] T9: late-settling promise does not wedge subsequent ticks (10/10 pass).
-- [x] T10: closed candle carries its `symbol`; multi-symbol parity holds (10/10 pass).
-- [x] Existing `Strategy.test.js`: 7/7 pass, no regressions.
+- [x] T10: closed candle carries its `symbol`; interleaved multi-symbol parity holds (EURUSD/GBPUSD ticks interleaved so both active candles coexist) (10/10 pass).
+- [x] T11: late strategy settlement after timeout does not produce a signal; async-hook safety verified (10/10 pass).
+- [x] Existing `Strategy.test.js`: 7/7 pass, no regressions (re-verified after merge with main).
 - [x] `git diff --check` clean (no whitespace errors).
-- [x] Committed as `1617bbd` on `diag/live-bar-parity`; pushed to `origin/diag/live-bar-parity`; PR #74 open (draft).
+- [x] Branch reconciled with main (B10 `574fa7b` merged; no force-push; 11/11 parity tests still pass post-merge).
+- [x] Committed as `c5c93ff` on `diag/live-bar-parity`; pushed to `origin/diag/live-bar-parity`; PR #74 open (draft).
 
 ## 6. Verification evidence
 
 | Command | Result |
 |---------|--------|
-| `jest --runTestsByPath packages/corex-strategy-engine/test/live-bar-parity.test.js --runInBand --forceExit` | 10 suites / 10 tests pass |
+| `jest --runTestsByPath packages/corex-strategy-engine/test/live-bar-parity.test.js --runInBand --forceExit` | 11 suites / 11 tests pass |
 | `jest --runTestsByPath packages/corex-strategy-engine/test/Strategy.test.js --runInBand --forceExit` | 1 suite / 7 tests pass (no regressions) |
 | `node --check utils/strategy/StrategyDataManager.js` | pass |
 | `node --check packages/corex-strategy-engine/src/StrategyDataManager.js` | pass |
@@ -102,10 +104,10 @@ Not run: full project suite (targeted tests only); SoACandleStore benchmark test
 ## 7. Remaining risks
 
 - Behaviour change: strategies defining only `onTick` with default `candleBased: true` stop being called. Mitigated by one-time cold-path `log.warn`. Zero DB strategies affected (`Rapid` = `onBar`, `demo` = legacy `next()`).
-- PERF-1: the strategy promise is now raced against a timeout with `clearTimer` called via `then(clearTimer, clearTimer)` on settle. A never-settling strategy promise triggers `onStrategyCrash` with `STRATEGY_TIMEOUT` instead of wedging the tick loop. Rejection-safe cleanup prevents an unhandled rejection from the cleanup promise. Acceptable because strategies are synchronous by contract (package `AGENTS.md`). The timeout prevents the feed from hanging but does not cancel the original promise.
+- PERF-1 / async-hook safety: the strategy promise is now raced against a timeout with `clearTimer` called via `then(clearTimer, clearTimer)` on settle. A never-settling or slow strategy promise triggers `onStrategyCrash` with `STRATEGY_TIMEOUT` instead of wedging the tick loop. Rejection-safe cleanup prevents an unhandled rejection from the cleanup promise. Acceptable because strategies are synchronous by contract (package `AGENTS.md`). The timeout prevents the feed from hanging but does not cancel the original promise; a late settlement from a tick that already timed out is ignored (via the `completed` flag) and must not be processed as a signal — the strategy's own state mutation is its own responsibility. Verified by T5 (handle identity) and T11 (late settlement ignored).
 - `utils/BaseStrategy.js` retains the same BUG-1/BUG-2 defects (deferred, documented in KNOWN_ISSUES.md).
 - `SignalGenerationEngine.js` retains the dead-code duplicate (0 callers, slated for removal).
 
 ## 8. Handoff
 
-Commit `1617bbd` pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Awaiting review verdict.
+Commit `c5c93ff` pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Awaiting review verdict.

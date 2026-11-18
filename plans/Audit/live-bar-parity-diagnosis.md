@@ -3,14 +3,14 @@
 > Branch: `diag/live-bar-parity` (worktree `corex_diag_livebar`)
 > Date: 2026-11-18
 > Baseline: `6d35335b81caaee538b7997b6106d10b276b8995` (B9: recovery must not restart a runtime the user stopped).
-> `origin/main` is `574fa7b` (B10), one commit ahead of the baseline.
-> Status: All three bugs fixed and verified. Changes are **committed** as `1617bbd` on `diag/live-bar-parity` and pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Not merged.
+> `origin/main` is `574fa7b` (B10: keep desired runtime state consistent with the strategy registry); branch merged main at `c5c93ff` (no force-push).
+> Status: All three bugs fixed and verified. Changes are **committed** as `c5c93ff` on `diag/live-bar-parity` and pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Not merged.
 
 ## Summary
 
 All three parity bugs are **fixed and verified**. `packages/corex-strategy-engine/test/live-bar-parity.test.js`
 goes from **failing pre-fix** (T1 and T2 confirmed failing on baseline) to **10 / 10 pass** post-fix. The existing
-`packages/corex-strategy-engine/test/Strategy.test.js` (7 tests) also passes — no regressions.
+`packages/corex-strategy-engine/test/Strategy.test.js` (7 tests) also passes — no regressions (re-verified after merge with main).
 
 | ID | Bug | Verdict | Fix |
 |----|-----|---------|-----|
@@ -29,10 +29,22 @@ goes from **failing pre-fix** (T1 and T2 confirmed failing on baseline) to **10 
   Mid-bar ticks return early (no indicator update). Added cold-path `log.warn` when a strategy
   defines only `onTick` while `candleBased` is true (the default). Import changed from
   `@utils/strategy/StrategyDataManager` to `./StrategyDataManager` (package-owned).
-- `packages/corex-market-data/src/MarketFeed.js` — `_feedRuntime` no longer schedules a
-  `setTimeout` per tick via `Promise.race`; calls the strategy directly and measures elapsed time,
-  logging a warning if it exceeds `COREX_STRATEGY_TIMEOUT_MS`.
-- `packages/corex-strategy-engine/test/live-bar-parity.test.js` (new) — 6 regression tests (T1–T6).
+- `packages/corex-market-data/src/MarketFeed.js` — `_feedRuntime` no longer leaks a per-tick `setTimeout`.
+  The strategy promise is now raced against a timeout and the timer is cleared on settle via
+  `then(clearTimer, clearTimer)` (rejection-safe — no unhandled rejection from the cleanup promise).
+  A `completed` flag prevents a late settlement from a tick that already timed out from being
+  processed as a signal: a timeout does not cancel the underlying Promise, so the strategy can
+  still mutate state after the feed has moved on, and the feed must not treat that late result
+  as a signal. The strategy's own state mutation is its own responsibility; strategies are
+  synchronous by contract (package `AGENTS.md`), and an async hook is a contract violation.
+- `packages/corex-strategy-engine/test/live-bar-parity.test.js` (new) — 11 regression tests (T1–T11), strengthened:
+  T3 full live-vs-backtest indicator parity, T5 awaits all 1,000 feed operations and asserts every
+  `setTimeout` handle is matched by a `clearTimeout` call on the **same handle** (handle identity,
+  not just call counts), T7 never-settling promise triggers `onStrategyCrash` with `STRATEGY_TIMEOUT`,
+  T8 rejected promise triggers `onStrategyCrash` with the rejection reason, T9 late-settling promise
+  does not wedge subsequent ticks, T10 interleaved EURUSD/GBPUSD ticks so both active candles coexist
+  and each closed candle carries its `symbol`, T11 late strategy settlement after timeout does not
+  produce a signal (async-hook safety).
 
 ## Duplicate StrategyDataManager discovery and resolution
 
@@ -80,10 +92,15 @@ does not require SoACandleStore changes).
    user-supplied strategies may be affected. Mitigated by a one-time cold-path warning.
 2. **Re-tuning:** indicators now receive the closed candle's `close` once per bar, matching
    backtest. Strategies tuned against the buggy live values will behave differently.
-3. **PERF-1 trade-off:** removing the timer removes the guard against a strategy returning a
-   never-settling promise (today: `STRATEGY_TIMEOUT` → `onStrategyCrash`; after: the tick loop
-   would hang). Acceptable because strategies are synchronous by contract (package `AGENTS.md`).
-   Unrelated unguarded awaits (`broker.onTick`, `broker.handle`) are unchanged.
+3. **PERF-1 / async-hook safety:** the strategy promise is now raced against a timeout with `clearTimer`
+   called on settle. A never-settling or slow strategy promise triggers `onStrategyCrash` with
+   `STRATEGY_TIMEOUT` instead of wedging the tick loop. Acceptable because strategies are synchronous
+   by contract (package `AGENTS.md`). The timeout prevents the feed from hanging but does not cancel
+   the original promise; a late settlement from a tick that already timed out is ignored (via the
+   `completed` flag) and must not be processed as a signal — the strategy's own state mutation is its
+   own responsibility. Compliant strategies never leak a pending timer (T5 verifies 1,000 ticks:
+   every `setTimeout` handle is matched by a `clearTimeout` call on the **same handle**). T11 verifies
+   that a late settlement after timeout does not produce a signal.
 
 ## Explicitly NOT in scope
 
@@ -102,4 +119,4 @@ node node_modules/jest/bin/jest.js --runTestsByPath \
   packages/corex-strategy-engine/test/live-bar-parity.test.js --runInBand --forceExit
 ```
 
-Result: **6 / 6 pass**. Existing `Strategy.test.js`: **7 / 7 pass** (no regressions).
+Result: **11 / 11 pass**. Existing `Strategy.test.js`: **7 / 7 pass** (no regressions, re-verified after merge with main).
