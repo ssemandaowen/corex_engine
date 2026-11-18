@@ -216,6 +216,7 @@ class MarketFeed {
             const strategyPromise = Promise.resolve().then(() => instance.onMarketData(packet, context));
             strategyPromise.then(clearTimer, clearTimer);
             const strategyResult = await Promise.race([strategyPromise, timeoutPromise]);
+            clearTimer();
             signal = strategyResult;
         } catch (e) {
             log.error(`[STRATEGY:${entry.runtimeId}] onMarketData threw: ${e.message}`);

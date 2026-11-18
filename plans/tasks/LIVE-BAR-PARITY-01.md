@@ -2,7 +2,7 @@
 
 **Worktree:** `C:\Users\SBUM\Desktop\corex_diag_livebar`
 **Branch:** `diag/live-bar-parity` (pushed to `origin/diag/live-bar-parity`)
-**Commit:** `a738c1d` — `fix(strategy): restore live closed-bar parity`
+**Commit:** `1617bbd` — `fix(strategy): restore live closed-bar parity`
 **Base:** `6d35335b81caaee538b7997b6106d10b276b8995` (B9: recovery must not restart a runtime the user stopped)
 **Status:** committed and pushed; PR #74 open (draft); awaiting review
 **Origin:** read-only investigation (LIVE-BAR-PARITY-01) confirmed three bugs on baseline; this task resolves ownership and verification gaps.
@@ -83,7 +83,7 @@ Three defects in the live/paper bar pipeline diverge from backtest behavior:
 - [x] T10: closed candle carries its `symbol`; multi-symbol parity holds (10/10 pass).
 - [x] Existing `Strategy.test.js`: 7/7 pass, no regressions.
 - [x] `git diff --check` clean (no whitespace errors).
-- [x] Committed as `a738c1d` on `diag/live-bar-parity`; pushed to `origin/diag/live-bar-parity`; PR #74 open (draft).
+- [x] Committed as `1617bbd` on `diag/live-bar-parity`; pushed to `origin/diag/live-bar-parity`; PR #74 open (draft).
 
 ## 6. Verification evidence
 
@@ -108,4 +108,4 @@ Not run: full project suite (targeted tests only); SoACandleStore benchmark test
 
 ## 8. Handoff
 
-Commit `a738c1d` pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Awaiting review verdict.
+Commit `1617bbd` pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Awaiting review verdict.

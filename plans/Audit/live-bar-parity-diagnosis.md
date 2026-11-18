@@ -4,19 +4,19 @@
 > Date: 2026-11-18
 > Baseline: `6d35335b81caaee538b7997b6106d10b276b8995` (B9: recovery must not restart a runtime the user stopped).
 > `origin/main` is `574fa7b` (B10), one commit ahead of the baseline.
-> Status: All three bugs fixed and verified. Changes are **uncommitted** on the local worktree branch only — not pushed, not merged.
+> Status: All three bugs fixed and verified. Changes are **committed** as `1617bbd` on `diag/live-bar-parity` and pushed to `origin/diag/live-bar-parity`. PR #74 open (draft). Not merged.
 
 ## Summary
 
 All three parity bugs are **fixed and verified**. `packages/corex-strategy-engine/test/live-bar-parity.test.js`
-goes from **failing pre-fix** (T1 and T2 confirmed failing on baseline) to **6 / 6 pass** post-fix. The existing
+goes from **failing pre-fix** (T1 and T2 confirmed failing on baseline) to **10 / 10 pass** post-fix. The existing
 `packages/corex-strategy-engine/test/Strategy.test.js` (7 tests) also passes — no regressions.
 
 | ID | Bug | Verdict | Fix |
 |----|-----|---------|-----|
 | BUG-1 | `onBar` never fires on a bar-closing tick (live/tick path) | **FIXED** | `Strategy.js:_processData` dispatches closed candle as bar event |
-| BUG-2 | Indicators fed the new bar's first tick, not the closed candle | **FIXED** | `updateTick` returns closed candle; `_processData` feeds it to indicators |
-| PERF-1 (roadmap **F-1**) | Per-tick `setTimeout` leak in `MarketFeed._feedRuntime` | **FIXED** | Timer removed; elapsed time measured instead |
+| BUG-2 | Indicators fed the new bar's first tick, not the closed candle | **FIXED** | `updateTick` returns closed candle (with `symbol`); `_processData` feeds it to indicators |
+| PERF-1 (roadmap **F-1**) | Per-tick `setTimeout` leak in `MarketFeed._feedRuntime` | **FIXED** | Strategy promise raced against timeout; timer cleared on settle via `then(clearTimer, clearTimer)` |
 
 ## Files changed
 

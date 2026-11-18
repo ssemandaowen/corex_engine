@@ -67,10 +67,29 @@ function buildSeries(numBars = NUM_BARS, symbol = SYMBOL) {
     return { ticks, closedBars: numBars, totalTicks: ticks.length };
 }
 
+function buildBars(numBars = NUM_BARS, symbol = SYMBOL) {
+    const bars = [];
+    const base = 3600000;
+    for (let b = 0; b < numBars; b++) {
+        const barStart = base + b * TF_MS;
+        const close = 1.1000 + b * 0.0010 + 2 * 0.0001; // matches live bar-b tick-2 price
+        bars.push({
+            symbol,
+            time: barStart,
+            open: 1.1000 + b * 0.0010,
+            high: close,
+            low: 1.1000 + b * 0.0010,
+            close,
+            volume: 30
+        });
+    }
+    return bars;
+}
+
 /**
  * Build complete bar packets (source:"bar") matching the close prices of buildSeries.
  */
-function buildBars(numBars = NUM_BARS) {
+function buildBarsLegacy(numBars = NUM_BARS) {
     const bars = [];
     const base = 3600000;
     for (let b = 0; b < numBars; b++) {
@@ -138,8 +157,9 @@ describe("live-bar-parity (diagnosis)", () => {
     });
 
     test("T3 live vs backtest indicator parity (BUG-2 fixed)", () => {
-        const { ticks } = buildSeries();
-        const bars = buildBars();
+        const sym = "EURUSD";
+        const { ticks } = buildSeries(5, sym);
+        const bars = buildBars(5, sym);
 
         // ---- live path: tick-by-tick, onBar fires on bar close ----
         const liveEma = [];
@@ -152,7 +172,7 @@ describe("live-bar-parity (diagnosis)", () => {
                 return null;
             }
         }
-        const liveStrat = new LiveEmaStrategy({ symbols: [SYMBOL], timeframe: TIMEFRAME });
+        const liveStrat = new LiveEmaStrategy({ symbols: [sym], timeframe: TIMEFRAME });
         for (const tick of ticks) {
             liveStrat.onMarketData({ ...tick }, { source: "tick" });
         }
@@ -160,7 +180,7 @@ describe("live-bar-parity (diagnosis)", () => {
         // ---- backtest path: whole bars, onBar fires per bar ----
         const btEma = [];
         class BtEmaStrategy extends Strategy {
-            static symbols = [SYMBOL];
+            static symbols = [sym];
             static timeframe = TIMEFRAME;
             static indicators = { ema: { type: "EMA", period: 3, source: "close" } };
             onBar(ctx) {
@@ -168,7 +188,7 @@ describe("live-bar-parity (diagnosis)", () => {
                 return null;
             }
         }
-        const btStrat = new BtEmaStrategy({ symbols: [SYMBOL], timeframe: TIMEFRAME });
+        const btStrat = new BtEmaStrategy({ symbols: [sym], timeframe: TIMEFRAME });
         for (const bar of bars) {
             btStrat.onMarketData({ ...bar }, { source: "bar" });
         }
@@ -190,11 +210,12 @@ describe("live-bar-parity (diagnosis)", () => {
     });
 
     test("T4 live: each tick aggregated exactly once", () => {
-        const { ticks } = buildSeries();
+        const sym = "EURUSD";
+        const { ticks } = buildSeries(5, sym);
         const StrategyDataManager = require("../src/StrategyDataManager");
         const calls = [];
         const spy = jest.spyOn(StrategyDataManager.prototype, "updateTick");
-        const strat = new Strategy({ symbols: [SYMBOL], timeframe: TIMEFRAME });
+        const strat = new Strategy({ symbols: [sym], timeframe: TIMEFRAME });
         for (const tick of ticks) {
             strat.onMarketData({ ...tick }, { source: "tick" });
         }
@@ -203,7 +224,7 @@ describe("live-bar-parity (diagnosis)", () => {
         strat.destroy();
     });
 
-    test("T5 MarketFeed: every timer is cleared on settle (PERF-1 fixed)", async () => {
+    test("T5 MarketFeed: every timer handle is cleared on settle (PERF-1 fixed)", async () => {
         const { ticks } = buildSeries();
         const MarketFeed = require("@data/src/MarketFeed");
         const entry = {
@@ -219,8 +240,8 @@ describe("live-bar-parity (diagnosis)", () => {
 
         // PERF-1: the old implementation allocated one setTimeout per tick via
         // Promise.race that was never cleared when the strategy resolved first.
-        // The fix clears the timer on settle: every setTimeout call must be
-        // matched by a clearTimeout call, so no pending timers remain.
+        // The fix clears the timer on settle: every allocated handle must be
+        // matched by a clearTimeout call on the same handle.
         const setTimeoutSpy = jest.spyOn(global, "setTimeout");
         const clearTimeoutSpy = jest.spyOn(global, "clearTimeout");
         try {
@@ -238,26 +259,27 @@ describe("live-bar-parity (diagnosis)", () => {
     });
 
     test("T6 contract: candleBased true dispatches onBar only; candleBased false dispatches onTick", () => {
-        const { ticks } = buildSeries(2);
+        const sym = "EURUSD";
+        const { ticks } = buildSeries(2, sym);
 
         // candleBased defaults to true: onTick must never run (and no onBar defined)
         const tickCalls = [];
         class TickOnly extends Strategy {
-            static symbols = [SYMBOL];
+            static symbols = [sym];
             static timeframe = TIMEFRAME;
             onTick(ctx, tick) {
                 tickCalls.push(tick.time);
                 return null;
             }
         }
-        const candleMode = new TickOnly({ symbols: [SYMBOL], timeframe: TIMEFRAME });
+        const candleMode = new TickOnly({ symbols: [sym], timeframe: TIMEFRAME });
         for (const tick of ticks) candleMode.onMarketData({ ...tick }, { source: "tick" });
         expect(tickCalls.length).toBe(0);
         candleMode.destroy();
 
         // candleBased: false restores tick semantics: one onTick per tick
         tickCalls.length = 0;
-        const tickMode = new TickOnly({ symbols: [SYMBOL], timeframe: TIMEFRAME, candleBased: false });
+        const tickMode = new TickOnly({ symbols: [sym], timeframe: TIMEFRAME, candleBased: false });
         for (const tick of ticks) tickMode.onMarketData({ ...tick }, { source: "tick" });
         expect(tickCalls.length).toBe(ticks.length);
         tickMode.destroy();
@@ -388,11 +410,20 @@ describe("live-bar-parity (diagnosis)", () => {
         }
     });
 
-    test("T10 closed candle carries its symbol (multi-symbol parity)", () => {
+    test("T10 closed candle carries its symbol (multi-symbol parity, interleaved)", () => {
         const symA = "EURUSD";
         const symB = "GBPUSD";
         const a = buildSeries(3, symA);
         const b = buildSeries(3, symB);
+
+        // Interleave ticks from both symbols so the candle store sees
+        // both active candles simultaneously.
+        const interleaved = [];
+        const maxLen = Math.max(a.ticks.length, b.ticks.length);
+        for (let i = 0; i < maxLen; i++) {
+            if (i < a.ticks.length) interleaved.push({ ...a.ticks[i] });
+            if (i < b.ticks.length) interleaved.push({ ...b.ticks[i] });
+        }
 
         const seenA = [];
         const seenB = [];
@@ -406,8 +437,7 @@ describe("live-bar-parity (diagnosis)", () => {
             }
         }
         const strat = new SymStrategy({ symbols: [symA, symB], timeframe: TIMEFRAME });
-        for (const tick of a.ticks) strat.onMarketData({ ...tick }, { source: "tick" });
-        for (const tick of b.ticks) strat.onMarketData({ ...tick }, { source: "tick" });
+        for (const tick of interleaved) strat.onMarketData({ ...tick }, { source: "tick" });
 
         expect(seenA.length).toBe(a.closedBars);
         expect(seenB.length).toBe(b.closedBars);
