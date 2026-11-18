@@ -291,7 +291,13 @@ router.delete("/:id", async (req, res) => {
         (runtime) => runtime.userId === userId || runtime.userId === "system"
     );
 
-    if (ownsAnyRuntime().length > 0 || isStrategyBusy(id)) {
+    // A start owns nothing until it reserves its runtime identity (it loads and
+    // compiles the strategy first), so an in-flight start is invisible to the
+    // registry. Deleting under it would commit while that start is mid-boot and
+    // let the runtime come up against a strategy row that no longer exists.
+    const startInFlight = typeof loader.isStartInFlight === "function" && loader.isStartInFlight(id);
+
+    if (ownsAnyRuntime().length > 0 || isStrategyBusy(id) || startInFlight) {
         return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
     }
 
@@ -316,14 +322,45 @@ router.delete("/:id", async (req, res) => {
     }
 
     try {
-        const { rowCount } = await db.query(
-            "DELETE FROM strategies WHERE name = $1",
-            [id]
-        );
-        if (rowCount === 0) return res.status(404).json({ success: false, error: "Strategy not found" });
+        // The strategy row and its desired-state rows are one commit: deleting
+        // the strategy while leaving strategy_runtimes ACTIVE would make a later
+        // re-registration of the same name start by itself on the next boot.
+        // strategy_runtimes has no FK, so nothing else would remove those rows.
+        // Nothing may be committed unless the strategy row was actually deleted:
+        // a missing strategy throws, which rolls the whole transaction back.
+        const NOT_FOUND = Symbol("strategy_not_found");
+        let result;
+        try {
+            result = await db.withTransaction(async (client) => {
+                const { rowCount } = await client.query(
+                    "DELETE FROM strategies WHERE name = $1",
+                    [id]
+                );
+
+                if (rowCount === 0) throw NOT_FOUND;
+
+                // A strategy that never had a runtime row deletes zero rows here.
+                const runtimes = await client.query(
+                    "DELETE FROM strategy_runtimes WHERE strategy_name = $1",
+                    [id]
+                );
+                return { runtimesDeleted: runtimes.rowCount || 0 };
+            });
+        } catch (err) {
+            if (err === NOT_FOUND) {
+                return res.status(404).json({ success: false, error: "Strategy not found" });
+            }
+            throw err;
+        }
 
         loader.invalidate(id);
-        emitUserLog(req, `Strategy deleted: ${req.params.id}`);
+        emitUserLog(
+            req,
+            `Strategy deleted: ${req.params.id}` +
+            (result.runtimesDeleted
+                ? ` (${result.runtimesDeleted} runtime record(s) removed)`
+                : "")
+        );
         res.json({ success: true, message: "Purged." });
     } catch (err) {
         res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });

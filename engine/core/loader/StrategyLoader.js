@@ -70,6 +70,18 @@ class StrategyLoader {
     }
 
     /**
+     * True while a start for this strategy is still initializing.
+     *
+     * A start owns nothing until it reserves its runtime identity, so an
+     * in-flight start is invisible to the registry. Callers that are about to
+     * make the strategy unreachable (delete) must treat it as busy.
+     * @param {string} id
+     */
+    isStartInFlight(id) {
+        return bootloader.isStartInFlight(id);
+    }
+
+    /**
      * Drop a cached metadata entry (e.g. after rename/delete) so a stale
      * compile result under the old id isn't served again.
      * @param {string} id

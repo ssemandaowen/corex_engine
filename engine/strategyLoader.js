@@ -252,10 +252,55 @@ async function _ensureCompiled(id, meta) {
     return compiled;
 }
 
+/**
+ * Reconcile desired-state rows whose strategy no longer exists.
+ *
+ * `strategy_runtimes` has no foreign key onto `strategies`, so deleting a
+ * strategy leaves its ACTIVE rows behind. Restore reads exactly those rows, so
+ * every boot retried a start that can only fail ("not found in DB") and the
+ * orphan stayed ACTIVE forever — and would start by itself again if the name
+ * were ever re-registered.
+ *
+ * Rows are marked STOPPED, which is what restore already ignores, so this is
+ * the smallest change that stops the retry loop without deleting history.
+ * Only orphans are touched: a row whose strategy exists is never modified.
+ */
+async function _reconcileOrphanedRuntimeStates() {
+    if (!db.hasDbConfig()) return { reconciled: 0, runtimeIds: [] };
+    try {
+        const { rows } = await db.query(
+            `UPDATE strategy_runtimes
+                SET actual_state = 'STOPPED', updated_at = NOW()
+              WHERE actual_state = 'ACTIVE'
+                AND NOT EXISTS (
+                    SELECT 1 FROM strategies s WHERE s.name = strategy_runtimes.strategy_name
+                )
+              RETURNING runtime_id, strategy_name`
+        );
+        const reconciled = rows || [];
+        if (reconciled.length) {
+            log.warn(
+                `[RESTORE] Reconciled ${reconciled.length} orphaned desired-state row(s) ` +
+                `(strategy no longer exists): ${reconciled.map(r => r.runtime_id).join(', ')}`
+            );
+        }
+        return { reconciled: reconciled.length, runtimeIds: reconciled.map(r => r.runtime_id) };
+    } catch (err) {
+        // Never block restoration because reconciliation failed: the worst case
+        // is the previous behaviour (a failed restore attempt per orphan).
+        log.warn(`[RESTORE] Orphan reconciliation failed: ${err.message}`);
+        return { reconciled: 0, runtimeIds: [], error: err.message };
+    }
+}
+
 async function _restoreDesiredRuntimeStates() {
     if (!db.hasDbConfig()) return;
     if (_envFalse(process.env.COREX_RESTORE_ON_BOOT)) return;
     try {
+        // Reconcile first: an orphaned ACTIVE row can never be restored, so it
+        // must not reach the restore loop (and must not be retried every boot).
+        await _reconcileOrphanedRuntimeStates();
+
         // strategy_runtimes holds one row per runtime that was actually
         // ACTIVE (strategy + symbol + mode + params) — restore exactly
         // that set. No guessing a symbol, no loading every strategy.
@@ -526,6 +571,18 @@ async function startStrategy(id, options = {}) {
     }
 }
 
+/**
+ * True while a start for this strategy id is still running.
+ *
+ * A start reserves its runtime identity only after loading and compiling the
+ * strategy, so until then the registry cannot see it. Anything that would make
+ * the strategy unreachable (a delete) has to treat it as busy, otherwise the
+ * start would finish against a strategy row that no longer exists.
+ */
+function isStartInFlight(id) {
+    return _startInFlight.has(String(id || '').trim());
+}
+
 async function stopStrategy(id, options = {}) {
     const userId = options.userId || parseScopedId(id).userId || 'system';
     // The frontend may send either the scoped id (userId::strategyName) or the
@@ -689,6 +746,7 @@ module.exports = {
     bootStrategy,
     reloadStrategy,
     startStrategy,
+    isStartInFlight,
     stopStrategy,
     getStopRequestSeq,
     getStrategy,
