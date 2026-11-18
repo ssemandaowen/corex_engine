@@ -2,19 +2,18 @@
 
 > Status: Active
 > Applies to: every human or automated contributor
-> Authority: subordinate to Owen's latest explicit decision and `plans/COREX_DEVELOPMENT_PLAN.md`
+> Authority: subordinate to Owen's latest explicit decision. `plans/ROADMAP.md` is the sole active planning authority.
 
 ## 1. Sources of truth
 
 Read these in order before acting:
 
-1. `AGENTS.md` and `SKILLS.md` — repository-wide rules.
-2. `plans/COREX_DEVELOPMENT_PLAN.md` — phases, priorities, task dependencies and approval gates.
-3. `plans/STATUS.md` — current task ownership, state, branch and handoff pointer.
-4. The selected `plans/tasks/<TASK-ID>*.md` — exact scope, non-goals and acceptance criteria.
-5. Relevant package instructions, `plans/decisions.md`, known issues and audit evidence.
+1. `AGENTS.md` and `SKILLS.md` — repository-wide rules and protected boundaries.
+2. `plans/ROADMAP.md` — the sole active source for priorities, dependencies, workstream status, approval gates, and current handoff.
+3. The selected `plans/tasks/<TASK-ID>*.md` — exact scope, non-goals, acceptance criteria, owner, branch, evidence, and next action.
+4. Relevant package `AGENTS.md` files, `plans/decisions.md`, `plans/KNOWN_ISSUES.md`, and linked evidence.
 
-The roadmap defines *what and when*. The task file defines *the bounded work*. STATUS defines *who currently owns it and where it stands*. This workflow defines *how contributors coordinate*.
+`plans/ROADMAP.md` defines *what and when*. A task file defines *the bounded work and handoff*. `plans/STATUS.md` is superseded and retained for history only; do not update it. `plans/COREX_DEVELOPMENT_PLAN.md` is historical/superseded; do not use it as the active task authority. This workflow defines *how contributors coordinate*.
 
 Do not use old chat messages, PR descriptions, `plans/to_do.md`, or stale branch notes as authorization to start work.
 
@@ -130,10 +129,10 @@ Owen approves new priorities and any scope that changes roadmap order or protect
 ## 10. Roles
 
 - **Owen:** product owner and final authority for priorities, scope, architecture and protected decisions.
-- **ChatGPT:** roadmap steward, task definition, cross-layer analysis and independent acceptance review.
-- **Kilo Code:** primary repository investigation, controlled implementation and integration owner unless Owen assigns otherwise.
-- **Jules:** bounded implementation or independent audits against approved task specifications; read-only when another agent owns the write.
-- **Claude:** independent design challenge, logic review and risk analysis.
+- **ChatGPT:** roadmap steward; directly inspect connected GitHub files, PRs and diffs; reconcile project state; trace cross-layer ownership; define tasks; review code and run checks where an execution environment is available. Do not delegate read-only GitHub work to Kilo by default.
+- **Kilo Code:** primary local-worktree implementation and local test execution on Owen's Windows machine; use the existing task branch/worktree and preserve user changes.
+- **Jules:** bounded implementation only when assigned an approved task; read-only when another agent owns the write.
+- **Claude:** selective independent design challenge for high-risk changes, not a mandatory review loop for every small task.
 - **Any other agent:** must follow the same task claim, scope, branch and handoff rules.
 
 These are default responsibilities, not permission to override a task's explicit owner.
