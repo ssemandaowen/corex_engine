@@ -5,7 +5,7 @@
 **Implementation worktree:** C:\Users\SBUM\Desktop\corex_diag_livebar
 **Branch:** diag/live-bar-parity (local only; no remote branch)
 **Last verified HEAD:** 6d35335b81caaee538b7997b6106d10b276b8995 (B9 baseline; implementation changes remain uncommitted)
-**Current main at handoff:** 574fa7b45650805c303c95a47be510353acf199c2 (B10)
+**Current main at handoff:** 574fa7b45650805c303c95a47be510353acf199c (B10)
 
 ## 1. Outcome
 
