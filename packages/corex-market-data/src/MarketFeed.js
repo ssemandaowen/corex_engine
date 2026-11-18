@@ -196,15 +196,26 @@ class MarketFeed {
         let signal = null;
         try {
             const STRATEGY_TIMEOUT_MS = Number(process.env.COREX_STRATEGY_TIMEOUT_MS || 2000);
-            const strategyResult = await Promise.race([
-                Promise.resolve().then(() => instance.onMarketData(packet, context)),
-                new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error(
-                        `STRATEGY_TIMEOUT: next() did not return within ${STRATEGY_TIMEOUT_MS}ms. ` +
-                        `Tick dropped. Check for blocking computation in your strategy.`
-                    )), STRATEGY_TIMEOUT_MS)
-                )
-            ]);
+            // Strategy execution is synchronous by contract (package AGENTS.md), but a
+            // never-settling or slow promise must not wedge the live feed. Race the
+            // strategy against a timeout and clear the timer when the strategy settles
+            // so a compliant strategy never leaks a pending timer (roadmap F-1).
+            //
+            // Contract: strategy hooks must resolve synchronously. A hook that settles
+            // after the timeout is a contract violation, not a cancellation: the race
+            // stops waiting but the original promise continues in the background. The
+            // timeout only prevents the feed from hanging indefinitely.
+            let timer = null;
+            const clearTimer = () => { if (timer) { clearTimeout(timer); timer = null; } };
+            const timeoutPromise = new Promise((_, reject) => {
+                timer = setTimeout(() => reject(new Error(
+                    `STRATEGY_TIMEOUT: onMarketData did not settle within ${STRATEGY_TIMEOUT_MS}ms. ` +
+                    `Tick dropped. Check for blocking computation in your strategy.`
+                )), STRATEGY_TIMEOUT_MS);
+            });
+            const strategyPromise = Promise.resolve().then(() => instance.onMarketData(packet, context));
+            strategyPromise.then(clearTimer, clearTimer);
+            const strategyResult = await Promise.race([strategyPromise, timeoutPromise]);
             signal = strategyResult;
         } catch (e) {
             log.error(`[STRATEGY:${entry.runtimeId}] onMarketData threw: ${e.message}`);

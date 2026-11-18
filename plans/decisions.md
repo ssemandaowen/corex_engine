@@ -498,3 +498,20 @@ Decision:
 Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped â€” a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
 
 Consequence: a stop request is now an observable intent rather than an inference. Cost: one Map entry per stopped runtime (small, bounded by runtimes), plus a counter read on each recovery attempt. No change to `terminate` semantics, the STOPPED ledger flow or the recovery schedule. Evidence: `plans/tasks/B9.md`, `test/engine-recovery.test.js` T12/T12b (T12 fails on `da7dfd6` with 1 start call, passes with the fix).
+
+---
+
+**[2026-11-17 21:40] Feature: Live/backtest bar-pipeline parity (BUG-1 + BUG-2 + PERF-1/F-1)**
+
+Decision: Align the live/tick strategy dispatch contract with the documented `candleBased` default:
+
+1. **BUG-1 (hook dispatch):** `packages/corex-strategy-engine/src/Strategy.js:_processData` now dispatches `onBar(ctx, closedCandle)` on a tick that closes a bar, instead of silently falling through to `onTick`. `onBar` previously never fired in the live/tick path because `isBar` stayed `false` for tick input.
+2. **BUG-2 (indicator input):** `utils/strategy/StrategyDataManager.js:updateTick` now returns `{ closed, candle }` where `candle` is the just-closed candle. `_processData` feeds `result.candle` to `buildContext(closedCandle, true)` ? `updateIndicators`, so live indicators receive the same closed-candle input as backtest (`buildContext(bar, true)` via `ingestBar`). Previously the closing tick fed the *new* bar's first tick into indicators, diverging EMA/RSI/ATR from backtest.
+3. **PERF-1 / roadmap F-1:** `packages/corex-market-data/src/MarketFeed.js:_feedRuntime` no longer leaks a per-tick `setTimeout`. The strategy promise is now raced against a timeout and the timer is cleared on settle via `then(clearTimer, clearTimer)` (rejection-safe — no unhandled rejection from the cleanup promise). A never-settling or slow strategy promise is rejected with `STRATEGY_TIMEOUT` instead of wedging the tick loop. Strategy hooks must resolve synchronously by contract (package `AGENTS.md`); the timeout prevents the feed from hanging but does not cancel the original promise.
+4. **Contract warning:** `_captureAndShadowHooks` now logs a one-time cold-path `warn` when `candleBased` is true (the default) but only `onTick` is defined (such a strategy would never be called). `generateSignal` fallback is preserved when neither hook is defined.
+
+Reason: The implementation violated the documented contract (`README.md:20-21`: `onBar` runs for each completed bar / closed candle; `onTick` runs only when `candleBased` is false). `candleBased` defaults to true. The fix makes code match documentation without changing the API.
+
+Consequence: A strategy that defines `onTick` while relying on `candleBased: true` stops being called (it was previously called once per bar close with the raw tick). Mitigated by the one-time warning. Zero DB strategies are affected (`Rapid` uses `onBar`, `demo` is a legacy `next()` stub). The async-hook guard rejects a never-settling or slow strategy promise with `STRATEGY_TIMEOUT` instead of wedging the tick loop; acceptable because strategies are synchronous by contract (package `AGENTS.md`). `utils/BaseStrategy.js` (legacy `next()`) has the same defects but is deferred to a separate decision. `SignalGenerationEngine.js` dead-code duplicate is not "fixed" here.
+
+Evidence: `plans/Audit/live-bar-parity-diagnosis.md`; `packages/corex-strategy-engine/test/live-bar-parity.test.js` (T1–T9, 9/9 pass); existing `Strategy.test.js` (7/7 pass, no regressions).

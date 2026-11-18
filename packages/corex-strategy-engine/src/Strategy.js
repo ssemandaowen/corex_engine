@@ -4,7 +4,7 @@ const rootLogger = require("@utils/logger");
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
 const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
-const StrategyDataManager = require("@utils/strategy/StrategyDataManager");
+const StrategyDataManager = require("./StrategyDataManager");
 const StrategyPositionManager = require("./StrategyPositionManager");
 const StrategyRuntimeUtils = require("./StrategyRuntimeUtils");
 const ParamSchema = require("./ParamSchema");
@@ -274,6 +274,18 @@ class Strategy {
                 }
             }
         }
+
+        // candleBased defaults to true, where only onBar runs (once per closed
+        // candle). A strategy that defines onTick but not onBar therefore never
+        // gets called. Warn once at construction (cold path) instead of silently
+        // producing a strategy that never trades.
+        if (this.candleBased && this._userHooks.onTick && !this._userHooks.onBar) {
+            this.log.warn(
+                `[Strategy:${this.id}] candleBased is true (default) but only onTick is defined. ` +
+                "onTick runs only when candleBased is false; onBar runs once per closed candle. " +
+                "Set candleBased: false for tick semantics, or implement onBar."
+            );
+        }
     }
 
     _ensureInitialized() {
@@ -335,6 +347,15 @@ class Strategy {
 
         const symbol = packet.symbol;
 
+        // Resolve which packet this dispatch represents.
+        //
+        // A tick that closes a bar dispatches the *closed candle* as a bar event:
+        // onBar then receives the candle that just completed (not the raw closing
+        // tick, which is the first tick of the next bar), so live/paper feed the
+        // same bar sequence — and the same indicator inputs — as backtest.
+        let dispatchPacket = packet;
+        let dispatchIsBar = isBar;
+
         if (isBar) {
             this.dataManager.ingestBar(packet);
             this.currentBar = packet;
@@ -346,26 +367,32 @@ class Strategy {
                 price: packet.price ?? packet.close,
                 volume: packet.volume ?? 0
             }, this.tfMs);
-            if (this.candleBased && !result.closed) return null;
+
+            if (this.candleBased) {
+                if (!result.closed) return null;
+                dispatchPacket = result.candle;
+                dispatchIsBar = true;
+                this.currentBar = result.candle;
+            }
         }
 
         if (!this._started) {
-            const ctxInit = this._ctxBuilder.buildContext(packet, isBar);
+            const ctxInit = this._ctxBuilder.buildContext(dispatchPacket, dispatchIsBar);
             if (typeof this._userHooks.onStart === "function") {
                 this._userHooks.onStart(ctxInit);
             }
             this._started = true;
         }
 
-        const ctx = this._ctxBuilder.buildContext(packet, isBar);
+        const ctx = this._ctxBuilder.buildContext(dispatchPacket, dispatchIsBar);
         let signal = null;
 
-        if (isBar && typeof this._userHooks.onBar === "function") {
-            signal = this._userHooks.onBar(ctx, packet);
-        } else if (!isBar && typeof this._userHooks.onTick === "function") {
-            signal = this._userHooks.onTick(ctx, packet);
+        if (dispatchIsBar && typeof this._userHooks.onBar === "function") {
+            signal = this._userHooks.onBar(ctx, dispatchPacket);
+        } else if (!dispatchIsBar && typeof this._userHooks.onTick === "function") {
+            signal = this._userHooks.onTick(ctx, dispatchPacket);
         } else if (typeof this.generateSignal === "function" && this.generateSignal !== Strategy.prototype.generateSignal) {
-            signal = this.generateSignal(packet, { isWarmup: false });
+            signal = this.generateSignal(dispatchPacket, { isWarmup: false });
         }
 
         if (!signal && this._flipNext) {
@@ -374,7 +401,7 @@ class Strategy {
 
         if (signal) {
             signal.symbol = symbol;
-            signal.time = packet.time;
+            signal.time = dispatchPacket.time;
             signal.barTime = this.currentBar?.time;
             signal.tf = this.timeframe;
         }

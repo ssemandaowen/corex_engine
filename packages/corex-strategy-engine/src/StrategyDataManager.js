@@ -22,21 +22,36 @@ class StrategyDataManager {
         return store;
     }
 
+    /**
+     * updateTick: Optimized to update active candle by reference.
+     * No object spreading used here to keep GC low.
+     *
+     * Returns `{ closed, candle }` where `candle` is the candle that just closed
+     * (null when this tick did not close one). SoACandleStore is structure-of-arrays
+     * and copies the values, so the store retains no object — the caller that needs
+     * the closed bar must receive it here.
+     */
     updateTick({ symbol, time, price, volume = 0 }, tfMs) {
         const store = this.ensureSymbol(symbol);
         const candleStart = Math.floor(time / tfMs) * tfMs;
 
         if (!store.activeCandle || store.activeCandle.time !== candleStart) {
-            const hadPrevious = !!store.activeCandle;
-            if (hadPrevious) {
-                store.candles.push(store.activeCandle);
+            // Only a *previous* candle closing counts as "closed". The very
+            // first tick for a symbol (or the first tick after ingestBar()
+            // reset activeCandle to null) just opens the first candle — it
+            // hasn't closed anything yet.
+            const closedCandle = store.activeCandle;
+            if (closedCandle) {
+                store.candles.push(closedCandle);
             }
+            // Create new candle object
             store.activeCandle = {
+                symbol,
                 time: candleStart,
                 open: price, high: price, low: price, close: price,
                 volume
             };
-            return { closed: hadPrevious };
+            return { closed: !!closedCandle, candle: closedCandle || null };
         }
 
         const c = store.activeCandle;
@@ -45,9 +60,12 @@ class StrategyDataManager {
         c.close = price;
         c.volume += volume;
 
-        return { closed: false };
+        return { closed: false, candle: null };
     }
 
+    /**
+     * Direct ingestion of completed bars (e.g., from History API)
+     */
     ingestBar(bar) {
         const store = this.ensureSymbol(bar.symbol);
         store.candles.push(bar); 
@@ -65,6 +83,7 @@ class StrategyDataManager {
         return store ? store.candles.size >= lookback : false;
     }
 
+    // Quick access to the most recent completed candle
     getLatest(symbol) {
         const store = this.data.get(symbol);
         return store ? store.candles.get(store.candles.size - 1) : null;
