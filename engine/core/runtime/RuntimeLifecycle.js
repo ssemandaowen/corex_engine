@@ -98,6 +98,8 @@ class RuntimeLifecycle {
                 runtimeId:     profile.runtimeId || runtimeId,
                 symbol:        profile.symbol,
                 userId:        profile.userId,
+                strategyDbId:  profile.strategyDbId || null,
+                strategyName:  profile.strategyName || null,
                 initialCash:   profile.initialCash ?? persistedInitialCash,
                 connectorType: profile.connectorType,
                 brokerConfig,

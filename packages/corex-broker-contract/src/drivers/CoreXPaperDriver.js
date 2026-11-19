@@ -144,6 +144,8 @@ class CoreXPaperDriver extends BaseBroker {
                 orderId,
                 accountId: this.accountId,
                 userId: this.userId,
+                strategyDbId: this.strategyDbId,
+                strategyName: this.strategyName,
                 environment: this.mode.toUpperCase(),
                 symbol,
                 side: isBuy ? "BUY" : "SELL",

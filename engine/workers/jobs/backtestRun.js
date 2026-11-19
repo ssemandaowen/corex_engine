@@ -22,7 +22,7 @@ module.exports = {
             await ctx.emitProgress({ stage: "LOADING", message: `Loading strategy ${strategyId}...`, pct: 5 });
 
             const { rows } = await db.query(
-                "SELECT script_body, runtime_params FROM strategies WHERE name = $1 LIMIT 1",
+                "SELECT id, script_body, runtime_params FROM strategies WHERE name = $1 LIMIT 1",
                 [strategyId]
             );
             const record = rows[0];
@@ -47,6 +47,8 @@ module.exports = {
             const options = {
                 ...(payload.options || {}),
                 userId,
+                strategyDbId: record.id || null,
+                strategyName: strategyId,
                 onProgress: (evt) => ctx.emitProgress(evt).catch(() => {}),
                 shouldAbort: () => ctx.isAbortRequested()
             };
