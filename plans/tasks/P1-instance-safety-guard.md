@@ -73,6 +73,7 @@ The guard checks instance integrity against the exact constructor. It does not r
 Owner / agent: ChatGPT assisting Owen
 Status: IMPLEMENTED — verification passed; final diff audit pending
 Branch: `fix/strategy-instance-safety-guard`
+Pull request: #80 (OPEN; review pending)
 Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
 Dependency gate: STAGE-1 PR #79 is open; its targeted genuine-client test and frontend build passed. Merge is not required by the roadmap entry gate.
 Implementation:
