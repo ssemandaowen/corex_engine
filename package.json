@@ -39,6 +39,7 @@
     "@utils": "./utils",
     "@data": "./packages/corex-market-data",
     "@auth": "./packages/corex-auth",
+    "@portfolio": "./packages/corex-portfolio",
     "@events": "./events",
     "@config": "./config",
     "corex-accounts": "./packages/corex-accounts",
