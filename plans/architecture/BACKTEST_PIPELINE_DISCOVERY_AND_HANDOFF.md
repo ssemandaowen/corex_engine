@@ -337,6 +337,54 @@ running ──stale lock──> queued (attempts remain) OR failed (attempt limi
 - The manager's simulation yields to the event loop at the configured batch interval (default 500 bars), allowing the 5-second cancellation poll and heartbeat timers to run. A synchronous strategy call itself cannot be pre-empted while it blocks the event loop.
 - The worker handler returns only report metadata/performance in the queue result; the full report is stored separately by the manager.
 
+## 7C. Step 3 — simulation and data-preparation audit (2026-11-20; partial)
+
+**Source baseline:** `main` at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`. Comparing this with `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` shows the commits since then changed only this handoff document; inspected application source is unchanged. Findings are code-trace confirmations, not runtime reproductions. No application code or tests were changed or run.
+
+### Verified execution/data path
+
+```text
+BacktestManager.run
+  → _resolveConfig(options, strategy)
+  → StrategyContract.validateAndAdapt
+  → construct BacktestBroker with resolved commission/slippage/spread
+  → _loadAndNormalizeData
+      ├─ offline: read complete CSV or gzip buffer → complete CSV string → DataForge DataFrame
+      └─ online: fetchGuardedHistory → normalized rows → DataForge DataFrame
+  → _processDataFrame: parse → filter → orderBy → range → toArray
+  → bars.sort(time) again
+  → _runSimulation: sequential synchronous strategy.onBar; yields between batches
+  → broker metrics snapshot → format.buildReport rebuilds trade-derived series
+  → report JSON file + full trades CSV + PostgreSQL JSONB report
+```
+
+### Confirmed findings
+
+| ID | Status | Evidence and impact | Required follow-up |
+|---|---|---|---|
+| SIM-01 | CONFIRMED — offline file-size guard does not reject oversize files | `_readCsvAsDataFrame` throws “Dataset too large” inside a try, then catches and suppresses that exact error (lines 376–384). It proceeds to read the file. Gzip is loaded as a complete buffer and synchronously decompressed into a complete string (386–392), with no expanded-byte ceiling. | Add tests for oversized plain CSV, oversized gzip and high-expansion gzip; define compressed and decompressed limits. |
+| SIM-02 | CONFIRMED — config resolver drops submitted realism and execution settings | Controller puts `commissionPct`, `slippageBps`, `spread`, `barBudgetMs`, `barBudgetStrikes` and `batchSize` into job options (around 800–830). `_resolveConfig` does not copy these fields. Broker construction therefore receives missing values defaulting to zero; the UI's configured trading costs are not applied. Simulation uses fallback budget/batch values rather than submitted values. | Regression tests must prove every UI/API setting reaches broker and simulator. Do not change fill semantics until characterized. |
+| SIM-03 | CONFIRMED — date-range boundaries are discarded | Controller parses and validates `rangeStart`/`rangeEnd`, but omits them from the options object placed in the job. `_resolveConfig` therefore receives undefined values; `_processDataFrame` interprets these as unbounded and selects the whole dataset. BacktestSubTab has rangeMode state but no setter/date controls, so date mode is not selectable through the current screen. | Decide whether date ranges are in the product contract. If yes, carry normalized boundaries end-to-end and test; otherwise reject unsupported mode rather than silently ignoring it. |
+| SIM-04 | CONFIRMED — cancellation and online-fetch progress callbacks are lost at manager boundary | `backtestRun.js` supplies `onProgress` and `shouldAbort`; `run()` keeps abort locally but passes options through `_resolveConfig`, which omits both. `_fetchFromBroker` sees null callbacks, and `_runSimulation` checks a missing `config.shouldAbort`. Cancellation during fetch or the bar loop is not observed until simulation returns and the outer abort check runs. Fetch progress is also lost. This strengthens JOB-06: the callback is discarded before the resolver. | Add deterministic cancellation tests during fetch and long simulation, plus fetch-progress propagation tests; define provider timeout/abort contract. |
+| SIM-05 | CONFIRMED — data preparation materializes the full input and sorts twice | Offline CSV is synchronously read as one string; gzip is read as one buffer then expanded to one string. DataForge transforms/orders/materializes with `toArray()`; `run()` then sorts the resulting bars again. Online rows are also wrapped in a DataFrame and materialized. This creates multiple full-dataset representations and repeated sorting; peak RSS/time impact is not measured. | Benchmark before choosing streaming, typed arrays or indexed storage. Remove redundant work only with ordering/reproducibility tests. |
+| SIM-06 | PARTIAL — OHLCV validation is weaker than a canonical data contract requires | Offline normalization filters finite time and positive close only; open/high/low use zero fallbacks and are not checked for finiteness, positivity or OHLC consistency. Online resolver checks finite OHLC fields but not positivity or high/low/open consistency. Invalid bars may reach strategy/broker logic. | Define canonical bar validation and test missing, non-finite, negative and inconsistent OHLCV rows in both modes. |
+| SIM-07 | PARTIAL — report construction and persistence multiply trade-history representations | `MetricsAccumulator` retains trades and equity points; snapshots filter/reduce trades and copy trade/equity arrays. Manager requests snapshots after simulation and again for analytics. `format.buildReport` rebuilds equity from trades and constructs returns, drawdown, underwater and rolling series. Complete report JSON is written to disk and PostgreSQL JSONB, plus a full trades CSV. Duplication is confirmed; wastefulness requires consumer and size measurements. | Complete Step 4 consumer inventory; measure peak RSS, report/JSONB size, CSV size and UI field usage before choosing summary plus on-demand artifacts. |
+
+### Simulation/broker observations — not yet accepted as defects
+
+- The bar loop calls `strategy.onBar` synchronously and yields only at batch boundaries. A single synchronous strategy call cannot be pre-empted. The per-bar quota uses `Date.now()` millisecond resolution, so short-call cost is imprecisely measured.
+- `BacktestDriver.execute` calculates spread, slippage and commission directly. It also constructs/maintains `SharedFillSim`, but the inspected execute path does not delegate to it. This is a duplicated ownership lead, not a removal decision.
+- `BacktestDriver.execute` deletes the whole position after EXIT even when `intent.quantity` is smaller than the open quantity. Whether supported strategy scale/partial-close APIs can reach this path must be traced and tested before classifying it as a financial defect.
+- The current driver fill path is bar-close based. `SharedFillSim` has a `fillPolicy` option whose inspected market-order branches currently choose the same reference price; do not infer next-bar semantics from the option name.
+
+### Test coverage and verification limits
+
+The test tree contains focused tests for the guarded online resolver, report file persistence, resolver public API and BacktestBroker event emissions. The inspected tests do not cover manager option propagation, oversized offline file guard, date-range propagation, in-flight cancellation, malformed offline OHLCV or partial exits. GitHub source inspection cannot execute the Windows checkout; no runtime reproduction or benchmark is claimed.
+
+### Step 3 status
+
+**PARTIAL — core data preparation, manager option flow, simulation loop and first broker/report handoff mapped.** Broker accounting edge cases, strategy partial-exit callers, analytics semantics, report consumers and cleanup still need a complete trace. Do not begin P7 recomposition or change financial behavior from this partial audit.
+
 ## 8. Guardrails — no implementation during discovery
 
 - No source-code edits, schema migrations, dependency additions, branch creation or implementation PRs.
@@ -381,4 +429,4 @@ At the start of every continuation:
 |---|---|---|---|---|---|
 | 2026-11-20 | `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` | Initial pass | Traced main upload/controller, queue/worker, manager, broker, analytics and report flow at a high level. Identified leads in §7. | ChatGPT initial read-only pass; findings require reproduction and exact source references. | Begin Step 0 and Step 1 from current main; verify all paths and contracts. |
 | 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Steps 0–1 | Verified current main baseline, bootstrap/worker startup, upload UI/API, Multer/storage/hash/scan, PostgreSQL metadata schema, dataset selection, delete routes and archive/purge path. Recorded UP-01–UP-06 in §7A. | GitHub source at current main; exact paths/functions/line references recorded above. No source changes. | Continue Step 1 edge cases and then Step 2 job lifecycle; reproduce UP-01 in a clean worktree before proposing any fix. |
-| 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Step 2 | Traced enqueue/claim/retry/stale recovery, worker supervisor/IPC, strategy resolution, cancellation, manager abort checks, WS/REST progress and UI terminal handling. Recorded JOB-01–JOB-07 in §7B. | Current-main source trace; exact functions/lines recorded in §7B. No source changes. | Continue Step 3 simulation/data preparation and confirm cancellation/resource behavior with targeted tests or reproducible traces. |
+| 2026-11-20 | `94c3fb3917fd12b5c396b01d166100dfb56ac71d` | Step 3 (partial) | Traced manager config/data preparation, simulation loop, BacktestDriver fill path, metrics accumulator, analytics report assembly and persistence. Recorded SIM-01–SIM-07 in §7C. | Current-main source trace; no runtime reproduction or benchmarks; no application source/test changes. | Finish broker accounting/strategy partial-exit caller trace; then complete report consumers, artifact retrieval and cleanup (Step 4). |
