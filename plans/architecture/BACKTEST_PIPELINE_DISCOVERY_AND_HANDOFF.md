@@ -385,6 +385,52 @@ The test tree contains focused tests for the guarded online resolver, report fil
 
 **PARTIAL — core data preparation, manager option flow, simulation loop and first broker/report handoff mapped.** Broker accounting edge cases, strategy partial-exit callers, analytics semantics, report consumers and cleanup still need a complete trace. Do not begin P7 recomposition or change financial behavior from this partial audit.
 
+## 7D. Step 4 — analytics, report and artifact audit (2026-11-20; partial)
+
+**Source baseline:** current `main` at the handoff update immediately preceding this section; application source is unchanged since `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb`. This is a code trace only; no runtime/API download tests or report-size measurements were run.
+
+### Verified report lifecycle
+
+```text
+BacktestDriver MetricsAccumulator
+  → manager receives full closed-trade list
+  → utils/analytics.format.buildReport
+      ├─ scalar performance stats
+      ├─ trade-exit-based equity/return/drawdown/underwater curves
+      ├─ rolling/risk series and histogram/heatmaps
+      └─ optional trade preview (manager truncates to 20)
+  → manager writes report JSON file
+  → manager writes full trade CSV when trades exist
+  → manager attempts PostgreSQL JSONB report write
+  → GET /api/backtest/:reportId reads PostgreSQL first, JSON file fallback
+  → BacktestSubTab renders stats, curves, histogram and trade preview
+  → report delete removes PostgreSQL row and JSON file
+```
+
+### Confirmed findings
+
+| ID | Status | Evidence and impact | Required follow-up |
+|---|---|---|---|
+| REP-01 | CONFIRMED — win-rate display scales an already-percent value again | `utils/analytics.js:trades.computeStats` returns `winRate * 100`; `BacktestSubTab.tsx` multiplies `report.performance.winRate` by another 100 for display. A 50% win rate is rendered as 5000%. | Add report-contract/UI tests and choose one canonical unit (fraction or percent) for API values. |
+| REP-02 | CONFIRMED — max-drawdown card reads a field not produced by the report | Analytics returns `performance.maxDrawdownPercent`; the UI reads `performance.maxDrawdownPct`, so the displayed card falls back to zero. | Add contract tests for required performance fields and UI rendering. |
+| REP-03 | CONFIRMED — drawdown chart plots cumulative return, not drawdown | The UI's `chartData` computes `(equity - initialCapital) / initialCapital` and binds it to the chart labelled “DRAWDOWN EXPOSURE”. The report already contains `analytics.drawdownCurve`, but this chart does not use it. | Verify intended chart definition; use the authoritative drawdown series and test peak-to-trough examples. |
+| REP-04 | CONFIRMED — equity chart timestamp is multiplied by 1000 | Manager/data timestamps are normalized to milliseconds; broker trade timestamps and report equity-curve times remain milliseconds. UI maps them with `new Date(c.time * 1000)`, treating milliseconds as seconds and producing invalid/future dates. | Add timestamp-unit contract tests from CSV input through chart rendering. |
+| REP-05 | CONFIRMED within the mounted backtest router — trade-download URLs have no matching handler | Manager sets `meta.csvUrl` to `/api/backtest/:id/csv` and saves `.trades.csv`; the mounted `backtestController` defines no CSV/download GET route. Its `fullDownloadUrl` points to `/api/backtest/download/:id`, also with no matching handler in that router. The UI does not render either URL. The controller's >50-trade truncation branch is normally unreachable for newly generated reports because the manager has already truncated `report.trades` to 20. | Confirm no alternate route is mounted elsewhere; define one authenticated, user-scoped, streamed artifact endpoint and expose it in UI only if full trade export is a product feature. |
+| REP-06 | CONFIRMED — report deletion and retention leave full-trade CSV artifacts behind | `_saveTradesToCsv` writes `${reportId}.trades.csv`. Report DELETE removes only JSON files and DB row. `storageManager.cleanupBacktestsAsync` enumerates/deletes only `.json` files. CSV artifacts are therefore not removed by either report deletion or report retention cleanup. | Add artifact ownership/manifest and coordinated delete/retention tests; inventory existing orphan CSVs before cleanup. |
+| REP-07 | CONFIRMED — full report is duplicated in filesystem and PostgreSQL | `_saveReport` writes the complete report JSON, then `_saveToDatabase` stores the same complete report in JSONB. GET prefers PostgreSQL and falls back to JSON file. This is a deliberate fallback design today, but creates two full copies of curves and preview trades. | Measure storage and failure modes; decide which copy is authoritative and whether fallback should retain a compact snapshot or be moved to object/file storage. |
+
+### Report/analytics semantics requiring further review
+
+- `MetricsAccumulator` adds equity points only when a trade closes. Its equity curve and the analytics curves rebuilt from closed trades therefore represent realized trade-exit points, not per-bar mark-to-market equity. Open-position floating P&L and intratrade drawdown are not represented in those curves. Confirm the intended report definition before changing it.
+- Analytics derives returns from consecutive trade-exit equity points, then calculates Sharpe/volatility using `periodsPerYear: 252`. This is a trade-frequency series, not a daily series by construction; annualization and risk metric interpretation need a documented frequency model and financial review.
+- The report contains full equity/drawdown/underwater/returns/rolling arrays in both JSON file and JSONB. The UI currently consumes equityCurve for its two charts, and the first 20 trade records for histogram/table; full consumers of the other analytics arrays still need to be found.
+- `includeTrades=false` can omit the trade preview while the manager still writes a full CSV if closed trades exist. The UI currently has no visible export action.
+- The UI shows a “Commissions Paid” metric, but analytics receives no totalCommission supplement from the manager; that value defaults to zero. This is consistent with SIM-02's dropped commission configuration, but the report field wiring needs a separate contract test.
+
+### Step 4 status
+
+**PARTIAL — persistence, GET/list/delete paths and primary BacktestSubTab consumers mapped.** Need complete frontend consumer search, confirm whether any other artifact route exists, inspect report cleanup and CSV behavior under failure, and review analytics formulas/series frequency before finalizing the report contract.
+
 ## 8. Guardrails — no implementation during discovery
 
 - No source-code edits, schema migrations, dependency additions, branch creation or implementation PRs.
@@ -429,4 +475,4 @@ At the start of every continuation:
 |---|---|---|---|---|---|
 | 2026-11-20 | `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` | Initial pass | Traced main upload/controller, queue/worker, manager, broker, analytics and report flow at a high level. Identified leads in §7. | ChatGPT initial read-only pass; findings require reproduction and exact source references. | Begin Step 0 and Step 1 from current main; verify all paths and contracts. |
 | 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Steps 0–1 | Verified current main baseline, bootstrap/worker startup, upload UI/API, Multer/storage/hash/scan, PostgreSQL metadata schema, dataset selection, delete routes and archive/purge path. Recorded UP-01–UP-06 in §7A. | GitHub source at current main; exact paths/functions/line references recorded above. No source changes. | Continue Step 1 edge cases and then Step 2 job lifecycle; reproduce UP-01 in a clean worktree before proposing any fix. |
-| 2026-11-20 | `94c3fb3917fd12b5c396b01d166100dfb56ac71d` | Step 3 (partial) | Traced manager config/data preparation, simulation loop, BacktestDriver fill path, metrics accumulator, analytics report assembly and persistence. Recorded SIM-01–SIM-08 in §7C. | Current-main source trace; no runtime reproduction or benchmarks; no application source/test changes. | Finish broker accounting/strategy partial-exit caller trace; then complete report consumers, artifact retrieval and cleanup (Step 4). |
+| 2026-11-20 | `94c3fb3917fd12b5c396b01d166100dfb56ac71d` | Step 3 (partial) | Traced manager config/data preparation, simulation loop, BacktestDriver fill path, metrics accumulator, analytics report assembly and persistence. Recorded SIM-01–SIM-08 in §7C; began report/artifact trace in §7D. | Current-main source trace; no runtime reproduction or benchmarks; no application source/test changes. | Finish broker accounting/strategy partial-exit caller trace; then complete report consumers, artifact retrieval and cleanup (Step 4). |
