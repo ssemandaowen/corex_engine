@@ -11,8 +11,8 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or otherwise disturb its dirty/unrelated state.
 - PR: [#80 — feat(strategy): enforce safe constructed instances](https://github.com/ssemandaowen/corex_engine/pull/80)
-- Latest verified commit: `0a6df52c35590cb13fa1f1881e996341908b220f` (`fix(strategy): harden instance guard review gaps`), pushed to origin. The worktree was clean after the push.
-- Latest GitHub status: PR open, unmerged, mergeable=true, 6 commits ahead of main / 0 behind, 14 changed files. No submitted reviews or inline threads. Kilo review did not run because the Kilo account was out of credits. No PR workflow runs were returned for the checked head SHA.
+- Latest guard/code correction commit: `0a6df52c35590cb13fa1f1881e996341908b220f` (`fix(strategy): harden instance guard review gaps`), pushed to origin. A subsequent docs-only handoff refresh commit `a56f324abe0d7a9470bcc56e7792f920afb91fb9` is also pushed. Run `git rev-parse HEAD` before continuing to obtain the exact current branch head; do not rely on a stored ahead count.
+- Latest GitHub status check: PR open, unmerged, mergeable=true, 14 changed files. No submitted reviews or inline threads. Kilo review did not run because the Kilo account was out of credits. No PR workflow runs were returned for the checked head SHA. Refresh these dynamic fields before acting.
 - Never merge without Owen's explicit approval. Do not start B3 until P1 is reviewed and accepted.
 
 ## Current P1 task
@@ -73,7 +73,7 @@ SEC-01 has been added to the roadmap backlog and Known Issues:
 
 ## Exact next actions
 
-1. Continue read-only review of PR #80 at `0a6df52c35590cb13fa1f1881e996341908b220f`; do not touch the main checkout.
+1. Continue read-only review on `fix/strategy-instance-safety-guard`; first run `git rev-parse HEAD` and fetch PR #80 metadata so the exact branch state is current. Do not touch the main checkout.
 2. If any further edits are made, rerun the package suite, root compiler/loader regressions, syntax check, and `git diff --check`.
 3. Obtain independent review. Do not merge or mark P1 DONE until Owen accepts it.
 4. Only after P1 acceptance, start B3 as its own bounded workstream, first reconciling duplicate PRs #56/#57.
