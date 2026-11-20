@@ -41,7 +41,7 @@ Scope: Correct multipart request handling in the real frontend Axios client and 
 Owner / agent: ChatGPT assisting Owen
 Status: REVIEW — PR #79 open
 Branch: `fix/upload-multipart-genuine-regression`
-Last verified commit: `faeea7ff00d2c9455e075785414150e05ae08be3`
+Last verified commit: `935a1ffd106049900b1f7715310045f1204aa170` (includes merge of current `main` at `4c33ec7`)
 Files in PR: `front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `plans/ROADMAP.md`, `plans/tasks/STAGE-1-dataset-upload-multipart.md`. The dirty `front_end/package-lock.json` is excluded.
 Completed: Removed forced JSON default; added a real-client/browser-XHR regression harness with a broken-config control; targeted Jest test passes; frontend production build passes.
 Commands and test results: `node --check` PASS; `npm test -- --runInBand test/multipart-upload-fix.test.js` PASS (1/1); `npm run build` PASS (2,757 modules transformed).
