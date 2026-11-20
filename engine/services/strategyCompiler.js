@@ -27,6 +27,7 @@ const logger  = require("@utils/logger");
 const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
 const { TIME } = require("@config/constants");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { assertSafeInstance } = require("corex-strategy-engine");
 
 const log = logger.createModuleLogger("STRATEGY_COMPILER", {
     category: "strategy",
@@ -121,6 +122,7 @@ class StrategyCompiler {
 
             // Create a TEMPORARY instance to extract metadata
             const tmp = new StrategyClass();
+            assertSafeInstance(tmp, StrategyClass);
             StrategyContract.adapt(tmp);
 
             // Validate contract on temp instance
@@ -200,6 +202,7 @@ class StrategyCompiler {
             }
 
             const instance = new StrategyClass();
+            assertSafeInstance(instance, StrategyClass);
             StrategyContract.adapt(instance);
 
             const contractCheck = StrategyContract.validate(instance);

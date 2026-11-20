@@ -594,6 +594,62 @@ describe("T10 re-enable after DISABLED", () => {
     });
 });
 
+// ── P1: runtime instance guard runs before lifecycle registration ───────────
+describe("P1 strategy instance-safety guard", () => {
+    it("rejects a foreign runtime instance before lifecycle boot or registry ownership", async () => {
+        class UnsafeRuntimeStrategy {
+            constructor() {
+                const foreign = {
+                    symbols: ["EURUSD"],
+                    timeframe: "1m",
+                    lookback: 5,
+                    max_data_history: 500,
+                    params: {},
+                    schema: {}
+                };
+                Object.defineProperty(foreign, "constructor", {
+                    configurable: true,
+                    value: UnsafeRuntimeStrategy
+                });
+                return foreign;
+            }
+        }
+
+        global.__corexP01StrategyClass = UnsafeRuntimeStrategy;
+        db.query.mockResolvedValue({
+            rows: [{
+                name: "u1::Unsafe",
+                script_body: "class UnsafeRuntimeStrategy {}",
+                updated_at: new Date().toISOString(),
+                runtime_mode: "PAPER",
+                runtime_params: {},
+                runtime_state: "STOPPED",
+                schema: null,
+                compiled_hash: null,
+                compiled_metadata: null
+            }],
+            rowCount: 1
+        });
+
+        const lifecycleBootSpy = jest.spyOn(RuntimeLifecycle.prototype, "boot");
+        const result = await strategyLoader.startStrategy("u1::Unsafe", {
+            userId: "u1",
+            mode: "PAPER",
+            symbol: "EURUSD"
+        });
+        const runtimeId = "u1::Unsafe::EURUSD::PAPER";
+
+        expect(result.ok).toBe(false);
+        expect(result.reason).toContain("Unsafe strategy instance");
+        expect(lifecycleBootSpy).not.toHaveBeenCalled();
+        expect(runtimeRegistry.get(runtimeId)).toBeNull();
+        expect(runtimeRegistry.isReserved(runtimeId)).toBe(false);
+        expect(stateManager.getStatus(runtimeId)).not.toBe("ACTIVE");
+
+        global.__corexP01StrategyClass = FakeStrategy;
+    });
+});
+
 // ── T11: the state machine differs from main by exactly one edge ─────────────
 describe("T11 state machine rules", () => {
     it("adds only STOPPED -> DISABLED to the rules table", () => {

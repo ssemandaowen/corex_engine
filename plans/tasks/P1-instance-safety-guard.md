@@ -1,6 +1,6 @@
 # P1 — Strategy instance-safety guard
 
-Status: IN_PROGRESS — task claimed; implementation not yet started
+Status: IMPLEMENTED — verification passed; final diff audit pending
 Owner: Owen Ssemanda (product owner); ChatGPT assisting investigation and implementation
 Branch: `fix/strategy-instance-safety-guard`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`
@@ -71,14 +71,26 @@ The guard checks instance integrity against the exact constructor. It does not r
 ## Handoff — 2026-11-20
 
 Owner / agent: ChatGPT assisting Owen
-Status: IN_PROGRESS — investigation and task definition recorded
+Status: IMPLEMENTED — verification passed; final diff audit pending
 Branch: `fix/strategy-instance-safety-guard`
-Last verified commit: `4c33ec7591ec023cfdc3708710dab642b91e8926` (origin/main)
-Files changed: task file and roadmap row only; implementation not started.
-Completed: Confirmed P1 dependency gate (STAGE-1 PR #79 opened); inventoried all current `new StrategyClass()` construction paths; confirmed the existing pollution check is bypassed by the compiler's `adapt()` then `validate()` sequence.
-Commands and test results: Read-only inventory only; no P1 tests run yet.
-Unverified items / limitations: Need inspect exact constructor side effects and error mapping in the latest branch before coding. Preserve current compatibility behavior until P2/P3.
-Decisions needed: None currently; do not expand the guard into scanner or StrategyContract redesign.
-Blockers: None identified. PR #79 review is still open, but the roadmap gate requires the PR to be opened, not merged.
-Exact next action: Inspect package/root test conventions and all direct strategy-construction sites, implement the guard and integrations within this branch, then run the verification plan.
+Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
+Dependency gate: STAGE-1 PR #79 is open; its targeted genuine-client test and frontend build passed. Merge is not required by the roadmap entry gate.
+Implementation:
+- Added `src/validation/assertSafeInstance.js` with typed `UnsafeStrategyInstanceError`, stable code `UNSAFE_STRATEGY_INSTANCE`, machine-readable reasons, exact-prototype validation, own-constructor descriptor validation, forbidden own-key checks, and safe inspection of own data-property `params`/`schema`.
+- Exported the guard and error from the `corex-strategy-engine` public API.
+- Integrated the guard immediately after construction in both compiler paths, the runtime loader, and package `StrategyValidator`.
+- Added 31 package test cases covering the guard and validator integration; added compiler and runtime-loader integration tests.
+- The old `utils/strategy/StrategyValidator` remains untouched: repository search found it is used only by the explicit `scripts/validate-strategy.js` CLI. Legacy path retirement remains P5 scope.
+Files changed: compiler, loader, package public index, package StrategyValidator, new guard, two new package tests, two root tests (one new compiler test and one loader regression test), this task record and roadmap row.
+Verification:
+- Full `corex-strategy-engine` package suite: 12 suites / 118 tests passed. The first full-suite attempt had one transient benchmark-threshold miss (2,404 ms vs. 2,000 ms); the benchmark passed in isolation (1,459 ms), and the complete suite passed on rerun (895 ms).
+- Compiler integration: 2 tests passed; unsafe temporary and compile instances rejected before `StrategyContract.adapt()`.
+- Loader integration plus recovery regression suite: 15 tests passed; unsafe runtime instance rejected before lifecycle boot, registry registration, or ACTIVE state. The regression directly spies on `RuntimeLifecycle.boot()`.
+- The guard also normalizes a throwing Proxy `prototype` trap on the expected constructor to the typed `INVALID_EXPECTED_CLASS` failure; its unit test is included in the 118-test package pass.
+- `git diff --check` passed; Git emitted only its normal LF-to-CRLF working-copy notice for the task document.
+- Earlier package baseline before validator integration: 11 suites / 115 tests passed.
+Unverified: Final changed-file audit and commit/push are still pending. The command service is responding again. No test failures remain in the verified P1 suites.
+Decisions needed: None. Keep the static scanner separate; do not redesign `StrategyContract` in P1.
+Blockers: None identified.
+Exact next action: Complete the changed-file and branch audit, then commit and push P1 for review. Do not start B3 until P1 is reviewed/accepted under the roadmap dependency sequence.
 May another agent continue? YES — only on this branch and within the bounded P1 scope.
