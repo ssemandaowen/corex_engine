@@ -15,7 +15,7 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or disturb its dirty/unrelated state.
 - PR #56 was closed as superseded because it contained 60 changed files and mixed the allow-list change with unrelated UI, settings, backtest, and planning work.
 - PR #80 was merged and its GitHub body corrected to reflect the merge and acceptance.
-- Latest pushed B3 head: `43b6dd2666e168e66313c713842e2ef0426fcad9`; GitHub compare reports 6 commits ahead / 0 behind main, with current main as the merge base. GitHub's mergeability metadata has returned inconsistent values (`true`/`false`) across refreshes despite the compare showing 6 ahead / 0 behind and current main as the merge base; recheck before any merge consideration.
+- Latest pushed B3 head: `8bd657f3f3d30622b5acd930006d8892bba265bc`; GitHub compare reports 7 commits ahead / 0 behind main, with current main as the merge base. GitHub's mergeability metadata has returned inconsistent values (`true`/`false`) across refreshes; latest refresh reports `mergeable=true`, but recheck before any merge consideration.
 - Do not merge B3 without review and Owen's explicit approval.
 
 ## P1 — complete
