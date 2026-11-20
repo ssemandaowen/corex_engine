@@ -1,9 +1,10 @@
 # STAGE-1 — Dataset upload multipart transport
 
-Status: IN_PROGRESS — genuine browser-transport regression harness passes; Jest suite and frontend build remain BLOCKED by a damaged dependency tree
+Status: REVIEW — genuine browser-transport regression test and frontend production build pass; PR #79 is open
 Owner: Owen Ssemanda (product owner); ChatGPT assisting implementation
 Branch: `fix/upload-multipart-genuine-regression`
 Started: 2026-11-20
+Pull request: https://github.com/ssemandaowen/corex_engine/pull/79
 Scope: Correct multipart request handling in the real frontend Axios client and add a regression test that imports the actual exported client instance.
 
 ## Problem and evidence
@@ -19,34 +20,33 @@ Scope: Correct multipart request handling in the real frontend Axios client and 
 
 ## Acceptance criteria
 
-1. Regression test imports the actual default export from `front_end/src/api/client.ts`: implemented and exercised by the Vite SSR harness.
-2. Test detects the old forced-JSON behavior: PASS in the browser-transport harness.
-3. Corrected FormData request remains FormData with no explicit Content-Type, while ordinary JSON retains `application/json`: PASS in the browser-transport harness.
-4. Targeted Jest execution: BLOCKED by incomplete/corrupted dependencies; must still be run under Jest.
-5. Frontend production build: BLOCKED by incomplete/corrupted frontend dependencies; must still pass before STAGE-1 closes.
-6. Only STAGE-1 source, test, and task/roadmap records are included in this workstream. The already-dirty `front_end/package-lock.json` is preserved and excluded pending separate review.
+1. Regression test imports the actual default export from `front_end/src/api/client.ts`: PASS.
+2. Test detects the old forced-JSON behavior: PASS.
+3. Corrected FormData request remains FormData with no explicit Content-Type, while ordinary JSON retains `application/json`: PASS.
+4. Targeted Jest execution: PASS — 1 suite, 1 test.
+5. Frontend production build: PASS — 2,757 modules transformed and build completed. Vite emitted its existing large-chunk advisory (main JS chunk 1,418.53 kB, gzip 402.68 kB); this is not a build failure and is outside STAGE-1 scope.
+6. Only STAGE-1 source, test, and task/roadmap records are included in PR #79. The pre-existing modified `front_end/package-lock.json` is preserved and excluded.
 
 ## Verification
 
 - PASS — `node --check test/multipart-upload-fix.test.js`.
-- PASS — executed the test body through a small Node assertion runner (without Jest); it completed the Vite SSR import and actual Axios XHR adapter harness, including the old-config regression control.
-- BLOCKED — `npm test -- --runInBand test/multipart-upload-fix.test.js`: the `jest` command is not recognized in this worktree.
-- BLOCKED — direct Jest entry point from the main worktree: fails because `corex-stage1/node_modules/@babel/types/lib/index.js` is missing.
-- BLOCKED — frontend Vite build starts but fails resolving `lucide-react` because its installed package is missing its declared `dist` entry.
-- Dependency repair attempt — `npm ci` failed with Windows `EPERM` while removing `corex-stage1/node_modules/@inquirer/core/node_modules/signal-exit/dist/mjs`. No forced cleanup or manual deletion was attempted.
-- The pre-existing modified `front_end/package-lock.json` was not edited by this continuation and remains untouched.
+- PASS — `npm test -- --runInBand test/multipart-upload-fix.test.js`: 1 suite / 1 test.
+- PASS — `npm run build` from `front_end`: Vite production build completed.
+- Dependency repair: initial `npm ci` failed with Windows `EPERM` while removing `node_modules/@inquirer/core/node_modules/signal-exit/dist/mjs`. `npm install --prefer-offline --ignore-scripts --no-audit --no-fund` completed in both root and frontend but did not restore missing package files. The isolated worktree's missing package contents were then restored by copying same-version packages from the existing main worktree into `node_modules` only: `@babel/types@7.28.6`, `lucide-react@0.546.0`, `recharts@3.9.2`, `es-toolkit@1.49.0`, and `victory-vendor@37.3.6`. No package manifest or lockfile changes were included.
+- `git diff --check` and `node --check` both passed before commit.
+- The pre-existing modified `front_end/package-lock.json` was not staged or committed.
 
 ## Handoff — 2026-11-20
 
 Owner / agent: ChatGPT assisting Owen
-Status: IN_PROGRESS — browser-transport regression harness passes; Jest and build blocked
+Status: REVIEW — PR #79 open
 Branch: `fix/upload-multipart-genuine-regression`
-Last verified commit: no implementation commit created; branch remains based on `origin/main`.
-Files changed for this workstream: `front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `plans/tasks/STAGE-1-dataset-upload-multipart.md`, `plans/ROADMAP.md`. A separate pre-existing modification to `front_end/package-lock.json` remains excluded.
-Completed: Removed forced JSON default; replaced the stub-adapter test with a real-client/browser-XHR regression harness; proved the harness detects the former forced-JSON failure and preserves ordinary JSON behavior.
-Commands and test results: `node --check` PASS; Node assertion runner around the Vite SSR/XHR harness PASS; Jest BLOCKED; frontend build BLOCKED; `npm ci` BLOCKED by Windows EPERM.
-Unverified items / limitations: The harness uses a fake XMLHttpRequest to capture browser transport headers/body; it does not make a network request to the CoreX upload endpoint. Full Jest execution and frontend production build remain outstanding.
-Decisions needed: None on architecture or implementation. Dependency tree must be repaired safely before final acceptance.
-Blockers: Windows file lock/permission error during `npm ci`; incomplete root and frontend dependency trees.
-Exact next action: Close programs that may hold files under `corex-stage1/node_modules`, then repair dependencies in this isolated worktree. Run `npm ci` at repo root and in `front_end`; then run `npm test -- --runInBand test/multipart-upload-fix.test.js` from the root and `npm run build` from `front_end`. Inspect the existing `front_end/package-lock.json` diff separately; do not include it unless its changes are understood and approved. Open the replacement PR only after both runtime verification commands pass.
-May another agent continue? YES — only within this task scope and branch; do not advance P1 or claim STAGE-1 complete until Jest and build pass.
+Last verified commit: `faeea7ff00d2c9455e075785414150e05ae08be3`
+Files in PR: `front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `plans/ROADMAP.md`, `plans/tasks/STAGE-1-dataset-upload-multipart.md`. The dirty `front_end/package-lock.json` is excluded.
+Completed: Removed forced JSON default; added a real-client/browser-XHR regression harness with a broken-config control; targeted Jest test passes; frontend production build passes.
+Commands and test results: `node --check` PASS; `npm test -- --runInBand test/multipart-upload-fix.test.js` PASS (1/1); `npm run build` PASS (2,757 modules transformed).
+Unverified items / limitations: The fake XMLHttpRequest captures the browser adapter's request headers/body but does not make a network request to the CoreX upload endpoint. Full backend upload integration is outside this bounded regression task. Vite reports a large-chunk advisory.
+Decisions needed: None for this task's implementation.
+Blockers: PR review and merge remain outstanding. The existing package-lock modification must be handled separately.
+Exact next action: Review PR #79 and merge only after approval. Then update the STAGE-1 roadmap row to DONE with the merge SHA; only then follow the roadmap's P1/B3 sequencing and active-workstream limit.
+May another agent continue? YES — read-only review of PR #79; no scope expansion, no merge, and no P1 start without Owen's review/approval and roadmap gate checks.
