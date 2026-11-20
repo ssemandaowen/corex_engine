@@ -68,8 +68,9 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 | 13 | STAGE-3 | Stage 3 — WebSocket stage | UNCONFIRMED | Owen confirmation of status | — | task file created when the workstream starts | Status is not confirmed in any repository record. Owen to confirm before this row is scheduled. |
 | 14 | STAGE-4 | Stage 4 — Dataset resource model | UNCONFIRMED | Owen confirmation of status | — | task file created when the workstream starts | Blocks the data-acquisition part of the `backtestManager` split (P7). |
 | 15 | P7 | Recomposition: `backtestManager` split; `StrategyLoader` facade collapse into `engine/strategyLoader.js` | LATER | P5, P6, STAGE-4 | task file created when the workstream starts | task file created when the workstream starts | ENGINE-03 implementation half; derived from the E1 register (L7). |
-| 16 | P8 | Boundary enforcement (`madge` / `dependency-cruiser` rules) | LATER | P5, P6 | task file created when the workstream starts | task file created when the workstream starts | ENGINE-03 enforcement half. Rule set derived from P7's register. |
+| 16 | P8 | Boundary enforcement (`madge` / `dependency-cruiser` rules) | LATER | P5, P6 | task file created when the workstream starts | task file created when the workstream starts | Rule set derived from P7's register. |
 | 17 | ENGINE-02B-P0-1 | Recovery correctness: exact runtime target, `result.ok` check, attempt counter across recovery's own `STOPPED` | IN PROGRESS | E1 (DONE, `467e79c`) | `fix/engine-recovery-correctness` | `plans/tasks/ENGINE-02B-P0-1.md` | Fixes E1 report §10 P0-1 + P0-2 (D1 result handling, D2 identity, D3 hidden retry drop). No extraction, no shutdown or listener-lifecycle change. P0-2..P0-4 are not yet represented as rows. |
+| 18 | P0-03 | Frontend architecture, performance and behavior audit — inventory only | LATER | Current frontend baseline verified | task file created when the workstream starts | `plans/tasks/P0-03-frontend-architecture.md` | Existing READY audit specification. Not an active workstream yet; starts only when one of the two current workstreams closes. Must map data/state/API/WS ownership, inactive-view work, polling, render pressure, bundle loading, charts, UI states and measured resource baselines. No implementation in the audit. |
 
 ### Completed workstreams (for traceability)
 
@@ -77,7 +78,6 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 |---|---|---|---|---|---|
 | ROADMAP | Consolidate plans into this single roadmap | DONE | `20bad625434dcbefcd7bea2a5d389ff887159d82` | PR #64 | Active roadmap and planning consolidation merged 2026-11-14. |
 | ENGINE-01 P0 | Baseline persistence fix + characterization tests | DONE | `8dd6048` | PR #62 | 59 suites / 626 tests baseline. |
-| P0-01 | Repository baseline audit | DONE | `a97ae6359b0d1b960b19368e2bbff476e16b4405` | PR #53 | Accepted by Owen 2026-10-31; output `plans/architecture/REPOSITORY_BASELINE.md`. |
 | ENGINE-01 S2 | Atomic runtime ownership | DONE | `e2f8f271a954dc2c426d5f43f059cdd6502f04c2` | PR #63 | 60 suites / 661 tests. Record: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`. |
 | P3-04 | Broker folder ownership cleanup | DONE | `36316b1` | PR #61 | Also on the Stage 1 branch as `7401e35` (same content, different SHA). |
 | ENGINE-01A | Legacy strategy path removal — read-only impact report | DONE | pending this PR | — | `plans/Audit/ENGINE-01A_legacy_strategy_removal_report.md`; decision support only, nothing implemented. |
@@ -168,13 +168,11 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 2. **Before implementation** — confirm the row's dependencies are `DONE` or merged, and that no more
    than two workstreams are open (rule 3). If a dependency is missing, stop.
 3. **During** — record evidence (commands, results, limitations) in the task file, not in this table.
-4. **Completion** — a task is complete only with acceptance evidence and review. Set status `DONE`,
-   record the merge SHA, and check that the PR that completes the workstream updated this row in the
-   same PR (rule 4).
+4. **Completion** — a task is complete only with acceptance evidence and review. Set `DONE`, record
+   the merge SHA, and check that the PR that completes the workstream updated this row in the same PR (rule 4).
 5. **Blocked** — use `BLOCKED`, name the blocker in Notes, and add an entry to `plans/KNOWN_ISSUES.md`.
 6. **New idea** — it goes to Backlog or an open decision (D-series) first. It does not enter the
    sequence until Owen approves it and this table says so.
 7. **Status vocabulary** — `DONE`, `IN PROGRESS`, `NEXT`, `LATER`, `BLOCKED`, `UNCONFIRMED` only.
 8. **Supersession** — when a document is superseded, move it to `plans/archive/` with the header
-   `ARCHIVED <date> — superseded by <path>. Content below is unchanged.` and update this file's
-   references. Never edit the archived body.
+   `ARCHIVED <date> — superseded by <path>. Content below is unchanged.` and update this file's references. Never edit the archived body.
