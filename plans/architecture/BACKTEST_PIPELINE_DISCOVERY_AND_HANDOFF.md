@@ -276,6 +276,67 @@ BacktestSubTab file selection
 
 The frontend Backtest tab's upload request and the server upload route are traced. The separate `/api/data/storage` route is exposed but no frontend caller was found in the inspected source. This is not, by itself, authorization to remove it.
 
+## 7B. Step 2 — dataset-to-job lifecycle (2026-11-20)
+
+### Verified execution sequence
+
+```text
+POST /api/backtest/:strategyId
+  → validate user, strategy, data source and simulation options
+  → resolve selected upload to a filesystem path
+  → enqueue corex_jobs row (UUID, type=backtest.run, attempts=0, maxAttempts=2)
+  → return HTTP 202 + queue job UUID
+  → supervisor forks one jobWorker process when DB is configured
+  → worker polls queue and atomically claims oldest eligible job (FOR UPDATE SKIP LOCKED)
+  → worker loads strategy source from strategies by name and compiles instance
+  → backtestRun passes options + progress + abort callback to backtestManager
+  → manager loads bars, simulates, calculates analytics and saves report/artifacts
+  → worker writes terminal job result; supervisor relays progress to event bus
+  → frontend consumes BACKTEST_PROGRESS over WS and polls REST every 1.5s as fallback
+```
+
+### Job state and ownership
+
+```text
+queued ──claim──> running ──success──> succeeded
+                    │
+                    ├──failure──> failed ──retry allowed──> queued
+                    │
+                    └──user cancel──> cancelled
+
+running ──stale lock──> queued (attempts remain) OR failed (attempt limit reached)
+```
+
+| Responsibility | Owner | Verified behavior |
+|---|---|---|
+| Request validation and job payload | `backtestController.js` | Validates source, symbol, timeframe, capital, range and realism settings; queues options and resolved file path. |
+| Durable queue/state | `jobQueue.js` + `corex_jobs` | UUID jobs; atomic oldest-first claim with `FOR UPDATE SKIP LOCKED`; per-user reads/cancellation; attempt count and delayed retry. |
+| Worker process lifecycle | `jobWorkerSupervisor.js` | Parent forks one worker by default, relays IPC progress to event bus and restarts an exited child with bounded backoff. |
+| Job execution | `jobWorker.js`, `jobs/backtestRun.js` | One job at a time per worker process; heartbeat every 5s; cancellation polling every 5s; stale-lock recovery every 30s (15-minute stale threshold by default). |
+| Strategy resolution | `jobs/backtestRun.js` | Queries current `script_body/runtime_params` by strategy name at execution time; it does not pin a strategy version in the job payload. |
+| Simulation and report creation | `backtestManager.js` | Receives abort callback; checks before/after data loading and simulation, and inside simulation after each configured batch (default 500 bars). |
+| UI progress | `jobWorkerSupervisor.js` → event bus → WS; REST progress endpoint | Worker emits progress immediately and persists snapshots to PostgreSQL; frontend also polls every 1.5s. |
+
+### Confirmed findings and open verification
+
+| ID | Status | Evidence and impact | Next verification |
+|---|---|---|---|
+| JOB-01 | CONFIRMED — cancellation terminal state can remain stale in DB | `cancelJob` sets `status='cancelled'` and clears `locked_by/locked_at`. Worker progress writes require `locked_by = WORKER_ID`; after the cancellation update, the worker cannot persist its final `CANCELLED` progress stage. The progress endpoint maps a cancelled job to UI status `RUNNING` unless stored progress stage is `CANCELLED` or `FAILED`. REST polling can therefore remain running until the frontend timeout. | Add a deterministic queue/worker cancellation test before selecting a lock/terminal-state correction. |
+| JOB-02 | CONFIRMED — UI treats terminal errors/cancellation as success | Both WebSocket and REST handlers test `pct === 100` / `pct >= 100` in the success branch before checking `ERROR`, `FAILED` or `CANCELLED`. Worker error/cancel events use 100%. The UI can call report retrieval instead of presenting the actual terminal state. | Add frontend tests for ERROR, FAILED, CANCELLED and DONE at 100%; status must take precedence over percentage. |
+| JOB-03 | CONFIRMED — retry event is presented as terminal | Worker emits an `ERROR` event before it schedules a retry. The Backtest tab clears its active job on ERROR, so a later retry can continue in the queue after the UI has stopped tracking it. | Define non-terminal retry status/progress contract and test retry → success from the UI. |
+| JOB-04 | CONFIRMED — strategy source is not pinned to the job | Job payload stores a strategy name/ID and params, but `backtestRun.js` reads the current `script_body/runtime_params` by name when the worker starts. It does not select a `strategy_versions` row or store a source hash. A strategy edit while a job waits in the queue can change what that job executes. | Define reproducibility requirement and inspect strategy version persistence before designing a pinned source reference. |
+| JOB-05 | CONFIRMED — archive can invalidate an active job's file path | Dataset archive gzips the symbol file with `deleteSource: true` and updates the upload row, but unlike purge it does not call `isUploadInUse`. Queued job payloads retain the old uncompressed path. The run route's `touchBacktestUploadForUser` call is fire-and-forget, leaving a race with the age-based archive pass. | Reproduce with a queued job and archive candidate; define path-stable dataset references or protect archive as well as purge. |
+| JOB-06 | CONFIRMED — cancellation does not interrupt an in-flight provider fetch | Manager passes `shouldAbort` to `fetchGuardedHistory`, but that resolver only consumes symbol, interval, outputsize and progress callback; it never checks the abort callback. Cancellation during online history fetch waits for the fetch to return. | Test slow provider + cancellation; decide on provider abort support and bounded fetch timeout. |
+| JOB-07 | CONFIRMED — no enqueue idempotency key | `jobQueue.enqueue` always creates a new UUID and inserts a new row. Repeated identical run requests create independent jobs; no request/idempotency key is checked. | Decide whether duplicate-click/request replay protection is required; do not deduplicate distinct intentional runs. |
+
+### Resource and reliability notes
+
+- The default supervisor starts one worker child; that child processes jobs sequentially. The PostgreSQL queue supports multiple worker processes, but no default worker pool is configured.
+- Worker progress snapshots are written to PostgreSQL on each emitted progress update. The manager reports simulation progress at roughly 2% increments; strategy logs can add more events.
+- The worker keeps a compact list of distinct progress steps, rather than appending every simulated bar.
+- The manager's simulation yields to the event loop at the configured batch interval (default 500 bars), allowing the 5-second cancellation poll and heartbeat timers to run. A synchronous strategy call itself cannot be pre-empted while it blocks the event loop.
+- The worker handler returns only report metadata/performance in the queue result; the full report is stored separately by the manager.
+
 ## 8. Guardrails — no implementation during discovery
 
 - No source-code edits, schema migrations, dependency additions, branch creation or implementation PRs.
@@ -320,3 +381,4 @@ At the start of every continuation:
 |---|---|---|---|---|---|
 | 2026-11-20 | `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` | Initial pass | Traced main upload/controller, queue/worker, manager, broker, analytics and report flow at a high level. Identified leads in §7. | ChatGPT initial read-only pass; findings require reproduction and exact source references. | Begin Step 0 and Step 1 from current main; verify all paths and contracts. |
 | 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Steps 0–1 | Verified current main baseline, bootstrap/worker startup, upload UI/API, Multer/storage/hash/scan, PostgreSQL metadata schema, dataset selection, delete routes and archive/purge path. Recorded UP-01–UP-06 in §7A. | GitHub source at current main; exact paths/functions/line references recorded above. No source changes. | Continue Step 1 edge cases and then Step 2 job lifecycle; reproduce UP-01 in a clean worktree before proposing any fix. |
+| 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Step 2 | Traced enqueue/claim/retry/stale recovery, worker supervisor/IPC, strategy resolution, cancellation, manager abort checks, WS/REST progress and UI terminal handling. Recorded JOB-01–JOB-07 in §7B. | Current-main source trace; exact functions/lines recorded in §7B. No source changes. | Continue Step 3 simulation/data preparation and confirm cancellation/resource behavior with targeted tests or reproducible traces. |
