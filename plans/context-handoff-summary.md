@@ -11,8 +11,8 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or otherwise disturb its dirty/unrelated state.
 - PR: [#80 — feat(strategy): enforce safe constructed instances](https://github.com/ssemandaowen/corex_engine/pull/80)
-- Remote PR head at last GitHub check: `9a0612d34c46dfa3218527aca13e2b3a3ae302e7`. The current local branch has additional uncommitted self-review corrections and planning updates; commit and push them before treating this SHA as current.
-- Last GitHub status check: PR open, unmerged, mergeable=true, 5 commits ahead of main / 0 behind. No submitted reviews or inline threads. Kilo review did not run because the Kilo account was out of credits. No PR workflow runs were returned for the checked head SHA.
+- Latest verified commit: `0a6df52c35590cb13fa1f1881e996341908b220f` (`fix(strategy): harden instance guard review gaps`), pushed to origin. The worktree was clean after the push.
+- Latest GitHub status: PR open, unmerged, mergeable=true, 6 commits ahead of main / 0 behind, 14 changed files. No submitted reviews or inline threads. Kilo review did not run because the Kilo account was out of credits. No PR workflow runs were returned for the checked head SHA.
 - Never merge without Owen's explicit approval. Do not start B3 until P1 is reviewed and accepted.
 
 ## Current P1 task
@@ -73,13 +73,10 @@ SEC-01 has been added to the roadmap backlog and Known Issues:
 
 ## Exact next actions
 
-1. Inspect current local status and review the complete diff in `corex-p1`; do not touch the main checkout.
-2. Re-run the package suite, root compiler/loader regressions, syntax check, and `git diff --check` after any further edits.
-3. Review task/roadmap/known-issues wording for consistency and keep this handoff summary current.
-4. Commit the P1 guard/test/documentation corrections on `fix/strategy-instance-safety-guard`, then push.
-5. Fetch PR #80 again and verify current head SHA, changed files, checks, review submissions, review threads, and mergeability.
-6. Obtain independent review. Do not merge or mark P1 DONE until Owen accepts it.
-7. Only after P1 acceptance, start B3 as its own bounded workstream, first reconciling duplicate PRs #56/#57.
+1. Continue read-only review of PR #80 at `0a6df52c35590cb13fa1f1881e996341908b220f`; do not touch the main checkout.
+2. If any further edits are made, rerun the package suite, root compiler/loader regressions, syntax check, and `git diff --check`.
+3. Obtain independent review. Do not merge or mark P1 DONE until Owen accepts it.
+4. Only after P1 acceptance, start B3 as its own bounded workstream, first reconciling duplicate PRs #56/#57.
 
 ## Working discipline for future sessions
 

@@ -71,7 +71,7 @@ The guard checks instance integrity against the exact constructor. It does not r
 ## Handoff — 2026-11-20
 
 Owner / agent: ChatGPT assisting Owen
-Status: IMPLEMENTED — verification passed; final diff audit pending
+Status: IMPLEMENTED — self-review corrections applied, verified, committed and pushed; independent review pending
 Branch: `fix/strategy-instance-safety-guard`
 Pull request: #80 (OPEN; review pending)
 Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
@@ -82,7 +82,7 @@ Implementation:
 - Integrated the guard immediately after construction in both compiler paths, the runtime loader, and package `StrategyValidator`.
 - Added 31 package test cases covering the guard and validator integration; added compiler and runtime-loader integration tests.
 - The old `utils/strategy/StrategyValidator` remains untouched: repository search found it is used only by the explicit `scripts/validate-strategy.js` CLI. Legacy path retirement remains P5 scope.
-Files changed: compiler, loader, package public index, package StrategyValidator, new guard, two new package tests, two root tests (one new compiler test and one loader regression test), this task record and roadmap row.
+Files changed: compiler, loader, package public index, package StrategyValidator, new guard, two new package tests, two root tests (one new compiler test and one loader regression test), task record, roadmap, Known Issues, agent workflow, and context handoff summary.
 Verification:
 - Full `corex-strategy-engine` package suite: 12 suites / 118 tests passed. The first full-suite attempt had one transient benchmark-threshold miss (2,404 ms vs. 2,000 ms); the benchmark passed in isolation (1,459 ms), and the complete suite passed on rerun (895 ms).
 - Compiler integration: 2 tests passed; unsafe temporary and compile instances rejected before `StrategyContract.adapt()`.
@@ -90,7 +90,7 @@ Verification:
 - The guard also normalizes a throwing Proxy `prototype` trap on the expected constructor to the typed `INVALID_EXPECTED_CLASS` failure; its unit test is included in the 118-test package pass.
 - `git diff --check` passed; Git emitted only its normal LF-to-CRLF working-copy notice for the task document.
 - Earlier package baseline before validator integration: 11 suites / 115 tests passed.
-Review status: PR #80 is open and the branch is pushed. GitHub comparison confirms the branch is ahead of `main` and 0 commits behind, with exactly the 11 scoped files listed above. The local worktree is clean. Kilo's automated review did not run because its bot reported the account is out of credits; independent human/code review remains pending.
+Review status: PR #80 is open and the branch is pushed at `0a6df52c35590cb13fa1f1881e996341908b220f`. GitHub comparison confirms 6 commits ahead of `main`, 0 behind, and 14 changed files. The local worktree was clean after push. Kilo's automated review did not run because its bot reported the account is out of credits; no submitted reviews or inline threads exist yet, so independent human/code review remains pending.
 Decisions needed: None. Keep the static scanner separate; do not redesign `StrategyContract` in P1.
 Blockers: No implementation or test blocker identified. Review is pending.
 Exact next action: Obtain review on PR #80. Do not start B3 until P1 is reviewed/accepted under the roadmap dependency sequence.
