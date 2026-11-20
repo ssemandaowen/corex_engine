@@ -484,11 +484,11 @@ export default function DataView() {
       confirmButtonText: runType === 'backtest' ? 'PURGE DATA' : 'TERMINATE CORE',
       cancelButtonText: 'ABORT',
       background: 'var(--ui-panel-strong)',
-      color: '#ffffff',
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: 'rgba(255, 255, 255, 0.1)',
+      color: 'var(--text)',
+      confirmButtonColor: 'var(--neg)',
+      cancelButtonColor: 'var(--bg-raised)',
       customClass: {
-        popup: 'font-mono border border-[var(--ui-border)] rounded-lg text-xs'
+        popup: 'font-mono border border-[var(--ui-border)]  text-xs'
       }
     });
 
@@ -536,7 +536,7 @@ export default function DataView() {
         <div className="flex items-center gap-2.5">
           <button 
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="h-8 w-8 rounded bg-[var(--ui-panel-soft)] hover:bg-[var(--ui-panel-soft)]/80 border border-[var(--ui-border)] flex items-center justify-center cursor-pointer hover:border-[var(--ui-accent)] transition-all shrink-0"
+            className="h-8 w-8 bg-[var(--ui-panel-soft)] hover:bg-[var(--ui-panel-soft)]/80 border border-[var(--ui-border)] flex items-center justify-center cursor-pointer hover:border-[var(--ui-accent)] shrink-0"
             title={sidebarCollapsed ? "Expand Strategy Explorer" : "Collapse Strategy Explorer"}
           >
             <BarChart3 className="text-[var(--ui-accent)]" size={14} />
@@ -556,7 +556,7 @@ export default function DataView() {
           {sidebarCollapsed && (
             <button
               onClick={() => setSidebarCollapsed(false)}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-black uppercase rounded border border-[var(--ui-border)] bg-[var(--ui-panel-soft)] text-white cursor-pointer hover:border-[var(--ui-accent)] transition-all shrink-0 font-mono animate-pulse"
+              className="flex items-center gap-1.5 px-2.5 py-1 text-[9px] font-black uppercase border border-[var(--ui-border)] bg-[var(--ui-panel-soft)] text-white cursor-pointer hover:border-[var(--ui-accent)] shrink-0 font-mono"
             >
               <ChevronRight size={10} />
               Open Explorer
@@ -565,9 +565,9 @@ export default function DataView() {
 
           <button 
             onClick={loadData}
-            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold uppercase rounded border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white bg-[var(--ui-panel-soft)] cursor-pointer transition-all active:scale-95 shrink-0 font-mono"
+            className="flex items-center gap-1 px-2.5 py-1 text-[9px] font-bold uppercase border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white bg-[var(--ui-panel-soft)] cursor-pointer shrink-0 font-mono"
           >
-            <RefreshCw size={10} className={loading ? 'animate-spin text-[var(--ui-accent)]' : ''} />
+            <RefreshCw size={10} className={loading ? ' text-[var(--ui-accent)]' : ''} />
             Force Sync
           </button>
         </div>
@@ -595,7 +595,7 @@ export default function DataView() {
             style={{ borderColor: 'var(--ui-border)' }}
           >
             {/* Left: Mode Selection Tabs */}
-            <div className="flex gap-1 bg-[var(--ui-terminal-bg)] p-1 rounded-md border border-[var(--ui-border)] h-9 items-center shrink-0">
+            <div className="flex gap-1 bg-[var(--ui-terminal-bg)] p-1 border border-[var(--ui-border)] h-9 items-center shrink-0">
               {[
                 { id: 'backtest', label: 'Backtests' },
                 { id: 'paper', label: 'Paper Runs' },
@@ -607,9 +607,9 @@ export default function DataView() {
                     setSelectedReportType(type.id as any);
                     setSelectedRunId(null);
                   }}
-                  className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded transition-all cursor-pointer font-mono ${
+                  className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider   cursor-pointer font-mono ${
                     selectedReportType === type.id
-                      ? 'bg-[var(--ui-accent)] text-white shadow-sm font-black'
+                      ? 'bg-[var(--ui-accent)] text-white  font-black'
                       : 'text-[var(--ui-muted)] hover:text-white'
                   }`}
                 >
@@ -628,11 +628,11 @@ export default function DataView() {
                 <button
                   type="button"
                   onClick={() => setIsSessionManagerOpen(!isSessionManagerOpen)}
-                  className="w-full flex items-center justify-between text-[11px] py-1.5 px-3 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-white cursor-pointer transition-all hover:border-[var(--ui-accent)]"
+                  className="w-full flex items-center justify-between text-[11px] py-1.5 px-3 border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-white cursor-pointer hover:border-[var(--ui-accent)]"
                   style={{ borderColor: 'var(--ui-border)' }}
                 >
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${activeRun?.status === 'RUNNING' || activeRun?.status === 'running' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
+                    <span className={`h-1.5 w-1.5  shrink-0 ${activeRun?.status === 'RUNNING' || activeRun?.status === 'running' ? 'bg-emerald-400 ' : 'bg-zinc-500'}`} />
                     <span className="truncate">
                       {activeRun ? (
                         `${activeRun.symbol} // ${activeRun.netProfit >= 0 ? '+' : ''}$${activeRun.netProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })}`
@@ -641,12 +641,12 @@ export default function DataView() {
                       )}
                     </span>
                   </div>
-                  <ChevronDown size={12} className={`text-[var(--ui-muted)] shrink-0 transition-transform duration-200 ${isSessionManagerOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown size={12} className={`text-[var(--ui-muted)] shrink-0   ${isSessionManagerOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* MANAGEABLE POPUP OVERLAY */}
                 {isSessionManagerOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-80 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] rounded-lg shadow-xl z-50 flex flex-col max-h-96">
+                  <div className="absolute right-0 top-full mt-1 w-80 bg-[var(--ui-panel-strong)] border border-[var(--ui-border)] z-50 flex flex-col max-h-96">
                     {/* Popup Header */}
                     <div className="flex items-center justify-between p-2.5 border-b border-[var(--ui-border)]/50 bg-[var(--ui-panel-soft)]/20">
                       <span className="text-[9px] font-black uppercase tracking-widest text-white font-mono">
@@ -654,7 +654,7 @@ export default function DataView() {
                       </span>
                       <button 
                         onClick={() => setIsSessionManagerOpen(false)}
-                        className="text-[var(--ui-muted)] hover:text-white p-0.5 rounded hover:bg-[var(--ui-panel-soft)] transition-colors cursor-pointer"
+                        className="text-[var(--ui-muted)] hover:text-white p-0.5 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
                       >
                         <X size={12} />
                       </button>
@@ -669,7 +669,7 @@ export default function DataView() {
                           placeholder="Search sessions..."
                           value={runsSearchQuery}
                           onChange={(e) => setRunsSearchQuery(e.target.value)}
-                          className="w-full text-[10px] py-1 pl-6 pr-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-white"
+                          className="w-full text-[10px] py-1 pl-6 pr-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-white"
                           style={{ borderColor: 'var(--ui-border)' }}
                         />
                       </div>
@@ -699,15 +699,15 @@ export default function DataView() {
                                 setSelectedRunId(run.id);
                                 setIsSessionManagerOpen(false);
                               }}
-                              className={`p-2 rounded border transition-all cursor-pointer flex items-center justify-between font-mono gap-2 ${
+                              className={`p-2  border  cursor-pointer flex items-center justify-between font-mono gap-2 ${
                                 isRunSelected
-                                  ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white shadow-md'
+                                  ? 'bg-[var(--ui-panel-soft)] border-[var(--ui-accent)] text-white '
                                   : 'bg-transparent border-transparent text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/20'
                               }`}
                             >
                               <div className="flex flex-col min-w-0">
                                 <div className="flex items-center gap-1.5">
-                                  <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${run.status === 'RUNNING' || run.status === 'running' ? 'bg-emerald-400 animate-pulse' : 'bg-zinc-500'}`} />
+                                  <span className={`h-1.5 w-1.5  shrink-0 ${run.status === 'RUNNING' || run.status === 'running' ? 'bg-emerald-400 ' : 'bg-zinc-500'}`} />
                                   <span className="text-[11px] font-black truncate text-white leading-tight">
                                     {run.symbol}
                                   </span>
@@ -729,7 +729,7 @@ export default function DataView() {
                                 <button
                                   type="button"
                                   onClick={(e) => handleDeleteSession(run.id, run.type as any, e)}
-                                  className="p-1 rounded bg-[var(--ui-panel-strong)]/80 hover:bg-red-500/10 text-[var(--ui-muted)] hover:text-red-400 transition-colors border border-[var(--ui-border)] hover:border-red-500/20 cursor-pointer"
+                                  className="p-1 bg-[var(--ui-panel-strong)]/80 hover:bg-red-500/10 text-[var(--ui-muted)] hover:text-red-400 border border-[var(--ui-border)] hover:border-red-500/20 cursor-pointer"
                                   title={run.type === 'backtest' ? "Purge Session Logs" : "Terminate Core Engine"}
                                 >
                                   {run.type === 'backtest' ? (
@@ -756,7 +756,7 @@ export default function DataView() {
                   placeholder="Filter runs..."
                   value={runsSearchQuery}
                   onChange={(e) => setRunsSearchQuery(e.target.value)}
-                  className="w-full text-[10px] py-1.5 pl-6 pr-2 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-[var(--ui-text)]"
+                  className="w-full text-[10px] py-1.5 pl-6 pr-2 border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-[var(--ui-text)]"
                   style={{ borderColor: 'var(--ui-border)' }}
                 />
               </div>
@@ -767,7 +767,7 @@ export default function DataView() {
           <div className="flex-1 flex flex-col min-h-0 bg-[var(--ui-bg)] relative overflow-hidden">
             {fetchingReport ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none font-mono">
-                <RefreshCw size={36} className="text-[var(--ui-accent)] animate-spin mb-3" />
+                <RefreshCw size={36} className="text-[var(--ui-accent)] mb-3" />
                 <h3 className="text-xs uppercase tracking-widest font-black text-white">
                   Loading Quant Assembly Report...
                 </h3>
@@ -784,7 +784,7 @@ export default function DataView() {
                   {/* Ribbon Top: Identity & Toggle Actions */}
                   <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--ui-border)]/30">
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 rounded text-[9px] font-mono font-black bg-blue-500/10 border border-blue-500/25 text-blue-400 uppercase">
+                      <span className="px-1.5 py-0.5 text-[9px] font-mono font-black bg-blue-500/10 border border-blue-500/25 text-blue-400 uppercase">
                         {compiledStrategyReport.symbol}
                       </span>
                       <h2 className="text-xs font-black text-white uppercase tracking-wider font-mono">
@@ -814,7 +814,7 @@ export default function DataView() {
 
                       <button
                         onClick={() => setRibbonCollapsed(!ribbonCollapsed)}
-                        className="p-1 text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/30 rounded cursor-pointer transition-all flex items-center gap-1 text-[9px] uppercase font-bold tracking-widest font-mono"
+                        className="p-1 text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/30 cursor-pointer flex items-center gap-1 text-[9px] uppercase font-bold tracking-widest font-mono"
                         title={ribbonCollapsed ? 'Expand statistics matrix' : 'Collapse statistics matrix'}
                       >
                         <span>{ribbonCollapsed ? 'Expand' : 'Collapse'}</span>
@@ -825,10 +825,10 @@ export default function DataView() {
 
                   {/* Expanded Ribbon Metrics Cards */}
                   {!ribbonCollapsed && (
-                    <div className="p-3 bg-[var(--ui-panel-strong)]/30 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-[11px] font-mono animate-fade-in border-b border-[var(--ui-border)]/20">
+                    <div className="p-3 bg-[var(--ui-panel-strong)]/30 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-[11px] font-mono border-b border-[var(--ui-border)]/20">
                       
                       {/* Return Metric */}
-                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 rounded p-2.5 flex flex-col justify-between">
+                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 p-2.5 flex flex-col justify-between">
                         <span className="text-[8.5px] uppercase font-bold text-[var(--ui-muted)] tracking-widest flex items-center gap-1">
                           <Percent size={10} className="text-[var(--ui-accent)]" />
                           Net Profit Return
@@ -844,7 +844,7 @@ export default function DataView() {
                       </div>
 
                       {/* Probability Hit Rate */}
-                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 rounded p-2.5 flex flex-col justify-between">
+                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 p-2.5 flex flex-col justify-between">
                         <span className="text-[8.5px] uppercase font-bold text-[var(--ui-muted)] tracking-widest flex items-center gap-1">
                           <Target size={10} className="text-emerald-400" />
                           Probability Hit Rate
@@ -860,7 +860,7 @@ export default function DataView() {
                       </div>
 
                       {/* Max Drawdown */}
-                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 rounded p-2.5 flex flex-col justify-between">
+                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 p-2.5 flex flex-col justify-between">
                         <span className="text-[8.5px] uppercase font-bold text-[var(--ui-muted)] tracking-widest flex items-center gap-1">
                           <ShieldAlert size={10} className="text-red-400" />
                           Max Drawdown
@@ -876,7 +876,7 @@ export default function DataView() {
                       </div>
 
                       {/* Sharpe Ratio */}
-                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 rounded p-2.5 flex flex-col justify-between">
+                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 p-2.5 flex flex-col justify-between">
                         <span className="text-[8.5px] uppercase font-bold text-[var(--ui-muted)] tracking-widest flex items-center gap-1">
                           <Gauge size={10} className="text-sky-400" />
                           Sharpe Ratio
@@ -892,7 +892,7 @@ export default function DataView() {
                       </div>
 
                       {/* Profit Factor */}
-                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 rounded p-2.5 flex flex-col justify-between col-span-2 sm:col-span-1">
+                      <div className="bg-[var(--ui-panel-soft)]/20 border border-[var(--ui-border)]/40 p-2.5 flex flex-col justify-between col-span-2 sm:col-span-1">
                         <span className="text-[8.5px] uppercase font-bold text-[var(--ui-muted)] tracking-widest flex items-center gap-1">
                           <Activity size={10} className="text-amber-500" />
                           Profit Factor
@@ -925,7 +925,7 @@ export default function DataView() {
                         <button
                           key={tab.id}
                           onClick={() => setActiveTab(tab.id as any)}
-                          className={`flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer font-mono ${
+                          className={`flex items-center gap-1.5 px-3.5 py-2 text-[10px] font-bold uppercase tracking-wider border-b-2  cursor-pointer font-mono ${
                             isActive 
                               ? 'border-[var(--ui-accent)] text-white bg-[var(--ui-panel-soft)]/20'
                               : 'border-transparent text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/5'
@@ -943,7 +943,7 @@ export default function DataView() {
                     {activeTab === 'ledger' && (
                       <button 
                         onClick={() => handleExportCSV(compiledStrategyReport.trades)}
-                        className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white transition-all cursor-pointer flex items-center gap-1 active:scale-95 font-mono"
+                        className="px-2.5 py-1 text-[9px] font-black uppercase tracking-wider border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-white cursor-pointer flex items-center gap-1 font-mono"
                       >
                         <Download size={10} />
                         Export CSV
@@ -955,19 +955,19 @@ export default function DataView() {
                 {/* REPORT CONTENT VIEWPORT */}
                 <div className="flex-1 p-4 overflow-y-auto space-y-4 min-h-0 scrollbar-none">
                   {!compiledStrategyReport && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg border border-[var(--ui-border)] bg-[var(--ui-panel-soft)] text-[var(--ui-muted)] text-[11px] font-mono">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[var(--ui-muted)]" />
+                    <div className="flex items-center gap-2 p-3 border border-[var(--ui-border)] bg-[var(--ui-panel-soft)] text-[var(--ui-muted)] text-[11px] font-mono">
+                      <span className="w-1.5 h-1.5 bg-[var(--ui-muted)]" />
                       No analytics data yet for this run. Run a real backtest or start a paper/live session — metrics, equity curve and trade ledger load directly from the server.
                     </div>
                   )}
                   
                   {/* 1. CORE OVERVIEW TAB */}
                   {activeTab === 'overview' && (
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 animate-fade-in">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                       
                       {/* Left: Deep Strategy Metadata Sheet */}
                       <div 
-                        className="p-4 rounded-xl border bg-[var(--ui-panel-strong)]/20 flex flex-col justify-between h-fit lg:col-span-1"
+                        className="p-4 border bg-[var(--ui-panel-strong)]/20 flex flex-col justify-between h-fit lg:col-span-1"
                         style={{ borderColor: 'var(--ui-border)' }}
                       >
                         <div>
@@ -990,7 +990,7 @@ export default function DataView() {
                             </div>
                             <div className="flex justify-between items-center border-b border-[var(--ui-border)]/20 pb-1.5">
                               <span style={{ color: 'var(--ui-muted)' }}>Execution Symbol:</span>
-                              <span className="font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20 text-[10px]">
+                              <span className="font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 border border-emerald-500/20 text-[10px]">
                                 {compiledStrategyReport.symbol}
                               </span>
                             </div>
@@ -1011,7 +1011,7 @@ export default function DataView() {
                             <div className="flex justify-between items-center border-b border-[var(--ui-border)]/20 pb-1.5">
                               <span style={{ color: 'var(--ui-muted)' }}>Telemetry Sync:</span>
                               <span className="flex items-center gap-1 text-emerald-400 font-bold">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="h-1.5 w-1.5 bg-emerald-400" />
                                 {compiledStrategyReport.status === 'RUNNING' ? 'LIVE FEEDING' : 'ARCHIVED'}
                               </span>
                             </div>
@@ -1027,14 +1027,14 @@ export default function DataView() {
 
                       {/* Right: Hero Growth Curve AreaChart */}
                       <div 
-                        className="lg:col-span-2 p-4 rounded-xl border bg-[var(--ui-panel-strong)]/25 flex flex-col justify-between"
+                        className="lg:col-span-2 p-4 border bg-[var(--ui-panel-strong)]/25 flex flex-col justify-between"
                         style={{ borderColor: 'var(--ui-border)' }}
                       >
                         <div>
                           <span className="text-[10px] uppercase font-black tracking-widest text-[var(--ui-muted)] block mb-4 font-mono">
                             ACCUMULATED BALANCE GROWTH OVER TIME (USD)
                           </span>
-                          <div className="w-full transition-all duration-300 animate-fade-in" style={{ height: `${ribbonCollapsed ? '320px' : '230px'}` }}>
+                          <div className="w-full" style={{ height: `${ribbonCollapsed ? '320px' : '230px'}` }}>
                             <ResponsiveContainer width="100%" height="100%">
                               <AreaChart data={compiledStrategyReport.equityCurve} margin={{ left: -10, top: 10, right: 10, bottom: 0 }}>
                                 <defs>
@@ -1043,9 +1043,9 @@ export default function DataView() {
                                     <stop offset="100%" stopColor="var(--ui-accent)" stopOpacity={0.0} />
                                   </linearGradient>
                                 </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.15} />
-                                <XAxis dataKey="date" stroke="#64748b" fontSize={9} tickLine={false} />
-                                <YAxis stroke="#64748b" fontSize={9} tickLine={false} domain={['dataMin - 1000', 'dataMax + 1000']} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.15} />
+                                <XAxis dataKey="date" stroke="var(--text-dim)" fontSize={9} tickLine={false} />
+                                <YAxis stroke="var(--text-dim)" fontSize={9} tickLine={false} domain={['dataMin - 1000', 'dataMax + 1000']} />
                                 <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)', color: 'var(--ui-text)' }}
                                   itemStyle={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}
@@ -1063,7 +1063,7 @@ export default function DataView() {
                   {/* 2. TRANSACTION LEDGER TAB */}
                   {activeTab === 'ledger' && (
                     <div 
-                      className="p-4 rounded-xl border bg-[var(--ui-panel-strong)]/10 animate-fade-in"
+                      className="p-4 border bg-[var(--ui-panel-strong)]/10"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
                       {displayedTrades.length === 0 ? (
@@ -1089,10 +1089,10 @@ export default function DataView() {
                                 {paginatedTrades.map((t: any, idx: number) => {
                                   const isProfit = t.profit >= 0;
                                   return (
-                                    <tr key={idx} className="border-b border-[var(--ui-border)]/20 hover:bg-white/2 transition-colors">
+                                    <tr key={idx} className="border-b border-[var(--ui-border)]/20 hover:bg-white/2">
                                       <td className="py-2 px-3 font-mono text-[var(--ui-muted)]">{t.id}</td>
                                       <td className="py-2 px-3">
-                                        <span className={`px-1.5 py-0.2 rounded text-[9px] font-black ${
+                                        <span className={`px-1.5 py-0.2  text-[9px] font-black ${
                                           t.direction === 'LONG' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25' : 'bg-amber-500/15 text-amber-500 border border-amber-500/25'
                                         }`}>
                                           {t.direction}
@@ -1124,14 +1124,14 @@ export default function DataView() {
                                 <button
                                   onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                   disabled={currentPage === 1}
-                                  className="px-2.5 py-1 rounded text-[9px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer bg-[var(--ui-panel-soft)] font-mono text-white"
+                                  className="px-2.5 py-1 text-[9px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer bg-[var(--ui-panel-soft)] font-mono text-white"
                                 >
                                   &larr; PREV
                                 </button>
                                 <button
                                   onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(displayedTrades.length / rowsPerPage)))}
                                   disabled={currentPage === Math.ceil(displayedTrades.length / rowsPerPage)}
-                                  className="px-2.5 py-1 rounded text-[9px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer bg-[var(--ui-panel-soft)] font-mono text-white"
+                                  className="px-2.5 py-1 text-[9px] font-bold border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white disabled:opacity-30 cursor-pointer bg-[var(--ui-panel-soft)] font-mono text-white"
                                 >
                                   NEXT &rarr;
                                 </button>
@@ -1145,12 +1145,12 @@ export default function DataView() {
 
                   {/* 3. RISKS & ANALYTICS TAB */}
                   {activeTab === 'risks' && (
-                    <div className="space-y-4 animate-fade-in">
+                    <div className="space-y-4">
                       
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                         {/* Drawdown exposure curve */}
                         <div 
-                          className="p-4 rounded-xl border bg-[var(--ui-panel-strong)]/25 flex flex-col justify-between"
+                          className="p-4 border bg-[var(--ui-panel-strong)]/25 flex flex-col justify-between"
                           style={{ borderColor: 'var(--ui-border)' }}
                         >
                           <div>
@@ -1162,18 +1162,18 @@ export default function DataView() {
                                 <AreaChart data={compiledStrategyReport.equityCurve} margin={{ left: -15, top: 10, right: 10, bottom: 0 }}>
                                   <defs>
                                     <linearGradient id="colorAnalyticsDd" x1="0%" y1="0%" x2="0%" y2="100%">
-                                      <stop offset="0%" stopColor="#ef4444" stopOpacity={0.2} />
-                                      <stop offset="100%" stopColor="#ef4444" stopOpacity={0.0} />
+                                      <stop offset="0%" stopColor="var(--neg)" stopOpacity={0.2} />
+                                      <stop offset="100%" stopColor="var(--neg)" stopOpacity={0.0} />
                                     </linearGradient>
                                   </defs>
-                                  <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.15} />
-                                  <XAxis dataKey="date" stroke="#64748b" fontSize={9} tickLine={false} />
-                                  <YAxis stroke="#64748b" fontSize={9} tickLine={false} domain={['-10', '0']} />
+                                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.15} />
+                                  <XAxis dataKey="date" stroke="var(--text-dim)" fontSize={9} tickLine={false} />
+                                  <YAxis stroke="var(--text-dim)" fontSize={9} tickLine={false} domain={['-10', '0']} />
                                   <Tooltip 
                                     contentStyle={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)', color: 'var(--ui-text)' }}
                                     itemStyle={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}
                                   />
-                                  <Area type="monotone" dataKey="drawdown" stroke="#ef4444" strokeWidth={1.5} fillOpacity={1} fill="url(#colorAnalyticsDd)" />
+                                  <Area type="monotone" dataKey="drawdown" stroke="var(--neg)" strokeWidth={1.5} fillOpacity={1} fill="url(#colorAnalyticsDd)" />
                                 </AreaChart>
                               </ResponsiveContainer>
                             </div>
@@ -1182,7 +1182,7 @@ export default function DataView() {
 
                         {/* Profit Distribution Histogram */}
                         <div 
-                          className="p-4 rounded-xl border bg-[var(--ui-panel-strong)]/25"
+                          className="p-4 border bg-[var(--ui-panel-strong)]/25"
                           style={{ borderColor: 'var(--ui-border)' }}
                         >
                           <span className="text-[10px] uppercase font-black tracking-widest text-[var(--ui-muted)] block mb-4 font-mono">
@@ -1197,9 +1197,9 @@ export default function DataView() {
                                 }))}
                                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                               >
-                                <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" opacity={0.15} />
-                                <XAxis dataKey="name" stroke="#64748b" fontSize={8} tickLine={false} />
-                                <YAxis stroke="#64748b" fontSize={9} tickLine={false} />
+                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.15} />
+                                <XAxis dataKey="name" stroke="var(--text-dim)" fontSize={8} tickLine={false} />
+                                <YAxis stroke="var(--text-dim)" fontSize={9} tickLine={false} />
                                 <Tooltip 
                                   contentStyle={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border-strong)', color: 'var(--ui-text)' }}
                                   itemStyle={{ fontSize: '11px', fontFamily: 'var(--font-mono)' }}
@@ -1210,7 +1210,7 @@ export default function DataView() {
                                     return (
                                       <Cell 
                                         key={`cell-${index}`} 
-                                        fill={val >= 0 ? '#10b981' : '#ef4444'} 
+                                        fill={val >= 0 ? 'var(--pos)' : 'var(--neg)'}
                                         fillOpacity={0.8}
                                       />
                                     );
@@ -1224,7 +1224,7 @@ export default function DataView() {
 
                       {/* Globalized Risks Matrix Grid */}
                       <div 
-                        className="p-4 rounded-xl border bg-[var(--ui-panel-strong)]/15"
+                        className="p-4 border bg-[var(--ui-panel-strong)]/15"
                         style={{ borderColor: 'var(--ui-border)' }}
                       >
                         <span className="text-[10px] uppercase font-black tracking-widest text-[var(--ui-muted)] block mb-3.5 font-mono">
@@ -1233,56 +1233,56 @@ export default function DataView() {
                         
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs font-mono">
                           
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Sortino Ratio</span>
                             <span className="block text-sm font-black text-teal-400 mt-1">
                               {(compiledStrategyReport.metrics.sharpeRatio * 1.18).toFixed(2)}
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Beta Coef.</span>
                             <span className="block text-sm font-black text-amber-500 mt-1">
                               0.88
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Alpha Return</span>
                             <span className="block text-sm font-black text-white mt-1">
                               +1.24%
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Avg Hold Duration</span>
                             <span className="block text-sm font-black text-sky-400 mt-1">
                               {compiledStrategyReport.metrics.avgHoldDuration}
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Math Expectancy</span>
                             <span className="block text-sm font-black text-emerald-400 mt-1">
                               +${compiledStrategyReport.metrics.expectancy.toFixed(2)}
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Total Commission</span>
                             <span className="block text-sm font-black text-slate-300 mt-1">
                               ${compiledStrategyReport.metrics.totalCommission.toFixed(2)}
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Avg Winning Fill</span>
                             <span className="block text-sm font-black text-emerald-400 mt-1">
                               +${compiledStrategyReport.metrics.avgWin.toFixed(2)}
                             </span>
                           </div>
 
-                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 rounded border border-[var(--ui-border)]/30">
+                          <div className="bg-[var(--ui-panel-soft)]/20 p-3 border border-[var(--ui-border)]/30">
                             <span className="text-[8px] uppercase tracking-wider text-[var(--ui-muted)] font-black block">Avg Losing Fill</span>
                             <span className="block text-sm font-black text-red-400 mt-1">
                               -${Math.abs(compiledStrategyReport.metrics.avgLoss).toFixed(2)}
@@ -1300,7 +1300,7 @@ export default function DataView() {
               </div>
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none font-mono">
-                <Activity size={48} className="text-[var(--ui-muted)] animate-pulse mb-3" />
+                <Activity size={48} className="text-[var(--ui-muted)] mb-3" />
                 <h3 className="text-xs uppercase tracking-widest font-black text-white">
                   No Runs Loaded
                 </h3>
@@ -1318,17 +1318,17 @@ export default function DataView() {
       {/* 3. AI QUANTITATIVE ANALYST CHAT WIDGET */}
       <button 
         onClick={() => setChatOpen(!chatOpen)}
-        className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-[var(--ui-accent)] hover:bg-[var(--ui-accent-strong)] text-white flex items-center justify-center shadow-2xl cursor-pointer hover:scale-105 transition-all z-40 group border border-[var(--ui-accent-strong)]/40"
+        className="fixed bottom-6 right-6 h-12 w-12 bg-[var(--ui-accent)] hover:bg-[var(--ui-accent-strong)] text-white flex items-center justify-center cursor-pointer z-40 group border border-[var(--ui-accent-strong)]/40"
         title="Open AI Analyst Assistant"
       >
-        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-emerald-500 rounded-full border border-[var(--ui-bg)] animate-ping" />
-        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-emerald-500 rounded-full border border-[var(--ui-bg)]" />
-        <MessageSquare size={20} className="group-hover:rotate-12 transition-transform" />
+        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-emerald-500 border border-[var(--ui-bg)]" />
+        <span className="absolute -top-1 -right-1 h-3.5 w-3.5 bg-emerald-500 border border-[var(--ui-bg)]" />
+        <MessageSquare size={20} className="group-hover:rotate-12" />
       </button>
 
       {/* Slide-out AI Quant Terminal Drawer */}
       <div 
-        className={`fixed top-14 bottom-0 right-0 w-80 md:w-96 bg-[var(--ui-panel-strong)] border-l border-[var(--ui-border)] shadow-2xl transition-transform duration-300 flex flex-col z-50 ${
+        className={`fixed top-14 bottom-0 right-0 w-80 md:w-96 bg-[var(--ui-panel-strong)] border-l border-[var(--ui-border)]    flex flex-col z-50 ${
           chatOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
@@ -1343,7 +1343,7 @@ export default function DataView() {
           </div>
           <button 
             onClick={() => setChatOpen(false)}
-            className="text-[var(--ui-muted)] hover:text-white p-1 rounded hover:bg-[var(--ui-panel-soft)] transition-all cursor-pointer"
+            className="text-[var(--ui-muted)] hover:text-white p-1 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
           >
             <ChevronRight size={16} />
           </button>
@@ -1357,7 +1357,7 @@ export default function DataView() {
               <div key={i} className={`flex flex-col ${isAI ? 'items-start' : 'items-end'} space-y-1`}>
                 <span className="text-[8px] text-[var(--ui-muted)]">{isAI ? 'SYSTEM // COGNITIVE_CORES' : 'OPERATOR // QUANT'} • {msg.time}</span>
                 <div 
-                  className={`p-2.5 rounded-lg max-w-[85%] leading-relaxed border ${
+                  className={`p-2.5  max-w-[85%] leading-relaxed border ${
                     isAI 
                       ? 'bg-[var(--ui-panel-soft)]/40 border-[var(--ui-border)] text-slate-300' 
                       : 'bg-[var(--ui-accent)]/15 border-[var(--ui-accent)] text-white'
@@ -1371,8 +1371,8 @@ export default function DataView() {
           {isTyping && (
             <div className="flex flex-col items-start space-y-1">
               <span className="text-[8px] text-[var(--ui-muted)]">SYSTEM // COGNITIVE_CORES • Processing...</span>
-              <div className="p-2.5 rounded-lg bg-[var(--ui-panel-soft)]/40 border border-[var(--ui-border)] text-[var(--ui-muted)] flex items-center gap-2">
-                <RefreshCw size={10} className="animate-spin text-[var(--ui-accent)]" />
+              <div className="p-2.5 bg-[var(--ui-panel-soft)]/40 border border-[var(--ui-border)] text-[var(--ui-muted)] flex items-center gap-2">
+                <RefreshCw size={10} className="text-[var(--ui-accent)]" />
                 Compiling response matrix...
               </div>
             </div>
@@ -1390,7 +1390,7 @@ export default function DataView() {
             <button
               key={i}
               onClick={() => handleSendChatMessage(prompt)}
-              className="text-[9px] font-mono font-bold uppercase border border-[var(--ui-border)] hover:border-[var(--ui-accent)] hover:text-white px-2 py-1 rounded text-[var(--ui-muted)] bg-[var(--ui-panel-strong)] cursor-pointer transition-all active:scale-95 text-white"
+              className="text-[9px] font-mono font-bold uppercase border border-[var(--ui-border)] hover:border-[var(--ui-accent)] hover:text-white px-2 py-1 text-[var(--ui-muted)] bg-[var(--ui-panel-strong)] cursor-pointer text-white"
             >
               {prompt}
             </button>
@@ -1405,12 +1405,12 @@ export default function DataView() {
             value={chatInputValue}
             onChange={(e) => setChatInputValue(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendChatMessage()}
-            className="flex-1 font-mono text-[11px] py-2 px-3 rounded border focus:outline-none"
+            className="flex-1 font-mono text-[11px] py-2 px-3 border focus:outline-none"
             style={{ backgroundColor: 'var(--ui-input-bg)', borderColor: 'var(--ui-border)', color: 'var(--ui-text)' }}
           />
           <button
             onClick={() => handleSendChatMessage()}
-            className="h-8 w-8 rounded bg-[var(--ui-accent)] hover:bg-[var(--ui-accent-strong)] text-white flex items-center justify-center cursor-pointer transition-all shrink-0 active:scale-95"
+            className="h-8 w-8 bg-[var(--ui-accent)] hover:bg-[var(--ui-accent-strong)] text-white flex items-center justify-center cursor-pointer shrink-0"
           >
             <Send size={12} />
           </button>

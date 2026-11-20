@@ -57,25 +57,25 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 select-none fade-in"
       onClick={onClose}
     >
       <div 
-        className="w-full max-w-lg bg-[var(--ui-panel-strong)] border border-[var(--ui-accent)]/30 rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[85vh] font-mono"
+        className="w-full max-w-lg bg-[var(--ui-panel-strong)] border border-[var(--ui-accent)]/30 flex flex-col overflow-hidden max-h-[85vh] font-mono"
         onClick={(e) => e.stopPropagation()}
-        style={{ boxShadow: '0 0 30px rgba(30, 144, 255, 0.15)' }}
+        style={{ boxShadow: '0 0 30px var(--bg-raised)' }}
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-[var(--ui-border)] bg-[var(--ui-panel)]">
           <div className="flex items-center gap-2">
-            <Keyboard size={16} className="text-[var(--ui-accent)] animate-pulse" />
+            <Keyboard size={16} className="text-[var(--ui-accent)]" />
             <span className="text-xs font-black uppercase tracking-widest text-white">
               COREX HOTKEYS LEDGER
             </span>
           </div>
           <button 
             onClick={onClose}
-            className="text-[var(--ui-muted)] hover:text-white p-1 rounded hover:bg-[var(--ui-panel-soft)] transition-colors cursor-pointer"
+            className="text-[var(--ui-muted)] hover:text-white p-1 hover:bg-[var(--ui-panel-soft)] cursor-pointer"
           >
             <X size={14} />
           </button>
@@ -91,7 +91,7 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
               placeholder="Search shortcuts..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full text-xs py-1.5 pl-8 pr-3 rounded border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-white"
+              className="w-full text-xs py-1.5 pl-8 pr-3 border focus:outline-none font-mono bg-[var(--ui-input-bg)] text-white"
               style={{ borderColor: 'var(--ui-border)' }}
               autoFocus
             />
@@ -103,9 +103,9 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
               <button
                 key={cat}
                 onClick={() => setActiveFilter(cat)}
-                className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider rounded transition-all cursor-pointer ${
+                className={`px-2.5 py-1 text-[9px] font-black uppercase tracking-wider   cursor-pointer ${
                   activeFilter === cat
-                    ? 'bg-[var(--ui-accent)] text-white shadow'
+                    ? 'bg-[var(--ui-accent)] text-white '
                     : 'text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]/35'
                 }`}
               >
@@ -126,25 +126,25 @@ export default function KeyboardShortcutsModal({ isOpen, onClose }: KeyboardShor
               {filteredShortcuts.map((item, idx) => (
                 <div 
                   key={idx}
-                  className="flex items-center justify-between p-2 rounded border border-[var(--ui-border)]/30 hover:border-[var(--ui-accent)]/20 hover:bg-[var(--ui-panel-soft)]/20 transition-all group"
+                  className="flex items-center justify-between p-2 border border-[var(--ui-border)]/30 hover:border-[var(--ui-accent)]/20 hover:bg-[var(--ui-panel-soft)]/20 group"
                 >
-                  <span className="text-[11px] text-[var(--ui-text)] group-hover:text-white transition-colors max-w-[280px] truncate">
+                  <span className="text-[11px] text-[var(--ui-text)] group-hover:text-white max-w-[280px] truncate">
                     {item.description}
                   </span>
 
                   <div className="flex items-center gap-1.5 shrink-0 select-none">
-                    <span className="text-[8px] uppercase tracking-wider font-bold text-[var(--ui-subtle)] px-1 border border-[var(--ui-border)] rounded-sm bg-[var(--ui-input-bg)] hidden md:inline">
+                    <span className="text-[8px] uppercase tracking-wider font-bold text-[var(--ui-subtle)] px-1 border border-[var(--ui-border)] bg-[var(--ui-input-bg)] hidden md:inline">
                       {item.category}
                     </span>
                     
                     <div className="flex items-center gap-1">
-                      <kbd className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-[var(--ui-panel-soft)] border border-[var(--ui-border-strong)] rounded shadow-sm leading-none min-w-[20px] text-center">
+                      <kbd className="px-1.5 py-0.5 text-[9px] font-bold text-white bg-[var(--ui-panel-soft)] border border-[var(--ui-border-strong)] leading-none min-w-[20px] text-center">
                         {item.keyCombo}
                       </kbd>
                       {item.altCombo && (
                         <>
                           <span className="text-[9px] text-[var(--ui-muted)]">or</span>
-                          <kbd className="px-1.5 py-0.5 text-[9px] font-bold text-[var(--ui-accent-strong)] bg-[var(--ui-panel-soft)] border border-[var(--ui-border-strong)] rounded shadow-sm leading-none min-w-[30px] text-center">
+                          <kbd className="px-1.5 py-0.5 text-[9px] font-bold text-[var(--ui-accent-strong)] bg-[var(--ui-panel-soft)] border border-[var(--ui-border-strong)] leading-none min-w-[30px] text-center">
                             {item.altCombo}
                           </kbd>
                         </>

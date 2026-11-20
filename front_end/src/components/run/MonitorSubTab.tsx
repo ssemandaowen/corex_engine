@@ -57,11 +57,11 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
   
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [chartType, setChartType] = useState<'candlestick' | 'line' | 'bar' | 'area'>('candlestick');
-  const [upColor, setUpColor] = useState('#10b981');
-  const [downColor, setDownColor] = useState('#ef4444');
+  const [upColor, setUpColor] = useState('var(--pos)');
+  const [downColor, setDownColor] = useState('var(--neg)');
   const [showVolume, setShowVolume] = useState(true);
   const [showGrid, setShowGrid] = useState(true);
-  const [bgPreset, setBgPreset] = useState('#010409');
+  const [bgPreset, setBgPreset] = useState('var(--bg)');
 
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
@@ -124,17 +124,17 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { color: bgPreset }, // Dynamic preset
-        textColor: '#64748b',
+        textColor: 'var(--text-dim)',
       },
       grid: {
-        vertLines: { color: showGrid ? '#0f172a' : 'transparent' },
-        horzLines: { color: showGrid ? '#0f172a' : 'transparent' },
+        vertLines: { color: showGrid ? 'var(--border)' : 'transparent' },
+        horzLines: { color: showGrid ? 'var(--border)' : 'transparent' },
       },
       rightPriceScale: {
-        borderColor: '#1e293b',
+        borderColor: 'var(--border)',
       },
       timeScale: {
-        borderColor: '#1e293b',
+        borderColor: 'var(--border)',
         timeVisible: true,
         secondsVisible: false,
       },
@@ -174,7 +174,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
 
     // Add volume histogram series
     const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: '#F27D26',
+      color: 'var(--warn)',
       priceFormat: {
         type: 'volume',
       },
@@ -242,11 +242,11 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
       text: `Are you sure you want to stop the active thread for "${name}"? This will terminate all active live feed ticks.`,
       icon: 'warning',
       showCancelButton: true,
-      confirmButtonColor: '#ef4444',
+      confirmButtonColor: 'var(--neg)',
       cancelButtonColor: 'var(--ui-panel-strong)',
       confirmButtonText: 'Halt Thread',
-      background: '#070e20',
-      color: '#fff',
+      background: 'var(--bg-panel)',
+      color: 'var(--text)',
     });
 
     if (result.isConfirmed) {
@@ -299,11 +299,11 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                 <button
                   type="button"
                   onClick={() => setIsStrategyDropdownOpen(!isStrategyDropdownOpen)}
-                  className="px-2 py-1 text-[10px] rounded border bg-[var(--ui-input-bg)] hover:bg-[var(--ui-panel-soft)] text-white focus:outline-none cursor-pointer font-mono font-bold flex items-center gap-1 transition-colors"
+                  className="px-2 py-1 text-[10px] border bg-[var(--ui-input-bg)] hover:bg-[var(--ui-panel-soft)] text-white focus:outline-none cursor-pointer font-mono font-bold flex items-center gap-1"
                   style={{ borderColor: 'var(--ui-border)' }}
                   title="Search & select running strategy instance"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--ui-positive)] animate-pulse shrink-0" />
+                  <span className="w-1.5 h-1.5 bg-[var(--ui-positive)] shrink-0" />
                   <span className="truncate max-w-[110px] sm:max-w-[200px]">
                     {currentInst?.name || 'Select Instance'}
                   </span>
@@ -322,7 +322,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                     />
                     
                     <div 
-                      className="absolute left-0 mt-1 w-64 rounded-md shadow-lg border bg-[#070e20] z-50 focus:outline-none overflow-hidden"
+                      className="absolute left-0 mt-1 w-64 border bg-[var(--bg-panel)] z-50 focus:outline-none overflow-hidden"
                       style={{ borderColor: 'var(--ui-border)' }}
                     >
                       {/* Search box */}
@@ -332,7 +332,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                           placeholder="Search active instances..."
                           value={strategySearchQuery}
                           onChange={(e) => setStrategySearchQuery(e.target.value)}
-                          className="w-full text-[10px] py-1 px-2.5 rounded bg-[#020617] text-white placeholder-slate-500 border focus:outline-none focus:border-[var(--ui-accent)] font-mono"
+                          className="w-full text-[10px] py-1 px-2.5 bg-[var(--bg)] text-white placeholder-slate-500 border focus:outline-none focus:border-[var(--ui-accent)] font-mono"
                           style={{ borderColor: 'var(--ui-border)' }}
                           autoFocus
                         />
@@ -356,13 +356,13 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                                   setIsStrategyDropdownOpen(false);
                                   setStrategySearchQuery('');
                                 }}
-                                className={`w-full text-left px-3 py-1.5 text-[10px] flex items-center justify-between transition-colors hover:bg-slate-900/60 font-mono ${
+                                className={`w-full text-left px-3 py-1.5 text-[10px] flex items-center justify-between  hover:bg-slate-900/60 font-mono ${
                                   isSelected ? 'bg-blue-500/10 text-white' : 'text-slate-300'
                                 }`}
                               >
                                 <div className="flex flex-col min-w-0">
                                   <div className="flex items-center gap-1 min-w-0">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                                    <div className="w-1.5 h-1.5 bg-emerald-500 shrink-0" />
                                     <span className="font-bold truncate">{inst.name}</span>
                                   </div>
                                   <div className="text-[8px] text-[var(--ui-muted)] flex items-center gap-1 mt-0.5">
@@ -411,7 +411,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
             <button
               type="button"
               onClick={() => setShowSnapshot(!showSnapshot)}
-              className={`p-1.5 rounded border transition-all cursor-pointer flex items-center justify-center active:scale-95 shrink-0 ${
+              className={`p-1.5  border  cursor-pointer flex items-center justify-center  shrink-0 ${
                 showSnapshot ? 'bg-slate-800 text-white border-[var(--ui-border)]' : 'border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]'
               }`}
               title={showSnapshot ? 'Hide Container Snapshot Panel' : 'Show Container Snapshot Panel'}
@@ -426,7 +426,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
               <button
                 type="button"
                 onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                className={`p-1.5 rounded border transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
+                className={`p-1.5  border  cursor-pointer flex items-center justify-center  ${
                   isSettingsOpen ? 'bg-[var(--ui-accent)] text-white border-[var(--ui-accent)]' : 'border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white hover:bg-[var(--ui-panel-soft)]'
                 }`}
                 title="Chart Options & Colors"
@@ -438,7 +438,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                 <>
                   <div className="fixed inset-0 z-40 cursor-default" onClick={() => setIsSettingsOpen(false)} />
                   <div 
-                    className="absolute right-0 mt-1 w-64 rounded-md shadow-xl border bg-[#070e20] z-50 p-4 font-mono text-[11px] text-slate-300 focus:outline-none space-y-4"
+                    className="absolute right-0 mt-1 w-64 border bg-[var(--bg-panel)] z-50 p-4 font-mono text-[11px] text-slate-300 focus:outline-none space-y-4"
                     style={{ borderColor: 'var(--ui-border)' }}
                   >
                     <div className="border-b pb-1.5 border-[var(--ui-border)]/50">
@@ -457,7 +457,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                           <button
                             key={style}
                             onClick={() => setChartType(style)}
-                            className={`py-1 px-1.5 rounded border text-[9px] uppercase font-bold transition-all text-center cursor-pointer ${
+                            className={`py-1 px-1.5  border text-[9px] uppercase font-bold  text-center cursor-pointer ${
                               chartType === style 
                                 ? 'bg-[var(--ui-accent)] border-[var(--ui-accent)] text-white hover:bg-opacity-95' 
                                 : 'border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white hover:bg-slate-950'
@@ -478,12 +478,12 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                         <div className="flex-1 space-y-1">
                           <span className="text-[8px] text-[var(--ui-muted)]">Bullish</span>
                           <div className="flex gap-1 flex-wrap">
-                            {['#10b981', '#3b82f6', '#06b6d4', '#22c55e'].map((color) => (
+                            {['var(--pos)', 'var(--accent)', 'var(--info)', 'var(--pos)'].map((color) => (
                               <button
                                 key={color}
                                 onClick={() => setUpColor(color)}
-                                className={`w-4 h-4 rounded-full transition-all cursor-pointer ${
-                                  upColor === color ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'
+                                className={`w-4 h-4   cursor-pointer ${
+                                  upColor === color ? '  scale-110' : 'opacity-70 hover:opacity-100'
                                 }`}
                                 style={{ backgroundColor: color }}
                               />
@@ -493,12 +493,12 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                         <div className="flex-1 space-y-1">
                           <span className="text-[8px] text-[var(--ui-muted)]">Bearish</span>
                           <div className="flex gap-1 flex-wrap">
-                            {['#ef4444', '#f43f5e', '#f97316', '#ff6b6b'].map((color) => (
+                            {['var(--neg)', 'var(--neg)', 'var(--warn)', 'var(--neg)'].map((color) => (
                               <button
                                 key={color}
                                 onClick={() => setDownColor(color)}
-                                className={`w-4 h-4 rounded-full transition-all cursor-pointer ${
-                                  downColor === color ? 'ring-2 ring-white scale-110' : 'opacity-70 hover:opacity-100'
+                                className={`w-4 h-4   cursor-pointer ${
+                                  downColor === color ? '  scale-110' : 'opacity-70 hover:opacity-100'
                                 }`}
                                 style={{ backgroundColor: color }}
                               />
@@ -516,7 +516,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                         </span>
                         <button
                           onClick={() => setShowVolume(!showVolume)}
-                          className={`px-2 py-0.5 rounded border text-[8px] font-black uppercase cursor-pointer hover:bg-slate-900 ${
+                          className={`px-2 py-0.5  border text-[8px] font-black uppercase cursor-pointer hover:bg-slate-900 ${
                             showVolume ? 'text-[var(--ui-accent)] border-[var(--ui-accent)] bg-[var(--ui-accent)]/5' : 'text-slate-400 border-[var(--ui-border)]'
                           }`}
                         >
@@ -530,7 +530,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                         </span>
                         <button
                           onClick={() => setShowGrid(!showGrid)}
-                          className={`px-2 py-0.5 rounded border text-[8px] font-black uppercase cursor-pointer hover:bg-slate-900 ${
+                          className={`px-2 py-0.5  border text-[8px] font-black uppercase cursor-pointer hover:bg-slate-900 ${
                             showGrid ? 'text-[var(--ui-accent)] border-[var(--ui-accent)] bg-[var(--ui-accent)]/5' : 'text-slate-400 border-[var(--ui-border)]'
                           }`}
                         >
@@ -546,15 +546,15 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                       </label>
                       <div className="grid grid-cols-2 gap-1 font-mono text-[8px] text-center">
                         {[
-                          { name: 'Deep Dark', value: '#010409' },
-                          { name: 'Pure Black', value: '#000000' },
-                          { name: 'Slate Gray', value: '#0f172a' },
-                          { name: 'Navy Black', value: '#020617' }
+                          { name: 'Deep Dark', value: 'var(--bg)' },
+                          { name: 'Pure Black', value: 'var(--bg)' },
+                          { name: 'Slate Gray', value: 'var(--border)' },
+                          { name: 'Navy Black', value: 'var(--bg)' }
                         ].map((theme) => (
                           <button
                             key={theme.value}
                             onClick={() => setBgPreset(theme.value)}
-                            className={`py-1 rounded border transition-all text-[8px] uppercase font-bold cursor-pointer truncate ${
+                            className={`py-1  border  text-[8px] uppercase font-bold cursor-pointer truncate ${
                               bgPreset === theme.value 
                                 ? 'bg-[var(--ui-accent)] border-[var(--ui-accent)] text-white hover:bg-opacity-95' 
                                 : 'border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white hover:bg-slate-950'
@@ -572,11 +572,11 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
           )}
 
           {/* View Toggles (Grid vs Deep) */}
-          <div className="flex items-center bg-[var(--ui-panel-soft)] p-0.5 rounded border border-[var(--ui-border)] shrink-0">
+          <div className="flex items-center bg-[var(--ui-panel-soft)] p-0.5 border border-[var(--ui-border)] shrink-0">
             <button
               onClick={() => setViewMode('grid')}
-              className={`p-1.5 rounded transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
-                viewMode === 'grid' ? 'bg-[var(--ui-accent)] text-white shadow' : 'text-[var(--ui-muted)] hover:text-white'
+              className={`p-1.5   cursor-pointer flex items-center justify-center  ${
+                viewMode === 'grid' ? 'bg-[var(--ui-accent)] text-white ' : 'text-[var(--ui-muted)] hover:text-white'
               }`}
               title={`Grid Monitor View (${runningInstances.length} active runs)`}
             >
@@ -593,8 +593,8 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                   showToast('No active running strategy threads to monitor.', 'warning');
                 }
               }}
-              className={`p-1.5 rounded transition-all cursor-pointer flex items-center justify-center active:scale-95 ${
-                viewMode === 'single' ? 'bg-[var(--ui-accent)] text-white shadow' : 'text-[var(--ui-muted)] hover:text-white'
+              className={`p-1.5   cursor-pointer flex items-center justify-center  ${
+                viewMode === 'single' ? 'bg-[var(--ui-accent)] text-white ' : 'text-[var(--ui-muted)] hover:text-white'
               }`}
               title="Deep Monitor View"
             >
@@ -606,7 +606,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
 
       {runningInstances.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-8 text-center select-none">
-          <Maximize2 size={48} className="text-[var(--ui-muted)] animate-pulse mb-3" />
+          <Maximize2 size={48} className="text-[var(--ui-muted)] mb-3" />
           <h3 className="text-xs uppercase tracking-widest font-black text-[var(--ui-text)]">Workstation Empty</h3>
           <p className="text-[10px] text-[var(--ui-muted)] max-w-xs mt-1">
             Please run or deploy a strategy template using the Workspace tab to launch active container instances with real-time TradingView charts.
@@ -641,12 +641,12 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
             {/* Main top workspace - left: chart, right: position summary */}
             <div className="flex-1 flex flex-col md:flex-row min-h-0 border-b md:overflow-hidden overflow-y-auto" style={{ borderColor: 'var(--ui-border)' }}>
               {/* Chart */}
-              <div className="flex-1 min-w-0 h-[320px] md:h-full relative bg-[#010409]" ref={chartContainerRef} />
+              <div className="flex-1 min-w-0 h-[320px] md:h-full relative bg-[var(--bg)]" ref={chartContainerRef} />
 
               {/* Position details right rail */}
               {showSnapshot && (
                 <div 
-                  className="w-full md:w-[280px] border-t md:border-t-0 md:border-l p-4 md:overflow-y-auto space-y-5 shrink-0 bg-[var(--ui-sidebar-bg)] transition-all duration-300"
+                  className="w-full md:w-[280px] border-t md:border-t-0 md:border-l p-4 md:overflow-y-auto space-y-5 shrink-0 bg-[var(--ui-sidebar-bg)]"
                   style={{ borderColor: 'var(--ui-border)' }}
                 >
                   {/* Active margins status */}
@@ -657,7 +657,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
 
                     <div className="flex items-center justify-between">
                       <span className="text-xs" style={{ color: 'var(--ui-muted)' }}>Holding Position:</span>
-                      <span className={`text-[10px] uppercase font-bold px-1.5 rounded border leading-none py-0.5 ${getPositionStyle(typeof telemetry?.position === 'object' && telemetry?.position !== null ? telemetry?.position?.side : (telemetry?.position || 'FLAT'))}`}>
+                      <span className={`text-[10px] uppercase font-bold px-1.5  border leading-none py-0.5 ${getPositionStyle(typeof telemetry?.position === 'object' && telemetry?.position !== null ? telemetry?.position?.side : (telemetry?.position || 'FLAT'))}`}>
                         {typeof telemetry?.position === 'object' && telemetry?.position !== null ? telemetry?.position?.side : (telemetry?.position || 'FLAT')}
                       </span>
                     </div>
@@ -720,7 +720,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                     {telemetry?.fills && telemetry.fills.length > 0 ? (
                       <div className="space-y-1.5">
                         {telemetry.fills.slice(0, 5).map((fill: any, idx: number) => (
-                          <div key={idx} className="flex items-center justify-between p-1.5 rounded border border-[var(--ui-border)]/50 bg-[var(--ui-panel-soft)] font-mono text-[10px]">
+                          <div key={idx} className="flex items-center justify-between p-1.5 border border-[var(--ui-border)]/50 bg-[var(--ui-panel-soft)] font-mono text-[10px]">
                             <span className={`font-bold ${fill.side === 'LONG' || fill.direction === 'LONG' ? 'text-emerald-400' : 'text-red-400'}`}>
                               {fill.side || fill.direction || 'FILL'}
                             </span>
@@ -741,7 +741,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
 
             {/* Bottom terminal log strip */}
             {isTerminalVisible && (
-              <div className={`flex flex-col bg-[var(--ui-terminal-bg)] overflow-hidden shrink-0 transition-all duration-200 ${terminalCollapsed ? 'h-8' : 'h-44'}`}>
+              <div className={`flex flex-col bg-[var(--ui-terminal-bg)] overflow-hidden shrink-0   ${terminalCollapsed ? 'h-8' : 'h-44'}`}>
                 <div 
                   className="flex items-center justify-between px-3 h-8 border-b shrink-0 cursor-pointer select-none"
                   style={{ backgroundColor: 'var(--ui-panel-strong)', borderColor: 'var(--ui-border)' }}
@@ -756,13 +756,13 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                   <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                     <button 
                       onClick={() => activeRuntimeId && clearStrategyLogs(activeRuntimeId)}
-                      className="text-[8px] px-1.5 py-0.5 rounded border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white transition-colors cursor-pointer"
+                      className="text-[8px] px-1.5 py-0.5 border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white cursor-pointer"
                     >
                       CLEAR STREAM
                     </button>
                     <button 
                       onClick={() => setTerminalCollapsed(!terminalCollapsed)}
-                      className="text-[8px] px-1.5 py-0.5 rounded border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white transition-colors cursor-pointer uppercase font-black"
+                      className="text-[8px] px-1.5 py-0.5 border border-[var(--ui-border)] text-[var(--ui-muted)] hover:text-white cursor-pointer uppercase font-black"
                     >
                       {terminalCollapsed ? 'Expand' : 'Collapse'}
                     </button>
@@ -775,7 +775,7 @@ export default function MonitorSubTab({ initialRuntimeId }: MonitorSubTabProps) 
                       selectedLogLines.map((log) => (
                         <div key={log.id} className="flex items-start gap-1.5">
                           <span className="text-[var(--ui-muted)] shrink-0">[{log.timestamp}]</span>
-                          <span className={`px-1 text-[8px] rounded border uppercase shrink-0 ${
+                          <span className={`px-1 text-[8px]  border uppercase shrink-0 ${
                             log.level === 'ERROR' ? 'text-red-400 border-red-500/25 bg-red-500/5' : 'text-blue-400 border-blue-500/25 bg-blue-500/5'
                           }`}>
                             {log.level}

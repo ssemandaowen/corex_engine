@@ -52,7 +52,7 @@ export default function LiveBridgeSubTab() {
       
       {/* LEFT COLUMN: Connection controller */}
       <div className="w-full md:w-[380px] space-y-4 shrink-0">
-        <div className="p-4 rounded-xl border bg-[var(--ui-panel)] relative" style={{ borderColor: 'var(--ui-border)' }}>
+        <div className="p-4 border bg-[var(--ui-panel)] relative" style={{ borderColor: 'var(--ui-border)' }}>
           <div className="flex items-center justify-between mb-4 pb-2 border-b border-[var(--ui-border)]/50">
             <div className="flex items-center gap-1.5">
               <Compass size={13} style={{ color: 'var(--ui-accent)' }} />
@@ -65,17 +65,17 @@ export default function LiveBridgeSubTab() {
               <button 
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
-                className="p-1 rounded hover:bg-[var(--ui-panel-soft)] text-[var(--ui-muted)] hover:text-white transition-colors cursor-pointer disabled:opacity-50"
+                className="p-1 hover:bg-[var(--ui-panel-soft)] text-[var(--ui-muted)] hover:text-white cursor-pointer disabled:opacity-50"
                 title="Refresh Status"
               >
-                <RefreshCw size={12} className={isRefreshing ? 'animate-spin text-[var(--ui-accent)]' : ''} />
+                <RefreshCw size={12} className={isRefreshing ? ' text-[var(--ui-accent)]' : ''} />
               </button>
 
-              <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded border leading-none ${
+              <span className={`text-[8px] font-black uppercase px-2 py-0.5  border leading-none ${
                 mt5Status === 'CONNECTED' 
                   ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' 
                   : mt5Status === 'CONNECTING' 
-                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 animate-pulse'
+                    ? 'bg-amber-500/10 text-amber-500 border-amber-500/20 '
                     : 'bg-red-500/10 text-red-400 border-red-500/20'
               }`}>
                 {mt5Status}
@@ -104,7 +104,7 @@ export default function LiveBridgeSubTab() {
         </div>
 
         {/* Live Broker Balance Account info card */}
-        <div className="p-4 rounded-xl border bg-[var(--ui-panel)]" style={{ borderColor: 'var(--ui-border)' }}>
+        <div className="p-4 border bg-[var(--ui-panel)]" style={{ borderColor: 'var(--ui-border)' }}>
           <span className="text-[10px] uppercase font-black tracking-widest text-[var(--ui-muted)] block mb-3 border-b border-[var(--ui-border)]/50 pb-1.5">
             Equity margin stats
           </span>
@@ -130,7 +130,7 @@ export default function LiveBridgeSubTab() {
       <div className="flex-1 space-y-4">
         
         {/* Price ticks panel */}
-        <div className="p-4 rounded-xl border bg-[var(--ui-panel)]" style={{ borderColor: 'var(--ui-border)' }}>
+        <div className="p-4 border bg-[var(--ui-panel)]" style={{ borderColor: 'var(--ui-border)' }}>
           <div className="flex items-center justify-between mb-3 border-b border-[var(--ui-border)]/50 pb-2">
             <div className="flex items-center gap-1.5">
               <Activity size={13} style={{ color: 'var(--ui-accent)' }} />
@@ -149,7 +149,7 @@ export default function LiveBridgeSubTab() {
               return (
                 <div 
                   key={symbol}
-                  className="p-3 rounded-lg border border-[var(--ui-border)]/60 bg-[var(--ui-panel-soft)] font-mono text-center flex flex-col justify-between"
+                  className="p-3 border border-[var(--ui-border)]/60 bg-[var(--ui-panel-soft)] font-mono text-center flex flex-col justify-between"
                 >
                   <span className="text-[10px] font-bold text-[var(--ui-text)] mb-2 block">{symbol}</span>
                   <div className="flex justify-between items-center text-[10px] text-[var(--ui-muted)] mb-1">
@@ -167,7 +167,7 @@ export default function LiveBridgeSubTab() {
         </div>
 
         {/* Live Broker Orders list */}
-        <div className="p-4 rounded-xl border bg-[var(--ui-panel)]" style={{ borderColor: 'var(--ui-border)' }}>
+        <div className="p-4 border bg-[var(--ui-panel)]" style={{ borderColor: 'var(--ui-border)' }}>
           <div className="flex items-center justify-between mb-3 border-b border-[var(--ui-border)]/50 pb-2">
             <div className="flex items-center gap-1.5">
               <Briefcase size={13} style={{ color: 'var(--ui-accent)' }} />
@@ -176,7 +176,7 @@ export default function LiveBridgeSubTab() {
               </span>
             </div>
             {mt5Positions.length > 0 && (
-              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-[var(--ui-accent)]/10 text-[var(--ui-accent)] border border-[var(--ui-accent)]/20 rounded">
+              <span className="text-[8px] font-black uppercase px-1.5 py-0.5 bg-[var(--ui-accent)]/10 text-[var(--ui-accent)] border border-[var(--ui-accent)]/20">
                 {mt5Positions.length} Deployed
               </span>
             )}
@@ -197,11 +197,11 @@ export default function LiveBridgeSubTab() {
                 </thead>
                 <tbody>
                   {mt5Positions.map((pos: any) => (
-                    <tr key={pos.id} className="border-b border-[var(--ui-border)]/40 hover:bg-white/2 transition-colors">
+                    <tr key={pos.id} className="border-b border-[var(--ui-border)]/40 hover:bg-white/2">
                       <td className="py-2 font-mono text-[var(--ui-muted)]">{pos.id || pos.ticket}</td>
                       <td className="py-2 font-mono font-bold text-white">{pos.symbol}</td>
                       <td className="py-2">
-                        <span className={`text-[9px] px-1 border rounded ${
+                        <span className={`text-[9px] px-1 border  ${
                           pos.type === 'BUY' || pos.type === 'LONG' || pos.direction === 'LONG'
                             ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                             : 'bg-red-500/10 text-red-400 border-red-500/20'

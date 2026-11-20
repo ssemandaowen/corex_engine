@@ -53,20 +53,20 @@ export default function SingleInstanceChartCard({
 
     const chart = createChart(chartContainerRef.current, {
       layout: {
-        background: { color: '#070e20' }, // Panel bg
-        textColor: '#64748b',
+        background: { color: 'var(--bg-panel)' }, // Panel bg
+        textColor: 'var(--text-dim)',
         fontSize: 10,
       },
       grid: {
-        vertLines: { color: '#0f172a' },
-        horzLines: { color: '#0f172a' },
+        vertLines: { color: 'var(--border)' },
+        horzLines: { color: 'var(--border)' },
       },
       rightPriceScale: {
-        borderColor: '#1e293b',
+        borderColor: 'var(--border)',
         visible: true,
       },
       timeScale: {
-        borderColor: '#1e293b',
+        borderColor: 'var(--border)',
         timeVisible: true,
         secondsVisible: false,
       },
@@ -75,16 +75,16 @@ export default function SingleInstanceChartCard({
     chartRef.current = chart;
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: '#10b981',
-      downColor: '#ef4444',
+      upColor: 'var(--pos)',
+      downColor: 'var(--neg)',
       borderVisible: false,
-      wickUpColor: '#10b981',
-      wickDownColor: '#ef4444',
+      wickUpColor: 'var(--pos)',
+      wickDownColor: 'var(--neg)',
     });
     candleSeriesRef.current = candleSeries;
 
     const volumeSeries = chart.addSeries(HistogramSeries, {
-      color: '#F27D26',
+      color: 'var(--warn)',
       priceFormat: {
         type: 'volume',
       },
@@ -124,7 +124,7 @@ export default function SingleInstanceChartCard({
       const formattedVolumes = candles.map((c: any) => ({
         time: toChartTime(c.time),
         value: c.volume || 100,
-        color: c.close >= c.open ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
+        color: c.close >= c.open ? 'var(--bg-raised)' : 'var(--bg-raised)',
       }));
 
       candleSeriesRef.current.setData(formattedCandles);
@@ -138,18 +138,18 @@ export default function SingleInstanceChartCard({
 
   return (
     <div 
-      className="rounded-xl border flex flex-col overflow-hidden bg-[var(--ui-panel-soft)] transition-all duration-300 hover:border-[var(--ui-accent)] hover:shadow-lg"
+      className="border flex flex-col overflow-hidden bg-[var(--ui-panel-soft)] hover:border-[var(--ui-accent)] hover:"
       style={{ borderColor: 'var(--ui-border)', height: '360px' }}
     >
       {/* Card Header */}
       <div className="p-3 border-b border-[var(--ui-border)] bg-[var(--ui-panel-strong)] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <div className="h-2 w-2 bg-emerald-500" />
           <div>
             <span className="text-xs font-black text-white uppercase">{name}</span>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-[9px] px-1 rounded bg-[var(--ui-accent)]/10 text-[var(--ui-accent)] font-mono uppercase border border-[var(--ui-accent)]/25">{symbol}</span>
-              <span className={`text-[9px] px-1 rounded font-mono uppercase border ${
+              <span className="text-[9px] px-1 bg-[var(--ui-accent)]/10 text-[var(--ui-accent)] font-mono uppercase border border-[var(--ui-accent)]/25">{symbol}</span>
+              <span className={`text-[9px] px-1  font-mono uppercase border ${
                 mode === 'LIVE' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
               }`}>{mode}</span>
             </div>
@@ -168,9 +168,9 @@ export default function SingleInstanceChartCard({
       </div>
 
       {/* Chart Canvas */}
-      <div className="flex-1 relative bg-[#070e20]" ref={chartContainerRef}>
+      <div className="flex-1 relative bg-[var(--bg-panel)]" ref={chartContainerRef}>
         {(!telemetry?.candles || telemetry.candles.length === 0) && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#070e20]/80 z-10 text-[10px] uppercase font-bold text-[var(--ui-muted)] tracking-wider">
+          <div className="absolute inset-0 flex items-center justify-center bg-[var(--bg-panel)]/80 z-10 text-[10px] uppercase font-bold text-[var(--ui-muted)] tracking-wider">
             Initializing candles...
           </div>
         )}
@@ -180,14 +180,14 @@ export default function SingleInstanceChartCard({
       <div className="p-2 border-t border-[var(--ui-border)] bg-[var(--ui-panel-strong)] flex items-center gap-2">
         <button
           onClick={() => onFocus(id)}
-          className="flex-1 py-1 px-2.5 text-[9px] font-black uppercase tracking-wider rounded border border-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent)] transition-all cursor-pointer flex items-center justify-center gap-1 active:scale-95"
+          className="flex-1 py-1 px-2.5 text-[9px] font-black uppercase tracking-wider border border-[var(--ui-accent)] text-white hover:bg-[var(--ui-accent)] cursor-pointer flex items-center justify-center gap-1"
         >
           <Maximize2 size={10} />
           Deep Workstation
         </button>
         <button
           onClick={() => onStop(id)}
-          className="py-1 px-2.5 text-[9px] font-bold uppercase tracking-wider rounded border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white transition-colors cursor-pointer active:scale-95"
+          className="py-1 px-2.5 text-[9px] font-bold uppercase tracking-wider border border-red-500/20 text-red-400 hover:bg-red-500 hover:text-white cursor-pointer"
         >
           Halt Thread
         </button>
