@@ -8,13 +8,14 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Repository: `ssemandaowen/corex_engine`
 - Active worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
 - Active branch: `fix/security-corex-strategy-engine`
-- Active PR: [#57 — security: authorize corex-strategy-engine exact import](https://github.com/ssemandaowen/corex_engine/pull/57). This is now the single B3 integration PR.
-- Current main: `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c` (P1 squash merge).
-- B3 branch was updated by merging current `origin/main` into the existing PR #57 branch, no force-push. Merge commit: `c0ff2737992d64903eba20de9dba65032a6ef534`. PR #57 now has current main as its merge base and its pre-implementation diff still contains only `utils/security.js` and `test/round7.comprehensive.test.js`.
+- Active PR: [#57 — security: enforce exact strategy module resolution](https://github.com/ssemandaowen/corex_engine/pull/57). This is now the single B3 integration PR.
+- Current main: `94c3fb3917fd12b5c396b01d166100dfb56ac71d` (includes the latest backtest discovery/handoff and frontend audit roadmap updates).
+- B3 branch was first synced with P1 main by merge commit `c0ff2737992d64903eba20de9dba65032a6ef534`, then synced again after main advanced six planning commits. Latest sync merge commit: `221068545df2722846b3b2ecbfdadde2d2504d3a`. The latest main changes included the backtest discovery/handoff and frontend audit roadmap; those changes were preserved while resolving the roadmap conflict. PR #57 now has current main as its merge base, with no force-push.
 - P1 worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`; PR #80 is merged. Do not continue P1 implementation there.
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or disturb its dirty/unrelated state.
 - PR #56 was closed as superseded because it contained 60 changed files and mixed the allow-list change with unrelated UI, settings, backtest, and planning work.
 - PR #80 was merged and its GitHub body corrected to reflect the merge and acceptance.
+- Latest pushed B3 head: `221068545df2722846b3b2ecbfdadde2d2504d3a`; GitHub compare reports 5 commits ahead / 0 behind main, with current main as the merge base. The refreshed PR metadata now reports `mergeable=true`.
 - Do not merge B3 without review and Owen's explicit approval.
 
 ## P1 — complete
@@ -73,11 +74,11 @@ The current scanner/loader was tested and the following were reproduced:
 
 ### Environment / verification state
 
-- B3 implementation is present locally in `engine/services/strategyModuleResolver.js`, `engine/services/strategyCompiler.js`, `utils/security.js`, and focused tests. Planning and implementation changes are not yet committed.
+- B3 implementation commit: `083f96d9644a3256f70c34e7894f9c8c07b04ce1` (`security: restrict strategy module resolution`). Latest main-sync merge commit: `221068545df2722846b3b2ecbfdadde2d2504d3a`. Both are pushed to PR #57.
 - B3 has no local `node_modules`. Targeted Jest runs successfully used the existing P1 worktree dependency installation via a child Node process with `NODE_PATH`; no dependency files were copied or modified.
 - Verified targeted suites: resolver 25/25; compiler module-resolution integration 4/4; `round7.comprehensive.test.js` security selection 21/21 (46 unrelated tests skipped); compiler instance-safety 2/2; engine recovery 15/15. Total 5 suites / 67 tests passed; this is not a full repository run.
 - `node --check` passed for all five changed/new JavaScript files. The scanner and instance-safety test files needed Jest `--forceExit` because the test process retained open handles; assertions passed before forced exit.
-- `git diff --check` passed after correcting mixed line endings in the Known Issues update. The compiler, scanner, resolver, strategy-loader callers, and worker caller were reviewed. The worker scanner bypass is separately recorded as SEC-03. GitHub review and full-repository verification remain pending; do not claim B3 acceptance or merge readiness.
+- `git diff --check` passed after correcting mixed line endings in the Known Issues update. The compiler, scanner, resolver, strategy-loader callers, and worker caller were reviewed. The worker scanner bypass is separately recorded as SEC-03. GitHub review and full-repository verification remain pending; the PR is technically mergeable but not approved for merge. Do not claim B3 acceptance or merge readiness.
 
 ## Separate security backlog
 

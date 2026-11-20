@@ -1,6 +1,6 @@
 # B3 — Strategy module-resolution boundary and exact allow-list
 
-Status: IN PROGRESS — restricted resolver and scanner hardening implemented locally; targeted and full verification pending
+Status: IN PROGRESS — implementation committed and pushed to PR #57; targeted verification passed; full repository verification and independent review pending
 Owner: Owen Ssemanda (approval authority); ChatGPT assisting investigation and implementation
 Branch: `fix/security-corex-strategy-engine`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
@@ -102,7 +102,7 @@ The main `engine/strategyLoader.js` paths call `validateStrategyCode()` before `
 
 - PR #56 was closed as superseded: it had 60 changed files and mixed the same allow-list patch with unrelated UI, settings, backtest, and planning changes.
 - PR #57 is retained as the single B3 integration PR because its original change is narrowly scoped to `utils/security.js` and scanner tests.
-- PR #57's branch was updated by merging current `origin/main` (no force-push); merge commit `c0ff2737992d64903eba20de9dba65032a6ef534` is pushed. The PR now has current main as its merge base and only its two original files in the diff before B3 implementation.
+- PR #57's branch was first updated with P1 main by merge commit `c0ff2737992d64903eba20de9dba65032a6ef534`. After main advanced six planning commits, B3 was synced again with merge commit `221068545df2722846b3b2ecbfdadde2d2504d3a`; the backtest discovery/handoff and frontend audit roadmap updates were preserved during the `plans/ROADMAP.md` conflict resolution. Both merges were pushed without force-pushing. GitHub compare now reports the PR branch 5 commits ahead / 0 behind current main, with the merge base equal to current main; the refreshed PR metadata reports `mergeable=true`.
 
 ## Initial verification status
 
