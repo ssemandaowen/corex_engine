@@ -102,7 +102,7 @@ The main `engine/strategyLoader.js` paths call `validateStrategyCode()` before `
 
 - PR #56 was closed as superseded: it had 60 changed files and mixed the same allow-list patch with unrelated UI, settings, backtest, and planning changes.
 - PR #57 is retained as the single B3 integration PR because its original change is narrowly scoped to `utils/security.js` and scanner tests.
-- PR #57's branch was first updated with P1 main by merge commit `c0ff2737992d64903eba20de9dba65032a6ef534`. After main advanced six planning commits, B3 was synced again with merge commit `221068545df2722846b3b2ecbfdadde2d2504d3a`; the backtest discovery/handoff and frontend audit roadmap updates were preserved during the `plans/ROADMAP.md` conflict resolution. Both merges were pushed without force-pushing. GitHub compare now reports the PR branch 5 commits ahead / 0 behind current main, with the merge base equal to current main; the refreshed PR metadata reports `mergeable=true`.
+- PR #57's branch was first updated with P1 main by merge commit `c0ff2737992d64903eba20de9dba65032a6ef534`. After main advanced six planning commits, B3 was synced again with merge commit `221068545df2722846b3b2ecbfdadde2d2504d3a`; the backtest discovery/handoff and frontend audit roadmap updates were preserved during the `plans/ROADMAP.md` conflict resolution. Both merges were pushed without force-pushing. GitHub compare reports the PR branch 6 commits ahead / 0 behind current main, with the merge base equal to current main. GitHub's mergeability metadata has returned inconsistent values (`true`/`false`) across refreshes despite the compare showing 6 ahead / 0 behind and current main as the merge base; recheck before merge consideration.
 
 ## Initial verification status
 
