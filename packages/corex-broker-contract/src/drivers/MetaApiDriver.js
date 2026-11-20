@@ -5,6 +5,12 @@ const UnsupportedOperationError = require("../base/UnsupportedOperationError");
 const SymbolNormalizer = require("../utils/SymbolNormalizer");
 const { MetricsAccumulator } = require("@utils/metrics");
 
+const DRIVER_CONNECTORS = {
+    metaapi: () => require("../connectors/MetaApiConnector"),
+    mt5: () => require("../connectors/MT5MQL5Connector"),
+    mt5mql5: () => require("../connectors/MT5MQL5Connector"),
+};
+
 class MetaApiDriver extends BaseBroker {
     constructor(config = {}) {
         super(config);
@@ -27,10 +33,12 @@ class MetaApiDriver extends BaseBroker {
         this._cachedAccount = null;
 
         try {
-            const ConnectorClass = require("../connectors/MetaApiConnector");
+            const connectorType = String(this.connectorType || "metaapi").toLowerCase();
+            const loadConnector = DRIVER_CONNECTORS[connectorType] || DRIVER_CONNECTORS.metaapi;
+            const ConnectorClass = loadConnector();
             this.connector = new ConnectorClass({ ...config, userId: this.userId, mode: this.mode });
         } catch (err) {
-            throw new Error(`[MetaApiDriver] Initialization failed: Unable to load connector 'MetaApiConnector'. ${err.message}`);
+            throw new Error(`[MetaApiDriver] Initialization failed: Unable to load connector '${this.connectorType}'. ${err.message}`);
         }
     }
 

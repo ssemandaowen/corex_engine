@@ -25,7 +25,7 @@ An agent must read and follow this file before making repository changes.
 
 ## 2. Mandatory Reading
 
-**Authoritative development roadmap:** `plans/COREX_DEVELOPMENT_PLAN.md`
+**Authoritative development roadmap:** `plans/ROADMAP.md`
 
 Every agent MUST read this roadmap before proposing or implementing work. It is the active source of truth for development phases, task IDs, priorities, dependencies, progress status and acceptance gates. Do not treat historical plans or old TODO entries as authorization to implement.
 
@@ -43,7 +43,7 @@ Before starting development work, the agent must inspect the relevant project gu
 
 1. Read this `AGENTS.md`.
 2. Read `SKILLS.md`.
-3. Read `plans/COREX_DEVELOPMENT_PLAN.md`.
+3. Read `plans/ROADMAP.md`.
 4. Read `plans/AGENT_WORKFLOW.md` and `plans/STATUS.md`.
 5. Read the selected task file under `plans/tasks/` and its dependencies.
 6. Check `/KNOWN_ISSUES.md` (or the documented `plans/KNOWN_ISSUES.md` location if that is where the repository keeps it).
@@ -1338,7 +1338,7 @@ The purpose of this file is to preserve the reasoning behind implementation choi
 
 The active task system is maintained in:
 
-- `plans/COREX_DEVELOPMENT_PLAN.md` — phase order, task IDs, dependencies and approval gates.
+- `plans/ROADMAP.md` — phase order, task IDs, dependencies and approval gates.
 - `plans/STATUS.md` — current task state, owner, branch and handoff pointer.
 - `plans/tasks/<TASK-ID>.md` — exact scope, non-goals, acceptance criteria and resumable handoff.
 - `plans/AGENT_WORKFLOW.md` — claiming, collaboration, branch ownership and completion rules.

@@ -24,7 +24,7 @@ const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
 
-const SymbolNormalizer = require("../../../corex-broker-contract/src/utils/SymbolNormalizer");
+const { SymbolNormalizer } = require("corex-broker-contract");
 const { DataProviderContract, validateProviderImplementation, DataProviderError } = require("../DataProviderContract");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");

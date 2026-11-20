@@ -2,7 +2,7 @@
 
 const crypto = require("crypto");
 const db = require("@core/services/postgres");
-const mt5Bridge = require("@core/services/mt5Bridge");
+const { mt5Bridge } = require("corex-broker-contract");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 

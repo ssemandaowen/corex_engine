@@ -30,6 +30,7 @@ const db              = require('@core/services/postgres');
 const { StrategyCompiler } = require('@core/services/strategyCompiler');
 const { ComponentLifecycle, STATES } = require('@core/core/lifecycle/ComponentLifecycle');
 const { StrategyContract }           = require('@core/core/strategy/StrategyContract');
+const { assertSafeInstance }           = require('corex-strategy-engine');
 const RuntimeLifecycle               = require('@core/core/runtime/RuntimeLifecycle');
 const runtimeRegistry                = require('@core/core/runtime/RuntimeRegistry');
 const { parseScopedId }              = require('@core/services/userScope');
@@ -42,6 +43,26 @@ const log = logger.createModuleLogger('STRATEGY_BOOTLOADER', {
 
 const _metaRegistry = new Map();
 const _startInFlight = new Set();
+
+// Monotonic stop-request counters, one per runtimeId. A stop request is a user
+// intent that outlives the stop itself: the engine's recovery loop must not
+// restart a runtime the user asked to stop, and a request that lands while
+// recovery is already awaiting its own stop leaves no registry entry and no
+// ledger record to observe. Callers that are not user-initiated (the recovery
+// loop) pass `internal: true` and do not move the counter.
+const _stopRequestSeq = new Map();
+
+function noteStopRequest(runtimeId) {
+    const key = String(runtimeId || '');
+    if (!key) return 0;
+    const next = (_stopRequestSeq.get(key) || 0) + 1;
+    _stopRequestSeq.set(key, next);
+    return next;
+}
+
+function getStopRequestSeq(runtimeId) {
+    return _stopRequestSeq.get(String(runtimeId || '')) || 0;
+}
 
 let _engine    = null;
 let _compiler  = null;
@@ -232,10 +253,55 @@ async function _ensureCompiled(id, meta) {
     return compiled;
 }
 
+/**
+ * Reconcile desired-state rows whose strategy no longer exists.
+ *
+ * `strategy_runtimes` has no foreign key onto `strategies`, so deleting a
+ * strategy leaves its ACTIVE rows behind. Restore reads exactly those rows, so
+ * every boot retried a start that can only fail ("not found in DB") and the
+ * orphan stayed ACTIVE forever — and would start by itself again if the name
+ * were ever re-registered.
+ *
+ * Rows are marked STOPPED, which is what restore already ignores, so this is
+ * the smallest change that stops the retry loop without deleting history.
+ * Only orphans are touched: a row whose strategy exists is never modified.
+ */
+async function _reconcileOrphanedRuntimeStates() {
+    if (!db.hasDbConfig()) return { reconciled: 0, runtimeIds: [] };
+    try {
+        const { rows } = await db.query(
+            `UPDATE strategy_runtimes
+                SET actual_state = 'STOPPED', updated_at = NOW()
+              WHERE actual_state = 'ACTIVE'
+                AND NOT EXISTS (
+                    SELECT 1 FROM strategies s WHERE s.name = strategy_runtimes.strategy_name
+                )
+              RETURNING runtime_id, strategy_name`
+        );
+        const reconciled = rows || [];
+        if (reconciled.length) {
+            log.warn(
+                `[RESTORE] Reconciled ${reconciled.length} orphaned desired-state row(s) ` +
+                `(strategy no longer exists): ${reconciled.map(r => r.runtime_id).join(', ')}`
+            );
+        }
+        return { reconciled: reconciled.length, runtimeIds: reconciled.map(r => r.runtime_id) };
+    } catch (err) {
+        // Never block restoration because reconciliation failed: the worst case
+        // is the previous behaviour (a failed restore attempt per orphan).
+        log.warn(`[RESTORE] Orphan reconciliation failed: ${err.message}`);
+        return { reconciled: 0, runtimeIds: [], error: err.message };
+    }
+}
+
 async function _restoreDesiredRuntimeStates() {
     if (!db.hasDbConfig()) return;
     if (_envFalse(process.env.COREX_RESTORE_ON_BOOT)) return;
     try {
+        // Reconcile first: an orphaned ACTIVE row can never be restored, so it
+        // must not reach the restore loop (and must not be retried every boot).
+        await _reconcileOrphanedRuntimeStates();
+
         // strategy_runtimes holds one row per runtime that was actually
         // ACTIVE (strategy + symbol + mode + params) — restore exactly
         // that set. No guessing a symbol, no loading every strategy.
@@ -336,7 +402,7 @@ async function _handleRuntimeParamUpdate(id, params) {
 }
 
 function getActiveSymbols() {
-    return Array.from(new Set(runtimeRegistry.list().map(r => r.symbol)));
+    return Array.from(new Set(runtimeRegistry.all().map(r => r.symbol)));
 }
 
 function getBootStats() {
@@ -412,11 +478,24 @@ async function startStrategy(id, options = {}) {
         }
         const runtimeId = `${id}::${symbol}::${mode}`;
 
+        // Ownership is decided by the registry, not by this function: a live
+        // entry means "already running", a pending reservation means "another
+        // creation for this identity is still initializing".
         if (runtimeRegistry.has(runtimeId)) {
             return { ok: true, runtimeId, alreadyRunning: true };
         }
+        if (runtimeRegistry.isReserved(runtimeId)) {
+            const reservation = runtimeRegistry.getReservation(runtimeId);
+            if (reservation && reservation.cleanupFailures && reservation.cleanupFailures.length > 0) {
+                // A rollback could not finish: the identity is owned by a cleanup
+                // that still has to be completed (stop), not by a running boot.
+                return { ok: false, reason: "START_BLOCKED_CLEANUP_PENDING" };
+            }
+            return { ok: false, reason: "START_IN_PROGRESS" };
+        }
 
         const instance = new meta.StrategyClass();
+        assertSafeInstance(instance, meta.StrategyClass);
         StrategyContract.adapt(instance);
 
         // Re-scope the instance to exactly the selected symbol. The class
@@ -453,6 +532,15 @@ async function startStrategy(id, options = {}) {
         }
 
         const lifecycle = new RuntimeLifecycle();
+
+        // Recovery disables a runtime on the runtimeId ledger when its retries are
+        // exhausted. A manual start is the re-enable path: reopen the ledger first,
+        // otherwise boot's WARMING_UP transition is rejected and the runtime is
+        // stuck in DISABLED.
+        if (stateManager.getStatus(runtimeId) === "DISABLED") {
+            stateManager.commit(runtimeId, "STAGED", { reason: "manual_restart_after_disable" });
+        }
+
         await lifecycle.boot({
             runtimeId,
             strategyInstance: instance,
@@ -467,10 +555,34 @@ async function startStrategy(id, options = {}) {
         return { ok: true, runtimeId, mode, symbol, params: mergedParams };
     } catch (err) {
         log.error(`[START] Failed to start ${id}: ${err.message}`);
+        // A lost ownership race is a concurrency signal, not a server fault.
+        if (err.code === "RUNTIME_ALREADY_OWNED") {
+            return { ok: false, reason: "START_IN_PROGRESS" };
+        }
+        // The start was cancelled by a stop while it was booting: report it as a
+        // cancellation, not as another start being in progress.
+        if (err.code === "RUNTIME_ABORTED") {
+            return { ok: false, reason: "START_CANCELLED" };
+        }
+        if (err.code === "RUNTIME_DELETION_IN_PROGRESS") {
+            return { ok: false, reason: "STRATEGY_BEING_DELETED" };
+        }
         return { ok: false, reason: err.message };
     } finally {
         _startInFlight.delete(id);
     }
+}
+
+/**
+ * True while a start for this strategy id is still running.
+ *
+ * A start reserves its runtime identity only after loading and compiling the
+ * strategy, so until then the registry cannot see it. Anything that would make
+ * the strategy unreachable (a delete) has to treat it as busy, otherwise the
+ * start would finish against a strategy row that no longer exists.
+ */
+function isStartInFlight(id) {
+    return _startInFlight.has(String(id || '').trim());
 }
 
 async function stopStrategy(id, options = {}) {
@@ -483,23 +595,52 @@ async function stopStrategy(id, options = {}) {
     if (options.runtimeId) {
         targets = [options.runtimeId];
     } else {
-        targets = runtimeRegistry.all()
-            .filter(r =>
-                (r.strategyName === id || r.strategyName === unscoped) &&
-                (!r.userId || r.userId === userId || userId === 'system'))
+        const matches = (r) =>
+            (r.strategyName === id || r.strategyName === unscoped) &&
+            (!r.userId || r.userId === userId || userId === 'system');
+
+        targets = runtimeRegistry.registeredEntries()
+            .filter(matches)
             .map(r => r.runtimeId);
+
+        // A rollback whose cleanup failed leaves no registered entry, only a
+        // reservation with cleanupFailures (and parked collaborators). Stop must
+        // reach those too, otherwise the identity stays owned and unusable.
+        const parked = runtimeRegistry.parkedReservations();
+        for (const strategyName of [id, unscoped]) {
+            for (const owned of runtimeRegistry.findOwnedByStrategy(strategyName)) {
+                if (owned.phase !== "reserved") continue;
+                const reservation = parked.find(r => r.runtimeId === owned.runtimeId);
+                if (!reservation || !matches(reservation)) continue;
+                if (!targets.includes(reservation.runtimeId)) targets.push(reservation.runtimeId);
+            }
+        }
     }
 
     if (!targets.length) return false;
 
+    // Record the request before terminating: a stop that lands while the engine's
+    // recovery loop is awaiting this call must still be observable to it.
+    if (options.internal !== true) {
+        for (const runtimeId of targets) noteStopRequest(runtimeId);
+    }
+
     const lc = new RuntimeLifecycle();
     let anyOk = false;
+    let cleanupFailed = false;
     for (const runtimeId of targets) {
         const ok = await lc.terminate(runtimeId);
         if (ok) {
             anyOk = true;
             await _clearRuntimeDesiredState(runtimeId).catch(() => {});
+        } else if (runtimeRegistry.get(runtimeId) || runtimeRegistry.getReservation(runtimeId)) {
+            // Still registered/reserved but not cleaned up: never a successful stop.
+            cleanupFailed = true;
         }
+    }
+
+    if (cleanupFailed && !anyOk) {
+        log.error(`[STOP] Runtime(s) still hold resources after cleanup failure: ${targets.join(', ')}`);
     }
 
     if (anyOk) {
@@ -607,7 +748,9 @@ module.exports = {
     bootStrategy,
     reloadStrategy,
     startStrategy,
+    isStartInFlight,
     stopStrategy,
+    getStopRequestSeq,
     getStrategy,
     getMeta,
     invalidateMeta,

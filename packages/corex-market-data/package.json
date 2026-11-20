@@ -12,7 +12,8 @@
   "dependencies": {
     "ws": "^8.18.3",
     "winston": "^3.19.0",
-    "axios": "^1.7.2"
+    "axios": "^1.7.2",
+    "corex-broker-contract": "file:../corex-broker-contract"
   },
   "devDependencies": {
     "jest": "^29.7.0",
@@ -23,7 +24,6 @@
     "@core": "../../engine",
     "@strategies": "../../strategies",
     "@utils": "../../utils",
-    "@broker": "../../broker",
     "@data": "./src",
     "@events": "../../events",
     "@config": "../../config"
@@ -37,8 +37,8 @@
       "^@core/(.*)$": "<rootDir>/../../engine/$1",
       "^@strategies/(.*)$": "<rootDir>/../../strategies/$1",
       "^@utils/(.*)$": "<rootDir>/../../utils/$1",
-      "^@broker/(.*)$": "<rootDir>/../../broker/$1",
       "^@data/(.*)$": "<rootDir>/src/$1",
+      "^corex-broker-contract$": "<rootDir>/../corex-broker-contract/index.js",
       "^@events/(.*)$": "<rootDir>/../../events/$1",
       "^@config/(.*)$": "<rootDir>/../../config/$1"
     }

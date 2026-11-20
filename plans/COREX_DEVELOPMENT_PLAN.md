@@ -1,5 +1,9 @@
 # CoreX Development Plan — Authoritative Roadmap
 
+> **SUPERSEDED on 2026-11-14 by `plans/ROADMAP.md`. Kept for history; do not update.**
+> Archiving is pending Owen's decision: `AGENTS.md` (root, outside `plans/`) still points here as the
+> authoritative roadmap, and this PR is not allowed to edit `AGENTS.md`.
+
 > **Status:** Active — Phase 0 (P0-01 accepted; remaining current-state audits)
 > **Owner / final decision authority:** Owen Ssemanda
 > **Repository:** https://github.com/ssemandaowen/corex_engine

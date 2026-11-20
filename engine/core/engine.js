@@ -2,8 +2,7 @@
 
 require("module-alias/register");
 
-const broker = require("@broker/twelvedata");
-const DataProviderFactory = require("@data/src/DataProviderFactory");
+const { DataProviderFactory, MarketFeed, legacyMarketData } = require("@data");
 const loader = require("@core/strategyLoader");
 const { bus, EVENTS } = require("@events/bus");
 const path = require("path");
@@ -20,11 +19,10 @@ const SignalProcessingEngine = require("@core/core/pipeline/SignalProcessingEngi
 const SignalExecutionEngine = require("@core/core/pipeline/SignalExecutionEngine");
 const SocketXRiskEngine = require("@core/core/pipeline/SocketXRiskEngine");
 const { RiskGateway, SocketXServer } = require("../../packages/corex-gateway/index.js");
-const BaseBroker = require("../../packages/corex-broker-contract/src/base/BaseBroker");
+const { BaseBroker } = require("corex-broker-contract");
 const { verifyToken } = require("../../packages/corex-auth/index.js");
 const strategyRuntime = require("@core/modules/strategyRuntime");
 const RuntimeRegistry = require("@core/core/runtime/RuntimeRegistry");
-const MarketFeed = require("@core/core/runtime/MarketFeed");
 const { parseScopedId } = require("@core/services/userScope");
 
 const BANNER_PATH = path.join(__dirname, "banner.txt");
@@ -82,7 +80,13 @@ class CoreXEngine {
         this.recoveryMaxDelay = 300000; // 5 minutes
         this.recoveryFactor = 2;
         this.recoveryMaxAttempts = 10;  // limit of 10 retries
-        this.strategyRecoveryStates = new Map(); // id -> { attempts, timer }
+        this.strategyRecoveryStates = new Map(); // id -> { attempts, timer, snapshot }
+        // Ids whose runtime is being stopped BY the recovery loop itself. The
+        // resulting STOPPED transition must not cancel the recovery.
+        this.recoveryInFlight = new Set();
+        // Ids suppressed for the duration of recovery's own stop, so a STOPPED
+        // emitted by that stop is not mistaken for a user stop.
+        this.recoveryStopping = new Set();
     }
 
     async start() {
@@ -106,9 +110,15 @@ class CoreXEngine {
         bus.on(EVENTS.SYSTEM.STATE_CHANGED, ({ id, to }) => {
             if (to === "ERROR") {
                 this._scheduleRecovery(id);
-            } else if (["ACTIVE", "STOPPED", "OFFLINE", "DISABLED"].includes(to)) {
-                this._clearRecovery(id);
+                return;
             }
+            if (!["ACTIVE", "STOPPED", "OFFLINE", "DISABLED"].includes(to)) return;
+
+            // The STOPPED that recovery's own stop causes is not a user stop:
+            // it must keep the attempt counter and the snapshot.
+            if (to === "STOPPED" && this.recoveryStopping.has(id)) return;
+
+            this._cancelRecovery(id, { strategyWide: to === "STOPPED" });
         });
 
         this.status = "RUNNING";
@@ -234,57 +244,213 @@ class CoreXEngine {
         const currentState = stateManager.getStatus(id);
         if (currentState !== "ERROR") return;
 
-        let recovery = this.strategyRecoveryStates.get(id) || { attempts: 0, timer: null };
-        if (recovery.timer) clearTimeout(recovery.timer);
+        const recovery = this.strategyRecoveryStates.get(id) || { attempts: 0, timer: null, snapshot: null };
+        this._scheduleRetry(id, recovery.attempts, recovery.snapshot);
+    }
 
-        if (this.recoveryMaxAttempts > 0 && recovery.attempts >= this.recoveryMaxAttempts) {
-            log.warn(`[RECOVERY] Strategy ${id} exceeded max recovery attempts (${this.recoveryMaxAttempts}). Disabling.`);
-            stateManager.commit(id, "DISABLED", { reason: "RECOVERY_MAX_ATTEMPTS_EXCEEDED" });
+    /**
+     * Schedule the next attempt for `id` from a known attempt count.
+     * Kept separate from _scheduleRecovery so a retry can be scheduled after
+     * recovery's own stop moved the ledger away from ERROR.
+     */
+    _scheduleRetry(id, attempts, snapshot = null) {
+        const existing = this.strategyRecoveryStates.get(id);
+        if (existing?.timer) clearTimeout(existing.timer);
+
+        if (this.recoveryMaxAttempts > 0 && attempts >= this.recoveryMaxAttempts) {
+            const reason = "RECOVERY_MAX_ATTEMPTS_EXCEEDED";
+            log.warn(`[RECOVERY] Strategy ${id} exceeded max recovery attempts (${this.recoveryMaxAttempts}); ${reason}.`);
+
+            // Only report DISABLED when the state controller accepted it.
+            const committed = stateManager.commit(id, "DISABLED", { reason, attempts });
+            if (committed) {
+                log.warn(`[RECOVERY] Strategy ${id} DISABLED (${reason}).`);
+            } else {
+                log.error(
+                    `[RECOVERY] Strategy ${id} recovery exhausted (${reason}) but DISABLED was rejected by the ` +
+                    `state controller (current state: ${stateManager.getStatus(id)}). Recovery stopped without a ` +
+                    `terminal DISABLED state.`
+                );
+            }
+
             this._clearRecovery(id);
             return;
         }
 
         const delay = Math.min(
             this.recoveryMaxDelay,
-            this.recoveryBaseDelay * Math.pow(this.recoveryFactor, recovery.attempts)
+            this.recoveryBaseDelay * Math.pow(this.recoveryFactor, attempts)
         );
 
-        log.info(`[RECOVERY] Strategy ${id} scheduled for auto-restart in ${delay / 1000}s (Attempt ${recovery.attempts + 1})`);
+        log.info(`[RECOVERY] Strategy ${id} scheduled for auto-restart in ${delay / 1000}s (Attempt ${attempts + 1})`);
 
-        recovery.timer = setTimeout(() => {
+        const timer = setTimeout(() => {
             this._attemptRecovery(id).catch(err => {
                 log.error(`[RECOVERY] Critical failure in recovery loop for ${id}: ${err.message}`);
             });
         }, delay);
 
-        recovery.attempts += 1;
-        this.strategyRecoveryStates.set(id, recovery);
+        this.strategyRecoveryStates.set(id, {
+            attempts: attempts + 1,
+            timer,
+            nextDelay: delay,
+            snapshot: snapshot || existing?.snapshot || null
+        });
     }
 
+    /**
+     * Resolve the runtime that crashed and restart exactly that one.
+     *
+     * @param {string} id - runtimeId of the crashed runtime (the only form the
+     *                      market-data feed produces: MarketFeed calls
+     *                      onStrategyCrash(entry.runtimeId, err)).
+     */
     async _attemptRecovery(id) {
-        const currentState = stateManager.getStatus(id);
-        if (currentState !== "ERROR") {
+        const recovery = this.strategyRecoveryStates.get(id);
+        // No recovery record means nothing is scheduled: a stop request already
+        // cancelled it. A bare call is a no-op, never a new attempt.
+        if (!recovery) return;
+
+        // Captured BEFORE anything is stopped: the stop moves the ledger to
+        // STOPPED and would otherwise reset the counter and drop the snapshot.
+        const attempts = recovery.attempts;
+
+        if (recovery?.timer) {
+            clearTimeout(recovery.timer);
+            this.strategyRecoveryStates.set(id, { ...recovery, attempts, timer: null });
+        }
+
+        const entry = RuntimeRegistry.get(id);
+        const snapshot = entry
+            ? {
+                strategyName: entry.strategyName,
+                runtimeId: entry.runtimeId,
+                mode: entry.mode,
+                symbol: entry.symbol,
+                userId: entry.userId,
+                params: entry.params || {}
+            }
+            : (recovery?.snapshot || null);
+
+        if (entry && snapshot) {
+            this.strategyRecoveryStates.set(id, {
+                attempts,
+                timer: null,
+                snapshot
+            });
+        }
+
+        if (!snapshot || !snapshot.strategyName) {
+            // Unresolvable target: a failed attempt, never a success.
+            log.error(`[RECOVERY] No runtime or snapshot could be resolved for ${id}; counting it as a failed attempt.`);
+            this._scheduleRetry(id, attempts);
+            return;
+        }
+
+        log.info(`[RECOVERY] Attempting auto-restart for ${id} (${snapshot.strategyName} ${snapshot.symbol} ${snapshot.mode})...`);
+
+        let ok = false;
+        let cancelled = false;
+        this.recoveryInFlight.add(id);
+        // A stop request is an intent that outlives the stop itself. The loader
+        // counts user stops per runtime; recovery's own stop is passed as
+        // `internal` and does not move that counter, so a change across the await
+        // below can only be a user stop landing inside the window.
+        const stopSeqAtStart = loader.getStopRequestSeq(snapshot.runtimeId);
+        try {
+            // 1. Stop the exact runtime that crashed (never a sibling). Both the
+            // runtimeId and the strategyName are suppressed for the duration of
+            // this stop: stopStrategy commits STOPPED on both.
+            this.recoveryStopping.add(id);
+            this.recoveryStopping.add(snapshot.strategyName);
+            let stopResult;
+            try {
+                stopResult = await loader.stopStrategy(snapshot.strategyName, {
+                    runtimeId: snapshot.runtimeId,
+                    internal: true
+                });
+            } finally {
+                this.recoveryStopping.delete(id);
+                this.recoveryStopping.delete(snapshot.strategyName);
+            }
+
+            // 2. A stop request that arrived while the runtime was being stopped
+            // cancels the restart: either a user stop was recorded, the recovery
+            // record is gone, or the runtime was already removed by someone else
+            // before our stop landed.
+            const removedByOther = Boolean(entry) && stopResult === false && !RuntimeRegistry.get(id);
+            const stopRequested = loader.getStopRequestSeq(snapshot.runtimeId) !== stopSeqAtStart;
+            if (!this.strategyRecoveryStates.has(id) || removedByOther || stopRequested) {
+                cancelled = true;
+                log.info(`[RECOVERY] Restart for ${id} cancelled by a stop request; not restarting.`);
+            } else {
+                // 3. Start it again from the snapshot.
+                const result = await loader.startStrategy(snapshot.strategyName, {
+                    userId: snapshot.userId,
+                    mode: snapshot.mode,
+                    symbol: snapshot.symbol,
+                    params: snapshot.params
+                });
+
+                ok = Boolean(result && result.ok === true);
+                if (!ok) {
+                    log.warn(`[RECOVERY] Restart rejected for ${id}: ${result?.reason || "no reason reported"}`);
+                }
+            }
+        } catch (err) {
+            log.error(`[RECOVERY] Auto-restart execution failed for ${id}: ${err.message}`);
+            ok = false;
+        } finally {
+            this.recoveryInFlight.delete(id);
+        }
+
+        // A cancelled recovery is not a failed attempt: no reschedule, no counter.
+        if (cancelled) {
             this._clearRecovery(id);
             return;
         }
 
-        log.info(`[RECOVERY] Attempting auto-restart for ${id}...`);
-        try {
-            // 1. Force termination of any partial runtime state
-            const activeRuntimes = RuntimeRegistry.forStrategy(id);
-            for (const r of activeRuntimes) {
-                await loader.stopStrategy(id, { runtimeId: r.runtimeId });
-            }
-
-            // 2. Request start via bootloader (uses persisted mode/symbol/params)
-            const success = await loader.startStrategy(id);
-            if (!success) {
-                this._scheduleRecovery(id);
-            }
-        } catch (err) {
-            log.error(`[RECOVERY] Auto-restart execution failed for ${id}: ${err.message}`);
-            this._scheduleRecovery(id);
+        if (ok) {
+            this._clearRecovery(id);
+            return;
         }
+
+        // A stop request that arrived during the restart cancels the retry too.
+        if (!this.strategyRecoveryStates.has(id)) {
+            log.info(`[RECOVERY] Retry for ${id} cancelled by a stop request; not rescheduling.`);
+            return;
+        }
+
+        this._scheduleRetry(id, attempts);
+    }
+
+    /**
+     * Drop the recovery state for `id`. A STOPPED is a strategy-level intent
+     * (stopStrategy stops the whole strategy), so it also cancels recovery for
+     * the other runtimes of the same strategy.
+     */
+    _cancelRecovery(id, { strategyWide = false } = {}) {
+        const targets = new Set([id]);
+        if (strategyWide) {
+            for (const [runtimeId, recovery] of this.strategyRecoveryStates) {
+                if (runtimeId === id) continue;
+                const strategyName = recovery?.snapshot?.strategyName;
+                if (strategyName && this._sameStrategy(id, strategyName)) targets.add(runtimeId);
+            }
+        }
+        for (const target of targets) this._clearRecovery(target);
+    }
+
+    /** Same strategy, comparing the entity part of both scoped ids. */
+    _sameStrategy(a, b) {
+        const left = parseScopedId(a);
+        const right = parseScopedId(b);
+        if (left.userId && right.userId && left.userId !== right.userId) return false;
+        if (left.entityId === right.entityId) return true;
+        const [short, long] = left.entityId.length <= right.entityId.length
+            ? [left.entityId, right.entityId]
+            : [right.entityId, left.entityId];
+        return long.startsWith(`${short}::`);
     }
 
     _clearRecovery(id) {
@@ -639,7 +805,7 @@ class CoreXEngine {
         this.status = "STOPPING";
         this.lifecycle.transition(STATES.STOPPING, { reason: "shutdown" });
 
-        broker.cleanup();
+        legacyMarketData.cleanup();
         this.strategyCrashCounters?.clear();
 
         this.status = "IDLE";

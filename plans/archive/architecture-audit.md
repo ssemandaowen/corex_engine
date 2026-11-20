@@ -1,3 +1,5 @@
+ARCHIVED 2026-11-14 — superseded by plans/ROADMAP.md and plans/architecture/REPOSITORY_BASELINE.md. Content below is unchanged.
+
 # CoreX Architecture Audit
 
 > **Date:** 2026-08-30

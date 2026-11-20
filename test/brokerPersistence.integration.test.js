@@ -8,7 +8,7 @@ const pgStore = require("@core/services/pgStore");
 
 // Require brokerPersistence after mocking pgStore so the listener registers
 const brokerPersistence = require("@core/services/brokerPersistence");
-const PaperBroker = require("@broker/modes/PaperBroker");
+const { CoreXPaperDriver: PaperBroker } = require("corex-broker-contract");
 
 describe("Broker persistence integration: method → event → DB", () => {
     let broker;

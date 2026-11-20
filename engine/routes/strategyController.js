@@ -9,13 +9,22 @@ const fs = require("fs");
 const loader = require("@core/core/loader/StrategyLoader");
 const db = require("@core/services/postgres");
 const stateManager = require("@utils/stateController");
+const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 const { getStrategyManifestPayload } = require("@utils/strategy/StrategyManifest");
 const { toScopedId, fromScopedId, scopedLikePrefix } = require("@core/services/userScope");
 
-// HELPER: Check if strategy is untouchable
+// HELPER: Check if strategy is untouchable.
+//
+// The registry is authoritative for "is a runtime running or being created".
+// stateManager is a UI-facing state ledger and can be stale in either
+// direction (ACTIVE with no runtime, STOPPED while a runtime still runs), so it
+// is only a secondary signal: the registry decides, the ledger corroborates.
+const ownedRuntimes = (id) => runtimeRegistry.findOwnedByStrategy(id);
+
 const isStrategyBusy = (id) => {
+    if (ownedRuntimes(id).length > 0) return true;
     const status = stateManager.getStatus(id);
     return ["ACTIVE", "WARMING_UP", "STOPPING"].includes(status);
 };
@@ -271,22 +280,95 @@ router.put("/:id", async (req, res) => {
 });
 
 // 5. DELETE
-router.delete("/:id", (req, res) => {
+router.delete("/:id", async (req, res) => {
     const id = scopedIdFor(req, req.params.id);
-    if (isStrategyBusy(id)) {
+    const userId = getUserId(req);
+
+    // Ownership gate: a strategy may only be deleted when no runtime of this
+    // (user-scoped) identity is registered or reserved. The registry entry's
+    // strategyName is the scoped id, so this cannot block another user's delete.
+    const ownsAnyRuntime = () => ownedRuntimes(id).filter(
+        (runtime) => runtime.userId === userId || runtime.userId === "system"
+    );
+
+    // A start owns nothing until it reserves its runtime identity (it loads and
+    // compiles the strategy first), so an in-flight start is invisible to the
+    // registry. Deleting under it would commit while that start is mid-boot and
+    // let the runtime come up against a strategy row that no longer exists.
+    const startInFlight = typeof loader.isStartInFlight === "function" && loader.isStartInFlight(id);
+
+    if (ownsAnyRuntime().length > 0 || isStrategyBusy(id) || startInFlight) {
         return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
     }
-    db.query(
-        "DELETE FROM strategies WHERE name = $1",
-        [id]
-    ).then(({ rowCount }) => {
-        if (rowCount === 0) return res.status(404).json({ success: false, error: "Strategy not found" });
+
+    // Exclusive deletion claim: from here until the claim is released, no
+    // runtime can be created for this strategy, so the DELETE cannot race a
+    // creation. The claim is always released (success, failure or 404).
+    let claimToken;
+    try {
+        claimToken = runtimeRegistry.claimStrategyDeletion({ strategyName: id, userId });
+    } catch (err) {
+        if (err.code === "STRATEGY_DELETE_IN_PROGRESS") {
+            return res.status(409).json({
+                success: false,
+                error: "DELETE_IN_PROGRESS",
+                message: `Strategy ${req.params.id} is already being deleted`
+            });
+        }
+        if (err.code === "STRATEGY_OWNED_BY_RUNTIME") {
+            return res.status(403).json({ success: false, error: "Cannot delete while strategy is active" });
+        }
+        return res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });
+    }
+
+    try {
+        // The strategy row and its desired-state rows are one commit: deleting
+        // the strategy while leaving strategy_runtimes ACTIVE would make a later
+        // re-registration of the same name start by itself on the next boot.
+        // strategy_runtimes has no FK, so nothing else would remove those rows.
+        // Nothing may be committed unless the strategy row was actually deleted:
+        // a missing strategy throws, which rolls the whole transaction back.
+        const NOT_FOUND = Symbol("strategy_not_found");
+        let result;
+        try {
+            result = await db.withTransaction(async (client) => {
+                const { rowCount } = await client.query(
+                    "DELETE FROM strategies WHERE name = $1",
+                    [id]
+                );
+
+                if (rowCount === 0) throw NOT_FOUND;
+
+                // A strategy that never had a runtime row deletes zero rows here.
+                const runtimes = await client.query(
+                    "DELETE FROM strategy_runtimes WHERE strategy_name = $1",
+                    [id]
+                );
+                return { runtimesDeleted: runtimes.rowCount || 0 };
+            });
+        } catch (err) {
+            if (err === NOT_FOUND) {
+                return res.status(404).json({ success: false, error: "Strategy not found" });
+            }
+            throw err;
+        }
+
         loader.invalidate(id);
-        emitUserLog(req, `Strategy deleted: ${req.params.id}`);
+        emitUserLog(
+            req,
+            `Strategy deleted: ${req.params.id}` +
+            (result.runtimesDeleted
+                ? ` (${result.runtimesDeleted} runtime record(s) removed)`
+                : "")
+        );
         res.json({ success: true, message: "Purged." });
-    }).catch((err) => {
+    } catch (err) {
         res.status(500).json({ success: false, error: "DELETE_FAILED", message: err.message });
-    });
+    } finally {
+        // Released on success, on DB failure and on 404, so a failed delete
+        // never blocks a later attempt (or a later start).
+        runtimeRegistry.releaseStrategyDeletion(claimToken);
+    }
 });
 
 module.exports = router;

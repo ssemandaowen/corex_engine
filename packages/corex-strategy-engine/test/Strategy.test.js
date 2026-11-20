@@ -1,8 +1,7 @@
 "use strict";
 
 const { Strategy, StrategyValidator } = require("../index");
-const CoreXPaperDriver = require("corex-broker-contract/src/drivers/CoreXPaperDriver");
-const BaseBroker = require("corex-broker-contract/src/base/BaseBroker");
+const { CoreXPaperDriver, BaseBroker } = require("corex-broker-contract");
 
 describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
     class TestEngineStrategy extends Strategy {

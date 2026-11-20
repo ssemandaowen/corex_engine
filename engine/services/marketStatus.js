@@ -1,7 +1,7 @@
 "use strict";
 
-const marketBroker = require("@broker/twelvedata");
-const mt5Bridge = require("@core/services/mt5Bridge");
+const { legacyMarketData: marketBroker } = require("@data");
+const { mt5Bridge } = require("corex-broker-contract");
 
 function getMarketStatus() {
     if (typeof marketBroker?.getStatus === "function") return marketBroker.getStatus();

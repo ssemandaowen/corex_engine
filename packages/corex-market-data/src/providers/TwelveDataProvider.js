@@ -3,9 +3,9 @@
 /**
  * TwelveDataProvider.js
  *
- * Adapter that wraps the existing `broker/twelvedata.js` singleton behind
- * the DataProviderContract. Moves from engine/core/data/providers/ to
- * packages/corex-market-data/src/providers/.
+ * Adapter that wraps the package-internal legacy TwelveData singleton
+ * (`src/legacy/twelvedata.js`) behind the DataProviderContract. Moves from
+ * engine/core/data/providers/ to packages/corex-market-data/src/providers/.
  *
  * DESIGN NOTES
  * ────────────
@@ -21,8 +21,8 @@
  *   twelvedata.js directly, except symbols are canonicalized first.
  */
 
-const twelvedata = require("@broker/twelvedata");
-const SymbolNormalizer = require("../../../corex-broker-contract/src/utils/SymbolNormalizer");
+const twelvedata = require("../legacy/twelvedata");
+const { SymbolNormalizer } = require("corex-broker-contract");
 const {
     DataProviderContract,
     validateProviderImplementation,

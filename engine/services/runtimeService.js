@@ -7,6 +7,7 @@ const { EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 const analytics = require("@utils/analytics");
 const { ParamSchema } = require("corex-strategy-engine");
+const RuntimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 
 const log = logger.createModuleLogger("RUNTIME_SERVICE");
 
@@ -210,6 +211,30 @@ class RuntimeService {
             };
         }
         return out;
+    }
+
+    /**
+     * Active in-process broker for a user's runtime in a given mode.
+     * RuntimeRegistry is the authoritative live workspace registry; the old
+     * broker/liveStore + broker/paperStore helpers read a status map whose keys
+     * never matched the runtimeId format and returned null in practice.
+     *
+     * @param {string} mode - 'paper' | 'live' (case-insensitive)
+     * @param {string} [userId] - user or account id
+     * @returns {object|null} live broker instance, or null when no runtime is active
+     */
+    getBrokerForMode(mode, userId) {
+        const canonicalMode = String(mode || "").trim().toUpperCase();
+        if (!canonicalMode) return null;
+
+        const entries = RuntimeRegistry.all();
+        const match = entries.find((entry) =>
+            entry.mode === canonicalMode &&
+            entry.broker &&
+            (!userId || entry.userId === userId || entry.accountId === userId)
+        );
+
+        return match?.broker || null;
     }
 
     /**

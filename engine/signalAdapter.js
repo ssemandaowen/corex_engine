@@ -2,7 +2,7 @@
 "use strict";
 
 const runtimeRegistry = require("./core/runtime/RuntimeRegistry");
-const marketFeed = require("./core/runtime/MarketFeed");
+const { MarketFeed: marketFeed } = require("@data");
 const logger = require("@utils/logger");
 
 const log = logger.createModuleLogger("SIGNAL_ADAPTER");

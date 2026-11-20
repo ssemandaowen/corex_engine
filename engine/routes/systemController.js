@@ -4,10 +4,8 @@ const express = require("express");
 const router = express.Router();
 const os = require("os");
 const { bus, EVENTS } = require("@events/bus");
-const { getPaperBroker } = require("@broker/paperStore");
-const { getLiveBroker } = require("@broker/liveStore");
-const marketBroker = require("@broker/twelvedata");
-const mt5Bridge = require("@core/services/mt5Bridge");
+const runtimeService = require("@core/services/runtimeService");
+const { mt5Bridge } = require("corex-broker-contract");
 const { getMarketStatus, marketConnectivityLabel } = require("@core/services/marketStatus");
 const broadcaster = require("@core/services/broadcaster");
 const db = require("@core/services/postgres");
@@ -189,12 +187,8 @@ router.get("/health/control-gates", async (req, res) => {
     }
 });
 
-const getBrokerByMode = (mode = "paper", userId = undefined) => {
-    const m = String(mode || "paper").toLowerCase();
-    if (m === "paper") return getPaperBroker(userId);
-    if (m === "live") return getLiveBroker();
-    return null;
-};
+const getBrokerByMode = (mode = "paper", userId = undefined) =>
+    runtimeService.getBrokerForMode(mode, userId);
 
 const normalizeMode = (mode = "paper") => (String(mode || "paper").toLowerCase() === "live" ? "live" : "paper");
 

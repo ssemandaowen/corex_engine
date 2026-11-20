@@ -328,7 +328,7 @@ Packages are partially modularized and still maintain dependencies on root alias
 - `packages/corex-auth`: Self-contained in `src/`. No upward imports.
 - `packages/corex-broker-contract`: Imports `@config/constants`, `@events/bus`, `@utils/logger`, `@utils/strategy/StrategyPositionManager`, `@core/services/postgres`, and `@data/providers/FileDataProvider`.
 - `packages/corex-gateway`: Imports `corex-auth` and `corex-broker-contract` relative paths.
-- `packages/corex-market-data`: Imports `@utils/logger`, `@events/bus`, `@core/services/configService`, and `@broker/twelvedata`.
+- `packages/corex-market-data`: Imports `@utils/logger`, `@events/bus`, `@core/services/configService`, `corex-broker-contract` utilities, and the package-internal legacy TwelveData singleton.
 - `packages/corex-portfolio`: Imports `@events/bus` and `@utils/logger`.
 - `packages/corex-strategy-engine`: Imports `@utils/logger`, `@config/constants`, `@core/core/strategy/StrategyContract`, and `@utils/strategy/StrategyStateStore`.
 

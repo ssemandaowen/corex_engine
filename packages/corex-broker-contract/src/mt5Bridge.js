@@ -405,15 +405,15 @@ class MT5Bridge {
     }
 
     async openPosition(payload = {}) {
-        return this.request("openPosition", payload);
+        return this.request("OPEN", payload);
     }
 
     async closePosition(payload = {}) {
-        return this.request("closePosition", payload);
+        return this.request("CLOSE", payload);
     }
 
     async closeAllPositions(payload = {}) {
-        return this.request("closeAllPositions", payload);
+        return this.request("CLOSEALL", payload);
     }
 
     stop() {

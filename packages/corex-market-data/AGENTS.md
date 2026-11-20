@@ -5,8 +5,8 @@ Package: `corex-market-data` — DataProviderContract, providers (TwelveData, Ya
 ## Conventions
 - Node.js >= 18. CommonJS modules (`require`/`module.exports`).
 - Tests: `npm test` runs `jest --passWithNoTests --testTimeout=20000`. All specs in `test/**/*.test.js`.
-- Path aliases via `moduleNameMapper` in `package.json` jest config: `@root`, `@core`, `@broker` (legacy `./broker/`), `@data` (self), `@events`, `@utils`, `@config`, `@strategies`.
-- For SymbolNormalizer and DataPaginationLayer from the broker-contract package, use relative paths: `../../corex-broker-contract/src/utils/SymbolNormalizer`.
+- Path aliases via `moduleNameMapper` in `package.json` jest config: `@root`, `@core`, `@data` (self), `@events`, `@utils`, `@config`, `@strategies`, `corex-broker-contract`.
+- For SymbolNormalizer and DataPaginationLayer from the broker-contract package, use the public API: `require("corex-broker-contract")`.
 
 ## Boundaries (do not violate without asking Owen)
 - `runtimeId` = `userId::strategyName::symbol::mode` — never bypass.

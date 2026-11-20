@@ -16,7 +16,10 @@ class StateController {
         // both are accepted here so those calls aren't silently rejected.
         this.rules = {
             "OFFLINE": ["STAGED", "WARMING_UP", "STOPPING"],
-            "STOPPED": ["STAGED", "WARMING_UP", "STOPPING"],
+            // Recovery stops a failed runtime before retrying, so the ledger is STOPPED by
+            // the time recovery gives up: exhausted recovery must be able to end in
+            // DISABLED from there.
+            "STOPPED": ["STAGED", "WARMING_UP", "STOPPING", "DISABLED"],
             "STAGED": ["WARMING_UP", "ACTIVE", "OFFLINE", "STOPPED", "STOPPING"],
             "WARMING_UP": ["ACTIVE", "ERROR", "OFFLINE", "STOPPED", "DISABLED"],
             "ACTIVE": ["PAUSED", "STOPPING", "ERROR", "OFFLINE", "STOPPED", "DISABLED"],

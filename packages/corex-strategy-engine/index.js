@@ -9,6 +9,7 @@ const { IndicatorRegistry, globalIndicatorRegistry, indicators } = require("./sr
 const { ContextBuilder } = require("./src/ContextBuilder");
 const StrategyValidator = require("./src/validation/StrategyValidator");
 const StrategyManifest = require("./src/validation/StrategyManifest");
+const { assertSafeInstance, UnsafeStrategyInstanceError } = require("./src/validation/assertSafeInstance");
 const Position = require("./src/Position");
 const PlotBuffer = require("./src/PlotBuffer");
 
@@ -24,6 +25,8 @@ module.exports = {
     ContextBuilder,
     StrategyValidator,
     StrategyManifest,
+    assertSafeInstance,
+    UnsafeStrategyInstanceError,
     Position,
     PlotBuffer,
 };

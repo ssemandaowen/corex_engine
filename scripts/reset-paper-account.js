@@ -18,21 +18,30 @@ async function main(args) {
         process.exit(1);
     }
 
-    const { getPaperBroker } = require("@broker/paperStore");
+    const pgStore = require("@core/services/pgStore");
     const db = require("@core/services/postgres");
 
-    const paperBroker = getPaperBroker(userId);
-    if (!paperBroker) {
-        console.error(`ERROR: No paper broker found for user '${userId}'. Is the engine running?`);
+    const persisted = await pgStore.getBrokerSettingsForUser(userId, "paper");
+    const cashValue = Number.isFinite(initialCash)
+        ? initialCash
+        : Number(persisted?.initialCash || persisted?.cash || 0);
+
+    if (!Number.isFinite(cashValue) || cashValue <= 0) {
+        console.error(`ERROR: No persisted paper account found for user '${userId}'.`);
         process.exit(1);
     }
 
-    const cashValue = Number.isFinite(initialCash) ? initialCash : paperBroker.initialCash;
-    console.log(`Resetting paper account for ${userId} → $${cashValue.toFixed(2)}`);
+    console.log(`Resetting persisted paper account for ${userId} → $${cashValue.toFixed(2)}`);
+    console.log("Note: this updates the stored account; it applies the next time a PAPER runtime boots.");
+    console.log("Use POST /api/system/account/paper/reset to reset an account that is live in the running engine.");
 
-    paperBroker.resetAccount(cashValue);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    console.log("✅ Account reset successfully.");
+    await pgStore.upsertBrokerSettingsForUser(userId, "paper", {
+        cash: cashValue,
+        initialCash: cashValue,
+        config: persisted?.config || {}
+    });
+
+    console.log("✅ Persisted paper account reset.");
     await db.end();
 }
 

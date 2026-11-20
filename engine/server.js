@@ -25,7 +25,7 @@ const dataRoutes     = require("@core/routes/dataController");
 
 // 2. Services
 const broadcaster = require("@core/services/broadcaster");
-const mt5Bridge = require("@core/services/mt5Bridge");
+const { mt5Bridge } = require("corex-broker-contract");
 
 const app = express();
 const server = http.createServer(app);

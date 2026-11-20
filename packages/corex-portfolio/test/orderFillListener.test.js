@@ -2,8 +2,7 @@
 
 const { bus, EVENTS } = require("@events/bus");
 const { OrderFillListener } = require("../src/orderFillListener");
-const CoreXPaperDriver = require("corex-broker-contract/src/drivers/CoreXPaperDriver");
-const BacktestDriver = require("corex-broker-contract/src/drivers/BacktestDriver");
+const { CoreXPaperDriver, BacktestDriver } = require("corex-broker-contract");
 
 describe("OrderFillListener & Fill Emission", () => {
     let mockPool;

@@ -1,6 +1,6 @@
 "use strict";
 
-const RuntimeBrokerFactory = require("../../../corex-broker-contract/src/RuntimeBrokerFactory");
+const { RuntimeBrokerFactory } = require("corex-broker-contract");
 
 const AUTH_ERROR_PATTERNS = [
     /401/,

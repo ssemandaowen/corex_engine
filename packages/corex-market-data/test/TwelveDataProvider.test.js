@@ -67,7 +67,7 @@ describe("TwelveDataProvider", () => {
             await provider.subscribe(["EUR/USD", "eurusd", "NASDAQ:MSFT"]);
 
             const normalizedSubscribed = mockBroker.subscribed.map((s) => {
-                const SymbolNormalizer = require("../../corex-broker-contract/src/utils/SymbolNormalizer");
+                const { SymbolNormalizer } = require("corex-broker-contract");
                 return SymbolNormalizer.normalize(s).symbol;
             });
             expect(normalizedSubscribed).toContain("EURUSD");

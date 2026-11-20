@@ -444,3 +444,57 @@ Not implemented in this session — placed on the todo list for future work:
 3. **Phase D: Spatial-culling gate** in Strategy.js — performance optimization to skip indicator updates when price hasn't changed meaningfully.
 4. **Phase E: Package documentation** — AGENTS.md and README.md for the package (already written, verify completeness).
 
+---
+
+**[2026-11-14 02:50] Feature: P3-04 — Broker folder ownership cleanup**
+
+Decision:
+1. `corex-broker-contract` public API (`index.js`) is the authoritative import surface; its `package.json` `main` changed from `src/mt5Bridge.js` to `index.js`.
+2. Removed the `/broker` forwarding mirrors (`base/`, `connectors/`, `modes/`), the dead backtest modules (`BacktestFeed.js`, `SignalGenerationEngine.js`), the legacy `twelvedata.js` forwarding entry, and the broken `liveStore.js`/`paperStore.js` helpers.
+3. Removed the application-level forwarding shims `engine/services/mt5Bridge.js`, `engine/core/runtime/RuntimeBrokerFactory.js` and `engine/core/runtime/MarketFeed.js`; consumers now use `corex-broker-contract` / `corex-market-data`.
+4. Moved in-process paper/live broker lookup to `runtimeService.getBrokerForMode()`; the standalone reset script now updates persisted broker settings.
+5. Fixed `MetaApiDriver` connector selection and `MT5MQL5Connector` / `mt5Bridge` protocol mapping to match the Python receiver contract.
+
+Reason: The legacy folder duplicated package-owned implementations, exposed internal `src/` paths as application dependencies, and the store helpers used a key format that never matched `RuntimeRegistry`. The MT5 connector called a non-existent bridge method and checked a response field the receiver never sends.
+
+Consequence: One authoritative broker package surface; no remaining `@broker/*` forwarding consumers; MT5 connector/bridge protocol aligned on paper. Socket_X remains unmounted and `MetaApiConnector` remains a non-executing skeleton; both are recorded as blockers for the separate execution-authority task. Evidence: `plans/architecture/BROKER_OWNERSHIP_AND_SOCKETX_AUDIT.md`.
+
+
+---
+
+**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 � Atomic runtime ownership**
+
+Decision:
+1. `engine/core/runtime/RuntimeRegistry.js` is the single authoritative runtime owner. It keeps three ledgers in one module: `_runtimes` (live runtimes), `_reservations` (claims for creations in flight) and `_deletionClaims` (in-progress strategy deletions). No second registry was introduced and no schema change was made for this coordination.
+2. Creation is `reserve()` -> initialize broker -> `commitReservation()`. A claim carries a token; `set()` refuses to overwrite a live entry or register over a pending reservation. `commitReservation()` stamps the entry with the caller's `ownerToken`, and `delete(runtimeId, {token})` / `releaseReservation(token)` only act while that token still owns the claim. This fencing stops a boot that lost its claim from deleting or releasing a newer boot's state.
+3. Claims never expire. An in-memory reservation disappears with its process, so a TTL could only mistake a slow boot for a dead one; every claim is released by its owner (commit, rollback, abort, explicit release) or by process exit.
+4. Rollback of a committed boot is ordered and fenced: CAS to `STOPPING` -> destroy collaborators (each success recorded in `cleanupDone`) -> remove own entry (fenced by token) -> release claim. Cleanup is a success/failure operation: a failed step keeps its collaborator on the holder (`entry.broker`/`entry.instance`, or `reservation.pendingBroker`/`pendingInstance` when the boot never committed), keeps the holder STOPPING and retains ownership, so `terminate(runtimeId)` can retry only the failed steps later.
+5. The rollback operation (cleanup + finalization) is published as `holder.cleanupPromise`, so a concurrent `terminate()` joins it instead of starting a second cleanup; a joined caller observes the final state (holder removed, claim released) and reports the same outcome.
+6. Parked cleanup is reachable from the routes: `stopStrategy(id)` targets parked reservations (phase `"reserved"` with `cleanupFailures`) in addition to registered entries, and `startStrategy` reports `START_BLOCKED_CLEANUP_PENDING` (409) while cleanup is still owed.
+7. `commitReservation` restores the claim if registration throws, so a failed commit can still be rolled back and released; a rollback with no holder destroys only the objects that boot created and never mutates the registry, and skips any object the current entry still references.
+8. Lifecycle transitions use a compare-and-set (`transition()`), and one termination per identity runs at a time via an in-flight promise map (no timers, no locks, no delays).
+9. Cleanup failures are recorded on the holder (`cleanupFailures`), the holder stays registered as `STOPPING`, and `terminate()` returns false so no caller can report success. Removal during termination is fenced by `ownerToken`; an unfenced entry reports the stop as unconfirmed.
+10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further � destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
+11. `boot()` re-checks ownership (`_assertOwnership`, `RUNTIME_ABORTED`) after warmup and before subscribe/activate/announce, so a stop during start cannot be followed by a subscribe, an ACTIVE commit or a STRATEGY_START event. `startStrategy` maps `RUNTIME_ABORTED` to `START_CANCELLED` (409), distinct from `START_IN_PROGRESS`.
+12. Every holder operation (`_runCleanupSerialized`, `_publishHolderOperation`) resolves to `{ failures: string[], finalized: boolean, joined?: boolean }`.
+13. `DELETE /api/strategies/:id` takes `claimStrategyDeletion()` before touching the database and releases it on success, 404 or failure. While the claim is held, `reserve()` refuses new runtimes for that strategy, so no creation can land between the ownership check and the DELETE. A second concurrent delete gets 409 `DELETE_IN_PROGRESS`; a delete over an owned strategy still gets 403 with the unchanged message. `stateController` is demoted to a corroborating signal.
+14. Ownership remains per-process (in-memory). Cross-process leases need a database-backed lease and are a later stage.
+
+Reason: the registry had no notion of "being created", so two concurrent boots could both pass the `has()` check and the second `set()` silently orphaned a live instance and broker; failed boots leaked brokers; concurrent terminates double-destroyed; cleanup failures were swallowed and the entry deleted anyway; the deletion route trusted a separate state ledger, checked ownership before the DELETE and then could only report a 500 after the row was already gone.
+
+Consequence: one ownership decision point for creation, activation, termination and deletion; duplicate/competing creation is rejected by identity; a stale boot cannot destroy a newer boot's runtime; failed operations leave no phantom registry state and stay retryable. Ownership is per-process (in-memory), recorded in `plans/KNOWN_ISSUES.md`. Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+
+---
+
+**[2026-11-15 15:05] Feature: B9 — recovery must not restart a runtime the user stopped**
+
+Decision:
+1. The stop-request marker lives in `engine/strategyLoader.js`, because every stop (routes, runtimeService, recovery) passes through `stopStrategy` and the loader is the boundary where the request becomes an action.
+2. The marker is a monotonic per-runtimeId counter, incremented for each target *before* termination. Keying by runtimeId is required because a strategy-wide stop targets every runtime of the strategy, including the recovering one.
+3. `stopStrategy(id, { runtimeId, internal: true })` does not move the counter. Only the recovery loop uses `internal`; a user stop never does, so the flag cannot be forged by the path it is meant to detect.
+4. `_attemptRecovery` reads the counter before its own stop and compares it after the await. A change means a stop was requested inside the window, which is neither a failed attempt nor a retry: recovery drops the record and does not restart.
+5. The existing registry/ledger inferences are kept (`removedByOther`, missing recovery record) because they cover the other orderings; the counter covers the one they cannot see.
+
+Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped — a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
+
+Consequence: a stop request is now an observable intent rather than an inference. Cost: one Map entry per stopped runtime (small, bounded by runtimes), plus a counter read on each recovery attempt. No change to `terminate` semantics, the STOPPED ledger flow or the recovery schedule. Evidence: `plans/tasks/B9.md`, `test/engine-recovery.test.js` T12/T12b (T12 fails on `da7dfd6` with 1 start call, passes with the fix).

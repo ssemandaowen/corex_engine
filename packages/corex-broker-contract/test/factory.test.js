@@ -5,6 +5,8 @@ const { MODES, PAPER_BROKER_DEFAULTS, DEFAULT_STRATEGY_CONFIG } = require("@conf
 const BacktestDriver = require("../src/drivers/BacktestDriver");
 const CoreXPaperDriver = require("../src/drivers/CoreXPaperDriver");
 const MetaApiDriver = require("../src/drivers/MetaApiDriver");
+const MetaApiConnector = require("../src/connectors/MetaApiConnector");
+const MT5MQL5Connector = require("../src/connectors/MT5MQL5Connector");
 
 describe("RuntimeBrokerFactory", () => {
     beforeEach(() => {
@@ -46,6 +48,28 @@ describe("RuntimeBrokerFactory", () => {
         });
         expect(broker).toBeInstanceOf(MetaApiDriver);
         expect(broker.supports_streaming_data).toBe(false);
+    });
+
+    test("selects MetaApiConnector for LIVE mode with metaapi connector", () => {
+        const broker = factory.createBroker(MODES.LIVE, {
+            runtimeId: "u1::strat::EURUSD::LIVE",
+            symbol: "EURUSD",
+            userId: "u1",
+            connectorType: "metaapi"
+        });
+        expect(broker).toBeInstanceOf(MetaApiDriver);
+        expect(broker.connector).toBeInstanceOf(MetaApiConnector);
+    });
+
+    test("selects MT5MQL5Connector when connectorType is mt5", () => {
+        const broker = factory.createBroker(MODES.LIVE, {
+            runtimeId: "u1::strat::EURUSD::LIVE",
+            symbol: "EURUSD",
+            userId: "u1",
+            connectorType: "mt5"
+        });
+        expect(broker).toBeInstanceOf(MetaApiDriver);
+        expect(broker.connector).toBeInstanceOf(MT5MQL5Connector);
     });
 
     test("normalizes lowercase mode strings", () => {
