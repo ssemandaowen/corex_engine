@@ -46,10 +46,11 @@ describe("assertSafeInstance", () => {
         )
     );
 
-    test("normalizes a throwing expected-constructor prototype trap", () => {
+    test("rejects proxy expected constructors without invoking their traps", () => {
+        let trapCalls = 0;
         const ExpectedClass = new Proxy(ValidStrategy, {
             get(target, property, receiver) {
-                if (property === "prototype") throw new Error("prototype trap");
+                trapCalls += 1;
                 return Reflect.get(target, property, receiver);
             },
         });
@@ -58,7 +59,39 @@ describe("assertSafeInstance", () => {
             () => assertSafeInstance(new ValidStrategy(), ExpectedClass),
             "INVALID_EXPECTED_CLASS"
         );
+        expect(trapCalls).toBe(0);
     });
+
+    test("rejects proxy instances without invoking their traps", () => {
+        let trapCalls = 0;
+        const instance = new Proxy(new ValidStrategy(), {
+            getPrototypeOf() {
+                trapCalls += 1;
+                throw new Error("must not inspect proxy");
+            },
+        });
+
+        expectUnsafe(
+            () => assertSafeInstance(instance, ValidStrategy),
+            "PROXY_INSTANCE"
+        );
+        expect(trapCalls).toBe(0);
+    });
+
+    test.each(["params", "schema"])(
+        "rejects proxy data-property %s containers",
+        (container) => {
+            const instance = new ValidStrategy();
+            Object.defineProperty(instance, container, {
+                configurable: true,
+                value: new Proxy({}, {}),
+            });
+            expectUnsafe(
+                () => assertSafeInstance(instance, ValidStrategy),
+                "PROXY_CONTAINER"
+            );
+        }
+    );
 
     test("rejects an unrelated constructor's instance", () => {
         class OtherStrategy {}
@@ -137,29 +170,83 @@ describe("assertSafeInstance", () => {
         }
     );
 
-    test("does not invoke params or schema accessors during inspection", () => {
-        const instance = new ValidStrategy();
-        let getterCalls = 0;
-        Object.defineProperty(instance, "params", {
-            configurable: true,
-            get() {
-                getterCalls += 1;
-                throw new Error("getter must not run");
-            },
-        });
-        Object.defineProperty(instance, "schema", {
-            configurable: true,
-            get() {
-                getterCalls += 1;
-                throw new Error("getter must not run");
-            },
-        });
+    test.each(["params", "schema"])(
+        "rejects own %s accessors without invoking them",
+        (container) => {
+            const instance = new ValidStrategy();
+            let getterCalls = 0;
+            Object.defineProperty(instance, container, {
+                configurable: true,
+                get() {
+                    getterCalls += 1;
+                    throw new Error("getter must not run");
+                },
+            });
 
-        expect(assertSafeInstance(instance, ValidStrategy)).toBe(instance);
-        expect(getterCalls).toBe(0);
+            expectUnsafe(
+                () => assertSafeInstance(instance, ValidStrategy),
+                "UNSAFE_CONTAINER_ACCESSOR"
+            );
+            expect(getterCalls).toBe(0);
+        }
+    );
+
+    test.each(["params", "schema"])(
+        "rejects inherited %s accessors without invoking them",
+        (container) => {
+            let getterCalls = 0;
+            class AccessorStrategy extends ValidStrategy {
+                constructor() {
+                    super();
+                    this[container] = {};
+                }
+            }
+            Object.defineProperty(AccessorStrategy.prototype, container, {
+                configurable: true,
+                get() {
+                    getterCalls += 1;
+                    return JSON.parse('{"constructor":"polluted"}');
+                },
+                set() {},
+            });
+
+            const instance = new AccessorStrategy();
+            expectUnsafe(
+                () => assertSafeInstance(instance, AccessorStrategy),
+                "UNSAFE_CONTAINER_ACCESSOR"
+            );
+            expect(getterCalls).toBe(0);
+        }
+    );
+
+    test("uses captured intrinsics when strategy code mutates Object inspection methods", () => {
+        class ExpectedStrategy {}
+        const foreign = {};
+        const originalGetPrototypeOf = Object.getPrototypeOf;
+        const originalGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+        let thrown;
+
+        Object.getPrototypeOf = (value) =>
+            value === foreign ? ExpectedStrategy.prototype : originalGetPrototypeOf(value);
+        Object.getOwnPropertyDescriptor = (value, key) =>
+            value === ExpectedStrategy.prototype && key === "constructor"
+                ? { value: ExpectedStrategy }
+                : originalGetOwnPropertyDescriptor(value, key);
+
+        try {
+            assertSafeInstance(foreign, ExpectedStrategy);
+        } catch (error) {
+            thrown = error;
+        } finally {
+            Object.getPrototypeOf = originalGetPrototypeOf;
+            Object.getOwnPropertyDescriptor = originalGetOwnPropertyDescriptor;
+        }
+
+        expect(thrown).toBeInstanceOf(UnsafeStrategyInstanceError);
+        expect(thrown.reason).toBe("PROTOTYPE_MISMATCH");
     });
 
-    test("ignores inherited forbidden keys in params and schema containers", () => {
+    test("ignores inherited forbidden keys in params and schema data objects", () => {
         const instance = new ValidStrategy();
         const params = Object.create({ constructor: "inherited" });
         const schema = Object.create({ prototype: "inherited" });

@@ -1,5 +1,15 @@
 "use strict";
 
+// Strategy source executes in the engine process. Capture inspection intrinsics
+// before loading user code so a constructor cannot monkey-patch the guard.
+const { types } = require("node:util");
+const isProxy = types.isProxy;
+const objectGetPrototypeOf = Object.getPrototypeOf;
+const objectGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+const reflectOwnKeys = Reflect.ownKeys;
+const hasOwn = Function.prototype.call.bind(Object.prototype.hasOwnProperty);
+const setHas = Function.prototype.call.bind(Set.prototype.has);
+
 const FORBIDDEN_KEYS = new Set([
     "__proto__",
     "constructor",
@@ -9,6 +19,7 @@ const FORBIDDEN_KEYS = new Set([
     "__lookupGetter__",
     "__lookupSetter__",
 ]);
+const CONTAINER_KEYS = ["params", "schema"];
 
 class UnsafeStrategyInstanceError extends Error {
     constructor(reason, details = {}) {
@@ -26,7 +37,11 @@ function assertSafeInstance(instance, ExpectedClass) {
         throw new UnsafeStrategyInstanceError("INVALID_INSTANCE");
     }
 
-    if (typeof ExpectedClass !== "function") {
+    if (isProxy(instance)) {
+        throw new UnsafeStrategyInstanceError("PROXY_INSTANCE");
+    }
+
+    if (typeof ExpectedClass !== "function" || isProxy(ExpectedClass)) {
         throw new UnsafeStrategyInstanceError("INVALID_EXPECTED_CLASS");
     }
 
@@ -38,15 +53,16 @@ function assertSafeInstance(instance, ExpectedClass) {
     }
 
     if (!expectedPrototype ||
-        (typeof expectedPrototype !== "object" && typeof expectedPrototype !== "function")) {
+        (typeof expectedPrototype !== "object" && typeof expectedPrototype !== "function") ||
+        isProxy(expectedPrototype)) {
         throw new UnsafeStrategyInstanceError("INVALID_EXPECTED_CLASS");
     }
 
     let actualPrototype;
     let constructorDescriptor;
     try {
-        actualPrototype = Object.getPrototypeOf(instance);
-        constructorDescriptor = Object.getOwnPropertyDescriptor(expectedPrototype, "constructor");
+        actualPrototype = objectGetPrototypeOf(instance);
+        constructorDescriptor = objectGetOwnPropertyDescriptor(expectedPrototype, "constructor");
     } catch (_) {
         throw new UnsafeStrategyInstanceError("INSTANCE_INSPECTION_FAILED");
     }
@@ -56,46 +72,67 @@ function assertSafeInstance(instance, ExpectedClass) {
     }
 
     if (!constructorDescriptor ||
-        !Object.prototype.hasOwnProperty.call(constructorDescriptor, "value") ||
+        !hasOwn(constructorDescriptor, "value") ||
         constructorDescriptor.value !== ExpectedClass) {
         throw new UnsafeStrategyInstanceError("INVALID_PROTOTYPE_CONSTRUCTOR");
     }
 
     let ownKeys;
     try {
-        ownKeys = Reflect.ownKeys(instance);
+        ownKeys = reflectOwnKeys(instance);
     } catch (_) {
         throw new UnsafeStrategyInstanceError("INSTANCE_INSPECTION_FAILED");
     }
 
-    for (const key of ownKeys) {
-        if (typeof key === "string" && FORBIDDEN_KEYS.has(key)) {
+    for (let i = 0; i < ownKeys.length; i += 1) {
+        const key = ownKeys[i];
+        if (typeof key === "string" && setHas(FORBIDDEN_KEYS, key)) {
             throw new UnsafeStrategyInstanceError("FORBIDDEN_OWN_PROPERTY", { key });
         }
     }
 
-    for (const container of ["params", "schema"]) {
+    for (let i = 0; i < CONTAINER_KEYS.length; i += 1) {
+        const container = CONTAINER_KEYS[i];
+        let current = instance;
         let descriptor;
+
+        // Inspect the nearest descriptor without invoking accessors. An accessor
+        // is rejected rather than silently trusted or evaluated.
         try {
-            descriptor = Object.getOwnPropertyDescriptor(instance, container);
-        } catch (_) {
+            while (current !== null) {
+                if (isProxy(current)) {
+                    throw new UnsafeStrategyInstanceError("PROXY_CONTAINER", { container });
+                }
+                descriptor = objectGetOwnPropertyDescriptor(current, container);
+                if (descriptor) break;
+                current = objectGetPrototypeOf(current);
+            }
+        } catch (err) {
+            if (err instanceof UnsafeStrategyInstanceError) throw err;
             throw new UnsafeStrategyInstanceError("INSTANCE_INSPECTION_FAILED", { container });
         }
 
-        // Never invoke strategy-defined accessors while inspecting instance data.
-        if (!descriptor || !Object.prototype.hasOwnProperty.call(descriptor, "value")) continue;
+        if (!descriptor) continue;
+        if (!hasOwn(descriptor, "value")) {
+            throw new UnsafeStrategyInstanceError("UNSAFE_CONTAINER_ACCESSOR", { container });
+        }
+
         const value = descriptor.value;
-        if (value === null || typeof value !== "object") continue;
+        if (value === null || (typeof value !== "object" && typeof value !== "function")) continue;
+        if (isProxy(value)) {
+            throw new UnsafeStrategyInstanceError("PROXY_CONTAINER", { container });
+        }
 
         let keys;
         try {
-            keys = Reflect.ownKeys(value);
+            keys = reflectOwnKeys(value);
         } catch (_) {
             throw new UnsafeStrategyInstanceError("CONTAINER_INSPECTION_FAILED", { container });
         }
 
-        for (const key of keys) {
-            if (typeof key === "string" && FORBIDDEN_KEYS.has(key)) {
+        for (let j = 0; j < keys.length; j += 1) {
+            const key = keys[j];
+            if (typeof key === "string" && setHas(FORBIDDEN_KEYS, key)) {
                 throw new UnsafeStrategyInstanceError("FORBIDDEN_CONTAINER_KEY", { key, container });
             }
         }

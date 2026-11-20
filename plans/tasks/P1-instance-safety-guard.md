@@ -1,6 +1,6 @@
 # P1 — Strategy instance-safety guard
 
-Status: IMPLEMENTED — verification passed; final diff audit pending
+Status: IMPLEMENTED — self-review corrections applied; targeted verification passed; independent review pending
 Owner: Owen Ssemanda (product owner); ChatGPT assisting investigation and implementation
 Branch: `fix/strategy-instance-safety-guard`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`
@@ -58,7 +58,7 @@ The guard checks instance integrity against the exact constructor. It does not r
 4. Package `StrategyValidator` uses the same guard without breaking its normal validation report for ordinary invalid strategies.
 5. Existing strategy-engine, compiler, loader and runtime lifecycle tests pass.
 6. The static scanner remains unchanged and continues to run before strategy compilation.
-7. No changes outside this task's source, tests, task file and roadmap row.
+7. No unrelated implementation changes. P1 source/tests stay bounded; roadmap and Known Issues entries plus the requested context handoff summary may record review findings and separately scoped follow-up work. SEC-01 implementation remains out of P1.
 
 ## Verification plan
 
@@ -77,7 +77,7 @@ Pull request: #80 (OPEN; review pending)
 Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
 Dependency gate: STAGE-1 PR #79 is open; its targeted genuine-client test and frontend build passed. Merge is not required by the roadmap entry gate.
 Implementation:
-- Added `src/validation/assertSafeInstance.js` with typed `UnsafeStrategyInstanceError`, stable code `UNSAFE_STRATEGY_INSTANCE`, machine-readable reasons, exact-prototype validation, own-constructor descriptor validation, forbidden own-key checks, and safe inspection of own data-property `params`/`schema`.
+- Added `src/validation/assertSafeInstance.js` with typed `UnsafeStrategyInstanceError`, stable code `UNSAFE_STRATEGY_INSTANCE`, machine-readable reasons, exact-prototype validation, own-constructor descriptor validation, forbidden own-key checks, captured inspection intrinsics, Node `util.types.isProxy` rejection, and accessor-safe `params`/`schema` validation.
 - Exported the guard and error from the `corex-strategy-engine` public API.
 - Integrated the guard immediately after construction in both compiler paths, the runtime loader, and package `StrategyValidator`.
 - Added 31 package test cases covering the guard and validator integration; added compiler and runtime-loader integration tests.
@@ -95,3 +95,32 @@ Decisions needed: None. Keep the static scanner separate; do not redesign `Strat
 Blockers: No implementation or test blocker identified. Review is pending.
 Exact next action: Obtain review on PR #80. Do not start B3 until P1 is reviewed/accepted under the roadmap dependency sequence.
 May another agent continue? YES — only on this branch and within the bounded P1 scope.
+
+## Review follow-up — 2026-11-20
+
+A deeper self-review found three concrete bypasses in the first guard implementation:
+1. `Object.getPrototypeOf` and `Object.getOwnPropertyDescriptor` could be reassigned by strategy code. The security scanner currently accepts those assignments. A reproducer made a foreign `{}` object pass the original guard by replacing those two methods.
+2. Own and inherited accessor descriptors for `params` / `schema` were silently skipped. A subclass getter/setter could therefore expose an unchecked object without the getter being called during inspection.
+3. Proxy instances and proxy container values can lie through reflection traps if they reach the guard through another module or boundary.
+
+Corrections applied on this branch:
+- Capture `Object.getPrototypeOf`, `Object.getOwnPropertyDescriptor`, `Reflect.ownKeys`, `hasOwnProperty`, and `Set.prototype.has` at module load, before strategy source is evaluated.
+- Use Node 22.20.0 documented `node:util` `types.isProxy()` to reject proxy expected constructors, instances, prototypes and `params` / `schema` containers before reflective inspection.
+- Walk the nearest `params` / `schema` descriptor in the prototype chain; reject accessors with `UNSAFE_CONTAINER_ACCESSOR` without invoking getters.
+- Add tests for proxy rejection, own/inherited accessor rejection, and global inspection-intrinsic mutation.
+
+Evidence:
+- Before the correction, direct reproducers showed `getter_bypass=ACCEPTED`, `proxy_bypass=ACCEPTED`, and `intrinsic_tampering_bypass=ACCEPTED`.
+- The AST scanner accepts reassignment of `Object.getPrototypeOf` / `Object.getOwnPropertyDescriptor` (`validateStrategyCode()` returned true). This broader shared-process execution weakness is recorded separately as SEC-01 in the roadmap and `plans/KNOWN_ISSUES.md`; it is not being expanded into P1.
+- Context7 documentation checked against Node.js v22.20.0: `util.types.isProxy()` detects the Proxy object itself and returns false for its target.
+
+Post-correction verification:
+- `corex-strategy-engine`: 12 suites / 125 tests passed.
+- Root compiler + loader/recovery regressions: 2 suites / 17 tests passed.
+- `node --check packages/corex-strategy-engine/src/validation/assertSafeInstance.js`: passed.
+- `git diff --check`: passed (only expected LF-to-CRLF working-copy notices).
+
+Remaining limitation:
+- This remains a post-construction integrity guard, not an execution sandbox. Strategy constructor/module code has already executed in the engine process before the guard runs. SEC-01 is the separate design/review item for execution isolation and shared global-intrinsic protection.
+
+PR #80 remains open and unmerged. Independent review is still pending; do not mark P1 DONE or start B3 until Owen accepts the reviewed P1 work.

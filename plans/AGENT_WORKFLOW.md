@@ -62,6 +62,8 @@ A claim is not architectural approval. Protected boundaries and roadmap approval
 
 - Work only within the task's scope and non-goals.
 - Record adjacent findings as follow-up proposals; do not silently expand scope.
+- Triage each discovery before acting: (a) a defect that directly breaks the current task's acceptance criteria is a current-task blocker; (b) a bounded adjacent defect may be fixed only if it remains within approved scope; (c) cross-cutting, high-risk, or substantial logic becomes a separately scoped backlog item with evidence, impact, affected boundaries, dependencies, and the analysis/decision still needed.
+- Do not start a large follow-up just because it was discovered. Add it to the active roadmap backlog and Known Issues where appropriate, then wait for Owen's priority/scope approval and create its task file when that workstream starts.
 - No broad rebuild, mass move/delete, schema change, protected contract change or high-risk behavior change without the roadmap-required approval.
 - Do not duplicate an existing source of truth. Update the roadmap, task file and STATUS only where each has a distinct role.
 - Record evidence with exact paths, symbols, commands, commit SHAs and test results. Clearly label inference and unknowns.
@@ -81,7 +83,7 @@ Keep STATUS concise. Put technical findings and detailed handoffs in the task fi
 
 ## 7. Mandatory handoff
 
-Every pause, agent switch, context reset or session end must leave a handoff in the task file using this template:
+Every pause, agent switch, context reset or session end must leave a handoff in the task file using this template. For multi-session project continuity, also maintain `plans/context-handoff-summary.md` with the current worktree/branch/commit, active task and PR, decisions, verification evidence, known limitations, open backlog findings, and exact next action. Update it after material commits, reviews, test results, or sequencing changes. It is a navigation aid, not a substitute for the roadmap or task record:
 
 ```text
 ### Handoff — YYYY-MM-DD
