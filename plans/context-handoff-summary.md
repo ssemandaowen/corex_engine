@@ -1,89 +1,120 @@
 # CoreX Context Handoff Summary
 
 Last updated: 2026-11-20
-Purpose: durable handoff for another ChatGPT session, agent, or developer. Repository plans and code remain authoritative; this file is a navigation summary, not a replacement for task records.
+Purpose: durable handoff for another ChatGPT session, agent, or developer. Repository plans and task files are authoritative; this is a navigation summary, not a replacement.
 
 ## Repository and working boundaries
 
 - Repository: `ssemandaowen/corex_engine`
-- Active worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`
-- Branch: `fix/strategy-instance-safety-guard`
-- Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
-- Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or otherwise disturb its dirty/unrelated state.
-- PR: [#80 — feat(strategy): enforce safe constructed instances](https://github.com/ssemandaowen/corex_engine/pull/80)
-- Latest guard/code correction commit: `0a6df52c35590cb13fa1f1881e996341908b220f` (`fix(strategy): harden instance guard review gaps`), pushed to origin. A subsequent docs-only handoff refresh commit `a56f324abe0d7a9470bcc56e7792f920afb91fb9` is also pushed. Run `git rev-parse HEAD` before continuing to obtain the exact current branch head; do not rely on a stored ahead count.
-- Latest GitHub status check: PR open, unmerged, mergeable=true, 14 changed files. No submitted reviews or inline threads. Kilo review did not run because the Kilo account was out of credits. No PR workflow runs were returned for the checked head SHA. Refresh these dynamic fields before acting.
-- Never merge without Owen's explicit approval. Do not start B3 until P1 is reviewed and accepted.
+- Active worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
+- Active branch: `fix/security-corex-strategy-engine`
+- Active PR: [#57 — security: authorize corex-strategy-engine exact import](https://github.com/ssemandaowen/corex_engine/pull/57). This is now the single B3 integration PR.
+- Current main: `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c` (P1 squash merge).
+- B3 branch was updated by merging current `origin/main` into the existing PR #57 branch, no force-push. Merge commit: `c0ff2737992d64903eba20de9dba65032a6ef534`. PR #57 now has current main as its merge base and its pre-implementation diff still contains only `utils/security.js` and `test/round7.comprehensive.test.js`.
+- P1 worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`; PR #80 is merged. Do not continue P1 implementation there.
+- Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or disturb its dirty/unrelated state.
+- PR #56 was closed as superseded because it contained 60 changed files and mixed the allow-list change with unrelated UI, settings, backtest, and planning work.
+- PR #80 was merged and its GitHub body corrected to reflect the merge and acceptance.
+- Do not merge B3 without review and Owen's explicit approval.
 
-## Current P1 task
+## P1 — complete
 
 Authoritative task: `plans/tasks/P1-instance-safety-guard.md`
+Roadmap row: P1 = DONE.
+PR: #80, merged 2026-11-20.
+Merge SHA: `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`.
+
+P1 added package-owned `assertSafeInstance(instance, ExpectedClass)` and enforced it immediately after construction in both compiler paths, runtime loader, and package StrategyValidator. It checks exact prototype ownership, constructor descriptor, forbidden own properties, safe `params` / `schema` containers, accessors, and proxies.
+
+Verification recorded:
+- `corex-strategy-engine`: 12 suites / 125 tests passed.
+- Root compiler + loader/recovery: 2 suites / 17 tests passed.
+- Syntax check and `git diff --check`: passed.
+- Owen approved progression after reviewing the corrected guard findings.
+- Kilo's automated review did not run because the Kilo account was out of credits; no external reviewer submission was recorded.
+
+The PR #80 merge was performed after Owen's approval. The P1 roadmap completion row and task record are being corrected in the B3 worktree because PR #80 had already merged with the row still marked IN PROGRESS. This documentation correction is included with the B3 planning updates.
+
+## B3 — active workstream
+
+Authoritative task: `plans/tasks/B3-sandbox-module-resolution.md`
 Roadmap: `plans/ROADMAP.md`
 Known issues: `plans/KNOWN_ISSUES.md`
+Branch/worktree/PR: `fix/security-corex-strategy-engine` / `corex-b3` / PR #57.
 
-P1 adds package-owned `assertSafeInstance(instance, ExpectedClass)` and enforces it immediately after construction in:
-- `engine/services/strategyCompiler.js` temporary instance path;
-- `engine/services/strategyCompiler.js` compile path;
-- `engine/strategyLoader.js` runtime start path;
-- `packages/corex-strategy-engine/src/validation/StrategyValidator.js`.
+B3 objective: replace the strategy compiler's unrestricted Node module resolution with an exact, compiler-owned allow-list. The AST scanner remains useful as a pre-execution check but is not the runtime security boundary.
 
-It checks exact prototype ownership, expected prototype constructor descriptor, forbidden own properties, and forbidden keys in `params` / `schema`. It throws `UnsafeStrategyInstanceError` with code `UNSAFE_STRATEGY_INSTANCE` and stable reason values.
+### Reproduced findings on Node v22.20.0
 
-Repository-wide constructor search found the four production construction sites above. The legacy `utils/strategy/StrategyValidator.js` is only used by the explicit `scripts/validate-strategy.js` CLI and remains outside P1; legacy retirement is later P5. Backtest instantiation flows through `engine/core/loader/StrategyLoader.js` -> `engine/strategyLoader.js` -> `StrategyCompiler.compile()`, so it receives the compiler guard. `engine/workers/strategyWorker.js` also calls `StrategyCompiler.compile()`.
+Current `engine/services/strategyCompiler.js::_loadModuleFromString()` uses `new Module(filename, module)`, `Module._nodeModulePaths(process.cwd())`, and `mod._compile()`. This exposes Node's normal CommonJS require and resolution behavior.
 
-## Important self-review findings and corrections
+The current scanner/loader was tested and the following were reproduced:
+1. Scanner accepts `const load = require; load("fs")`; the compiler-style Module loader then loads fs through the alias.
+2. Scanner accepts dynamic `import("node:fs")`; current `Module._compile` execution successfully loads node:fs.
+3. Scanner accepts `require.resolve("fs")`.
+4. Scanner accepts arbitrary names containing `BaseStrategy` due to substring matching.
+5. `require("../../package.json")` succeeds from the synthetic `db://strategies/probe.js` filename; relative traversal can reach repository files.
+6. Root `module-alias/register` lets the compiler-style loader load `corex-strategy-engine/src/Strategy` even though the scanner rejects that literal package subpath.
 
-The first implementation had three demonstrated bypasses:
-1. Strategy code could reassign global `Object.getPrototypeOf` and `Object.getOwnPropertyDescriptor`; the original guard then accepted a foreign object. The AST scanner currently accepts these assignments.
-2. Own or inherited accessor descriptors for `params` / `schema` were skipped; a getter/setter could expose unchecked data.
-3. Proxy objects can lie through reflection traps if they reach the guard through another module or boundary.
+### Proposed bounded implementation
 
-Local corrections have been applied but are currently uncommitted:
-- Capture `Object.getPrototypeOf`, `Object.getOwnPropertyDescriptor`, `Reflect.ownKeys`, `hasOwnProperty`, and `Set.prototype.has` at module load, before strategy source is evaluated.
-- Use Node `node:util` `types.isProxy()` to reject Proxy expected constructors, instances, prototypes and `params` / `schema` container objects before reflective inspection.
-- Walk the nearest `params` / `schema` descriptor in the prototype chain and reject accessor descriptors as `UNSAFE_CONTAINER_ACCESSOR` without invoking getters.
-- Add regression tests for proxy rejection, own/inherited accessors, and mutated global inspection methods.
+- Replace Node's generated CommonJS require path with a wrapper compiled through documented Node `vm.compileFunction()`.
+- Inject a minimal `module` record and a compiler-owned restricted `require` function.
+- Exact allowed specifiers to verify: `corex-strategy-engine`, `mathjs`, `technicalindicators`, and the exact temporary legacy template import `@utils/BaseStrategy`.
+- Reject package subpaths, built-ins, arbitrary packages, relative/absolute/traversal paths, dynamic imports, and unknown aliases.
+- Do not expose `require.resolve/cache/extensions/main/paths` or `module.require`.
+- Preserve `module.exports`, `exports`, `this` binding, filename stack traces, and both compiler entry paths.
+- No `importModuleDynamically` callback is supplied; Node docs state dynamic imports then reject with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`. The scanner must also reject ImportExpression nodes.
+- This is module-resolution control only. Node explicitly states `node:vm` is not a security mechanism; SEC-01 remains separate.
 
-Context7 documentation was checked for Node.js v22.20.0. It documents `util.types.isProxy(value)` as returning true for the Proxy object and false for its target.
+### Compatibility note
 
-## Verification after local corrections
+`utils/template.txt` still generates `@utils/BaseStrategy` imports. P3 moves the authoring template into the package; P5 deletes the legacy BaseStrategy implementation. Until P3, retain only the exact `@utils/BaseStrategy` specifier if needed. Do not preserve the old substring exception or allow bare arbitrary names containing BaseStrategy.
 
-- Package `corex-strategy-engine`: 12 suites / 125 tests passed.
-- Root compiler + loader/recovery regression tests: 2 suites / 17 tests passed.
-- `node --check packages/corex-strategy-engine/src/validation/assertSafeInstance.js`: passed.
-- `git diff --check`: passed; only LF-to-CRLF working-copy notices.
-- Direct scanner probe: `validateStrategyCode()` accepts reassignment of `Object.getPrototypeOf` and `Object.getOwnPropertyDescriptor` (returned true).
+### Environment / verification state
 
-## Separate important TODO: SEC-01
+- B3 implementation is present locally in `engine/services/strategyModuleResolver.js`, `engine/services/strategyCompiler.js`, `utils/security.js`, and focused tests. Planning and implementation changes are not yet committed.
+- B3 has no local `node_modules`. Targeted Jest runs successfully used the existing P1 worktree dependency installation via a child Node process with `NODE_PATH`; no dependency files were copied or modified.
+- Verified targeted suites: resolver 25/25; compiler module-resolution integration 4/4; `round7.comprehensive.test.js` security selection 21/21 (46 unrelated tests skipped); compiler instance-safety 2/2; engine recovery 15/15. Total 5 suites / 67 tests passed; this is not a full repository run.
+- `node --check` passed for all five changed/new JavaScript files. The scanner and instance-safety test files needed Jest `--forceExit` because the test process retained open handles; assertions passed before forced exit.
+- `git diff --check` passed after correcting mixed line endings in the Known Issues update. The compiler, scanner, resolver, strategy-loader callers, and worker caller were reviewed. The worker scanner bypass is separately recorded as SEC-03. GitHub review and full-repository verification remain pending; do not claim B3 acceptance or merge readiness.
 
-SEC-01 has been added to the roadmap backlog and Known Issues:
-- Strategy source is compiled using Node `Module._compile` in the engine process.
-- The scanner accepts reassignment of global Object inspection methods.
-- P1 now protects its own inspection code by capturing intrinsics, but it does not isolate strategy execution or prevent global mutation from affecting unrelated engine modules.
-- This requires a separate threat model, import-closure review, and an approved execution-isolation design. Do not solve this by casually adding a large sandbox redesign to P1. Do not assume Node `vm` alone is a security boundary.
-- This limitation means P1 is an instance-integrity guard, not a sandbox.
+## Separate security backlog
 
-## Sequence and decisions
+### SEC-01 — execution isolation / shared process intrinsics
 
-- STAGE-1 PR #79 is open; its genuine-client test and frontend build were previously verified. This satisfies the P1 entry gate recorded in the roadmap.
-- P1 PR #80 remains open and awaits independent review and Owen's acceptance.
-- B3 (sandbox module resolution + exact package allow-list) is next in the roadmap, but must not begin until P1 is reviewed/accepted. PRs #56 and #57 are a duplicate pair and must be reconciled before B3 implementation.
-- P2 depends on both P1 and B3.
-- Keep the legacy `utils/strategy` validator and other retirement work for their planned phase; do not opportunistically delete it.
+P1 captures its own inspection intrinsics but does not isolate strategy execution. Strategy code still runs in the engine process. B3's `vm.compileFunction()` wrapper does not change that. SEC-01 needs its own threat model, import-closure analysis, and reviewed isolation design. Do not use `vm` alone as a security boundary.
+
+### SEC-02 — strategy module-resolution bypasses
+
+SEC-02 is the active B3 defect. Evidence and acceptance criteria are in the B3 task file and roadmap. Close it only after the restricted compiler resolver and regression tests are reviewed and merged.
+
+### SEC-03 — strategy worker bypasses AST validation
+
+`engine/workers/strategyWorker.js` calls `StrategyCompiler.compile()` directly for `LOAD_STRATEGY`, without the `validateStrategyCode()` call used by the main strategy loader. The worker pool forks it and defaults to enabled in production unless `COREX_STRATEGY_WORKER_ENABLED` overrides that setting; `engine/modules/strategyRuntime/index.js` routes `LOAD_STRATEGY` through the pool. The worker pool forks it and defaults to enabled in production unless `COREX_STRATEGY_WORKER_ENABLED` overrides that setting; `engine/modules/strategyRuntime/index.js` routes `LOAD_STRATEGY` through the pool. The exact B3 runtime resolver still constrains module loading on this path, but AST checks for non-module hazards are skipped. Recorded separately in `plans/KNOWN_ISSUES.md` §11 and the roadmap as NEEDS TRIAGE — NOT SCHEDULED. Do not expand B3 to absorb this separate worker validation-ownership task.
+
+## Sequence
+
+- P1: DONE, PR #80 merged.
+- B3: IN PROGRESS, PR #57 retained and synced with main; restricted resolver and scanner hardening are implemented locally, with targeted tests passing.
+- P2: LATER; it depends on both P1 and B3.
+- PR #56: CLOSED as noisy duplicate.
+- PR #57: OPEN; do not close until B3 is completed or deliberately superseded.
+- STAGE-1 PR #79 remains open; its opened status satisfied the P1 entry gate recorded in the roadmap.
 
 ## Exact next actions
 
-1. Continue read-only review on `fix/strategy-instance-safety-guard`; first run `git rev-parse HEAD` and fetch PR #80 metadata so the exact branch state is current. Do not touch the main checkout.
-2. If any further edits are made, rerun the package suite, root compiler/loader regressions, syntax check, and `git diff --check`.
-3. Obtain independent review. Do not merge or mark P1 DONE until Owen accepts it.
-4. Only after P1 acceptance, start B3 as its own bounded workstream, first reconciling duplicate PRs #56/#57.
+1. Finish any remaining source/diff review and run additional relevant tests if needed; the targeted B3 suites and syntax checks are recorded in the task file.
+2. Stage and commit only the B3 implementation, its regression tests, and the related roadmap/Known Issues/handoff/P1 closeout documentation in `corex-b3`.
+3. Push the B3 branch and update PR #57's title/body with the actual scope, tests, and explicit non-sandbox limitation.
+4. Obtain independent review and address findings. Do not merge without Owen's explicit approval.
+5. Keep SEC-03 (worker AST validation bypass) and SEC-01 (execution isolation) separately scoped; do not fold them into B3.
+6. Start P2 only after B3 has been reviewed, accepted, and merged.
 
-## Working discipline for future sessions
+## Working discipline
 
-- Inspect code and callers before changing anything; do not trust old summaries over the current branch.
-- Keep one coherent task per PR/worktree. Do not expand the current task to absorb large or unrelated defects.
-- The discovery-triage and continuity rules are now codified in `plans/AGENT_WORKFLOW.md` §5 and §7: current-task acceptance blockers stay in scope; cross-cutting/high-risk work is recorded with evidence, impact, boundaries and dependencies in the roadmap/Known Issues, then waits for Owen's approval; maintain this summary after material state changes.
-- If a discovered defect needs substantial investigation, record evidence, impact, proposed scope, dependencies and status in `plans/ROADMAP.md` and/or `plans/KNOWN_ISSUES.md`; create a task file only when that workstream starts, per `plans/AGENT_WORKFLOW.md`.
-- Update this handoff summary after material decisions, commits, tests, or sequencing changes.
-- Use Context7 for current API/library documentation when implementation depends on it.
-- No unsupported claims: distinguish observed evidence, tested behavior, limitations and unverified assumptions.
+- Inspect current code/callers before editing; do not trust stale summaries over Git.
+- Keep one coherent task per PR/worktree. Do not absorb SEC-01 or unrelated work into B3.
+- Cross-cutting/high-risk discoveries become separately scoped roadmap/Known Issues items with evidence, impact, boundaries, and dependencies.
+- Use Context7 for current Node/library API documentation when implementation depends on it.
+- Distinguish observed evidence, tested behavior, limitations, and assumptions.

@@ -498,7 +498,7 @@ describe("security.js — loop guards", () => {
     const { validateStrategyCode } = require("@utils/security");
 
     const wrap = (code) => `
-        const BaseStrategy = require("BaseStrategy");
+        const BaseStrategy = require("@utils/BaseStrategy");
         class S extends BaseStrategy {
             constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 10 }); }
             next(bar) { ${code}; return null; }
@@ -552,7 +552,7 @@ describe("security.js — loop guards", () => {
 
     test("valid strategy passes scanner", () => {
         const valid = `
-            const BaseStrategy = require("BaseStrategy");
+            const BaseStrategy = require("@utils/BaseStrategy");
             class MyStrat extends BaseStrategy {
                 constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 50 }); }
                 next(bar) {
@@ -603,5 +603,30 @@ describe("security.js — loop guards", () => {
             module.exports = MyStrat;
         `;
         expect(() => validateStrategyCode(code)).toThrow(/Unauthorized require/);
+    });
+
+    test("temporary template BaseStrategy import is allowed exactly", () => {
+        expect(() => validateStrategyCode('require("@utils/BaseStrategy")')).not.toThrow();
+    });
+
+    test("arbitrary package names containing BaseStrategy are rejected", () => {
+        expect(() => validateStrategyCode('require("not-a-real-BaseStrategy-package")')).toThrow(/Unauthorized require/);
+    });
+
+    test("relative imports are rejected", () => {
+        expect(() => validateStrategyCode('require("../../package.json")')).toThrow(/Unauthorized require/);
+    });
+
+    test("dynamic import is rejected", () => {
+        expect(() => validateStrategyCode('import("node:fs")')).toThrow(/Dynamic import/);
+    });
+
+    test("require.resolve access is rejected", () => {
+        expect(() => validateStrategyCode('require.resolve("fs")')).toThrow(/require.resolve/);
+    });
+
+    test("allowed dependencies do not permit package subpaths", () => {
+        expect(() => validateStrategyCode('require("mathjs/lib/core")')).toThrow(/Unauthorized require/);
+        expect(() => validateStrategyCode('require("technicalindicators/lib")')).toThrow(/Unauthorized require/);
     });
 });

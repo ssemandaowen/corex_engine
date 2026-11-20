@@ -1,6 +1,6 @@
 # P1 — Strategy instance-safety guard
 
-Status: IMPLEMENTED — self-review corrections applied; targeted verification passed; independent review pending
+Status: DONE — accepted by Owen and merged 2026-11-20 as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c` (PR #80)
 Owner: Owen Ssemanda (product owner); ChatGPT assisting investigation and implementation
 Branch: `fix/strategy-instance-safety-guard`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`
@@ -71,10 +71,10 @@ The guard checks instance integrity against the exact constructor. It does not r
 ## Handoff — 2026-11-20
 
 Owner / agent: ChatGPT assisting Owen
-Status: IMPLEMENTED — self-review corrections applied, verified, committed and pushed; independent review pending
+Status: DONE — implementation and self-review corrections verified; Owen approved progression; merged 2026-11-20
 Branch: `fix/strategy-instance-safety-guard`
-Pull request: #80 (OPEN; review pending)
-Base: `origin/main` at `4c33ec7591ec023cfdc3708710dab642b91e8926`
+Pull request: #80 (MERGED; squash merge)
+Base before merge: `4c33ec7591ec023cfdc3708710dab642b91e8926`; merge commit on `main`: `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`
 Dependency gate: STAGE-1 PR #79 is open; its targeted genuine-client test and frontend build passed. Merge is not required by the roadmap entry gate.
 Implementation:
 - Added `src/validation/assertSafeInstance.js` with typed `UnsafeStrategyInstanceError`, stable code `UNSAFE_STRATEGY_INSTANCE`, machine-readable reasons, exact-prototype validation, own-constructor descriptor validation, forbidden own-key checks, captured inspection intrinsics, Node `util.types.isProxy` rejection, and accessor-safe `params`/`schema` validation.
@@ -90,11 +90,11 @@ Verification:
 - The guard also normalizes a throwing Proxy `prototype` trap on the expected constructor to the typed `INVALID_EXPECTED_CLASS` failure; its unit test is included in the 118-test package pass.
 - `git diff --check` passed; Git emitted only its normal LF-to-CRLF working-copy notice for the task document.
 - Earlier package baseline before validator integration: 11 suites / 115 tests passed.
-Review status: PR #80 is open and the guard corrections are pushed at `0a6df52c35590cb13fa1f1881e996341908b220f`; a later docs-only handoff refresh is also pushed. GitHub comparison last confirmed the branch ahead of `main`, 0 behind, and 14 changed files. Re-fetch compare metadata for the current ahead count; the local worktree was clean after the latest push. Kilo's automated review did not run because its bot reported the account is out of credits; no submitted reviews or inline threads exist yet, so independent human/code review remains pending.
+Review status: ChatGPT completed the bounded code review and reproduced/corrected three guard bypasses. Owen explicitly approved progression after reviewing the findings. PR #80 was squash-merged on 2026-11-20 as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`. Kilo's automated review did not run because its bot reported the account was out of credits; no external reviewer submission was recorded. Owen's approval is the project acceptance authority under `plans/ROADMAP.md` rule 2.
 Decisions needed: None. Keep the static scanner separate; do not redesign `StrategyContract` in P1.
-Blockers: No implementation or test blocker identified. Review is pending.
-Exact next action: Obtain review on PR #80. Do not start B3 until P1 is reviewed/accepted under the roadmap dependency sequence.
-May another agent continue? YES — only on this branch and within the bounded P1 scope.
+Blockers: None for P1. SEC-01 remains a separate, open execution-isolation/security design item; it was not part of P1 acceptance.
+Exact next action: P1 is closed. B3 proceeds in its own worktree/PR as recorded in `plans/tasks/B3-sandbox-module-resolution.md`.
+May another agent continue? YES — P1 is complete; any further work belongs to its separately scoped roadmap task.
 
 ## Review follow-up — 2026-11-20
 
@@ -123,4 +123,4 @@ Post-correction verification:
 Remaining limitation:
 - This remains a post-construction integrity guard, not an execution sandbox. Strategy constructor/module code has already executed in the engine process before the guard runs. SEC-01 is the separate design/review item for execution isolation and shared global-intrinsic protection.
 
-PR #80 remains open and unmerged. Independent review is still pending; do not mark P1 DONE or start B3 until Owen accepts the reviewed P1 work.
+PR #80 was merged on 2026-11-20 as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c` after Owen approved progression. P1 is DONE. B3 is now active under `plans/tasks/B3-sandbox-module-resolution.md`; SEC-01 remains a separate open item.
