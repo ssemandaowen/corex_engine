@@ -442,6 +442,29 @@ BacktestDriver MetricsAccumulator
 
 **PARTIAL — persistence, GET/list/delete paths and primary BacktestSubTab consumers mapped.** Need complete frontend consumer search, confirm whether any other artifact route exists, inspect report cleanup and CSV behavior under failure, and review analytics formulas/series frequency before finalizing the report contract.
 
+## 7E. Step 5 — resource-baseline feasibility (2026-11-20; initial review)
+
+**Status: NOT BENCHMARKED.** The source tree contains `scripts/bench/engine-micro-bench.js` and an `npm run bench:engine` script. That harness measures queue implementations, strategy tick bursts and warmup replay; it does not exercise CSV/gzip ingestion, DataForge preparation, the backtest bar loop, broker fills, analytics, report serialization, PostgreSQL persistence or concurrent backtest workers. Its RSS output is a single startup snapshot, not peak per-stage/per-job memory.
+
+The existing `test/backtest-report-path.test.js` uses a deterministic 120-bar synthetic CSV to characterize report persistence. It is a correctness fixture, not a representative performance workload. No small/medium/large backtest dataset fixtures or backtest-specific benchmark harness were found in the inspected tree.
+
+### Baseline collection requirements
+
+Before proposing optimization thresholds, run a controlled benchmark on the intended Windows/Dell environment and record Node version, CPU/RAM, storage medium, PostgreSQL configuration, worker count, dataset bytes/bars, compression ratio, strategy behavior and run options. Measure these stages separately:
+
+1. file stat/read/decompression and parser/normalizer;
+2. sorting/range selection and data materialization;
+3. simulation bars/second, strategy-call latency and broker fills;
+4. analytics and report construction;
+5. JSON file, CSV and JSONB persistence;
+6. report retrieval and frontend payload size;
+7. process RSS before/after and peak RSS, plus concurrent-job RSS;
+8. worker startup/idle overhead and progress-event/database-write counts.
+
+Use generated deterministic datasets for reproducibility, but also test representative real-format CSVs after sanitizing private data. At minimum include a tiny correctness fixture, a medium workload and the largest workload the current product intends to support. Keep uploaded CSV, gzip expansion and bar-count limits distinct. Do not infer performance targets from the existing 120-bar test or the unrelated engine microbenchmark.
+
+No benchmark was run in this session: the GitHub-connected source view cannot execute the user's Windows checkout, and the local CoreX MCP was not available for command execution. This is an explicit measurement gap, not a zero-cost result.
+
 ## 8. Guardrails — no implementation during discovery
 
 - No source-code edits, schema migrations, dependency additions, branch creation or implementation PRs.
