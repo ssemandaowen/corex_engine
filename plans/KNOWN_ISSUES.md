@@ -1,6 +1,6 @@
 # CoreX — Known Issues & Accepted Test Baselines
 
-This document records known failing tests that are deliberately left as an acknowledged baseline per development rules.
+This document records known issues, security limitations, and accepted test baselines. Findings remain open until their owning task is reviewed and closed.
 
 ## 1. Security Scanner Test Syntax Error (`test/round7.comprehensive.test.js`)
 
@@ -57,3 +57,10 @@ This document records known failing tests that are deliberately left as an ackno
 - Rollback cleanup is success/failure: a step that fails keeps its collaborator on the entry/reservation and ownership, so the identity stays STOPPING until `terminate()` completes it. Orphan destruction is limited to boots that never committed: `_destroyOrphaned()` destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry. A committed boot that lost its entry destroys nothing further — destruction belongs to whoever owns/removes the entry, so nothing is destroyed twice (only reachable if claims ever expire or go cross-process).
 - `stateController` is still read by the UI status path (`runtimeService.getStatus`/`getAllStatus`) while the registry is authoritative for lifecycle; the two can disagree until that read path is migrated.
 - Evidence: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`.
+
+## 9. Strategy Source Shares Engine-Process Intrinsics (SEC-01)
+
+- Strategy source is compiled with Node `Module._compile` by `engine/services/strategyCompiler.js`; this executes module code in the engine process rather than an isolated worker or sandbox.
+- The AST scanner in `utils/security.js` blocks several globals but currently accepts assignments such as `Object.getPrototypeOf = ...` and `Object.getOwnPropertyDescriptor = ...`. This was reproduced: `validateStrategyCode()` accepted a source string that reassigns both methods.
+- Such code can mutate process-wide built-ins and affect unrelated engine modules. The P1 guard now captures its own inspection intrinsics at module load and rejects Proxy objects, but that only protects the guard's own checks; it does not isolate strategy code or protect the rest of the process.
+- Classification: HIGH-IMPORTANCE SECURITY DESIGN / separate workstream. Requires a threat model, import-closure analysis, and reviewed isolation strategy. Do not silently expand P1 or assume `vm` alone is a security boundary. Track as SEC-01 in `plans/ROADMAP.md`; do not mark P1 as a sandbox.

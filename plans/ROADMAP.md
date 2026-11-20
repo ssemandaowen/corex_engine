@@ -1,15 +1,14 @@
 ﻿# CoreX — Active Roadmap
 
-> Single active roadmap. Last updated: 2026-11-14
+> Single active roadmap. Last updated: 2026-11-20
 > Owner: Owen Ssemanda (Apex Trait Ltd.) — approval authority
 > Scope: phase order, task IDs, dependencies, status, approval gates
 > Status dashboard of record: this file. `plans/STATUS.md` is superseded (banner only, history).
 > Historical roadmap: `plans/COREX_DEVELOPMENT_PLAN.md` (banner only; do not update).
 > Workflow rules: `plans/AGENT_WORKFLOW.md`. Decisions: `plans/decisions.md`. Issues: `plans/KNOWN_ISSUES.md`.
 
-Every status, branch, PR number and SHA below was verified against `git`/`gh` on 2026-11-14
-(`origin/main` = `e2f8f271a954dc2c426d5f43f059cdd6502f04c2`). Where the plan text of the day
-differed from reality, reality is recorded and the difference is listed in the consolidation PR.
+Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh` on 2026-11-14
+(`origin/main` = `e2f8f271a954dc2c426d5f43f059cdd6502f04c2`). Updates made on 2026-11-20 are recorded with their supporting task files and PR references below. Where the original plan text differed from reality, the consolidation PR records the difference.
 
 ---
 
@@ -53,9 +52,9 @@ differed from reality, reality is recorded and the difference is listed in the c
 | Order | ID | Title | Status | Depends on | Branch / PR | Task file | Notes |
 |---|---|---|---|---|---|---|---|
 | 1 | STAGE-1 | Dataset upload multipart fix with a genuine regression test | IN PROGRESS | — | `fix/upload-multipart-transport` / PR #58 (OPEN) | task file created when the workstream starts | Verified: PR #58 head `b7cf6116d7f751410f815ab8bd3ced1f6311eb2b`, base `main`, 3 files (`front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `package.json`). **The fix is not yet covered by a genuine test:** `test/multipart-upload-fix.test.js` never imports `client.ts`, re-implements the interceptor inline, and its third test asserts the broken behaviour as expected — verified by reverting `client.ts` in a scratch worktree (3/3 still pass). **Decision (Owen):** a genuine test imports the REAL axios instance exported by `client.ts` (stub adapter); extract a module only if importing `client.ts` proves infeasible. Plan: new PR from `main` containing only the `client.ts` fix + that test; then close PR #58 as superseded (no force-push; leave its branch). #58's branch carries the divergent `7401e35` commit. |
-| 2 | ROADMAP | Consolidate plans into this single roadmap | IN PROGRESS | — | PR #64 | task file created when the workstream starts | This document; `plans/STATUS.md` banner; archive; ENGINE-01A report added. |
+| 2 | ROADMAP | Consolidate plans into this single roadmap | DONE | — | PR #64 | — | Merged as `20bad625434dcbefcd7bea2a5d389ff887159d82`; this document is the active roadmap. |
 | 3 | E1 | `engine.js` caller inventory and ownership mapping — **INVENTORY ONLY** | DONE | ROADMAP reviewed | `docs/engine-e1-final-report` | `plans/tasks/ENGINE-02B-E1.md` | **Complete — report: `plans/Audit/ENGINE-02B_E1_engine_inventory.md`** (all seven questions answered, 26 CONFIRMED / 4 INFERRED / 3 UNKNOWN, eight prior findings re-verified). It does NOT repoint any caller; repointing happens inside E2–E4 (and E5), each PR moving only its own methods and separately approved. Implementation handoff is **proposed work, not approved**: four P0 correctness defects (recovery result check, recovery identity space, `stop()` leaves runtimes/timers/listeners, listener leak per restart), three P1 extractions that map to E2/E3/E4, and one P1 blocked on a product decision (warmup cache revive-vs-delete). |
-| 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | NEXT | STAGE-1 PR opened (rebase if needed) | task file created when the workstream starts | task file created when the workstream starts | Scanner = pre-execution layer; instance check = post-construction layer. Two layers, one guard. |
+| 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | IN PROGRESS | STAGE-1 PR opened (#79) | `fix/strategy-instance-safety-guard` / PR #80 (OPEN) | `plans/tasks/P1-instance-safety-guard.md` | Implementation and self-review corrections verified (package 12 suites / 125 tests; root compiler + loader/recovery 2 suites / 17 tests); independent review pending. Post-construction guard only, not a sandbox. P2 still waits for both P1 and B3. |
 | 5 | B3 | Sandbox module resolution (`strategyCompiler`) + `security.js` exact `corex-strategy-engine` allow-list | NEXT | Stage 2 (DONE, PR #63) | PRs #56 and #57 (both OPEN, duplicate pair) | task file created when the workstream starts | Must precede P2. Work also exists uncommitted in the Stage 1 worktree (`engine/services/strategyCompiler.js`, `utils/security.js`, `test/security-exact-package-allow.test.js`). Two open PRs describe the same security change — one must be closed. |
 | 6 | P2 | Retire `StrategyContract`; move `getStateSnapshot`, `__corexApi`, symbol normalization into the `Strategy` base class | LATER | P1, B3 | task file created when the workstream starts | task file created when the workstream starts | Requires a class-identity test: loader, compiler, runtime and backtest must see the same `Strategy` class. |
 | 7a | E2 | `StrategySupervisor` extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | Fixes the `STATE_CHANGED` listener leak and recovery timers that survive `stop()`. |
@@ -76,6 +75,7 @@ differed from reality, reality is recorded and the difference is listed in the c
 
 | ID | Title | Status | Merged | PR | Notes |
 |---|---|---|---|---|---|
+| ROADMAP | Consolidate plans into this single roadmap | DONE | `20bad625434dcbefcd7bea2a5d389ff887159d82` | PR #64 | Active roadmap and planning consolidation merged 2026-11-14. |
 | ENGINE-01 P0 | Baseline persistence fix + characterization tests | DONE | `8dd6048` | PR #62 | 59 suites / 626 tests baseline. |
 | P0-01 | Repository baseline audit | DONE | `a97ae6359b0d1b960b19368e2bbff476e16b4405` | PR #53 | Accepted by Owen 2026-10-31; output `plans/architecture/REPOSITORY_BASELINE.md`. |
 | ENGINE-01 S2 | Atomic runtime ownership | DONE | `e2f8f271a954dc2c426d5f43f059cdd6502f04c2` | PR #63 | 60 suites / 661 tests. Record: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`. |
@@ -88,7 +88,7 @@ differed from reality, reality is recorded and the difference is listed in the c
 
 | ID | Title | Status | Depends on |
 |---|---|---|---|
-| P1 | Instance-safety guard | NEXT | STAGE-1 |
+| P1 | Instance-safety guard | IN PROGRESS | STAGE-1 PR #79 opened |
 | P2 | Retire `StrategyContract`, move state/API/symbol normalization | LATER | P1, B3 |
 | P3 | Authoring surface (template, scripts, `::demo` cleanup) | LATER | P2 |
 | P4 | Repatriate `utils/strategy` | LATER | P2 |
@@ -145,6 +145,7 @@ differed from reality, reality is recorded and the difference is listed in the c
 | B4 | Runtime status flags (`marketDataAvailable` / `warmedUp` / `coldStart`) + stale reconciliation on restore | NEXT (work exists uncommitted) | Re-implement on Stage 2 code using the backup patch as the spec: `engine/core/runtime/RuntimeLifecycle.js`, `engine/core/runtime/RuntimeRegistry.js`, `engine/strategyLoader.js`. The dirty-tree versions are against pre-Stage-2 files and will not apply. |
 | B5 | Ignore `repomix.xml` (2 copies) and `data/uploads/**` | NEXT | `main`'s `.gitignore` has only `repomix-output.xml`. Untracked artefacts: `repomix.xml`, `engine/core/repomix.xml`, `data/uploads/**`. |
 | B9 | Stop-during-own-stop race in engine recovery (`B6`-`B8` unallocated) | IN PROGRESS — `fix/recovery-stop-request-marker` | A stop request for a strategy that lands while `_attemptRecovery` is awaiting `loader.stopStrategy()` — with the runtime already removed and no ledger record left — is indistinguishable from "nothing to stop", so the recovery still restarts the runtime. Needs a loader-boundary stop-request marker that survives the stop. Risk is highest in LIVE mode (an unintended restart of a live runtime). Found in P0-1 and documented as a limitation in `plans/tasks/ENGINE-02B-P0-1.md` §12.5; no code for it in P0-1. |
+| SEC-01 | Strategy execution isolation and shared-intrinsic protection | NEEDS TRIAGE — NOT SCHEDULED | Strategy source is compiled with Node `Module._compile` in the engine process. The AST scanner accepts reassignment of global `Object` inspection methods, so strategy code can mutate shared process intrinsics and affect unrelated engine code. P1 now captures its own inspection intrinsics, but that does not isolate strategy execution or undo global mutation. Requires a separate threat model and reviewed execution-isolation design; do not treat P1 or B3 as a complete sandbox. |
 
 ### P0 findings from `plans/Audit/BASELINE.md` (backlog, unfixed)
 

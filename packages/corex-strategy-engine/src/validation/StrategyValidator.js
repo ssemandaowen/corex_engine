@@ -8,6 +8,7 @@ const {
     getIndicatorNameLowerSet
 } = require("./StrategyManifest");
 const { Strategy, MAX_ALLOWED_LOOKBACK } = require("../Strategy");
+const { assertSafeInstance, UnsafeStrategyInstanceError } = require("./assertSafeInstance");
 
 const NUMERIC_TYPES = new Set(["integer", "number", "float"]);
 
@@ -41,9 +42,12 @@ class StrategyValidator {
         let instance;
         try {
             instance = new StrategyClass();
+            assertSafeInstance(instance, StrategyClass);
         } catch (err) {
+            const unsafe = err instanceof UnsafeStrategyInstanceError;
             errors.push(
-                this._issue("INSTANTIATION_FAILED", `Failed to instantiate strategy: ${err.message}`, "error", {
+                this._issue(unsafe ? "UNSAFE_STRATEGY_INSTANCE" : "INSTANTIATION_FAILED", unsafe ? `Unsafe strategy instance: ${err.reason}` : `Failed to instantiate strategy: ${err.message}`, "error", {
+                    ...(unsafe ? { reason: err.reason } : {}),
                     details: err.stack,
                 })
             );

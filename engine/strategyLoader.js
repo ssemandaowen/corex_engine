@@ -30,6 +30,7 @@ const db              = require('@core/services/postgres');
 const { StrategyCompiler } = require('@core/services/strategyCompiler');
 const { ComponentLifecycle, STATES } = require('@core/core/lifecycle/ComponentLifecycle');
 const { StrategyContract }           = require('@core/core/strategy/StrategyContract');
+const { assertSafeInstance }           = require('corex-strategy-engine');
 const RuntimeLifecycle               = require('@core/core/runtime/RuntimeLifecycle');
 const runtimeRegistry                = require('@core/core/runtime/RuntimeRegistry');
 const { parseScopedId }              = require('@core/services/userScope');
@@ -494,6 +495,7 @@ async function startStrategy(id, options = {}) {
         }
 
         const instance = new meta.StrategyClass();
+        assertSafeInstance(instance, meta.StrategyClass);
         StrategyContract.adapt(instance);
 
         // Re-scope the instance to exactly the selected symbol. The class
