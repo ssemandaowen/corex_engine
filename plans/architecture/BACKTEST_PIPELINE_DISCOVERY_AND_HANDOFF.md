@@ -224,6 +224,58 @@ The following are leads to reproduce, not approved defects or implementation ins
 
 For each lead, record: status (CONFIRMED / DISPROVED / PARTIAL / UNKNOWN), source commit, exact path and line/function, reproduction or test, impact, severity, affected user journey, and proposed owner. Never carry an unverified statement into an implementation task as fact.
 
+## 7A. Step 0 and Step 1 — verified evidence (2026-11-20)
+
+Source baseline: `main` at `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb`. All source paths and line references below were checked against this revision. The local Desktop MCP root contains multiple dirty checkouts and a stale local `origin/main`; it was not used as the source of truth. No source files were changed.
+
+### Step 0 — baseline and repository map
+
+- Root scripts: `start` → `node index.js`; `test` → Jest; `worker:jobs` → `node engine/workers/jobWorker.js`; frontend scripts are delegated through `ui:dev` / `ui:build`.
+- Bootstrap order in `index.js`: migrations → config → engine → HTTP server → data culler → live dispatcher → job worker supervisor (only when DB is configured).
+- `engine/server.js` eagerly imports `backtestController` while loading route modules; the controller is therefore on the server startup path.
+- Upload storage is rooted at `process.cwd()/data/uploads`: `tmp/`, `dedup/`, `by-symbol/`, plus a legacy `index.json`; reports use `data/backtests/`.
+- Default upload limits in `backtestController.js`: 50 MB per file, 10 registrations per user, 500 MB per-user quota. `storageManager` has a separate 500 MB / 30-day generic upload cleanup policy for the dedup directory. DB culler defaults: archive after 60 days, purge after 180 days.
+- Worker is forked by `jobWorkerSupervisor`; heartbeat default 5 seconds, cancellation polling default 5 seconds. PostgreSQL queue claim uses `FOR UPDATE SKIP LOCKED`.
+
+### Step 1 — upload-to-dataset flow
+
+```text
+BacktestSubTab file selection
+  → backtestApi.upload(FormData: dataset + symbol)
+  → POST /api/backtest/uploads (auth middleware → Multer temp file)
+  → file-size/type checks → SHA-256 stream
+  → global dedup blob + per-symbol physical copy
+  → streaming CSV line scan (bars count + first/last timestamp)
+  → backtest_uploads row (or legacy JSON index fallback)
+  → UPLOAD_CREATED event + dataset metadata response
+  → later POST /api/backtest/:strategyId with uploadId
+  → user-scoped lookup + file existence check
+  → resolved file path pinned into corex_jobs.payload.options.file.path
+```
+
+| Responsibility | Current owner | Verified behavior |
+|---|---|---|
+| File selection and multipart construction | `BacktestSubTab.tsx`, `front_end/src/api/backtest.ts` | Sends one `dataset` file and `symbol` field. |
+| Temporary upload and initial limits | `backtestController.js` / Multer | Writes to `uploads/tmp`; default 50 MB limit; accepts CSV MIME or `.csv` filename. |
+| Content identity and physical files | `backtestController.js:hashFile/buildUploadRecord` | Streams SHA-256; stores a content-addressed dedup file and a second symbol-scoped copy. |
+| Dataset metadata | `pgStore.js`, migration `014_backtest_data_storage.sql` | PostgreSQL `backtest_uploads`; falls back to `uploads/index.json` when DB/table is unavailable. |
+| Dataset selection and job handoff | `backtestController.js` | Looks up by user and upload ID; resolves symbol copy first, dedup copy second; stores resolved path in queued options. |
+| Archive/purge | `dataCuller.js` | Gzips old symbol copies; checks queued/running job file paths before purge; soft-deletes metadata after purge. |
+| User-requested delete | `backtestController.js` and `dataController.js` | Two routes currently implement different deletion semantics (see findings below). |
+
+### Confirmed findings and open verification
+
+| ID | Status | Evidence and impact | Next verification |
+|---|---|---|---|
+| UP-01 | CONFIRMED — module path mismatch | `backtestController.js:13` imports `@core/core/backtestDataResolver`, which resolves to `engine/core/backtestDataResolver.js`; that file is absent on this revision. The actual `MAX_BARS_LIMIT` export is in `packages/corex-market-data/index.js` as `@data`. `server.js` eagerly imports the controller, and `index.js` eagerly imports the server. This is a startup-path defect; verify with a clean runtime smoke test before implementation. | Reproduce in a clean worktree and record exact startup error. |
+| UP-02 | CONFIRMED — upload identity conflates content and registration | `buildUploadRecord` uses `toScopedId(userId, digest)` as the row ID. Migration 014 defines the row primary key as `id` and a separate unique index on `(user_id, symbol, digest)`; `upsertBacktestUpload` conflicts on `id` and updates `symbol`. Re-uploading identical bytes for another symbol under the same user therefore overwrites the existing registration instead of creating a distinct symbol registration; the old symbol copy may remain orphaned. | Define canonical content ID versus dataset registration/version ID; trace legacy IDs and active jobs before proposing migration. |
+| UP-03 | CONFIRMED — quota enforcement fails open on DB errors | Upload route converts any `getBacktestUploadUsageForUser` failure into zero usage, then continues. A DB/table outage can bypass both per-user count and byte quotas, including when metadata falls back to the JSON index. | Decide whether uploads should fail closed when quota state cannot be read; add regression coverage. |
+| UP-04 | CONFIRMED — deletion semantics diverge | `DELETE /api/backtest/uploads/:id` hard-deletes the row and removes the symbol copy; `DELETE /api/data/storage/:id` soft-deletes the same table row and removes the symbol copy. The frontend Backtest tab currently uses the former; no frontend caller for `/api/data/storage` was found in the inspected frontend source. | Establish one product-level delete/archive contract and check external/API consumers before consolidation. |
+| UP-05 | CONFIRMED — two physical copies are created | A first upload creates a global digest blob and a separate symbol-scoped copy. This supports fallback/self-heal behavior but duplicates storage; the DB culler deliberately does not rewrite shared dedup blobs while archiving symbol copies. | Measure disk amplification and read-path benefit before deciding whether one canonical blob plus metadata is sufficient. |
+| UP-06 | PARTIAL — upload scan is not full dataset validation | Hashing and line scanning are streamed. The scan counts non-empty data lines and optionally extracts a timestamp range; scan errors are swallowed and metadata is saved with null bar count/range. It does not validate OHLC values or enforce a decompressed-byte ceiling. | Trace the actual simulation parser and validate malformed CSV/gzip handling and expanded-size limits. |
+
+The frontend Backtest tab's upload request and the server upload route are traced. The separate `/api/data/storage` route is exposed but no frontend caller was found in the inspected source. This is not, by itself, authorization to remove it.
+
 ## 8. Guardrails — no implementation during discovery
 
 - No source-code edits, schema migrations, dependency additions, branch creation or implementation PRs.
@@ -267,3 +319,4 @@ At the start of every continuation:
 | Date | Baseline SHA | Step | Work completed | Evidence / output | Next action |
 |---|---|---|---|---|---|
 | 2026-11-20 | `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` | Initial pass | Traced main upload/controller, queue/worker, manager, broker, analytics and report flow at a high level. Identified leads in §7. | ChatGPT initial read-only pass; findings require reproduction and exact source references. | Begin Step 0 and Step 1 from current main; verify all paths and contracts. |
+| 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Steps 0–1 | Verified current main baseline, bootstrap/worker startup, upload UI/API, Multer/storage/hash/scan, PostgreSQL metadata schema, dataset selection, delete routes and archive/purge path. Recorded UP-01–UP-06 in §7A. | GitHub source at current main; exact paths/functions/line references recorded above. No source changes. | Continue Step 1 edge cases and then Step 2 job lifecycle; reproduce UP-01 in a clean worktree before proposing any fix. |
