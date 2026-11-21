@@ -96,7 +96,7 @@ describe("Declarative Strategy Base Class & Pipeline Integration", () => {
 
     test("Security scanner parses declarative strategy code successfully", () => {
         const code = `
-            const DeclarativeStrategy = require("../utils/DeclarativeStrategy");
+            const { Strategy: DeclarativeStrategy } = require("corex-strategy-engine");
             class MyStrat extends DeclarativeStrategy {
                 static symbols = ["EURUSD"];
                 static params = { p: 10 };

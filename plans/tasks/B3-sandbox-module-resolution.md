@@ -1,6 +1,6 @@
 # B3 — Strategy module-resolution boundary and exact allow-list
 
-Status: IN PROGRESS — implementation on PR #57; targeted verification rerun passed (5 root suites / 113 tests; package 12 suites / 125 tests); independent review found a separate SEC-01 execution escape, recorded below; full repository verification and Owen acceptance pending
+Status: IN PROGRESS — implementation on PR #57; full repository verification passed (67 suites / 765 tests); independent COMMENT-only review is recorded; SEC-01 execution escape is documented separately; Owen acceptance pending
 Owner: Owen Ssemanda (approval authority); ChatGPT assisting investigation and implementation
 Branch: `fix/security-corex-strategy-engine`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
@@ -112,7 +112,7 @@ This is an SEC-01 execution-isolation defect, not a B3 implementation expansion.
 ## PR reconciliation
 
 - PR #56 was closed as superseded: it had 60 changed files and mixed the same allow-list patch with unrelated UI, settings, backtest, and planning changes.
-- PR #57 is retained as the single B3 integration PR because its original change is narrowly scoped to the resolver, compiler integration, scanner and tests. As of 2026-11-21, PR #57 is open with no submitted review or inline review threads; PR #56 is closed unmerged as the noisy duplicate.
+- PR #57 is retained as the single B3 integration PR because its change is scoped to the resolver, compiler integration, scanner, related tests and planning records. As of 2026-11-21, PR #57 is open with one COMMENT-only independent review and no inline review threads; PR #56 is closed unmerged as the noisy duplicate.
 - PR #57's branch was previously synced with main at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`. Main then advanced 15 commits; the only changed file in that range was `plans/architecture/BACKTEST_PIPELINE_DISCOVERY_AND_HANDOFF.md`. On 2026-11-21, local `corex-b3` merged `origin/main` at `37d5f3b1c1ec58a9d5693e1ec2df4e5137f82a03` with merge commit `665ef6c59ed940eb51749bb942ad718d1ed2d74a` (no conflicts). The merge and this review documentation are local and still need to be committed/pushed. Recheck PR head, ahead/behind comparison, and mergeability after push; do not merge before independent review and Owen's explicit acceptance.
 
 ## Initial verification status
@@ -131,6 +131,7 @@ This is an SEC-01 execution-isolation defect, not a B3 implementation expansion.
   - `test/strategyCompiler.instanceSafety.test.js`: 1 suite / 2 tests passed.
   - `test/engine-recovery.test.js`: 1 suite / 15 tests passed.
   - Original targeted coverage: 5 suites / 67 tests passed; this is not a full repository test run.
-- Independent rerun on 2026-11-21: the same five root suites (`strategyModuleResolver`, compiler module resolution, `round7.comprehensive`, compiler instance safety, and engine recovery) passed **5 suites / 113 tests**. The entire `packages/corex-strategy-engine/test` suite passed **12 suites / 125 tests**. Both runs used `--forceExit` because the test process retains open handles. No full repository suite was run.
+- Independent rerun on 2026-11-21: the same five root suites (`strategyModuleResolver`, compiler module resolution, `round7.comprehensive`, compiler instance safety, and engine recovery) passed **5 suites / 113 tests**. The entire `packages/corex-strategy-engine/test` suite passed **12 suites / 125 tests**. Both runs used `--forceExit` because the test process retains open handles.
+- Full repository rerun on 2026-11-21 passed **67 suites / 765 tests** with Jest's default test timeout. The B3 checkout has no local `node_modules`, so the run used the P1 worktree dependency directory via `NODE_PATH`, inherited by the forked strategy-worker child. The first full run without child-process `NODE_PATH` timed out the worker startup test and exposed one stale scanner fixture; the worker test passed with the correct inherited dependency path, and the fixture was updated to import `Strategy` from the public `corex-strategy-engine` root instead of the now-forbidden relative `../utils/DeclarativeStrategy` path.
 - The scanner and instance-safety suites retain open handles in this checkout; targeted runs needed Jest `--forceExit` to return cleanly. Assertions passed before forced exit. This is recorded as a test-process limitation, not a product-test failure.
 - `git diff --check`: passed on the original implementation. The 2026-11-21 review-document update exposed a mixed-line-ending whitespace warning in `plans/KNOWN_ISSUES.md`; the file was normalized back to CRLF before final diff verification.
