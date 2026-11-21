@@ -1,6 +1,6 @@
 # B3 — Strategy module-resolution boundary and exact allow-list
 
-Status: IN PROGRESS — implementation committed and pushed to PR #57; targeted verification passed; full repository verification and independent review pending
+Status: IN PROGRESS — implementation on PR #57; targeted verification rerun passed (5 root suites / 113 tests; package 12 suites / 125 tests); independent review found a separate SEC-01 execution escape, recorded below; full repository verification and Owen acceptance pending
 Owner: Owen Ssemanda (approval authority); ChatGPT assisting investigation and implementation
 Branch: `fix/security-corex-strategy-engine`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
@@ -11,13 +11,13 @@ Dependency: P1 PR #80 merged as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`; Stag
 
 ## Objective
 
-Make strategy module resolution an explicit, fail-closed boundary. Strategy source may load only exact approved module specifiers through a compiler-owned resolver. The AST scanner remains a pre-execution diagnostic layer; it is not the authoritative module-resolution boundary.
+Make the strategy's injected CommonJS `require` channel explicit and fail-closed. Calls through that function may load only exact approved module specifiers through a compiler-owned resolver. The AST scanner remains a pre-execution diagnostic layer; it is not authoritative for aliases or a process-level security boundary.
 
 This work is **not** a process sandbox or an execution-isolation solution. SEC-01 remains a separate security design workstream.
 
 ## Repository evidence and reproduced defects
 
-### Current compiler behavior
+### Pre-B3 compiler behavior (reproduced before the resolver change)
 
 `engine/services/strategyCompiler.js::_loadModuleFromString()` currently:
 - creates a Node `Module` with the strategy's synthetic `db://strategies/<id>.js` filename;
@@ -26,7 +26,7 @@ This work is **not** a process sandbox or an execution-isolation solution. SEC-0
 
 This supplies Node's normal CommonJS `require` function and resolution behavior rather than a strategy-specific allow-listed resolver. `Module._compile` and `Module._nodeModulePaths` are Node internal implementation APIs, not a documented public loader contract.
 
-### Current scanner behavior
+### Pre-B3 scanner behavior (reproduced before the scanner change)
 
 `utils/security.js` currently:
 - recognizes literal direct `require("...")` calls but does not make runtime resolution safe;
@@ -94,15 +94,26 @@ The main `engine/strategyLoader.js` paths call `validateStrategyCode()` before `
 
 - No worker-thread/process isolation or full untrusted-code sandbox (tracked separately as SEC-01).
 - No assumption that `vm` is a security boundary.
-- No broad static taint-analysis framework to prove every alias; runtime resolver enforcement is authoritative.
+- No broad static taint-analysis framework to prove every alias; the runtime resolver is authoritative only for the injected CommonJS `require` function. It does not constrain process-global APIs or provide execution isolation.
 - No P2 StrategyContract redesign, P3 template migration, P4 folder repatriation, or P5 legacy source deletion.
 - No unrelated engine, broker, backtest, UI, or database changes.
+
+## Independent review finding — SEC-01 computed constructor escape
+
+A post-implementation probe on Node v22.20.0 demonstrated that B3's exact `require` resolver is not a process-level security boundary:
+
+- Source: `const fs = Object["con" + "structor"]("return process.getBuiltinModule('fs')")(); class StrategyProbe { constructor() { this.fsAvailable = typeof fs.readFileSync === "function"; } onBar() { return null; } } module.exports = StrategyProbe;`
+- `validateStrategyCode(source)` accepted the source.
+- `loadStrategyModule(source, "sec01-strategy-probe")` returned the class, and constructing it produced `fsAvailable === true`.
+- The computed property avoids the scanner's direct `.constructor` property check. The generated Function executes in the engine process's global context and obtains `process.getBuiltinModule("fs")` without using the injected `require` function.
+
+This is an SEC-01 execution-isolation defect, not a B3 implementation expansion. B3 should be reviewed and described only as a restriction on the injected CommonJS `require` channel. Do not claim that B3 makes untrusted strategy code safe. The reproducer and its impact are recorded in `plans/KNOWN_ISSUES.md` §9 and `plans/ROADMAP.md` SEC-01.
 
 ## PR reconciliation
 
 - PR #56 was closed as superseded: it had 60 changed files and mixed the same allow-list patch with unrelated UI, settings, backtest, and planning changes.
-- PR #57 is retained as the single B3 integration PR because its original change is narrowly scoped to `utils/security.js` and scanner tests.
-- PR #57's branch was first updated with P1 main by merge commit `c0ff2737992d64903eba20de9dba65032a6ef534`. After main advanced six planning commits, B3 was synced again with merge commit `221068545df2722846b3b2ecbfdadde2d2504d3a`; the backtest discovery/handoff and frontend audit roadmap updates were preserved during the `plans/ROADMAP.md` conflict resolution. Both merges were pushed without force-pushing. PR #57 is synced with current main at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`; a documentation-only handoff refresh was pushed after the main-sync merge. Refresh the current branch head and ahead/behind comparison before continuing. GitHub's mergeability metadata has returned inconsistent values (`true`/`false`) across refreshes; recheck before merge consideration.
+- PR #57 is retained as the single B3 integration PR because its original change is narrowly scoped to the resolver, compiler integration, scanner and tests. As of 2026-11-21, PR #57 is open with no submitted review or inline review threads; PR #56 is closed unmerged as the noisy duplicate.
+- PR #57's branch was previously synced with main at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`. Main then advanced 15 commits; the only changed file in that range was `plans/architecture/BACKTEST_PIPELINE_DISCOVERY_AND_HANDOFF.md`. On 2026-11-21, local `corex-b3` merged `origin/main` at `37d5f3b1c1ec58a9d5693e1ec2df4e5137f82a03` with merge commit `665ef6c59ed940eb51749bb942ad718d1ed2d74a` (no conflicts). The merge and this review documentation are local and still need to be committed/pushed. Recheck PR head, ahead/behind comparison, and mergeability after push; do not merge before independent review and Owen's explicit acceptance.
 
 ## Initial verification status
 
@@ -113,12 +124,13 @@ The main `engine/strategyLoader.js` paths call `validateStrategyCode()` before `
 - Scratch proof of injected exact `require`: passed.
 - Implemented locally: new `engine/services/strategyModuleResolver.js`; `StrategyCompiler` delegates both compile paths to it; `utils/security.js` now uses exact specifiers, rejects dynamic imports, relative paths and sensitive require properties; added scanner regressions plus resolver and compiler integration tests.
 - `node --check` for all five changed/new JavaScript files (`strategyCompiler.js`, `strategyModuleResolver.js`, `utils/security.js`, and the two new/updated test files): passed.
-- Targeted Jest verification used the dependency installation in the separate P1 worktree via `NODE_PATH`; no dependency files or worktree contents were copied or modified.
+- Targeted Jest verification was rerun on the B3 source using the dependency installation in the separate P1 worktree via Jest `--modulePaths`; no dependency files or worktree contents were copied or modified.
   - `test/strategyModuleResolver.test.js`: 1 suite / 25 tests passed.
   - `test/strategyCompiler.moduleResolution.test.js`: 1 suite / 4 tests passed.
   - `test/round7.comprehensive.test.js` filtered to `security.js`: 1 suite / 21 tests passed (46 unrelated tests skipped).
   - `test/strategyCompiler.instanceSafety.test.js`: 1 suite / 2 tests passed.
   - `test/engine-recovery.test.js`: 1 suite / 15 tests passed.
-  - Total targeted coverage: 5 suites / 67 tests passed; this is not a full repository test run.
+  - Original targeted coverage: 5 suites / 67 tests passed; this is not a full repository test run.
+- Independent rerun on 2026-11-21: the same five root suites (`strategyModuleResolver`, compiler module resolution, `round7.comprehensive`, compiler instance safety, and engine recovery) passed **5 suites / 113 tests**. The entire `packages/corex-strategy-engine/test` suite passed **12 suites / 125 tests**. Both runs used `--forceExit` because the test process retains open handles. No full repository suite was run.
 - The scanner and instance-safety suites retain open handles in this checkout; targeted runs needed Jest `--forceExit` to return cleanly. Assertions passed before forced exit. This is recorded as a test-process limitation, not a product-test failure.
-- `git diff --check`: passed after normalizing the appended Known Issues sections to match the tracked file's line endings.
+- `git diff --check`: passed on the original implementation. The 2026-11-21 review-document update exposed a mixed-line-ending whitespace warning in `plans/KNOWN_ISSUES.md`; the file was normalized back to CRLF before final diff verification.
