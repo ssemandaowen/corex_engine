@@ -178,6 +178,7 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
             runtimeMode:   dbRow.runtime_mode  || 'PAPER',
             runtimeParams: dbRow.runtime_params || {},
             runtimeState:  dbRow.runtime_state  || 'STOPPED',
+            strategyDbId:  dbRow.id || null,
         };
         _metaRegistry.set(id, cached);
         stateManager.commit(id, 'STAGED', { reason: 'compile_cache' });
@@ -201,6 +202,7 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
             runtimeMode:   dbRow.runtime_mode  || 'PAPER',
             runtimeParams: dbRow.runtime_params || {},
             runtimeState:  dbRow.runtime_state  || 'STOPPED',
+            strategyDbId:  dbRow.id || null,
         });
         stateManager.commit(id, 'ERROR', { reason: result.error });
         return null;
@@ -220,6 +222,7 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
         runtimeMode:   dbRow.runtime_mode  || 'PAPER',
         runtimeParams: dbRow.runtime_params || {},
         runtimeState:  dbRow.runtime_state  || 'STOPPED',
+        strategyDbId:  dbRow.id || null,
     };
 
     _metaRegistry.set(id, entry);
@@ -246,6 +249,7 @@ async function _ensureCompiled(id, meta) {
         runtime_mode: meta.runtimeMode,
         runtime_params: meta.runtimeParams,
         runtime_state: meta.runtimeState,
+        id: meta.strategyDbId || null,
     });
     if (!compiled?.StrategyClass) {
         throw new Error(`Strategy '${id}' failed on-demand compile`);
@@ -418,7 +422,7 @@ async function bootStrategy(record) {
 async function reloadStrategy(id) {
     if (!db.hasDbConfig()) return null;
     const { rows } = await db.query(
-        `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_state
+        `SELECT name, script_body, id, updated_at, runtime_mode, runtime_params, runtime_state
          FROM strategies WHERE name = $1 LIMIT 1`,
         [id]
     );
@@ -436,21 +440,37 @@ async function startStrategy(id, options = {}) {
     _startInFlight.add(id);
 
     try {
-        let meta = _metaRegistry.get(id);
-        if (!meta) {
+        let dbRow = null;
+        if (db.hasDbConfig()) {
             const { rows } = await db.query(
-                `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_state,
+                `SELECT name, script_body, id, updated_at, runtime_mode, runtime_params, runtime_state,
                         schema, compiled_hash, compiled_metadata
                  FROM strategies
                  WHERE name = $1 LIMIT 1`,
                 [id]
             );
-            const dbRow = rows?.[0];
+            dbRow = rows?.[0] || null;
+            if (!dbRow) throw new Error(`Strategy '${id}' not found in DB`);
+        }
+
+        let meta = _metaRegistry.get(id);
+        if (!meta) {
+            if (!dbRow) {
+                const { rows } = await db.query(
+                    `SELECT name, script_body, id, updated_at, runtime_mode, runtime_params, runtime_state,
+                            schema, compiled_hash, compiled_metadata
+                     FROM strategies
+                     WHERE name = $1 LIMIT 1`,
+                    [id]
+                );
+                dbRow = rows?.[0] || null;
+            }
             if (!dbRow) throw new Error(`Strategy '${id}' not found in DB`);
             meta = await _compileAndRegisterMeta(id, dbRow.script_body, dbRow);
         }
 
         if (!meta || meta.status === 'ERROR') throw new Error(`Strategy '${id}' not compiled`);
+        if (dbRow?.id) meta.strategyDbId = dbRow.id;
         meta = await _ensureCompiled(id, meta);
 
         const mode = String(options.mode || meta.runtimeMode || 'PAPER').toUpperCase();
@@ -544,7 +564,7 @@ async function startStrategy(id, options = {}) {
         await lifecycle.boot({
             runtimeId,
             strategyInstance: instance,
-            profile: { runtimeId, strategyName: id, mode, symbol, userId, initialCash: options.initialCash || 100000, connectorType: options.connectorType || 'metaapi', params: mergedParams }
+            profile: { runtimeId, strategyName: id, strategyDbId: meta.strategyDbId || null, mode, symbol, userId, initialCash: options.initialCash || 100000, connectorType: options.connectorType || 'metaapi', params: mergedParams }
         });
 
         stateManager.commit(id, 'ACTIVE', { runtimeId, reason: 'started' });

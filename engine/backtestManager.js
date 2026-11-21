@@ -306,6 +306,8 @@ class BacktestManager {
     _resolveConfig(options, strategy = {}) {
         return {
             userId:         options.userId || parseScopedId(strategy?.id || "").userId || null,
+            strategyDbId:   options.strategyDbId || null,
+            strategyName:   options.strategyName || strategy.name || null,
             dataMode:       String(options.dataMode || (options.file?.path ? "offline" : "online")).toLowerCase(),
             symbol:         options.symbol || "SYMBOL",
             interval:       options.interval || "1m",
@@ -333,8 +335,8 @@ class BacktestManager {
     _buildMeta(runtimeId, strategy, config, startMs) {
         return {
             id:              runtimeId,
-            strategyId:      strategy.id,
-            strategyName:    strategy.name,
+            strategyId:      config.strategyDbId || strategy.id || null,
+            strategyName:    config.strategyName || strategy.name || null,
             userId:          config.userId,
             strategyVersion: config.strategyVersion,
             runtimeParams:   strategy.params || {},

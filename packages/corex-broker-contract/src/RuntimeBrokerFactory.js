@@ -65,6 +65,8 @@ class RuntimeBrokerFactory {
                 symbol: assetSymbol,
                 userId: opts.userId || "system_fallback",
                 accountId: opts.accountId || opts.brokerConfig?.accountId || null,
+                strategyDbId: opts.strategyDbId || null,
+                strategyName: opts.strategyName || null,
                 initialCash: Number(opts.initialCash || PAPER_BROKER_DEFAULTS.INITIAL_CASH),
                 mode: "PAPER",
                 brokerConfig: {
@@ -84,6 +86,8 @@ class RuntimeBrokerFactory {
                 symbol: assetSymbol,
                 userId: opts.userId,
                 accountId: opts.accountId || opts.brokerConfig?.accountId || null,
+                strategyDbId: opts.strategyDbId || null,
+                strategyName: opts.strategyName || null,
                 connectorType: opts.connectorType || "metaapi",
                 mode: "LIVE",
                 initialCash: 0,

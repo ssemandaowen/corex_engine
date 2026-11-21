@@ -28,6 +28,8 @@ class OrderFillListener {
             if (!payload || !payload.orderId) return;
             const {
                 orderId,
+                strategyDbId = null,
+                strategyName = null,
                 accountId = null,
                 userId = "system",
                 environment = "PAPER",
@@ -57,8 +59,8 @@ class OrderFillListener {
                          ON CONFLICT (id) DO NOTHING`,
                         [
                             orderId,
-                            null,
-                            null,
+                            strategyDbId,
+                            strategyName,
                             userId,
                             accountId,
                             symbol,
@@ -69,6 +71,14 @@ class OrderFillListener {
                             environment,
                             new Date(timestamp)
                         ]
+                    );
+                } else if (strategyDbId || strategyName) {
+                    await client.query(
+                        `UPDATE orders
+                            SET strategy_id = COALESCE(strategy_id, $2),
+                                strategy_name = COALESCE(NULLIF(strategy_name, ''), $3)
+                          WHERE id = $1`,
+                        [orderId, strategyDbId, strategyName]
                     );
                 }
 

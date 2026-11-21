@@ -36,6 +36,8 @@ describe("OrderFillListener & Fill Emission", () => {
             symbol: "EURUSD",
             userId: "u1",
             accountId: "cx_pap_123456789012345678901234",
+            strategyDbId: "8e5bce74-13f8-4c36-a06a-5b3e9ac3e1a7",
+            strategyName: "Momentum",
             initialCash: 10000,
             mode: "PAPER"
         });
@@ -46,6 +48,8 @@ describe("OrderFillListener & Fill Emission", () => {
 
         expect(emitSpy).toHaveBeenCalledWith(EVENTS.ORDER.FILLED, expect.objectContaining({
             accountId: "cx_pap_123456789012345678901234",
+            strategyDbId: "8e5bce74-13f8-4c36-a06a-5b3e9ac3e1a7",
+            strategyName: "Momentum",
             symbol: "EURUSD",
             quantity: 1,
             price: 1.1000,
@@ -84,6 +88,8 @@ describe("OrderFillListener & Fill Emission", () => {
 
         const payload = {
             orderId: "ord_test_1",
+            strategyDbId: "8e5bce74-13f8-4c36-a06a-5b3e9ac3e1a7",
+            strategyName: "Momentum",
             accountId: "cx_pap_123456789012345678901234",
             userId: "u1",
             environment: "PAPER",
@@ -104,6 +110,11 @@ describe("OrderFillListener & Fill Emission", () => {
 
         expect(clientQueryMock).toHaveBeenCalledWith("BEGIN");
         expect(clientQueryMock).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO orders"), expect.any(Array));
+        const orderInsert = clientQueryMock.mock.calls.find(([sql]) => sql.includes("INSERT INTO orders"));
+        expect(orderInsert[1]).toEqual(expect.arrayContaining([
+            "8e5bce74-13f8-4c36-a06a-5b3e9ac3e1a7",
+            "Momentum"
+        ]));
         expect(clientQueryMock).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO order_fills"), expect.any(Array));
         expect(clientQueryMock).toHaveBeenCalledWith("COMMIT");
         expect(clientMock.release).toHaveBeenCalled();

@@ -291,6 +291,8 @@ class MetaApiDriver extends BaseBroker {
                 orderId,
                 accountId: this.accountId,
                 userId: this.userId,
+                strategyDbId: this.strategyDbId,
+                strategyName: this.strategyName,
                 environment: this.mode.toUpperCase(),
                 symbol: canonical,
                 side: side.toUpperCase(),
