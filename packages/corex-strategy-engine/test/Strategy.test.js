@@ -235,4 +235,53 @@ describe("Standalone Strategy Engine & ContextBuilder Benchmark", () => {
 
         strategy.destroy();
     });
+
+    test("Strategy owns its snapshot and immutable public API metadata", () => {
+        class SnapshotStrategy extends Strategy {
+            constructor(config) {
+                super(config);
+                this.customInstanceMethod = function customInstanceMethod() { return true; };
+            }
+            customPublicMethod() { return true; }
+        }
+
+        const strategy = new SnapshotStrategy({
+            id: "snapshot-id",
+            name: "SnapshotStrategy",
+            symbol: " eurusd ",
+            timeframe: "15m"
+        });
+
+        expect(strategy.symbols).toEqual(["EURUSD"]);
+        expect(strategy.getStateSnapshot()).toEqual({
+            id: "snapshot-id",
+            name: "SnapshotStrategy",
+            symbols: ["EURUSD"],
+            timeframe: "15m",
+            mode: "PAPER"
+        });
+        expect(strategy.__corexApi).toContain("getStateSnapshot");
+        expect(strategy.__corexApi).toContain("customPublicMethod");
+        expect(strategy.__corexApi).toContain("customInstanceMethod");
+        expect(Object.isFrozen(strategy.__corexApi)).toBe(true);
+        expect(Object.getOwnPropertyDescriptor(strategy, "__corexApi")).toMatchObject({
+            writable: false,
+            configurable: false
+        });
+
+        strategy.destroy();
+    });
+
+    test("Strategy normalizes a static singular symbol when no symbols array is declared", () => {
+        class StaticSymbolStrategy extends Strategy {
+            static symbol = " gbpusd ";
+        }
+
+        const strategy = new StaticSymbolStrategy();
+
+        expect(strategy.symbols).toEqual(["GBPUSD"]);
+        expect(strategy.getStateSnapshot().symbols).toEqual(["GBPUSD"]);
+
+        strategy.destroy();
+    });
 });
