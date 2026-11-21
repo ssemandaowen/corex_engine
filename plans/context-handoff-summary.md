@@ -10,12 +10,12 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Active branch: `fix/security-corex-strategy-engine`
 - Active PR: [#57 — security: enforce exact strategy module resolution](https://github.com/ssemandaowen/corex_engine/pull/57). This is now the single B3 integration PR.
 - Current main: `8a68c9f2bb2446d40fde5e86350ca5d8ec28e80d`.
-- On 2026-11-21, B3 merged the latest `origin/main` into `corex-b3` with merge commit `ef70e0c` (conflict-free). This includes the package-entrypoint correction and deterministic SocketX token-bucket regression test. Local B3 is now 13 commits ahead of current main and 0 behind; this latest merge has not yet been pushed to PR #57.
+- On 2026-11-21, B3 merged the latest `origin/main` into `corex-b3` with merge commit `ef70e0c` (conflict-free). This includes the package-entrypoint correction and deterministic SocketX token-bucket regression test. The follow-up B3 test/docs commit `e44ee0e` was pushed to `origin/fix/security-corex-strategy-engine`; the branch is now 15 commits ahead of current main and 0 behind.
 - P1 worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`; PR #80 is merged. Do not continue P1 implementation there.
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or disturb its dirty/unrelated state.
 - PR #56 was closed as superseded because it contained 60 changed files and mixed the allow-list change with unrelated UI, settings, backtest, and planning work.
 - PR #80 was merged and its GitHub body corrected to reflect the merge and acceptance.
-- PR #57's currently published head is `bda9cdbe40c2cc87d6f3c1cf78ae358b286ae595`; the local branch has advanced to merge commit `ef70e0c` and includes a new template-compatibility regression. Push the final branch after validation and refresh PR metadata. The only submitted COMMENT review is authored by the repository owner, so independent review is still outstanding. Kilo's review bot reported insufficient credits. Do not merge B3 without an actual independent review and Owen's explicit approval.
+- PR #57's published head is `e44ee0eca13ed5dc15b532ef5935a86907a9d428`; GitHub compare reports 15 commits ahead and 0 behind current main. PR #57's body has been refreshed with the latest test results and explicit non-sandbox limitations. The only submitted COMMENT review is authored by the repository owner, so independent review is still outstanding. Kilo's review bot reported insufficient credits. Do not merge B3 without an actual independent review and Owen's explicit approval.
 - Do not merge B3 without review and Owen's explicit approval.
 
 ## P1 — complete
@@ -98,7 +98,7 @@ SEC-02 is the active B3 defect. Evidence and acceptance criteria are in the B3 t
 ## Sequence
 
 - P1: DONE, PR #80 merged.
-- B3: IN PROGRESS, PR #57 retained and synced with main; restricted resolver and scanner hardening are implemented locally, with targeted tests passing.
+- B3: IN PROGRESS, PR #57 retained and synced with main; restricted resolver and scanner hardening are implemented, full repository tests pass (67 suites / 766 tests), and independent review is pending.
 - P2: LATER; it depends on both P1 and B3.
 - PR #56: CLOSED as noisy duplicate.
 - PR #57: OPEN; do not close until B3 is completed or deliberately superseded.
@@ -106,12 +106,11 @@ SEC-02 is the active B3 defect. Evidence and acceptance criteria are in the B3 t
 
 ## Exact next actions
 
-1. Finish any remaining source/diff review and run additional relevant tests if needed; the targeted B3 suites and syntax checks are recorded in the task file.
-2. Stage and commit only the B3 implementation, its regression tests, and the related roadmap/Known Issues/handoff/P1 closeout documentation in `corex-b3`.
-3. Push the B3 branch and update PR #57's title/body with the actual scope, tests, and explicit non-sandbox limitation.
-4. Obtain independent review and address findings. Do not merge without Owen's explicit approval.
-5. Keep SEC-03 (worker AST validation bypass) and SEC-01 (execution isolation) separately scoped; do not fold them into B3.
-6. Start P2 only after B3 has been reviewed, accepted, and merged.
+1. Obtain an actual independent review of PR #57 and address any B3-scope findings.
+2. Re-run affected tests and update the task record if review changes are required.
+3. Do not merge PR #57 without Owen's explicit acceptance after review.
+4. Keep SEC-03 (worker AST validation bypass) and SEC-01 (execution isolation) separately scoped; do not fold them into B3.
+5. Start P2 only after B3 has been reviewed, accepted, and merged.
 
 ## Working discipline
 
