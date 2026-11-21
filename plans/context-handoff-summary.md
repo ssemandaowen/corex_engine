@@ -10,12 +10,12 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Active branch: `fix/security-corex-strategy-engine`
 - Active PR: [#57 — security: enforce exact strategy module resolution](https://github.com/ssemandaowen/corex_engine/pull/57). This is now the single B3 integration PR.
 - Current main: `8a68c9f2bb2446d40fde5e86350ca5d8ec28e80d`.
-- On 2026-11-21, B3 merged the latest `origin/main` into `corex-b3` with merge commit `ef70e0c` (conflict-free). This includes the package-entrypoint correction and deterministic SocketX token-bucket regression test. The follow-up B3 test/docs commit `e44ee0e` was pushed to `origin/fix/security-corex-strategy-engine`; the branch is now 15 commits ahead of current main and 0 behind.
+- On 2026-11-21, B3 merged the latest `origin/main` into `corex-b3` with merge commit `ef70e0c` (conflict-free). This includes the package-entrypoint correction and deterministic SocketX token-bucket regression test. The follow-up B3 test/docs commit `e44ee0e` and handoff refresh commit `c51716c` were pushed to `origin/fix/security-corex-strategy-engine`; verify the current ahead/behind count from Git before continuing.
 - P1 worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`; PR #80 is merged. Do not continue P1 implementation there.
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or disturb its dirty/unrelated state.
 - PR #56 was closed as superseded because it contained 60 changed files and mixed the allow-list change with unrelated UI, settings, backtest, and planning work.
 - PR #80 was merged and its GitHub body corrected to reflect the merge and acceptance.
-- PR #57's published head is `e44ee0eca13ed5dc15b532ef5935a86907a9d428`; GitHub compare reports 15 commits ahead and 0 behind current main. PR #57's body has been refreshed with the latest test results and explicit non-sandbox limitations. The only submitted COMMENT review is authored by the repository owner, so independent review is still outstanding. Kilo's review bot reported insufficient credits. Do not merge B3 without an actual independent review and Owen's explicit approval.
+- PR #57's published head matches the latest pushed B3 branch. PR #57's body has been refreshed with the latest test results and explicit non-sandbox limitations; re-fetch compare metadata before any merge consideration. The only submitted COMMENT review is authored by the repository owner, so independent review is still outstanding. Kilo's review bot reported insufficient credits. Do not merge B3 without an actual independent review and Owen's explicit approval.
 - Do not merge B3 without review and Owen's explicit approval.
 
 ## P1 — complete
