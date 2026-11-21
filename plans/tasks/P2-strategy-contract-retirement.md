@@ -1,12 +1,12 @@
 # P2 — Strategy base-class ownership and StrategyContract retirement
 
-**Status:** IN PROGRESS — implementation and full-repository verification complete; PR creation/review pending
+**Status:** IN PROGRESS — implementation and full-repository verification complete; PR #81 open, review pending
 **Owner:** Owen Ssemanda (approval authority); ChatGPT assisting investigation and implementation
 **Started:** 2026-11-21
 **Dependencies:** P1 DONE (PR #80); B3 DONE (PR #57, merge commit `1f39d1fd87cba7d2b569c4120ddf16400b11878a`)
 **Roadmap:** `plans/ROADMAP.md`, P2
 **Current checkout:** `C:\\Users\\SBUM\\Desktop\\corex` on `main`; clean before this planning update
-**Implementation branch / PR:** `p2-strategy-contract-retirement`; PR pending. Worktree: `C:\\Users\\SBUM\\Desktop\\corex-p2`; main checkout remains untouched.
+**Implementation branch / PR:** `p2-strategy-contract-retirement`; PR #81 (OPEN). Worktree: `C:\\Users\\SBUM\\Desktop\\corex-p2`; main checkout remains untouched.
 
 ## 1. Goal
 
@@ -105,4 +105,4 @@ Verification on 2026-11-21 (Node v22.20.0):
 - Focused P2 suites: 4 suites / 25 tests passed; recovery suite: 1 suite / 15 tests passed.
 - `node --check` and `git diff --check` passed for the implementation before the final test-fixture adjustment; the final recovery test and full repository suite passed after that adjustment.
 
-Remaining gate: create the single P2 PR, obtain review, then Owen decides merge. Do not mark P2 DONE before it is merged. Do not fold unrelated security, worker, backtest-pipeline or engine-coordination work into it.
+Remaining gate: obtain review on PR #81, then Owen decides merge. Do not mark P2 DONE before it is merged. Do not fold unrelated security, worker, backtest-pipeline or engine-coordination work into it.

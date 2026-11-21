@@ -38,7 +38,7 @@ Purpose: concise navigation summary. ROADMAP.md and linked task files are author
 
 - Task: plans/tasks/P2-strategy-contract-retirement.md
 - Branch/worktree: p2-strategy-contract-retirement / corex-p2
-- PR: pending creation
+- PR: #81 (OPEN)
 - Goal: make the public corex-strategy-engine Strategy class authoritative for the canonical path. Move getStateSnapshot, immutable __corexApi metadata and singular-symbol normalization into the package class; remove package-to-engine StrategyContract dependency.
 - Compiler and loader now use the exact public Strategy constructor. The temporary compatibility branch is limited to the existing legacy BaseStrategy path; unsupported strategy bases are rejected.
 - Backtests using canonical Strategy bypass StrategyContract. The existing plain-object legacy characterization remains supported until its planned retirement.
