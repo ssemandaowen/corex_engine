@@ -46,6 +46,7 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 | L8 | Runtime identity is `userId::strategyName::symbol::mode` (`AGENTS.md` §7.6, unchanged). |
 | L9 | `RuntimeRegistry` is the single authoritative runtime owner (Stage 2, PR #63). No second ledger. |
 | L10 | Broker modes are exactly `Backtest` / `Paper` / `Live`, through `BrokerContract` → `BaseBroker` → `RuntimeBrokerFactory`. |
+| L11 | `Position` and `StrategyPositionManager` are strategy-engine-owned; broker-contract must not depend on strategy position internals. D5 approved by Owen 2026-11-20; see `plans/decisions.md`. |
 
 ## 3. Planned sequence (dependency order)
 
@@ -61,7 +62,7 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 | 7b | E3 | Banner + wiring extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | Wiring stays at construction time. |
 | 7c | E4 | Telemetry extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | E2/E3/E4 are parallel-safe with P-phases subject to rule 3. |
 | 8 | P3 | Authoring surface: template into the package, scripts, `::demo` + orphan runtime row cleanup | LATER | P2 | task file created when the workstream starts | task file created when the workstream starts | The `::demo` cleanup is a reviewed one-off script with before/after counts and explicit approval (D4). |
-| 9 | P4 | Repatriate `utils/strategy` | LATER | P2 | task file created when the workstream starts | task file created when the workstream starts | Diff duplicate pairs first; owner question is D5 (open). |
+| 9 | P4 | Repatriate `utils/strategy` | LATER | P2 | task file created when the workstream starts | task file created when the workstream starts | D5 resolved: strategy positions belong to `corex-strategy-engine`; P4 must remove the unused BaseBroker manager dependency only after inspecting the branch diff and confirming no subclass contract relies on it. Diff duplicate pairs first. |
 | 10 | P5 | Delete legacy (`BaseStrategy`, legacy `utils/strategy`, security allowance) | LATER | P3, P4 | task file created when the workstream starts | task file created when the workstream starts | The `IncrementalIndicators` test MIGRATES to the package; it is not deleted. |
 | 11 | E5 | Warmup consolidation into one owner (`engine.warmupStrategy` vs `RuntimeLifecycle._warmup`) | LATER | P5, D3, D9 | task file created when the workstream starts | task file created when the workstream starts | D9 decides the single owner. |
 | 12 | P6 | Risk single-source + dead pipeline removal | LATER | P5 | task file created when the workstream starts | task file created when the workstream starts | D1, D6. A latency benchmark is required as evidence. |
@@ -129,7 +130,6 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 | D2 | `symbols` as `string[]` only? | Yes. | P2 |
 | D3 | `generateSignal` alias / dormant `strategyWorker` | If the worker migration is small, migrate it to `onMarketData`; else keep a time-bounded alias. | E5 |
 | D4 | `::demo` runtime row | Delete, with Owen's explicit approval (needs before/after counts). | P3 |
-| D5 | Owner of `Position` / `StrategyPositionManager` | Keep open; inspect `Strategy.js` and broker usage first. | P4 |
 | D6 | Backtest risk parity | Shared risk-decision function with mode-specific context; separate task. | P6 |
 | D7 | Backtest simulation package | Defer until after STAGE-4 / P7. | P7 |
 | D8 | Owner of the strategy template | The strategy package. | P3 |

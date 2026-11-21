@@ -462,7 +462,7 @@ Consequence: One authoritative broker package surface; no remaining `@broker/*` 
 
 ---
 
-**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 — Atomic runtime ownership**
+**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 ï¿½ Atomic runtime ownership**
 
 Decision:
 1. `engine/core/runtime/RuntimeRegistry.js` is the single authoritative runtime owner. It keeps three ledgers in one module: `_runtimes` (live runtimes), `_reservations` (claims for creations in flight) and `_deletionClaims` (in-progress strategy deletions). No second registry was introduced and no schema change was made for this coordination.
@@ -474,7 +474,7 @@ Decision:
 7. `commitReservation` restores the claim if registration throws, so a failed commit can still be rolled back and released; a rollback with no holder destroys only the objects that boot created and never mutates the registry, and skips any object the current entry still references.
 8. Lifecycle transitions use a compare-and-set (`transition()`), and one termination per identity runs at a time via an in-flight promise map (no timers, no locks, no delays).
 9. Cleanup failures are recorded on the holder (`cleanupFailures`), the holder stays registered as `STOPPING`, and `terminate()` returns false so no caller can report success. Removal during termination is fenced by `ownerToken`; an unfenced entry reports the stop as unconfirmed.
-10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further — destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
+10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further ï¿½ destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
 11. `boot()` re-checks ownership (`_assertOwnership`, `RUNTIME_ABORTED`) after warmup and before subscribe/activate/announce, so a stop during start cannot be followed by a subscribe, an ACTIVE commit or a STRATEGY_START event. `startStrategy` maps `RUNTIME_ABORTED` to `START_CANCELLED` (409), distinct from `START_IN_PROGRESS`.
 12. Every holder operation (`_runCleanupSerialized`, `_publishHolderOperation`) resolves to `{ failures: string[], finalized: boolean, joined?: boolean }`.
 13. `DELETE /api/strategies/:id` takes `claimStrategyDeletion()` before touching the database and releases it on success, 404 or failure. While the claim is held, `reserve()` refuses new runtimes for that strategy, so no creation can land between the ownership check and the DELETE. A second concurrent delete gets 409 `DELETE_IN_PROGRESS`; a delete over an owned strategy still gets 403 with the unchanged message. `stateController` is demoted to a corroborating signal.
@@ -498,3 +498,18 @@ Decision:
 Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped â€” a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
 
 Consequence: a stop request is now an observable intent rather than an inference. Cost: one Map entry per stopped runtime (small, bounded by runtimes), plus a counter read on each recovery attempt. No change to `terminate` semantics, the STOPPED ledger flow or the recovery schedule. Evidence: `plans/tasks/B9.md`, `test/engine-recovery.test.js` T12/T12b (T12 fails on `da7dfd6` with 1 start call, passes with the fix).
+
+---
+
+**[2026-11-20] Decision D5 â€” ownership of Position and StrategyPositionManager**
+
+Decision:
+1. `Position` and `StrategyPositionManager` are owned exclusively by `packages/corex-strategy-engine`. They model strategy-level position state and remain package-local.
+2. `corex-broker-contract` must not import or instantiate `StrategyPositionManager`; broker drivers own broker/account position state through their own driver contracts and ledgers.
+3. The unused `StrategyPositionManager` import and `this.positions` construction in `packages/corex-broker-contract/src/base/BaseBroker.js` are dead legacy state and are to be removed as part of the approved P4/P5 migration, after inspecting the task branch's diff and confirming no subclass contract depends on them.
+4. The forwarding shim `utils/strategy/StrategyPositionManager.js` is removed with the remaining legacy strategy path in P5. No compatibility shim is retained.
+
+Reason: `packages/corex-strategy-engine/src/Strategy.js` actively constructs and uses the manager to track strategy positions. The broker-contract BaseBroker only constructs the manager without using it; BacktestDriver and CoreXPaperDriver maintain their own position maps. Moving strategy-owned state into broker-contract would reverse the existing package dependency direction and couple the broker boundary to strategy internals.
+
+Consequence: one authoritative strategy-position implementation in `corex-strategy-engine`; broker drivers remain responsible for broker/account positions. This decision resolves D5 and unblocks the ownership question for P4, but does not waive P4's P2 dependency or authorize premature deletion. Evidence: read-only source/import inventory performed 2026-11-20 for `Strategy.js`, `StrategyPositionManager.js`, `Position.js`, `BaseBroker.js`, `BacktestDriver.js` and `CoreXPaperDriver.js`.
+
