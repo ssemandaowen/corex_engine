@@ -6,7 +6,7 @@
 **Related prerequisite:** STAGE-4 — dataset resource model
 **Baseline inspected:** `main` at `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` (2026-11-20)
 **Approval authority:** Owen Ssemanda
-**Current state:** PLAN RECORDED — discovery not yet complete; no implementation authorized
+**Current state:** SOURCE SCAN COMPLETE — empirical validation/benchmarks pending; no implementation authorized
 
 ---
 
@@ -337,6 +337,140 @@ running ──stale lock──> queued (attempts remain) OR failed (attempt limi
 - The manager's simulation yields to the event loop at the configured batch interval (default 500 bars), allowing the 5-second cancellation poll and heartbeat timers to run. A synchronous strategy call itself cannot be pre-empted while it blocks the event loop.
 - The worker handler returns only report metadata/performance in the queue result; the full report is stored separately by the manager.
 
+## 7C. Step 3 — simulation and data-preparation audit (2026-11-20; partial)
+
+**Source baseline:** `main` at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`. Comparing this with `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` shows the commits since then changed only this handoff document; inspected application source is unchanged. Findings are code-trace confirmations, not runtime reproductions. No application code or tests were changed or run.
+
+### Verified execution/data path
+
+```text
+BacktestManager.run
+  → _resolveConfig(options, strategy)
+  → StrategyContract.validateAndAdapt
+  → construct BacktestBroker with resolved commission/slippage/spread
+  → _loadAndNormalizeData
+      ├─ offline: read complete CSV or gzip buffer → complete CSV string → DataForge DataFrame
+      └─ online: fetchGuardedHistory → normalized rows → DataForge DataFrame
+  → _processDataFrame: parse → filter → orderBy → range → toArray
+  → bars.sort(time) again
+  → _runSimulation: sequential synchronous strategy.onBar; yields between batches
+  → broker metrics snapshot → format.buildReport rebuilds trade-derived series
+  → report JSON file + full trades CSV + PostgreSQL JSONB report
+```
+
+### Confirmed findings
+
+| ID | Status | Evidence and impact | Required follow-up |
+|---|---|---|---|
+| SIM-01 | CONFIRMED — offline file-size guard does not reject oversize files | `_readCsvAsDataFrame` throws “Dataset too large” inside a try, then catches and suppresses that exact error (lines 376–384). It proceeds to read the file. Gzip is loaded as a complete buffer and synchronously decompressed into a complete string (386–392), with no expanded-byte ceiling. | Add tests for oversized plain CSV, oversized gzip and high-expansion gzip; define compressed and decompressed limits. |
+| SIM-02 | CONFIRMED — config resolver drops submitted realism and execution settings | Controller puts `commissionPct`, `slippageBps`, `spread`, `barBudgetMs`, `barBudgetStrikes` and `batchSize` into job options (around 800–830). `_resolveConfig` does not copy these fields. Broker construction therefore receives missing values defaulting to zero; the UI's configured trading costs are not applied. Simulation uses fallback budget/batch values rather than submitted values. | Regression tests must prove every UI/API setting reaches broker and simulator. Do not change fill semantics until characterized. |
+| SIM-03 | CONFIRMED — date-range boundaries are discarded | Controller parses and validates `rangeStart`/`rangeEnd`, but omits them from the options object placed in the job. `_resolveConfig` therefore receives undefined values; `_processDataFrame` interprets these as unbounded and selects the whole dataset. BacktestSubTab has rangeMode state but no setter/date controls, so date mode is not selectable through the current screen. | Decide whether date ranges are in the product contract. If yes, carry normalized boundaries end-to-end and test; otherwise reject unsupported mode rather than silently ignoring it. |
+| SIM-04 | CONFIRMED — cancellation and online-fetch progress callbacks are lost at manager boundary | `backtestRun.js` supplies `onProgress` and `shouldAbort`; `run()` keeps abort locally but passes options through `_resolveConfig`, which omits both. `_fetchFromBroker` sees null callbacks, and `_runSimulation` checks a missing `config.shouldAbort`. Cancellation during fetch or the bar loop is not observed until simulation returns and the outer abort check runs. Fetch progress is also lost. This strengthens JOB-06: the callback is discarded before the resolver. | Add deterministic cancellation tests during fetch and long simulation, plus fetch-progress propagation tests; define provider timeout/abort contract. |
+| SIM-05 | CONFIRMED — data preparation materializes the full input and sorts twice | Offline CSV is synchronously read as one string; gzip is read as one buffer then expanded to one string. DataForge transforms/orders/materializes with `toArray()`; `run()` then sorts the resulting bars again. Online rows are also wrapped in a DataFrame and materialized. This creates multiple full-dataset representations and repeated sorting; peak RSS/time impact is not measured. | Benchmark before choosing streaming, typed arrays or indexed storage. Remove redundant work only with ordering/reproducibility tests. |
+| SIM-06 | PARTIAL — OHLCV validation is weaker than a canonical data contract requires | Offline normalization filters finite time and positive close only; open/high/low use zero fallbacks and are not checked for finiteness, positivity or OHLC consistency. Online resolver checks finite OHLC fields but not positivity or high/low/open consistency. Invalid bars may reach strategy/broker logic. | Define canonical bar validation and test missing, non-finite, negative and inconsistent OHLCV rows in both modes. |
+| SIM-08 | CONFIRMED — quantity-bearing partial exits close the entire simulated position | `Strategy.exitLong/exitShort/exitAll` resolves a requested exit quantity and emits it on the EXIT signal (`packages/corex-strategy-engine/src/Strategy.js:_resolveExitQuantity`). The manager forwards that signal to `BacktestDriver.execute`, but the driver deletes the full position regardless of `qtyToClose`; the manager also sets its tracked `position = null` after any EXIT. A partial close therefore discards the remainder from both broker and manager state. | Add long/short partial-exit tests across strategy state, manager state, broker position, realized P&L and subsequent exit/protection. Preserve financial semantics until expected contract is agreed. |
+| SIM-07 | PARTIAL — report construction and persistence multiply trade-history representations | `MetricsAccumulator` retains trades and equity points; snapshots filter/reduce trades and copy trade/equity arrays. Manager requests snapshots after simulation and again for analytics. `format.buildReport` rebuilds equity from trades and constructs returns, drawdown, underwater and rolling series. Complete report JSON is written to disk and PostgreSQL JSONB, plus a full trades CSV. Duplication is confirmed; wastefulness requires consumer and size measurements. | Complete Step 4 consumer inventory; measure peak RSS, report/JSONB size, CSV size and UI field usage before choosing summary plus on-demand artifacts. |
+
+| SIM-09 | PARTIAL — online market-data cache is written but no read path has been located | `BacktestManager._fetchFromBroker()` invokes `_persistFetchedDataset()`, which upserts rows into `backtest_market_data`; `pgStore` exposes the upsert and expiry deletion methods, but no corresponding getter was found in the inspected manager/store code. This may be write-only storage and adds DB writes/storage without improving subsequent fetches. A repository-wide consumer check remains required before classification. | Search all package/service callers and migration history; if no consumer exists, decide whether to add a cache read path or remove/defer the write-only cache with data-retention review. |
+
+### Simulation/broker observations — not yet accepted as defects
+
+- The bar loop calls `strategy.onBar` synchronously and yields only at batch boundaries. A single synchronous strategy call cannot be pre-empted. The per-bar quota uses `Date.now()` millisecond resolution, so short-call cost is imprecisely measured.
+- `BacktestDriver.execute` calculates spread, slippage and commission directly. It also constructs/maintains `SharedFillSim`, but the inspected execute path does not delegate to it. This is a duplicated ownership lead, not a removal decision.
+- The partial-exit defect is now classified as SIM-08: strategy exit helpers explicitly resolve and emit requested quantities, while both manager and broker clear the entire position after any EXIT.
+- The current driver fill path is bar-close based. `SharedFillSim` has a `fillPolicy` option whose inspected market-order branches currently choose the same reference price; do not infer next-bar semantics from the option name.
+
+### Test coverage and verification limits
+
+The test tree contains focused tests for the guarded online resolver, report file persistence, resolver public API and BacktestBroker event emissions. The inspected tests do not cover manager option propagation, oversized offline file guard, date-range propagation, in-flight cancellation, malformed offline OHLCV or partial exits. GitHub source inspection cannot execute the Windows checkout; no runtime reproduction or benchmark is claimed.
+
+### Step 3 status
+
+**PARTIAL — core data preparation, manager option flow, simulation loop and first broker/report handoff mapped.** Broker accounting edge cases, strategy partial-exit callers, analytics semantics, report consumers and cleanup still need a complete trace. Do not begin P7 recomposition or change financial behavior from this partial audit.
+
+## 7D. Step 4 — analytics, report and artifact audit (2026-11-20; partial)
+
+**Source baseline:** `main` at `756aac6fe1f429b28636ba7fa325b44685817dcb`; application source is unchanged since `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb`. This is a code trace only; no runtime/API download tests or report-size measurements were run.
+
+### Verified report lifecycle
+
+```text
+BacktestDriver MetricsAccumulator
+  → manager receives full closed-trade list
+  → utils/analytics.format.buildReport
+      ├─ scalar performance stats
+      ├─ trade-exit-based equity/return/drawdown/underwater curves
+      ├─ rolling/risk series and histogram/heatmaps
+      └─ optional trade preview (manager truncates to 20)
+  → manager writes report JSON file
+  → manager writes full trade CSV when trades exist
+  → manager attempts PostgreSQL JSONB report write
+  → GET /api/backtest/:reportId reads PostgreSQL first, JSON file fallback
+  → BacktestSubTab renders stats, curves, histogram and trade preview
+  → report delete removes PostgreSQL row and JSON file
+```
+
+### Confirmed findings
+
+| ID | Status | Evidence and impact | Required follow-up |
+|---|---|---|---|
+| REP-01 | CONFIRMED — win-rate display scales an already-percent value again | `utils/analytics.js:trades.computeStats` returns `winRate * 100`; `BacktestSubTab.tsx` multiplies `report.performance.winRate` by another 100 for display. A 50% win rate is rendered as 5000%. | Add report-contract/UI tests and choose one canonical unit (fraction or percent) for API values. |
+| REP-02 | CONFIRMED — max-drawdown card reads a field not produced by the report | Analytics returns `performance.maxDrawdownPercent`; the UI reads `performance.maxDrawdownPct`, so the displayed card falls back to zero. | Add contract tests for required performance fields and UI rendering. |
+| REP-03 | CONFIRMED — drawdown chart plots cumulative return, not drawdown | The UI's `chartData` computes `(equity - initialCapital) / initialCapital` and binds it to the chart labelled “DRAWDOWN EXPOSURE”. The report already contains `analytics.drawdownCurve`, but this chart does not use it. | Verify intended chart definition; use the authoritative drawdown series and test peak-to-trough examples. |
+| REP-04 | CONFIRMED — equity chart timestamp is multiplied by 1000 | Manager/data timestamps are normalized to milliseconds; broker trade timestamps and report equity-curve times remain milliseconds. UI maps them with `new Date(c.time * 1000)`, treating milliseconds as seconds and producing invalid/future dates. | Add timestamp-unit contract tests from CSV input through chart rendering. |
+| REP-05 | CONFIRMED within the mounted backtest router — trade-download URLs have no matching handler | Manager sets `meta.csvUrl` to `/api/backtest/:id/csv` and saves `.trades.csv`; the mounted `backtestController` defines no CSV/download GET route. Its `fullDownloadUrl` points to `/api/backtest/download/:id`, also with no matching handler in that router. The UI does not render either URL. The controller's >50-trade truncation branch is normally unreachable for newly generated reports because the manager has already truncated `report.trades` to 20. | Confirm no alternate route is mounted elsewhere; define one authenticated, user-scoped, streamed artifact endpoint and expose it in UI only if full trade export is a product feature. |
+| REP-06 | CONFIRMED — report deletion and retention leave full-trade CSV artifacts behind | `_saveTradesToCsv` writes `${reportId}.trades.csv`. Report DELETE removes only JSON files and DB row. `storageManager.cleanupBacktestsAsync` enumerates/deletes only `.json` files. CSV artifacts are therefore not removed by either report deletion or report retention cleanup. | Add artifact ownership/manifest and coordinated delete/retention tests; inventory existing orphan CSVs before cleanup. |
+| REP-07 | CONFIRMED — full report is duplicated in filesystem and PostgreSQL | `_saveReport` writes the complete report JSON, then `_saveToDatabase` stores the same complete report in JSONB. GET prefers PostgreSQL and falls back to JSON file. This is a deliberate fallback design today, but creates two full copies of curves and preview trades. | Measure storage and failure modes; decide which copy is authoritative and whether fallback should retain a compact snapshot or be moved to object/file storage. |
+
+| REP-08 | CONFIRMED — aggregate commission field is never populated by current backtest report assembly | `MetricsAccumulator.getSnapshot()` does not return `totalCommission`; manager's `gradeStats` supplement passes only profit, maxDrawdownPct and sharpeRatio; `trades.computeStats()` defaults missing `supplement.totalCommission` to zero. The UI's aggregate commissions field therefore always reads zero even if broker commission accounting is later corrected. | Define commission accounting once in broker metrics and pass it through the report contract; test non-zero commission end-to-end. |
+
+| REP-09 | CONFIRMED — automatic report retention does not prune PostgreSQL report rows | The scheduled `DataCuller` calls `storage.cleanupBacktestsAsync` for report files, while its database culling hook handles upload metadata/files and cached backtest datasets only. The report-file cleanup filters `.json` files; it does not delete rows from `backtests`. Since the complete report is stored in JSONB, automatic file retention does not bound database report storage; rows remain until manual report deletion or another unlocated process. | Define coordinated DB/file/artifact retention and test that retention preserves active/downloadable reports and removes all associated artifacts. Confirm no external DB maintenance job exists before final classification. |
+| REP-10 | CONFIRMED — report header reads the wrong timeframe property | `_buildMeta()` writes `meta.timeframe`; `BacktestSubTab` renders `report.meta.interval`, so the report header falls back to `15m` instead of showing the actual timeframe. | Add metadata schema/UI contract test and use the canonical `timeframe` field. |
+| REP-11 | CONFIRMED — “Profit Distribution Histogram” uses only the first 15 preview trades | `BacktestSubTab` builds its histogram from `report.trades.slice(0, 15)`. The manager truncates `report.trades` to 20, so this chart does not represent the full trade distribution. The report already contains a separate analytics histogram, but the UI does not consume it. | Define whether this chart means trade P&L or return distribution; calculate from the full authoritative series and test against >20 trades. |
+| REP-12 | CONFIRMED — report-history list response does not match frontend fields | `GET /api/backtest` returns `timestamp` and no `status`; `BacktestSubTab` types/reads `createdAt` and `status`. The history UI therefore renders `N/A` for date and an empty/undefined status badge. | Define one list-response contract and add API-to-UI contract tests. |
+
+| REP-13 | CONFIRMED — report-list discovery is database-only even though direct retrieval has a file fallback | `_saveToDatabase()` catches and suppresses PostgreSQL write errors after the JSON file is saved. `GET /api/backtest` requires DB configuration and lists only `backtests` rows; it does not scan the report directory. A report can therefore be reported as successfully completed and be retrievable by known ID from its file, yet be absent from the history list after a DB write failure. | Define the report commit/success contract and test DB-write failure followed by list and direct retrieval. |
+| REP-14 | CONFIRMED — report deletion can report success after database deletion failed | `DELETE /api/backtest/:reportId` suppresses PostgreSQL delete errors, then removes JSON files and returns success. If the DB delete failed, the DB row can remain and the report can reappear from the DB on the next history refresh. | Make deletion outcome explicit and test DB failure, file failure and retry/idempotency across all associated artifacts. |
+
+| REP-15 | PARTIAL — annualized risk metrics use trade-level returns with a fixed 252-period multiplier | `format.computeFull()` builds returns from the equity curve generated from closed trades, then calls Sharpe/Sortino/annualized volatility and rolling calculations with `periodsPerYear: 252`. The observations are trade exits, not guaranteed daily periods; this can misstate annualized metrics depending on trade frequency and selected timeframe. | Agree on a time-frequency contract (bar/day/trade) and compute/annualize consistently; compare known synthetic schedules. |
+| REP-16 | PARTIAL — equity and drawdown metrics omit open-position and intratrade mark-to-market movement | `MetricsAccumulator.recordTrade()` adds equity points only when a trade closes. `BacktestDriver.onBar()` updates last price but does not update the accumulator; report series are rebuilt from closed trades. The reported curve/drawdown therefore reflects realized trade exits and omits floating P&L and adverse movement during open trades. | Decide whether reports require bar-level mark-to-market equity; if yes, add deterministic tests for a large intratrade drawdown followed by recovery/exit. |
+| REP-17 | PARTIAL — displayed performance Sharpe uses a different return basis from net P&L | `MetricsAccumulator.recordTrade()` computes `profitPct` from gross price P&L before subtracting entry/exit commission, then derives its `sharpeRatio` from those returns. `_computeAnalytics()` supplies that broker Sharpe as the `performance.sharpeRatio` supplement, while the separate `risk.sharpe` is computed from the net-profit-derived equity returns. The main performance card and risk block can therefore disagree, especially once trading costs are correctly propagated. | Define whether Sharpe uses gross or net returns and one observation frequency; derive both report fields from the same canonical series. |
+
+### Report/analytics semantics requiring further review
+
+- `MetricsAccumulator` adds equity points only when a trade closes. Its equity curve and the analytics curves rebuilt from closed trades therefore represent realized trade-exit points, not per-bar mark-to-market equity. Open-position floating P&L and intratrade drawdown are not represented in those curves. Confirm the intended report definition before changing it.
+- Analytics derives returns from consecutive trade-exit equity points, then calculates Sharpe/volatility using `periodsPerYear: 252`. This is a trade-frequency series, not a daily series by construction; annualization and risk metric interpretation need a documented frequency model and financial review.
+- The report contains full equity/drawdown/underwater/returns/rolling arrays in both JSON file and JSONB. The UI currently consumes equityCurve for its two charts, and the first 20 trade records for histogram/table; full consumers of the other analytics arrays still need to be found.
+- `includeTrades=false` can omit the trade preview while the manager still writes a full CSV if closed trades exist. The UI currently has no visible export action.
+- The UI shows a “Commissions Paid” metric, but analytics receives no totalCommission supplement from the manager; that value defaults to zero. This is consistent with SIM-02's dropped commission configuration, but the report field wiring needs a separate contract test.
+
+### Step 4 status
+
+**PARTIAL — persistence, GET/list/delete paths and primary BacktestSubTab consumers mapped.** Need complete frontend consumer search, confirm whether any other artifact route exists, inspect report cleanup and CSV behavior under failure, and review analytics formulas/series frequency before finalizing the report contract.
+
+## 7E. Step 5 — resource-baseline feasibility (2026-11-20; initial review)
+
+**Status: NOT BENCHMARKED.** The source tree contains `scripts/bench/engine-micro-bench.js` and an `npm run bench:engine` script. That harness measures queue implementations, strategy tick bursts and warmup replay; it does not exercise CSV/gzip ingestion, DataForge preparation, the backtest bar loop, broker fills, analytics, report serialization, PostgreSQL persistence or concurrent backtest workers. Its RSS output is a single startup snapshot, not peak per-stage/per-job memory.
+
+The existing `test/backtest-report-path.test.js` uses a deterministic 120-bar synthetic CSV to characterize report persistence. It is a correctness fixture, not a representative performance workload. No small/medium/large backtest dataset fixtures or backtest-specific benchmark harness were found in the inspected tree.
+
+### Baseline collection requirements
+
+Before proposing optimization thresholds, run a controlled benchmark on the intended Windows/Dell environment and record Node version, CPU/RAM, storage medium, PostgreSQL configuration, worker count, dataset bytes/bars, compression ratio, strategy behavior and run options. Measure these stages separately:
+
+1. file stat/read/decompression and parser/normalizer;
+2. sorting/range selection and data materialization;
+3. simulation bars/second, strategy-call latency and broker fills;
+4. analytics and report construction;
+5. JSON file, CSV and JSONB persistence;
+6. report retrieval and frontend payload size;
+7. process RSS before/after and peak RSS, plus concurrent-job RSS;
+8. worker startup/idle overhead and progress-event/database-write counts.
+
+Use generated deterministic datasets for reproducibility, but also test representative real-format CSVs after sanitizing private data. At minimum include a tiny correctness fixture, a medium workload and the largest workload the current product intends to support. Keep uploaded CSV, gzip expansion and bar-count limits distinct. Do not infer performance targets from the existing 120-bar test or the unrelated engine microbenchmark.
+
+No benchmark was run in this session: the GitHub-connected source view cannot execute the user's Windows checkout, and the local CoreX MCP was not available for command execution. This is an explicit measurement gap, not a zero-cost result.
+
 ## 8. Guardrails — no implementation during discovery
 
 - No source-code edits, schema migrations, dependency additions, branch creation or implementation PRs.
@@ -379,6 +513,9 @@ At the start of every continuation:
 
 | Date | Baseline SHA | Step | Work completed | Evidence / output | Next action |
 |---|---|---|---|---|---|
+| 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Step 7F — source-scan closure | Completed source-level trace of upload/dataset, job/worker, simulation/broker, analytics/report, artifact and cleanup paths. Consolidated UP-01–UP-06, JOB-01–JOB-07, SIM-01–SIM-09 and REP-01–REP-17; classified partial leads and documented validation order/gaps. | GitHub source scan; compare against `main` confirmed only this handoff document changed during discovery. No application source/test changes. | Owen review; next work is targeted runtime/financial regression tests and controlled backtest benchmarks, subject to roadmap gates. |
 | 2026-11-20 | `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` | Initial pass | Traced main upload/controller, queue/worker, manager, broker, analytics and report flow at a high level. Identified leads in §7. | ChatGPT initial read-only pass; findings require reproduction and exact source references. | Begin Step 0 and Step 1 from current main; verify all paths and contracts. |
 | 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Steps 0–1 | Verified current main baseline, bootstrap/worker startup, upload UI/API, Multer/storage/hash/scan, PostgreSQL metadata schema, dataset selection, delete routes and archive/purge path. Recorded UP-01–UP-06 in §7A. | GitHub source at current main; exact paths/functions/line references recorded above. No source changes. | Continue Step 1 edge cases and then Step 2 job lifecycle; reproduce UP-01 in a clean worktree before proposing any fix. |
-| 2026-11-20 | `ea7e98b3a4faa33b1ce7f70210353aa027cffbeb` | Step 2 | Traced enqueue/claim/retry/stale recovery, worker supervisor/IPC, strategy resolution, cancellation, manager abort checks, WS/REST progress and UI terminal handling. Recorded JOB-01–JOB-07 in §7B. | Current-main source trace; exact functions/lines recorded in §7B. No source changes. | Continue Step 3 simulation/data preparation and confirm cancellation/resource behavior with targeted tests or reproducible traces. |
+| 2026-11-20 | `94c3fb3917fd12b5c396b01d166100dfb56ac71d` | Step 3 | Traced manager config/data preparation, simulation loop, BacktestDriver fill path, metrics accumulator, analytics report assembly and persistence. Recorded SIM-01–SIM-09 in §7C. | Source trace; no runtime reproduction or benchmarks; no application source/test changes. | Source scan closed in §7F; empirical validation remains. |
+| 2026-11-20 | `077e349bf2172e088fa0bf4efd7c2f64ada2557b` | Step 5 | Inspected existing `bench:engine` harness and available backtest fixtures. Confirmed current benchmark does not exercise the backtest pipeline and does not measure peak RSS. Recorded the measurement gap and required benchmark stages in §7E. | Source-only review; no benchmark or local tests executed. | Source scan closed in §7F; run controlled backtest benchmarks when local execution is available. |
+| 2026-11-20 | `756aac6fe1f429b28636ba7fa325b44685817dcb` | Step 4 | Traced report JSON/JSONB persistence, list/get/delete endpoints, BacktestSubTab consumers, analytics field units, chart transformations and report cleanup. Recorded REP-01–REP-17 in §7D. | Source trace; no runtime/API download tests or report-size measurements; no application source/test changes. | Source scan closed in §7F; runtime/API validation and financial methodology approval remain. |
