@@ -2,8 +2,10 @@ logs/
 node_modules/
 data/cache/
 data/backtests/
+data/uploads/
 
 repomix-output.xml
+repomix.xml
 
 # Local environment / secrets - never commit
 .env

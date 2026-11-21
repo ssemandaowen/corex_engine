@@ -108,12 +108,20 @@ describe("TokenBucket", () => {
     });
 
     test("refills over time", () => {
-        const bucket = new TokenBucket(100, 1);
-        expect(bucket.consume()).toBe(true);
-        expect(bucket.consume()).toBe(false);
-        bucket.lastRefill = Date.now() - 1000;
-        bucket.refill();
-        expect(bucket.tokens).toBeGreaterThan(0);
+        const initialTime = Date.now();
+        const now = jest.spyOn(Date, "now").mockReturnValue(initialTime);
+
+        try {
+            const bucket = new TokenBucket(100, 1);
+            expect(bucket.consume()).toBe(true);
+            expect(bucket.consume()).toBe(false);
+
+            now.mockReturnValue(initialTime + 1000);
+            bucket.refill();
+            expect(bucket.tokens).toBeGreaterThan(0);
+        } finally {
+            now.mockRestore();
+        }
     });
 });
 
