@@ -103,6 +103,6 @@ Verification on 2026-11-21 (Node v22.20.0):
 
 - Full Jest suite: **67 suites / 772 tests passed** (`--runInBand --forceExit --testTimeout=25000`).
 - Focused P2 suites: 4 suites / 25 tests passed; recovery suite: 1 suite / 15 tests passed.
-- `node --check` and `git diff --check` passed for the implementation before the final test-fixture adjustment; the final recovery test and full repository suite passed after that adjustment.
+- `node --check` passed for all eight changed JavaScript files; the final full repository run passed after the legacy backtest boundary was narrowed to BaseStrategy/plain-object inputs.
 
 Remaining gate: obtain review on PR #81, then Owen decides merge. Do not mark P2 DONE before it is merged. Do not fold unrelated security, worker, backtest-pipeline or engine-coordination work into it.
