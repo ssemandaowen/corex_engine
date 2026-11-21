@@ -1,6 +1,6 @@
 # CoreX Context Handoff Summary
 
-Last updated: 2026-11-20
+Last updated: 2026-11-21
 Purpose: durable handoff for another ChatGPT session, agent, or developer. Repository plans and task files are authoritative; this is a navigation summary, not a replacement.
 
 ## Repository and working boundaries
@@ -9,13 +9,13 @@ Purpose: durable handoff for another ChatGPT session, agent, or developer. Repos
 - Active worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
 - Active branch: `fix/security-corex-strategy-engine`
 - Active PR: [#57 — security: enforce exact strategy module resolution](https://github.com/ssemandaowen/corex_engine/pull/57). This is now the single B3 integration PR.
-- Current main: `94c3fb3917fd12b5c396b01d166100dfb56ac71d` (includes the latest backtest discovery/handoff and frontend audit roadmap updates).
-- B3 branch was first synced with P1 main by merge commit `c0ff2737992d64903eba20de9dba65032a6ef534`, then synced again after main advanced six planning commits. Latest sync merge commit: `221068545df2722846b3b2ecbfdadde2d2504d3a`. The latest main changes included the backtest discovery/handoff and frontend audit roadmap; those changes were preserved while resolving the roadmap conflict. PR #57 now has current main as its merge base, with no force-push.
+- Current main: `8a68c9f2bb2446d40fde5e86350ca5d8ec28e80d`.
+- On 2026-11-21, B3 merged the latest `origin/main` into `corex-b3` with merge commit `ef70e0c` (conflict-free). This includes the package-entrypoint correction and deterministic SocketX token-bucket regression test. Local B3 is now 13 commits ahead of current main and 0 behind; this latest merge has not yet been pushed to PR #57.
 - P1 worktree: `C:\\Users\\SBUM\\Desktop\\corex-p1`; PR #80 is merged. Do not continue P1 implementation there.
 - Main checkout: `C:\\Users\\SBUM\\Desktop\\corex` — do not reset, clean, or disturb its dirty/unrelated state.
 - PR #56 was closed as superseded because it contained 60 changed files and mixed the allow-list change with unrelated UI, settings, backtest, and planning work.
 - PR #80 was merged and its GitHub body corrected to reflect the merge and acceptance.
-- PR #57 is synced with main at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`; the implementation commit and main-sync merge commit are recorded above. A later documentation-only handoff refresh is also pushed. Read the exact current branch head and ahead/behind counts from Git before continuing. GitHub's mergeability metadata has returned inconsistent values (`true`/`false`) across refreshes; recheck before any merge consideration.
+- PR #57's currently published head is `bda9cdbe40c2cc87d6f3c1cf78ae358b286ae595`; the local branch has advanced to merge commit `ef70e0c` and includes a new template-compatibility regression. Push the final branch after validation and refresh PR metadata. The only submitted COMMENT review is authored by the repository owner, so independent review is still outstanding. Kilo's review bot reported insufficient credits. Do not merge B3 without an actual independent review and Owen's explicit approval.
 - Do not merge B3 without review and Owen's explicit approval.
 
 ## P1 — complete
@@ -74,11 +74,12 @@ The current scanner/loader was tested and the following were reproduced:
 
 ### Environment / verification state
 
-- B3 implementation commit: `083f96d9644a3256f70c34e7894f9c8c07b04ce1` (`security: restrict strategy module resolution`). Latest main-sync merge commit: `221068545df2722846b3b2ecbfdadde2d2504d3a`. Both are pushed to PR #57.
+- B3 implementation commit: `083f96d9644a3256f70c34e7894f9c8c07b04ce1` (`security: restrict strategy module resolution`). Latest main-sync merge commit: `ef70e0c` (local; push pending).
 - B3 has no local `node_modules`. Targeted Jest runs successfully used the existing P1 worktree dependency installation via a child Node process with `NODE_PATH`; no dependency files were copied or modified.
-- Verified targeted suites: resolver 25/25; compiler module-resolution integration 4/4; `round7.comprehensive.test.js` security selection 21/21 (46 unrelated tests skipped); compiler instance-safety 2/2; engine recovery 15/15. Total 5 suites / 67 tests passed; this is not a full repository run.
-- `node --check` passed for all five changed/new JavaScript files. The scanner and instance-safety test files needed Jest `--forceExit` because the test process retained open handles; assertions passed before forced exit.
-- `git diff --check` passed after correcting mixed line endings in the Known Issues update. The compiler, scanner, resolver, strategy-loader callers, and worker caller were reviewed. The worker scanner bypass is separately recorded as SEC-03. GitHub review and full-repository verification remain pending; the PR is technically mergeable but not approved for merge. Do not claim B3 acceptance or merge readiness.
+- Verified targeted suites before the latest compatibility test: resolver 25/25; compiler module-resolution integration 4/4; `round7.comprehensive.test.js` security selection 21/21 (46 unrelated tests skipped); compiler instance-safety 2/2; engine recovery 15/15. The compiler integration suite now has a fifth test that reads the real `utils/template.txt`, substitutes the generated class name, and verifies that the restricted resolver compiles it through the exact `@utils/BaseStrategy` import; 1 suite / 5 tests passed.
+- Full repository verification on 2026-11-21: **67 suites / 766 tests passed** with `--runInBand --forceExit --testTimeout=25000`. The first full run with Jest's default 5-second hook timeout failed only the worker warmup suite because its `beforeAll` uses a 20-second worker-readiness wait. That worker suite passed alone with a 25-second timeout. This is an existing test harness timing mismatch outside B3; it was not changed in this PR.
+- B3 has no local `node_modules`; tests used the P1 worktree dependency installation through `NODE_PATH`, with no dependencies copied. The scanner and instance-safety tests retain open handles, so `--forceExit` is used after assertions complete.
+- Run `node --check` across the seven changed/new JS files and `git diff --check` after the final documentation edits. The worker scanner bypass is separately recorded as SEC-03. The only submitted COMMENT review is owner-authored; an actual independent review and Owen acceptance remain outstanding. Do not claim B3 acceptance or merge readiness.
 
 ## Separate security backlog
 

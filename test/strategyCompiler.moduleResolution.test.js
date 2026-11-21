@@ -1,7 +1,10 @@
 "use strict";
 
+const fs = require("fs");
+const path = require("path");
 const { StrategyCompiler } = require("@core/services/strategyCompiler");
 const { Strategy } = require("corex-strategy-engine");
+const BaseStrategy = require("@utils/BaseStrategy");
 
 describe("StrategyCompiler restricted module resolution", () => {
     const compiler = new StrategyCompiler();
@@ -58,5 +61,21 @@ describe("StrategyCompiler restricted module resolution", () => {
 
         expect(result.success).toBe(false);
         expect(result.error).toContain("STRATEGY_MODULE_NOT_ALLOWED");
+    });
+
+    test("compiles the current strategy template through its exact legacy import", async () => {
+        const templatePath = path.join(__dirname, "..", "utils", "template.txt");
+        const source = fs.readFileSync(templatePath, "utf8")
+            .split("$" + "{name}").join("B3TemplateCompatibilityProbe");
+
+        const result = await compiler.compile(source, "compiler-template-compatibility");
+
+        expect(result.success).toBe(true);
+        expect(result.instance).toBeInstanceOf(BaseStrategy);
+        expect(typeof result.instance.next).toBe("function");
+
+        if (typeof result.instance.destroy === "function") {
+            result.instance.destroy();
+        }
     });
 });

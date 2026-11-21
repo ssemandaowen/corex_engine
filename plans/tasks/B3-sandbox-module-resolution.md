@@ -1,6 +1,6 @@
 # B3 — Strategy module-resolution boundary and exact allow-list
 
-Status: IN PROGRESS — implementation on PR #57; full repository verification passed (67 suites / 765 tests); independent COMMENT-only review is recorded; SEC-01 execution escape is documented separately; Owen acceptance pending
+Status: IN PROGRESS — implementation and regression coverage complete on PR #57; full repository verification passed (67 suites / 766 tests); owner-authored COMMENT review exists, but independent review and Owen acceptance are pending; SEC-01 remains separate
 Owner: Owen Ssemanda (approval authority); ChatGPT assisting investigation and implementation
 Branch: `fix/security-corex-strategy-engine`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
@@ -98,7 +98,7 @@ The main `engine/strategyLoader.js` paths call `validateStrategyCode()` before `
 - No P2 StrategyContract redesign, P3 template migration, P4 folder repatriation, or P5 legacy source deletion.
 - No unrelated engine, broker, backtest, UI, or database changes.
 
-## Independent review finding — SEC-01 computed constructor escape
+## Post-implementation security finding — SEC-01 computed constructor escape
 
 A post-implementation probe on Node v22.20.0 demonstrated that B3's exact `require` resolver is not a process-level security boundary:
 
@@ -112,8 +112,8 @@ This is an SEC-01 execution-isolation defect, not a B3 implementation expansion.
 ## PR reconciliation
 
 - PR #56 was closed as superseded: it had 60 changed files and mixed the same allow-list patch with unrelated UI, settings, backtest, and planning changes.
-- PR #57 is retained as the single B3 integration PR because its change is scoped to the resolver, compiler integration, scanner, related tests and planning records. As of 2026-11-21, PR #57 is open with one COMMENT-only independent review and no inline review threads; PR #56 is closed unmerged as the noisy duplicate.
-- PR #57's branch was previously synced with main at `94c3fb3917fd12b5c396b01d166100dfb56ac71d`. Main then advanced 15 commits; the only changed file in that range was `plans/architecture/BACKTEST_PIPELINE_DISCOVERY_AND_HANDOFF.md`. On 2026-11-21, local `corex-b3` merged `origin/main` at `37d5f3b1c1ec58a9d5693e1ec2df4e5137f82a03` with merge commit `665ef6c59ed940eb51749bb942ad718d1ed2d74a` (no conflicts). The merge and this review documentation are local and still need to be committed/pushed. Recheck PR head, ahead/behind comparison, and mergeability after push; do not merge before independent review and Owen's explicit acceptance.
+- PR #57 is retained as the single B3 integration PR because its change is scoped to the resolver, compiler integration, scanner, related tests and planning records. PR #56 is closed unmerged as the noisy duplicate. PR #57 has one COMMENT review authored by the repository owner; this is not an independent review. The Kilo review bot reported that the account was out of credits, and no external reviewer submission is recorded.
+- On 2026-11-21, local `corex-b3` merged the latest `origin/main` (`8a68c9f2bb2446d40fde5e86350ca5d8ec28e80d`) with merge commit `ef70e0c`. The merge was conflict-free and includes the package-entrypoint correction plus the deterministic SocketX token-bucket test. The branch is now 13 commits ahead of current main and 0 behind. Push the merge commit with the B3 task/test updates after final verification. Do not merge PR #57 before an actual independent review and Owen's explicit acceptance.
 
 ## Initial verification status
 
@@ -123,7 +123,7 @@ This is an SEC-01 execution-isolation defect, not a B3 implementation expansion.
 - Official Node.js v22.20.0 documentation checked for `vm.compileFunction()` and dynamic-import behavior. It explicitly states `node:vm` is not a security mechanism and that dynamic import rejects with `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING` when no callback is supplied.
 - Scratch proof of injected exact `require`: passed.
 - Implemented locally: new `engine/services/strategyModuleResolver.js`; `StrategyCompiler` delegates both compile paths to it; `utils/security.js` now uses exact specifiers, rejects dynamic imports, relative paths and sensitive require properties; added scanner regressions plus resolver and compiler integration tests.
-- `node --check` for all five changed/new JavaScript files (`strategyCompiler.js`, `strategyModuleResolver.js`, `utils/security.js`, and the two new/updated test files): passed.
+- `node --check` for all seven changed/new JavaScript files (`engine/services/strategyCompiler.js`, `engine/services/strategyModuleResolver.js`, `utils/security.js`, `test/DeclarativeStrategy.test.js`, `test/round7.comprehensive.test.js`, `test/strategyCompiler.moduleResolution.test.js`, and `test/strategyModuleResolver.test.js`): passed.
 - Targeted Jest verification was rerun on the B3 source using the dependency installation in the separate P1 worktree via Jest `--modulePaths`; no dependency files or worktree contents were copied or modified.
   - `test/strategyModuleResolver.test.js`: 1 suite / 25 tests passed.
   - `test/strategyCompiler.moduleResolution.test.js`: 1 suite / 4 tests passed.
@@ -132,6 +132,7 @@ This is an SEC-01 execution-isolation defect, not a B3 implementation expansion.
   - `test/engine-recovery.test.js`: 1 suite / 15 tests passed.
   - Original targeted coverage: 5 suites / 67 tests passed; this is not a full repository test run.
 - Independent rerun on 2026-11-21: the same five root suites (`strategyModuleResolver`, compiler module resolution, `round7.comprehensive`, compiler instance safety, and engine recovery) passed **5 suites / 113 tests**. The entire `packages/corex-strategy-engine/test` suite passed **12 suites / 125 tests**. Both runs used `--forceExit` because the test process retains open handles.
-- Full repository rerun on 2026-11-21 passed **67 suites / 765 tests** with Jest's default test timeout. The B3 checkout has no local `node_modules`, so the run used the P1 worktree dependency directory via `NODE_PATH`, inherited by the forked strategy-worker child. The first full run without child-process `NODE_PATH` timed out the worker startup test and exposed one stale scanner fixture; the worker test passed with the correct inherited dependency path, and the fixture was updated to import `Strategy` from the public `corex-strategy-engine` root instead of the now-forbidden relative `../utils/DeclarativeStrategy` path.
+- Full repository verification on 2026-11-21 passed **67 suites / 766 tests** using `--runInBand --forceExit --testTimeout=25000`. The B3 checkout has no local `node_modules`, so the run used the P1 worktree dependency directory via `NODE_PATH`, inherited by child processes. A full run with Jest's default 5-second hook timeout failed only `test/strategyWorker.warmup.test.js` because its `beforeAll` readiness wait allows 20 seconds but Jest's hook default is 5 seconds; the same worker suite passed in isolation with a 25-second timeout. This is a pre-existing test-harness timing mismatch outside B3, not a B3 product failure; it was not changed in this PR. The legacy declarative-strategy scanner fixture was updated to import `Strategy` from the public `corex-strategy-engine` root instead of the now-forbidden relative `../utils/DeclarativeStrategy` path.
 - The scanner and instance-safety suites retain open handles in this checkout; targeted runs needed Jest `--forceExit` to return cleanly. Assertions passed before forced exit. This is recorded as a test-process limitation, not a product-test failure.
-- `git diff --check`: passed on the original implementation. The 2026-11-21 review-document update exposed a mixed-line-ending whitespace warning in `plans/KNOWN_ISSUES.md`; the file was normalized back to CRLF before final diff verification.
+- Added a compiler-level regression that reads the actual `utils/template.txt`, substitutes the generated class name, and compiles it through the restricted resolver; it confirms the exact `@utils/BaseStrategy` compatibility path still works. Targeted `test/strategyCompiler.moduleResolution.test.js`: 1 suite / 5 tests passed. Full repository verification above includes this regression.
+- `git diff --check`: passed on the original implementation. Re-run after the current task/handoff updates before commit.
