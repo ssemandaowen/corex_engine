@@ -15,9 +15,10 @@
  * - Access to engine internals via constructor tricks
  * - Buffer / SharedArrayBuffer / ArrayBuffer (memory bombs)
  *
- * Allows:
- * - require('BaseStrategy') and require path-relative imports
+ * Allows only exact strategy module specifiers:
+ * - require('corex-strategy-engine') (public package root)
  * - require('mathjs') and require('technicalindicators')
+ * - require('@utils/BaseStrategy') (temporary template compatibility until P3)
  * - Standard class definitions, closures, and ES2022 features
  * - for...of and for...in loops (bounded by data structure size)
  */
@@ -57,8 +58,18 @@ const DANGEROUS_MODULES = new Set([
 ]);
 
 const ALLOWED_MODULES = new Set([
+    "corex-strategy-engine",
     "mathjs",
     "technicalindicators",
+    "@utils/BaseStrategy",
+]);
+
+const FORBIDDEN_REQUIRE_PROPERTIES = new Set([
+    "resolve",
+    "cache",
+    "extensions",
+    "main",
+    "paths",
 ]);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,24 +120,26 @@ function validateStrategyCode(code) {
             ) {
                 const arg = node.arguments[0];
                 if (arg?.type === "Literal" && typeof arg.value === "string") {
-                    const mod   = arg.value.trim();
-                    const base  = mod.split("/")[0].toLowerCase();
+                    const mod = arg.value;
+                    const withoutNodePrefix = mod.startsWith("node:") ? mod.slice(5) : mod;
+                    const base = withoutNodePrefix.split("/")[0];
 
-                    if (DANGEROUS_MODULES.has(base)) {
+                    if (
+                        DANGEROUS_MODULES.has(mod) ||
+                        DANGEROUS_MODULES.has(withoutNodePrefix) ||
+                        DANGEROUS_MODULES.has(base)
+                    ) {
                         violations.push(`Forbidden require: "${mod}" is a dangerous module`);
                         return;
                     }
 
-                    // Allow only: relative imports, BaseStrategy, and explicitly safe packages
-                    const isRelative    = mod.startsWith("./") || mod.startsWith("../");
-                    const isBaseStrategy = mod.toLowerCase().includes("basestrategy");
-                    const isAllowed     = ALLOWED_MODULES.has(base);
-
-                    if (!isRelative && !isBaseStrategy && !isAllowed) {
+                    // Exact specifier matching: no package subpaths, relative paths,
+                    // absolute paths, or substring-based legacy exceptions.
+                    if (!ALLOWED_MODULES.has(mod)) {
                         violations.push(`Unauthorized require: "${mod}"`);
                     }
-                } else if (!arg || arg.type !== "Literal") {
-                    // Dynamic require: require(variable) — always block
+                } else {
+                    // Dynamic require and non-string specifiers are always blocked.
                     violations.push("Dynamic require() is forbidden");
                 }
             }
@@ -138,6 +151,11 @@ function validateStrategyCode(code) {
                     violations.push(`Forbidden call: ${name}()`);
                 }
             }
+        },
+
+        // Dynamic import bypasses the CommonJS require allow-list.
+        ImportExpression() {
+            violations.push("Dynamic import() is forbidden");
         },
 
         // ── Block new Function(...), new Buffer(...), etc. ────────────────
@@ -225,6 +243,18 @@ function validateStrategyCode(code) {
 
         // ── Block module manipulation ─────────────────────────────────────
         MemberExpression(node) {
+            if (
+                node.object.type === "Identifier" &&
+                node.object.name === "require"
+            ) {
+                const requireProperty = node.computed
+                    ? (node.property.type === "Literal" ? node.property.value : null)
+                    : node.property.name;
+                if (FORBIDDEN_REQUIRE_PROPERTIES.has(requireProperty)) {
+                    violations.push(`Forbidden: require.${requireProperty}`);
+                }
+            }
+
             if (
                 node.object.type === "Identifier" &&
                 node.object.name === "module"

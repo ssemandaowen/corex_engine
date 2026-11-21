@@ -21,7 +21,7 @@
  * trusts that security scan has already passed when called.
  */
 
-const Module  = require("module");
+const { loadStrategyModule } = require("./strategyModuleResolver");
 const { bus, EVENTS } = require("@events/bus");
 const logger  = require("@utils/logger");
 const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
@@ -43,12 +43,7 @@ const METHOD_CANDIDATES = ["next", "onBar", "onTick", "_processData"];
 // ─────────────────────────────────────────────────────────────────────────────
 
 function _loadModuleFromString(code, id) {
-    const filename = `db://strategies/${id}.js`;
-    const mod = new Module(filename, module);
-    mod.filename = filename;
-    mod.paths    = Module._nodeModulePaths(process.cwd());
-    mod._compile(code, filename);
-    return mod.exports;
+    return loadStrategyModule(code, id);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

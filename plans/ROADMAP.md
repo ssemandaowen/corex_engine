@@ -1,14 +1,13 @@
 ﻿# CoreX — Active Roadmap
 
-> Single active roadmap. Last updated: 2026-11-20
+> Single active roadmap. Last updated: 2026-11-21
 > Owner: Owen Ssemanda (Apex Trait Ltd.) — approval authority
 > Scope: phase order, task IDs, dependencies, status, approval gates
 > Status dashboard of record: this file. `plans/STATUS.md` is superseded (banner only, history).
 > Historical roadmap: `plans/COREX_DEVELOPMENT_PLAN.md` (banner only; do not update).
 > Workflow rules: `plans/AGENT_WORKFLOW.md`. Decisions: `plans/decisions.md`. Issues: `plans/KNOWN_ISSUES.md`.
 
-Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh` on 2026-11-14
-(`origin/main` = `e2f8f271a954dc2c426d5f43f059cdd6502f04c2`). Updates made on 2026-11-20 are recorded with their supporting task files and PR references below. Where the original plan text differed from reality, the consolidation PR records the difference.
+Baseline statuses, branches, PR numbers and SHAs were refreshed against Git and GitHub on 2026-11-20 (`origin/main` = `94c3fb3917fd12b5c396b01d166100dfb56ac71d`). Updates made on 2026-11-20 are recorded with their supporting task files and PR references below. Where the original plan text differed from reality, the relevant task record records the correction.
 
 ---
 
@@ -54,8 +53,8 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 | 1 | STAGE-1 | Dataset upload multipart fix with a genuine regression test | IN PROGRESS | — | `fix/upload-multipart-transport` / PR #58 (OPEN) | task file created when the workstream starts | Verified: PR #58 head `b7cf6116d7f751410f815ab8bd3ced1f6311eb2b`, base `main`, 3 files (`front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `package.json`). **The fix is not yet covered by a genuine test:** `test/multipart-upload-fix.test.js` never imports `client.ts`, re-implements the interceptor inline, and its third test asserts the broken behaviour as expected — verified by reverting `client.ts` in a scratch worktree (3/3 still pass). **Decision (Owen):** a genuine test imports the REAL axios instance exported by `client.ts` (stub adapter); extract a module only if importing `client.ts` proves infeasible. Plan: new PR from `main` containing only the `client.ts` fix + that test; then close PR #58 as superseded (no force-push; leave its branch). #58's branch carries the divergent `7401e35` commit. |
 | 2 | ROADMAP | Consolidate plans into this single roadmap | DONE | — | PR #64 | — | Merged as `20bad625434dcbefcd7bea2a5d389ff887159d82`; this document is the active roadmap. |
 | 3 | E1 | `engine.js` caller inventory and ownership mapping — **INVENTORY ONLY** | DONE | ROADMAP reviewed | `docs/engine-e1-final-report` | `plans/tasks/ENGINE-02B-E1.md` | **Complete — report: `plans/Audit/ENGINE-02B_E1_engine_inventory.md`** (all seven questions answered, 26 CONFIRMED / 4 INFERRED / 3 UNKNOWN, eight prior findings re-verified). It does NOT repoint any caller; repointing happens inside E2–E4 (and E5), each PR moving only its own methods and separately approved. Implementation handoff is **proposed work, not approved**: four P0 correctness defects (recovery result check, recovery identity space, `stop()` leaves runtimes/timers/listeners, listener leak per restart), three P1 extractions that map to E2/E3/E4, and one P1 blocked on a product decision (warmup cache revive-vs-delete). |
-| 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | IN PROGRESS | STAGE-1 PR opened (#79) | `fix/strategy-instance-safety-guard` / PR #80 (OPEN) | `plans/tasks/P1-instance-safety-guard.md` | Implementation and self-review corrections verified (package 12 suites / 125 tests; root compiler + loader/recovery 2 suites / 17 tests); independent review pending. Post-construction guard only, not a sandbox. P2 still waits for both P1 and B3. |
-| 5 | B3 | Sandbox module resolution (`strategyCompiler`) + `security.js` exact `corex-strategy-engine` allow-list | NEXT | Stage 2 (DONE, PR #63) | PRs #56 and #57 (both OPEN, duplicate pair) | task file created when the workstream starts | Must precede P2. Work also exists uncommitted in the Stage 1 worktree (`engine/services/strategyCompiler.js`, `utils/security.js`, `test/security-exact-package-allow.test.js`). Two open PRs describe the same security change — one must be closed. |
+| 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | DONE | STAGE-1 PR opened (#79) | `fix/strategy-instance-safety-guard` / PR #80 (MERGED) | `plans/tasks/P1-instance-safety-guard.md` | Accepted by Owen and squash-merged 2026-11-20 as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`. Verification: package 12 suites / 125 tests; root compiler + loader/recovery 2 suites / 17 tests. Post-construction integrity guard only, not a sandbox. P2 still waits for B3. |
+| 5 | B3 | Strategy module-resolution boundary + exact strategy-module allow-list | IN PROGRESS | P1 (DONE, PR #80); Stage 2 (DONE, PR #63) | `fix/security-corex-strategy-engine` / PR #57 (OPEN; synced to main `8a68c9f` via merge `ef70e0c`) | PR #56 closed as a noisy 60-file duplicate. PR #57 is the single B3 integration PR. Full suite: 67 suites / 766 tests passed. Owner-authored COMMENT review exists; independent review and Owen acceptance remain pending. B3 restricts the injected CommonJS `require` channel only; SEC-01 execution isolation remains separate. |
 | 6 | P2 | Retire `StrategyContract`; move `getStateSnapshot`, `__corexApi`, symbol normalization into the `Strategy` base class | LATER | P1, B3 | task file created when the workstream starts | task file created when the workstream starts | Requires a class-identity test: loader, compiler, runtime and backtest must see the same `Strategy` class. |
 | 7a | E2 | `StrategySupervisor` extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | Fixes the `STATE_CHANGED` listener leak and recovery timers that survive `stop()`. |
 | 7b | E3 | Banner + wiring extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | Wiring stays at construction time. |
@@ -80,6 +79,7 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 | ENGINE-01 P0 | Baseline persistence fix + characterization tests | DONE | `8dd6048` | PR #62 | 59 suites / 626 tests baseline. |
 | ENGINE-01 S2 | Atomic runtime ownership | DONE | `e2f8f271a954dc2c426d5f43f059cdd6502f04c2` | PR #63 | 60 suites / 661 tests. Record: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`. |
 | P3-04 | Broker folder ownership cleanup | DONE | `36316b1` | PR #61 | Also on the Stage 1 branch as `7401e35` (same content, different SHA). |
+| P1 | Strategy instance-safety guard | DONE | `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c` | PR #80 | Accepted by Owen 2026-11-20; 12 package suites / 125 tests and 2 root compiler/loader suites / 17 tests passed. Task: `plans/tasks/P1-instance-safety-guard.md`. |
 | ENGINE-01A | Legacy strategy path removal — read-only impact report | DONE | pending this PR | — | `plans/Audit/ENGINE-01A_legacy_strategy_removal_report.md`; decision support only, nothing implemented. |
 
 ## 4. Workstreams (parallel view)
@@ -88,7 +88,7 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 
 | ID | Title | Status | Depends on |
 |---|---|---|---|
-| P1 | Instance-safety guard | IN PROGRESS | STAGE-1 PR #79 opened |
+| P1 | Instance-safety guard | DONE | STAGE-1 PR #79 opened; merged PR #80 |
 | P2 | Retire `StrategyContract`, move state/API/symbol normalization | LATER | P1, B3 |
 | P3 | Authoring surface (template, scripts, `::demo` cleanup) | LATER | P2 |
 | P4 | Repatriate `utils/strategy` | LATER | P2 |
@@ -141,12 +141,14 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 |---|---|---|---|
 | B1 | Backtest report filename safety | NEXT (work exists uncommitted) | Shared `safeFilename` helper used by the writer **and** the `backtestController` readers in the same change; reconcile with the P0 `_saveToFile` already on `main`; split the `_computeAnalytics` additions out. Present only in the Stage 1 dirty tree (`engine/backtestManager.js`, `engine/routes/backtestController.js`, `engine/services/userScope.js`); `safeFilename` does not exist on `main`. |
 | B2 | `jobWorker.isNonRetryableError` | NEXT (work exists uncommitted) | Present only in the dirty tree (`engine/workers/jobWorker.js`, `test/job-worker-non-retryable.test.js`); not on `main`. |
-| B3 | Sandbox module resolution + security allow-list | NEXT | See sequence row 5 (PRs #56/#57 duplicate pair). |
+| B3 | Strategy module-resolution boundary + exact allow-list | IN PROGRESS | See `plans/tasks/B3-sandbox-module-resolution.md`. PR #56 closed as noisy duplicate; PR #57 is the single active B3 integration PR. Current compiler/scanner bypasses are reproduced and recorded in the task file. |
 | B4 | Runtime status flags (`marketDataAvailable` / `warmedUp` / `coldStart`) + stale reconciliation on restore | NEXT (work exists uncommitted) | Re-implement on Stage 2 code using the backup patch as the spec: `engine/core/runtime/RuntimeLifecycle.js`, `engine/core/runtime/RuntimeRegistry.js`, `engine/strategyLoader.js`. The dirty-tree versions are against pre-Stage-2 files and will not apply. |
 | B5 | Ignore `repomix.xml` (2 copies) and `data/uploads/**` | NEXT | `main`'s `.gitignore` has only `repomix-output.xml`. Untracked artefacts: `repomix.xml`, `engine/core/repomix.xml`, `data/uploads/**`. |
 | B9 | Stop-during-own-stop race in engine recovery (`B6`-`B8` unallocated) | IN PROGRESS — `fix/recovery-stop-request-marker` | A stop request for a strategy that lands while `_attemptRecovery` is awaiting `loader.stopStrategy()` — with the runtime already removed and no ledger record left — is indistinguishable from "nothing to stop", so the recovery still restarts the runtime. Needs a loader-boundary stop-request marker that survives the stop. Risk is highest in LIVE mode (an unintended restart of a live runtime). Found in P0-1 and documented as a limitation in `plans/tasks/ENGINE-02B-P0-1.md` §12.5; no code for it in P0-1. |
 | B10 | Backtest pipeline discovery, performance/resource audit and implementation handoff | NEXT — READ-ONLY DISCOVERY | `plans/architecture/BACKTEST_PIPELINE_DISCOVERY_AND_HANDOFF.md` | Trace upload → dataset → job → worker → simulation → analytics/report → retrieval/cleanup. Record ownership, contracts, confirmed defects, unused/duplicated features and reproducible CPU/memory/storage baselines. No source changes, no task-file creation and no new active workstream. Findings inform STAGE-4/P7; P7 dependencies remain unchanged. |
-| SEC-01 | Strategy execution isolation and shared-intrinsic protection | NEEDS TRIAGE — NOT SCHEDULED | Strategy source is compiled with Node `Module._compile` in the engine process. The AST scanner accepts reassignment of global `Object` inspection methods, so strategy code can mutate shared process intrinsics and affect unrelated engine code. P1 now captures its own inspection intrinsics, but that does not isolate strategy execution or undo global mutation. Requires a separate threat model and reviewed execution-isolation design; do not treat P1 or B3 as a complete sandbox. |
+| SEC-01 | Strategy execution isolation and shared-intrinsic protection | NEEDS TRIAGE — NOT SCHEDULED | Strategy source runs through `vm.compileFunction()` in the engine process's current global context. P1 protects its own inspection intrinsics and B3 restricts the injected CommonJS `require` channel, but neither isolates execution. Reproduced on Node v22.20.0: `Object["con" + "structor"]("return process.getBuiltinModule('fs')")()` passes the scanner and obtains `fs`, bypassing the resolver without using `require`. Requires a separate threat model and reviewed execution-isolation design; do not treat P1 or B3 as a sandbox. |
+| SEC-02 | Strategy module-resolution and AST-scanner bypasses | IN PROGRESS — B3 | Before B3, `Module._compile` exposed Node's normal `require`; reproduced aliased `require('fs')`, dynamic `import('node:fs')`, `require.resolve('fs')`, relative traversal to root `package.json`, module-alias package subpath loading, and the substring-based BaseStrategy exception. B3 replaces the injected CommonJS `require` channel with an exact resolver and scanner checks. Process-global execution escapes remain SEC-01; evidence and acceptance tests are in `plans/tasks/B3-sandbox-module-resolution.md`. |
+| SEC-03 | Strategy worker bypasses AST security validation | NEEDS TRIAGE — NOT SCHEDULED | `engine/workers/strategyWorker.js` calls `StrategyCompiler.compile()` directly in `LOAD_STRATEGY` without `validateStrategyCode()`. `workerPool.isEnabled()` defaults to enabled in production unless explicitly overridden, and `engine/modules/strategyRuntime/index.js` routes `LOAD_STRATEGY` through it. This skips AST checks outside module resolution; B3's runtime resolver does not cover those rules. Separate task required; evidence in `plans/KNOWN_ISSUES.md` §11. |
 
 ### P0 findings from `plans/Audit/BASELINE.md` (backlog, unfixed)
 
@@ -169,11 +171,13 @@ Baseline statuses, branches, PR numbers and SHAs were verified against `git`/`gh
 2. **Before implementation** — confirm the row's dependencies are `DONE` or merged, and that no more
    than two workstreams are open (rule 3). If a dependency is missing, stop.
 3. **During** — record evidence (commands, results, limitations) in the task file, not in this table.
-4. **Completion** — a task is complete only with acceptance evidence and review. Set `DONE`, record
-   the merge SHA, and check that the PR that completes the workstream updated this row in the same PR (rule 4).
+4. **Completion** — a task is complete only with acceptance evidence and review. Set status `DONE`,
+   record the merge SHA, and check that the PR that completes the workstream updated this row in the
+   same PR (rule 4).
 5. **Blocked** — use `BLOCKED`, name the blocker in Notes, and add an entry to `plans/KNOWN_ISSUES.md`.
 6. **New idea** — it goes to Backlog or an open decision (D-series) first. It does not enter the
    sequence until Owen approves it and this table says so.
 7. **Status vocabulary** — `DONE`, `IN PROGRESS`, `NEXT`, `LATER`, `BLOCKED`, `UNCONFIRMED` only.
 8. **Supersession** — when a document is superseded, move it to `plans/archive/` with the header
-   `ARCHIVED <date> — superseded by <path>. Content below is unchanged.` and update this file's references. Never edit the archived body.
+   `ARCHIVED <date> — superseded by <path>. Content below is unchanged.` and update this file's
+   references. Never edit the archived body.
