@@ -2,8 +2,15 @@
 
 const fs = require("fs");
 const path = require("path");
+
+jest.mock("@core/services/hashVerifier", () => ({
+    verifyStrategyFile: jest.fn(async () => ({ ok: true }))
+}));
+
 const { StrategyCompiler } = require("@core/services/strategyCompiler");
 const { Strategy } = require("corex-strategy-engine");
+const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const strategyLoader = require("@core/strategyLoader");
 const BaseStrategy = require("@utils/BaseStrategy");
 
 describe("StrategyCompiler restricted module resolution", () => {
@@ -48,6 +55,78 @@ describe("StrategyCompiler restricted module resolution", () => {
 
         if (typeof result.instance?.destroy === "function") {
             result.instance.destroy();
+        }
+    });
+
+    test("canonical Strategy compilation uses package-owned metadata without contract adaptation", async () => {
+        const source = [
+            'const { Strategy } = require("corex-strategy-engine");',
+            "class CanonicalStrategy extends Strategy {",
+            '  constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 20 }); }',
+            "  onBar(ctx, bar) { return null; }",
+            "}",
+            "module.exports = CanonicalStrategy;",
+        ].join("\n");
+        const adaptSpy = jest.spyOn(StrategyContract, "adapt");
+        const validateSpy = jest.spyOn(StrategyContract, "validate");
+
+        try {
+            const compiled = await compiler.compile(source, "canonical-contract-free");
+            expect(compiled.success).toBe(true);
+            expect(compiled.instance).toBeInstanceOf(Strategy);
+            expect(compiled.instance.getStateSnapshot().symbols).toEqual(["EURUSD"]);
+            expect(compiled.instance.__corexApi).toContain("onBar");
+            expect(Object.isFrozen(compiled.instance.__corexApi)).toBe(true);
+            expect(adaptSpy).not.toHaveBeenCalled();
+            expect(validateSpy).not.toHaveBeenCalled();
+            compiled.instance.destroy();
+
+            const extracted = await compiler.validateAndExtractClass(source, "canonical-extract");
+            expect(extracted.ok).toBe(true);
+            expect(extracted.StrategyClass.prototype).toBeInstanceOf(Strategy);
+            expect(adaptSpy).not.toHaveBeenCalled();
+            expect(validateSpy).not.toHaveBeenCalled();
+        } finally {
+            adaptSpy.mockRestore();
+            validateSpy.mockRestore();
+        }
+    });
+
+    test("compiler rejects strategy classes outside the canonical and explicit legacy bases", async () => {
+        const source = [
+            "class UnownedStrategy {",
+            '  constructor() { this.symbols = ["EURUSD"]; }',
+            "  onBar(ctx, bar) { return null; }",
+            "}",
+            "module.exports = UnownedStrategy;",
+        ].join("\n");
+
+        const result = await compiler.compile(source, "unowned-strategy-base");
+
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("UNSUPPORTED_STRATEGY_BASE");
+    });
+
+    test("strategy loader preserves the same public Strategy constructor", async () => {
+        const source = [
+            'const { Strategy } = require("corex-strategy-engine");',
+            "class LoaderCanonicalStrategy extends Strategy {",
+            '  constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 20 }); }',
+            "  onBar(ctx, bar) { return null; }",
+            "}",
+            "module.exports = LoaderCanonicalStrategy;",
+        ].join("\n");
+        const adaptSpy = jest.spyOn(StrategyContract, "adapt");
+
+        try {
+            const instance = await strategyLoader.instantiateFromSource(source, "loader-canonical");
+            expect(instance).toBeInstanceOf(Strategy);
+            expect(instance.getStateSnapshot().symbols).toEqual(["EURUSD"]);
+            expect(instance.__corexApi).toContain("onBar");
+            expect(adaptSpy).not.toHaveBeenCalled();
+            instance.destroy();
+        } finally {
+            adaptSpy.mockRestore();
         }
     });
 

@@ -29,6 +29,7 @@ const db        = require("@core/services/postgres");
 const pgStore   = require("@core/services/pgStore");
 const storage   = require("@utils/storageManager");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { Strategy } = require("corex-strategy-engine");
 const { BACKTEST }      = require("@config/constants");
 const { parseScopedId } = require("@core/services/userScope");
 const { trades: tradeAnalytics, series, format } = require("@utils/analytics");
@@ -141,10 +142,18 @@ class BacktestManager {
 
         // ── 1. Compile strategy ───────────────────────────────────────────────
         emit("STRATEGY_COMPILER_INIT", "StrategyCompiler initialized", 5);
-        const compiled = StrategyContract.validateAndAdapt(strategy);
-        if (!compiled.ok) {
-            emit("ERROR", `Strategy compile failed: ${compiled.reason}`, 100);
-            throw new Error(`STRATEGY_COMPILE_FAILED: ${compiled.reason}`);
+        if (strategy instanceof Strategy) {
+            if (!Array.isArray(strategy.symbols) || strategy.symbols.length === 0) {
+                throw new Error("STRATEGY_COMPILE_FAILED: MISSING_SYMBOLS");
+            }
+        } else {
+            // Preserve the legacy plain-object/BaseStrategy backtest path until
+            // its scheduled migration and retirement.
+            const compiled = StrategyContract.validateAndAdapt(strategy);
+            if (!compiled.ok) {
+                emit("ERROR", `Strategy compile failed: ${compiled.reason}`, 100);
+                throw new Error(`STRATEGY_COMPILE_FAILED: ${compiled.reason}`);
+            }
         }
         emit("STRATEGY_COMPILED", `[${strategy?.name || "unknown"}] Strategy compiled`, 12);
         abortIfRequested();

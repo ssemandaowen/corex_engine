@@ -70,6 +70,7 @@ jest.mock("@core/services/strategyCompiler", () => ({
     }
 }));
 
+const { Strategy } = require("corex-strategy-engine");
 const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const RuntimeLifecycle = require("@core/core/runtime/RuntimeLifecycle");
 const strategyLoader = require("@core/strategyLoader");
@@ -107,19 +108,16 @@ function makeStrategy(strategyName, symbol) {
     };
 }
 
-/** Strategy class handed to the mocked compiler (T10). */
-class FakeStrategy {
+/** Canonical package Strategy handed to the mocked compiler (T10). */
+class FakeStrategy extends Strategy {
     constructor() {
-        this.symbols = ["EURUSD"];
-        this.timeframe = "1m";
-        this.lookback = 5;
-        this.params = {};
-        this.dataManager = { ingestBar: jest.fn() };
-        this.state = {};
+        super({ symbols: ["EURUSD"], timeframe: "1m", lookback: 5 });
         this.destroyCalls = 0;
     }
-    _attachRuntime() {}
-    destroy() { this.destroyCalls += 1; }
+    destroy() {
+        this.destroyCalls += 1;
+        super.destroy();
+    }
 }
 
 function installStrategyClass() {

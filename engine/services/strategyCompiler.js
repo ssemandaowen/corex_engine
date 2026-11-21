@@ -24,10 +24,10 @@
 const { loadStrategyModule } = require("./strategyModuleResolver");
 const { bus, EVENTS } = require("@events/bus");
 const logger  = require("@utils/logger");
-const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
 const { TIME } = require("@config/constants");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
-const { assertSafeInstance } = require("corex-strategy-engine");
+const BaseStrategy = require("@utils/BaseStrategy");
+const { Strategy, assertSafeInstance } = require("corex-strategy-engine");
 
 const log = logger.createModuleLogger("STRATEGY_COMPILER", {
     category: "strategy",
@@ -44,6 +44,23 @@ const METHOD_CANDIDATES = ["next", "onBar", "onTick", "_processData"];
 
 function _loadModuleFromString(code, id) {
     return loadStrategyModule(code, id);
+}
+
+function _prepareStrategyInstance(instance) {
+    if (instance instanceof Strategy) {
+        if (!Array.isArray(instance.symbols) || instance.symbols.length === 0) {
+            return { ok: false, reason: "MISSING_SYMBOLS" };
+        }
+        return { ok: true };
+    }
+
+    if (instance instanceof BaseStrategy) {
+        // Temporary compatibility path for the existing legacy template/demo.
+        StrategyContract.adapt(instance);
+        return StrategyContract.validate(instance);
+    }
+
+    return { ok: false, reason: "UNSUPPORTED_STRATEGY_BASE" };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -118,10 +135,10 @@ class StrategyCompiler {
             // Create a TEMPORARY instance to extract metadata
             const tmp = new StrategyClass();
             assertSafeInstance(tmp, StrategyClass);
-            StrategyContract.adapt(tmp);
 
-            // Validate contract on temp instance
-            const contractCheck = StrategyContract.validate(tmp);
+            // Canonical package Strategy instances are self-contained. The
+            // contract adapter remains only for the legacy BaseStrategy path.
+            const contractCheck = _prepareStrategyInstance(tmp);
             if (!contractCheck.ok) {
                 return { ok: false, error: `Contract failed: ${contractCheck.reason}` };
             }
@@ -198,21 +215,12 @@ class StrategyCompiler {
 
             const instance = new StrategyClass();
             assertSafeInstance(instance, StrategyClass);
-            StrategyContract.adapt(instance);
 
-            const contractCheck = StrategyContract.validate(instance);
+            const contractCheck = _prepareStrategyInstance(instance);
             if (!contractCheck.ok) {
                 if (typeof instance.destroy === "function") instance.destroy();
                 this.stats.failedCompilations++;
                 return CompilationResult.failure(`Contract: ${contractCheck.reason}`);
-            }
-
-            // Normalise legacy symbol → symbols
-            if (
-                (!instance.symbols || !Array.isArray(instance.symbols) || instance.symbols.length === 0) &&
-                typeof instance.symbol === "string"
-            ) {
-                instance.symbols = [instance.symbol];
             }
 
             // Extract schema during full compile to unblock loader persistence
@@ -244,8 +252,7 @@ class StrategyCompiler {
 
             if (!instance.timeframe) instance.timeframe = TIME.DEFAULT_TIMEFRAMES?.[0] || "1m";
 
-            const methods = getStrategyApi(instance);
-            instance.__corexApi      = Object.freeze(methods);
+            const methods = Array.isArray(instance.__corexApi) ? instance.__corexApi : [];
             instance.__corexCompiled = true;
             instance.__corexCompiledAt = Date.now();
 

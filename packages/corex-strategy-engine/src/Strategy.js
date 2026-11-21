@@ -2,7 +2,7 @@
 
 const rootLogger = require("@utils/logger");
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { getStrategyApi } = require("./StrategyIntrospection");
 const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
 const StrategyDataManager = require("@utils/strategy/StrategyDataManager");
 const StrategyPositionManager = require("./StrategyPositionManager");
@@ -123,6 +123,13 @@ class Strategy {
         if (!config.symbols || (Array.isArray(config.symbols) && config.symbols.length === 0)) {
             if (Array.isArray(this.constructor.symbols) && this.constructor.symbols.length > 0) {
                 config.symbols = [...this.constructor.symbols];
+            } else {
+                const singularSymbol = typeof config.symbol === "string"
+                    ? config.symbol
+                    : this.constructor.symbol;
+                if (typeof singularSymbol === "string" && singularSymbol.trim()) {
+                    config.symbols = [singularSymbol.trim().toUpperCase()];
+                }
             }
         }
         if (!config.timeframe && this.constructor.timeframe) {
@@ -213,6 +220,30 @@ class Strategy {
         this._ctxBuilder = null;
 
         this._captureAndShadowHooks();
+    }
+
+    // Resolve after the concrete subclass constructor has completed. This
+    // captures both prototype methods and any public methods installed by the
+    // subclass constructor, then freezes the result on the instance.
+    get __corexApi() {
+        const api = Object.freeze(getStrategyApi(this));
+        Object.defineProperty(this, "__corexApi", {
+            value: api,
+            enumerable: true,
+            configurable: false,
+            writable: false
+        });
+        return api;
+    }
+
+    getStateSnapshot() {
+        return {
+            id: this.id || this.name,
+            name: this.name || this.id,
+            symbols: Array.isArray(this.symbols) ? this.symbols : [],
+            timeframe: this.timeframe || "1m",
+            mode: String(this.mode || "PAPER").toUpperCase()
+        };
     }
 
     _attachRuntime({ broker, mode, runtimeId, symbol }) {
@@ -513,6 +544,5 @@ class Strategy {
 
 Object.assign(Strategy.prototype, SignalHelpers);
 Object.assign(Strategy.prototype, StrategyRuntimeUtils);
-StrategyContract.adapt(Strategy.prototype);
 
 module.exports = { Strategy, MAX_ALLOWED_LOOKBACK };

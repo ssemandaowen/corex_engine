@@ -18,6 +18,8 @@ const path = require("path");
 
 const backtestManager = require("@core/backtestManager");
 const db = require("@core/services/postgres");
+const { Strategy } = require("corex-strategy-engine");
+const { StrategyContract } = require("@core/core/strategy/StrategyContract");
 
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "corex-e01-backtest-"));
 const CSV_PATH = path.join(TMP_DIR, "synthetic_1m.csv");
@@ -112,7 +114,39 @@ describe("ENGINE-01 P0 — backtest report persistence (characterization)", () =
         } catch { /* storage dir may not exist */ }
     });
 
-    test("a representative backtest executes and returns a report", async () => {
+    test("canonical package Strategy backtests without the legacy contract adapter", async () => {
+        class CanonicalBacktestStrategy extends Strategy {
+            constructor() {
+                super({ id: "canonical-backtest", name: "canonical-backtest", symbols: [SYMBOL], lookback: 20 });
+            }
+            onBar(ctx, bar) { return null; }
+        }
+
+        const strategy = new CanonicalBacktestStrategy();
+        const events = [];
+        const adaptSpy = jest.spyOn(StrategyContract, "validateAndAdapt");
+
+        try {
+            const report = await backtestManager.run(strategy, runOptions((event) => events.push(event)));
+
+            expect(report).toBeTruthy();
+            expect(report.meta).toBeTruthy();
+            expect(report.meta.id).toBe(RUNTIME_ID);
+            expect(report.meta.symbol).toBe(SYMBOL);
+            expect(report.performance).toBeTruthy();
+            expect(Array.isArray(report.trades)).toBe(true);
+            expect(adaptSpy).not.toHaveBeenCalled();
+
+            const saved = events.find((event) => event.stage === "REPORT_SAVED");
+            expect(saved).toBeTruthy();
+            createdFiles.push(saved.reportPath);
+        } finally {
+            adaptSpy.mockRestore();
+            strategy.destroy();
+        }
+    }, 60000);
+
+    test("a representative legacy plain-object backtest executes and returns a report", async () => {
         const report = await backtestManager.run(makeStrategy(), runOptions());
 
         expect(report).toBeTruthy();
