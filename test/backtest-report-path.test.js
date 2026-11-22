@@ -57,6 +57,9 @@ function makeStrategy() {
             if (i > 0 && i % 10 === 0) {
                 return ctx.go.long(1, bar.close);
             }
+            if (i > 0 && i % 10 === 5) {
+                return ctx.flat();
+            }
             return null;
         }
     }
