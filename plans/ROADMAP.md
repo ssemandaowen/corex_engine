@@ -1,13 +1,13 @@
 ﻿# CoreX — Active Roadmap
 
-> Single active roadmap. Last updated: 2026-11-21
+> Single active roadmap. Last updated: 2026-11-22
 > Owner: Owen Ssemanda (Apex Trait Ltd.) — approval authority
 > Scope: phase order, task IDs, dependencies, status, approval gates
 > Status dashboard of record: this file. `plans/STATUS.md` is superseded (banner only, history).
 > Historical roadmap: `plans/COREX_DEVELOPMENT_PLAN.md` (banner only; do not update).
 > Workflow rules: `plans/AGENT_WORKFLOW.md`. Decisions: `plans/decisions.md`. Issues: `plans/KNOWN_ISSUES.md`.
 
-Baseline statuses, branches, PR numbers and SHAs were refreshed against Git and GitHub on 2026-11-20 (`origin/main` = `94c3fb3917fd12b5c396b01d166100dfb56ac71d`). Updates made on 2026-11-20 are recorded with their supporting task files and PR references below. Where the original plan text differed from reality, the relevant task record records the correction.
+This P2 integration PR is based on `origin/main` at `1f39d1fd87cba7d2b569c4120ddf16400b11878a` (2026-11-21). It reconciles the merged B3 prerequisite and records P2 PR #82. Other roadmap rows are unchanged from the 2026-11-20 snapshot and must be reconciled before assigning additional work.
 
 ---
 
@@ -53,9 +53,9 @@ Baseline statuses, branches, PR numbers and SHAs were refreshed against Git and 
 | 1 | STAGE-1 | Dataset upload multipart fix with a genuine regression test | IN PROGRESS | — | `fix/upload-multipart-transport` / PR #58 (OPEN) | task file created when the workstream starts | Verified: PR #58 head `b7cf6116d7f751410f815ab8bd3ced1f6311eb2b`, base `main`, 3 files (`front_end/src/api/client.ts`, `test/multipart-upload-fix.test.js`, `package.json`). **The fix is not yet covered by a genuine test:** `test/multipart-upload-fix.test.js` never imports `client.ts`, re-implements the interceptor inline, and its third test asserts the broken behaviour as expected — verified by reverting `client.ts` in a scratch worktree (3/3 still pass). **Decision (Owen):** a genuine test imports the REAL axios instance exported by `client.ts` (stub adapter); extract a module only if importing `client.ts` proves infeasible. Plan: new PR from `main` containing only the `client.ts` fix + that test; then close PR #58 as superseded (no force-push; leave its branch). #58's branch carries the divergent `7401e35` commit. |
 | 2 | ROADMAP | Consolidate plans into this single roadmap | DONE | — | PR #64 | — | Merged as `20bad625434dcbefcd7bea2a5d389ff887159d82`; this document is the active roadmap. |
 | 3 | E1 | `engine.js` caller inventory and ownership mapping — **INVENTORY ONLY** | DONE | ROADMAP reviewed | `docs/engine-e1-final-report` | `plans/tasks/ENGINE-02B-E1.md` | **Complete — report: `plans/Audit/ENGINE-02B_E1_engine_inventory.md`** (all seven questions answered, 26 CONFIRMED / 4 INFERRED / 3 UNKNOWN, eight prior findings re-verified). It does NOT repoint any caller; repointing happens inside E2–E4 (and E5), each PR moving only its own methods and separately approved. Implementation handoff is **proposed work, not approved**: four P0 correctness defects (recovery result check, recovery identity space, `stop()` leaves runtimes/timers/listeners, listener leak per restart), three P1 extractions that map to E2/E3/E4, and one P1 blocked on a product decision (warmup cache revive-vs-delete). |
-| 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | DONE | STAGE-1 PR opened (#79) | `fix/strategy-instance-safety-guard` / PR #80 (MERGED) | `plans/tasks/P1-instance-safety-guard.md` | Accepted by Owen and squash-merged 2026-11-20 as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`. Verification: package 12 suites / 125 tests; root compiler + loader/recovery 2 suites / 17 tests. Post-construction integrity guard only, not a sandbox. P2 still waits for B3. |
-| 5 | B3 | Strategy module-resolution boundary + exact strategy-module allow-list | IN PROGRESS | P1 (DONE, PR #80); Stage 2 (DONE, PR #63) | `fix/security-corex-strategy-engine` / PR #57 (OPEN; synced to main `8a68c9f` via merge `ef70e0c`) | PR #56 closed as a noisy 60-file duplicate. PR #57 is the single B3 integration PR. Full suite: 67 suites / 766 tests passed. Owner-authored COMMENT review exists; independent review and Owen acceptance remain pending. B3 restricts the injected CommonJS `require` channel only; SEC-01 execution isolation remains separate. |
-| 6 | P2 | Retire `StrategyContract`; move `getStateSnapshot`, `__corexApi`, symbol normalization into the `Strategy` base class | LATER | P1, B3 | task file created when the workstream starts | task file created when the workstream starts | Requires a class-identity test: loader, compiler, runtime and backtest must see the same `Strategy` class. |
+| 4 | P1 | Instance-safety guard (`assertSafeInstance` in `corex-strategy-engine`) | DONE | STAGE-1 PR opened (#79) | `fix/strategy-instance-safety-guard` / PR #80 (MERGED) | `plans/tasks/P1-instance-safety-guard.md` | Accepted by Owen and squash-merged 2026-11-20 as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`. Verification: package 12 suites / 125 tests; root compiler + loader/recovery 2 suites / 17 tests. Post-construction integrity guard only, not a sandbox. P2 is now active following the B3 merge; see PR #82. |
+| 5 | B3 | Strategy module-resolution boundary + exact strategy-module allow-list | DONE | P1 (DONE, PR #80); Stage 2 (DONE, PR #63) | `fix/security-corex-strategy-engine` / PR #57 (MERGED 2026-11-21) | Merged into `main` as `1f39d1fd87cba7d2b569c4120ddf16400b11878a`. Full repository verification at merge: 67 suites / 766 tests passed. B3 restricts the injected CommonJS `require` channel only; SEC-01 execution isolation remains separate. |
+| 6 | P2 | Retire `StrategyContract`; move `getStateSnapshot`, `__corexApi`, symbol normalization into the `Strategy` base class | IN PROGRESS | P1 DONE; B3 DONE (PR #57) | `fix/p2-strategy-contract-retirement` / PR #82 (OPEN — DRAFT) | `plans/tasks/P2-strategy-contract-retirement.md` | Isolated from clean `origin/main`; compiler, loader, backtest and executionController API handoff are covered. Verification: 68 suites / 773 tests passed. Awaiting review; do not mark DONE until merge. |
 | 7a | E2 | `StrategySupervisor` extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | Fixes the `STATE_CHANGED` listener leak and recovery timers that survive `stop()`. |
 | 7b | E3 | Banner + wiring extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | Wiring stays at construction time. |
 | 7c | E4 | Telemetry extraction | LATER | E1 approved | task file created when the workstream starts | task file created when the workstream starts | E2/E3/E4 are parallel-safe with P-phases subject to rule 3. |
@@ -80,6 +80,7 @@ Baseline statuses, branches, PR numbers and SHAs were refreshed against Git and 
 | ENGINE-01 S2 | Atomic runtime ownership | DONE | `e2f8f271a954dc2c426d5f43f059cdd6502f04c2` | PR #63 | 60 suites / 661 tests. Record: `plans/Audit/ENGINE-01_STAGE_2_RUNTIME_OWNERSHIP.md`. |
 | P3-04 | Broker folder ownership cleanup | DONE | `36316b1` | PR #61 | Also on the Stage 1 branch as `7401e35` (same content, different SHA). |
 | P1 | Strategy instance-safety guard | DONE | `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c` | PR #80 | Accepted by Owen 2026-11-20; 12 package suites / 125 tests and 2 root compiler/loader suites / 17 tests passed. Task: `plans/tasks/P1-instance-safety-guard.md`. |
+| B3 | Strategy module-resolution boundary + exact strategy-module allow-list | DONE | `1f39d1fd87cba7d2b569c4120ddf16400b11878a` | PR #57 | Merged 2026-11-21; full repository verification 67 suites / 766 tests. Task: `plans/tasks/B3-sandbox-module-resolution.md`. |
 | ENGINE-01A | Legacy strategy path removal — read-only impact report | DONE | pending this PR | — | `plans/Audit/ENGINE-01A_legacy_strategy_removal_report.md`; decision support only, nothing implemented. |
 
 ## 4. Workstreams (parallel view)
@@ -89,7 +90,7 @@ Baseline statuses, branches, PR numbers and SHAs were refreshed against Git and 
 | ID | Title | Status | Depends on |
 |---|---|---|---|
 | P1 | Instance-safety guard | DONE | STAGE-1 PR #79 opened; merged PR #80 |
-| P2 | Retire `StrategyContract`, move state/API/symbol normalization | LATER | P1, B3 |
+| P2 | Retire `StrategyContract`, move state/API/symbol normalization | IN PROGRESS | P1 DONE, B3 DONE (PR #57) |
 | P3 | Authoring surface (template, scripts, `::demo` cleanup) | LATER | P2 |
 | P4 | Repatriate `utils/strategy` | LATER | P2 |
 | P5 | Delete legacy strategy path | LATER | P3, P4 |

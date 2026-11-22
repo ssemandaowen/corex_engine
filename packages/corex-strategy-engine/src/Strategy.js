@@ -2,7 +2,7 @@
 
 const rootLogger = require("@utils/logger");
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { getStrategyApi } = require("./StrategyIntrospection");
 const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
 const StrategyDataManager = require("@utils/strategy/StrategyDataManager");
 const StrategyPositionManager = require("./StrategyPositionManager");
@@ -121,7 +121,9 @@ const SignalHelpers = {
 class Strategy {
     constructor(config = {}) {
         if (!config.symbols || (Array.isArray(config.symbols) && config.symbols.length === 0)) {
-            if (Array.isArray(this.constructor.symbols) && this.constructor.symbols.length > 0) {
+            if (typeof config.symbol === "string" && config.symbol.trim().length > 0) {
+                config.symbols = [config.symbol.trim().toUpperCase()];
+            } else if (Array.isArray(this.constructor.symbols) && this.constructor.symbols.length > 0) {
                 config.symbols = [...this.constructor.symbols];
             }
         }
@@ -213,6 +215,19 @@ class Strategy {
         this._ctxBuilder = null;
 
         this._captureAndShadowHooks();
+
+        // Resolve the immutable API lazily on first read, after subclass field
+        // initializers have run. This preserves introspection of instance methods
+        // declared as class fields while keeping ownership inside Strategy.
+        let apiSnapshot;
+        Object.defineProperty(this, "__corexApi", {
+            enumerable: true,
+            configurable: false,
+            get: () => {
+                if (!apiSnapshot) apiSnapshot = Object.freeze(getStrategyApi(this));
+                return apiSnapshot;
+            }
+        });
     }
 
     _attachRuntime({ broker, mode, runtimeId, symbol }) {
@@ -399,6 +414,21 @@ class Strategy {
         return this.onMarketData(packet, context);
     }
 
+    /**
+     * Return a canonical state snapshot for status reporting.
+     * Fields: id, name, symbols, timeframe, mode.
+     * Mode reflects the last _attachRuntime() call, or "UNKNOWN" before runtime attach.
+     */
+    getStateSnapshot() {
+        return {
+            id: this.id,
+            name: this.name,
+            symbols: [...this.symbols],
+            timeframe: this.timeframe,
+            mode: this.env.mode || "UNKNOWN",
+        };
+    }
+
     buy(params) { return this.entryLong(params); }
     sell(params) { return this.entryShort(params); }
     exit(params) { return this.exitAll(params); }
@@ -513,6 +543,5 @@ class Strategy {
 
 Object.assign(Strategy.prototype, SignalHelpers);
 Object.assign(Strategy.prototype, StrategyRuntimeUtils);
-StrategyContract.adapt(Strategy.prototype);
 
 module.exports = { Strategy, MAX_ALLOWED_LOOKBACK };

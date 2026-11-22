@@ -29,6 +29,7 @@ const db        = require("@core/services/postgres");
 const pgStore   = require("@core/services/pgStore");
 const storage   = require("@utils/storageManager");
 const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { Strategy } = require("corex-strategy-engine");
 const { BACKTEST }      = require("@config/constants");
 const { parseScopedId } = require("@core/services/userScope");
 const { trades: tradeAnalytics, series, format } = require("@utils/analytics");
@@ -141,7 +142,14 @@ class BacktestManager {
 
         // ── 1. Compile strategy ───────────────────────────────────────────────
         emit("STRATEGY_COMPILER_INIT", "StrategyCompiler initialized", 5);
-        const compiled = StrategyContract.validateAndAdapt(strategy);
+        let compiled;
+        if (strategy instanceof Strategy) {
+            // Canonical package Strategy instance — no engine-side adaptation needed.
+            compiled = { ok: true };
+        } else {
+            // Legacy plain-object path remains until P5.
+            compiled = StrategyContract.validateAndAdapt(strategy);
+        }
         if (!compiled.ok) {
             emit("ERROR", `Strategy compile failed: ${compiled.reason}`, 100);
             throw new Error(`STRATEGY_COMPILE_FAILED: ${compiled.reason}`);

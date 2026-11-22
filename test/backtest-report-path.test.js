@@ -18,6 +18,7 @@ const path = require("path");
 
 const backtestManager = require("@core/backtestManager");
 const db = require("@core/services/postgres");
+const { Strategy } = require("corex-strategy-engine");
 
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "corex-e01-backtest-"));
 const CSV_PATH = path.join(TMP_DIR, "synthetic_1m.csv");
@@ -45,26 +46,24 @@ function buildSyntheticCsv(bars = 120) {
 }
 
 function makeStrategy() {
-    // Plain object with the contract entrypoint `onBar`. StrategyContract.adapt()
-    // (called by backtestManager) supplies generateSignal/getStateSnapshot.
-    return {
-        id: "baseline-strategy",
-        name: "baseline-strategy",
-        symbols: [SYMBOL],
-        timeframe: "1m",
-        lookback: 20,
-        params: {},
-        onBar(bar) {
+    // Canonical package Strategy instance (P2: bypasses StrategyContract).
+    class BaselineStrategy extends Strategy {
+        static symbols = [SYMBOL];
+        static timeframe = "1m";
+        static lookback = 20;
+
+        onBar(ctx, bar) {
             const i = Math.round((bar.time - Date.UTC(2026, 0, 1, 0, 0, 0)) / 60000);
             if (i > 0 && i % 10 === 0) {
-                return { intent: "ENTER", side: "long", quantity: 1, symbol: SYMBOL, price: bar.close };
+                return ctx.go.long(1, bar.close);
             }
             if (i > 0 && i % 10 === 5) {
-                return { intent: "EXIT", side: "long", quantity: 1, symbol: SYMBOL, price: bar.close };
+                return ctx.flat();
             }
             return null;
         }
-    };
+    }
+    return new BaselineStrategy({ symbols: [SYMBOL], timeframe: "1m", lookback: 20 });
 }
 
 function runOptions(onProgress) {
@@ -121,6 +120,30 @@ describe("ENGINE-01 P0 — backtest report persistence (characterization)", () =
         expect(report.meta.symbol).toBe(SYMBOL);
         expect(report.performance).toBeTruthy();
         expect(Array.isArray(report.trades)).toBe(true);
+    }, 60000);
+
+    test("legacy plain-object strategies remain accepted until P5", async () => {
+        const legacyStrategy = {
+            id: "legacy-baseline-strategy",
+            name: "legacy-baseline-strategy",
+            symbols: [SYMBOL],
+            timeframe: "1m",
+            lookback: 20,
+            params: {},
+            onBar() {
+                return null;
+            }
+        };
+
+        const report = await backtestManager.run(legacyStrategy, {
+            ...runOptions(),
+            runtimeId: "p2-legacy-backtest"
+        });
+
+        expect(report).toBeTruthy();
+        expect(report.meta).toBeTruthy();
+        expect(report.meta.id).toBe("p2-legacy-backtest");
+        expect(report.meta.symbol).toBe(SYMBOL);
     }, 60000);
 
     test("REPORT_SAVED reports a path that exists and is readable JSON", async () => {
