@@ -1,6 +1,6 @@
 # P2 — Strategy base-class ownership and StrategyContract retirement
 
-**Status:** IN PROGRESS
+**Status:** REVIEW
 **Owner:** Owen Ssemanda (approval authority); implementation isolation by ChatGPT, initial implementation by Kilo Code
 **Started:** 2026-11-21
 **Implementation isolated:** 2026-11-22
@@ -9,7 +9,7 @@
 **Worktree:** `C:\Users\SBUM\Desktop\corex-p2-isolation`
 **Branch:** `fix/p2-strategy-contract-retirement`
 **Base:** `origin/main` at `1f39d1fd87cba7d2b569c4120ddf16400b11878a`
-**PR:** Pending publication.
+**PR:** #82 (OPEN — DRAFT), awaiting independent review.
 
 ## Scope
 
@@ -61,4 +61,4 @@ The isolated branch does not include B1 `safeFilename`, SymbolBinder, ParamResol
 
 ## Handoff
 
-Do not mark P2 DONE before review and merge. Publish one P2-only PR, update the P2 roadmap row with its branch/PR in that same PR, and leave P2 awaiting review. The roadmap's DONE status and merge SHA are recorded only after the merge outcome is known.
+PR #82 is open as a draft and includes the P2 roadmap update. Keep P2 in REVIEW until independent review and Owen acceptance are complete. The roadmap's DONE status and merge SHA are recorded only after the merge outcome is known.
