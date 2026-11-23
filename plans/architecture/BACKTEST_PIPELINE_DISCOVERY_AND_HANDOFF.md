@@ -2,11 +2,11 @@
 
 **Document type:** Read-only discovery plan and continuity handoff (not an implementation task)
 **Tracking:** Backlog B10 in `plans/ROADMAP.md`
-**Related implementation phase:** P7 — backtestManager recomposition
-**Related prerequisite:** STAGE-4 — dataset resource model
+**Related implementation phase:** BT-1/BT-2 — new `corex-backtest` package; P7 requires re-scope to avoid duplicate extraction
+**Related prerequisite:** BT-0 baseline review before package implementation; STAGE-4 remains a gate for engine dataset integration/cutover
 **Baseline inspected:** `main` at `3c4f11c1de997561a22fa8763f86b3a23fec4ea4` (2026-11-20)
 **Approval authority:** Owen Ssemanda
-**Current state:** SOURCE SCAN COMPLETE — empirical validation/benchmarks pending; no implementation authorized
+**Current state:** SOURCE SCAN COMPLETE — Owen reports BT-0a ownership map and BT-0b failed-job triage complete; evidence review and BT-0c golden-run harness remain. Package implementation is scheduled but not yet authorized pending BT-0 review and Owen's implementation approval.
 
 ---
 
@@ -519,3 +519,30 @@ At the start of every continuation:
 | 2026-11-20 | `94c3fb3917fd12b5c396b01d166100dfb56ac71d` | Step 3 | Traced manager config/data preparation, simulation loop, BacktestDriver fill path, metrics accumulator, analytics report assembly and persistence. Recorded SIM-01–SIM-09 in §7C. | Source trace; no runtime reproduction or benchmarks; no application source/test changes. | Source scan closed in §7F; empirical validation remains. |
 | 2026-11-20 | `077e349bf2172e088fa0bf4efd7c2f64ada2557b` | Step 5 | Inspected existing `bench:engine` harness and available backtest fixtures. Confirmed current benchmark does not exercise the backtest pipeline and does not measure peak RSS. Recorded the measurement gap and required benchmark stages in §7E. | Source-only review; no benchmark or local tests executed. | Source scan closed in §7F; run controlled backtest benchmarks when local execution is available. |
 | 2026-11-20 | `756aac6fe1f429b28636ba7fa325b44685817dcb` | Step 4 | Traced report JSON/JSONB persistence, list/get/delete endpoints, BacktestSubTab consumers, analytics field units, chart transformations and report cleanup. Recorded REP-01–REP-17 in §7D. | Source trace; no runtime/API download tests or report-size measurements; no application source/test changes. | Source scan closed in §7F; runtime/API validation and financial methodology approval remain. |
+
+## 7G. Decision update — D7 reversed; new package workstream scheduled (2026-11-23)
+
+**Owen's decision:** Reverse the previous D7 deferral. Build `packages/corex-backtest` now rather than waiting for STAGE-4/P7. This is a scheduling decision for a separate domain package; it does not authorize immediate implementation. BT-0 must first be completed and reviewed, followed by Owen's explicit implementation approval.
+
+### Remaining baseline scope
+
+- **BT-0a — ownership map:** reported complete by Owen; report review/reconciliation pending.
+- **BT-0b — failed-jobs triage (read-only DB):** reported complete by Owen; report review/reconciliation pending.
+- **BT-0c — golden-run harness:** remaining lane. Establish deterministic reference runs using pinned strategy-engine code, explicit strategy/config/data inputs, and recorded outputs/environment/limitations. This is baseline/test work, not package implementation.
+- **BT-0 review:** reconcile all three lanes; distinguish confirmed defects from hypotheses/stale findings; freeze the reference baseline and present the implementation scope for Owen's approval.
+
+### Proposed package sequence (contracts remain subject to BT-0 review)
+
+1. **BT-1 — contracts and package skeleton:** define public API, injected ports, dependency direction and package-level tests.
+2. **BT-2 — domain implementation:** BarSource, SimulationRunner and analytics; deterministic parity tests against BT-0 golden runs.
+3. **BT-3 — engine adapters and cutover:** keep application infrastructure in the engine; integrate only after dataset/job contracts and STAGE-4 implications are reconciled, with parity and rollback evidence.
+4. **BT-4 — confirmed correctness/reliability fixes:** fix only findings reproduced against the agreed baseline; preserve financial semantics unless Owen separately approves a change.
+5. **BT-5 — frontend contract integration:** update UI only after the engine API/report/progress contracts are frozen.
+
+### Ownership boundary
+
+The new package owns backtest-domain contracts and simulation/analytics logic. It must not own Express routes/controllers, authentication, PostgreSQL repositories, upload endpoints, dataset registration/storage lifecycle, durable job queue or worker-process supervision, filesystem/report artifact lifecycle, or API orchestration. Those remain engine/application responsibilities and are supplied to the package through explicit ports/adapters.
+
+STAGE-4 is no longer a blocker to package-domain development. It remains relevant to engine-side dataset-resource integration/cutover. P7 must be re-scoped before it starts: the former `backtestManager` split is now handled by BT-1/BT-2; P7's remaining `StrategyLoader` facade work and existing dependencies are not automatically cancelled.
+
+**Implementation gate:** No BT-1/BT-2 implementation until BT-0 evidence has been reviewed, the package contract/scope has been presented, and Owen explicitly approves implementation. Failed or unverified findings are recorded as known issues with evidence rather than expanded into speculative fixes.
