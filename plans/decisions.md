@@ -4,11 +4,11 @@ This file is a running log of locked architectural decisions. New entries are ap
 
 ---
 
-**2026-08-20** — Broker contract went through multiple design revisions during this session (symbol normalization scope, account-state ownership, native paper broker, data-source flexibility). This Issue (#1) now reflects the final locked version. Going forward, any time a locked architectural decision here is later changed, append a new dated entry to this file explaining what changed and why — never silently overwrite past reasoning, append to the log.
+**2026-08-20** â€” Broker contract went through multiple design revisions during this session (symbol normalization scope, account-state ownership, native paper broker, data-source flexibility). This Issue (#1) now reflects the final locked version. Going forward, any time a locked architectural decision here is later changed, append a new dated entry to this file explaining what changed and why â€” never silently overwrite past reasoning, append to the log.
 
 Key locked decisions for broker layer:
 1. BrokerContract = unified async interface: submit/modify/cancel/query_status. Standardized payload (Symbol, Volume, OrderType, StopLoss, TakeProfit) in, standardized OrderResult out.
-2. Strategy code is mode-agnostic — same strategy runs against any BrokerContract-implementing driver.
+2. Strategy code is mode-agnostic â€” same strategy runs against any BrokerContract-implementing driver.
 3. Drivers: BacktestDriver, CoreXPaperDriver (native sandbox ledger), MetaApiDriver, RestDriver (MQL5 bridge). Each declares supports_trading + supports_streaming_data. Unsupported operations throw typed UnsupportedOperationError.
 4. Global symbol normalization: canonical schema (uppercase, no separators, e.g. EURUSD) with pip_scale/digits metadata. Every driver AND every data source normalizes at its boundary.
 5. CoreXPaperDriver owns local virtual ledger; shares fill-sim module with BacktestDriver (one implementation).
@@ -19,16 +19,16 @@ Key locked decisions for broker layer:
 10. Live mode: strict push via WebSocket. Polling wrapped internally to emit pushed events.
 11. REST/MQL5 driver: execution/order-routing only. Never carries market data.
 12. Market Data ownership: all ticks route through central Market Data manager. Drivers never serve pricing directly to strategy code.
-13. Session scoped to (mode, symbol, driver). Same symbol cannot run two drivers simultaneously — enforced at session creation by RuntimeBrokerFactory.
+13. Session scoped to (mode, symbol, driver). Same symbol cannot run two drivers simultaneously â€” enforced at session creation by RuntimeBrokerFactory.
 
 ---
 
-**2026-08-20** — MetaApiDriver async/sync fix: connector methods `getPositionSnapshot` and `getEquity` are async (REST/WebSocket), but were called synchronously in MetaApiDriver, causing them to always return null/0 (Promises, not resolved values). Fixed by adding `_cachedEquity`/`_cachedPositions`/`_cachedAccount` fields; `initialize()` calls new `refreshState()` to fetch initial broker state asynchronously; synchronous getters (`getEquity`, `getPosition`, `getPositionSnapshot`, `getAccount`) return cached values. Push events (`onFill`, `onBar`, `onTick`) update the cache. Live mode `setCash`/`setInitialCash`/`resetAccount` return `false` (broker owns ledger — spec #7). MetaApiConnector remains a skeleton stub — needs real credentials for end-to-end verification (spec #16).
+**2026-08-20** â€” MetaApiDriver async/sync fix: connector methods `getPositionSnapshot` and `getEquity` are async (REST/WebSocket), but were called synchronously in MetaApiDriver, causing them to always return null/0 (Promises, not resolved values). Fixed by adding `_cachedEquity`/`_cachedPositions`/`_cachedAccount` fields; `initialize()` calls new `refreshState()` to fetch initial broker state asynchronously; synchronous getters (`getEquity`, `getPosition`, `getPositionSnapshot`, `getAccount`) return cached values. Push events (`onFill`, `onBar`, `onTick`) update the cache. Live mode `setCash`/`setInitialCash`/`resetAccount` return `false` (broker owns ledger â€” spec #7). MetaApiConnector remains a skeleton stub â€” needs real credentials for end-to-end verification (spec #16).
 
 ---
 
-**2026-08-20** — Package 2 (corex-market-data) design decisions:
-1. Provider lifecycle: TwelveData singleton treated as shared resource behind idempotent `connect()`; factory does not own raw connections. Must test backtest→paper→live mode-switch race conditions.
+**2026-08-20** â€” Package 2 (corex-market-data) design decisions:
+1. Provider lifecycle: TwelveData singleton treated as shared resource behind idempotent `connect()`; factory does not own raw connections. Must test backtestâ†’paperâ†’live mode-switch race conditions.
 2. Pagination: `DataProviderFactory.fetchHistorical` wraps `DataPaginationLayer.fetchall` by default; optional `max_candles` bypasses chunking for small warmup fetches.
 3. Symbol normalization: at each provider boundary (TwelveDataProvider, YahooFinanceProvider, FileDataProvider), not centrally. No sink-side normalization in MarketFeed.
 4. FileDataProvider config: structured object `{ type:"file", path:string, speed:number=1.0, loop:boolean=false, startOffset:datetime|null=null }`.
@@ -36,7 +36,7 @@ Key locked decisions for broker layer:
 
 ---
 
-**2026-08-20** — Package 2 (corex-market-data) completed implementation:
+**2026-08-20** â€” Package 2 (corex-market-data) completed implementation:
 - Extracted DataProviderContract, TwelveDataProvider, backtestDataResolver, MarketFeed, twelvedata singleton to `packages/corex-market-data/`
 - TwelveDataProvider normalizes symbols at boundary via SymbolNormalizer (wraps singleton's _normalize + fetchLatestPrice)
 - DataProviderFactory: idempotent connect, single active provider, transparent DataPaginationLayer chunking with max_candles bypass
@@ -49,103 +49,103 @@ Key locked decisions for broker layer:
 
 ---
 
-**2026-08-21** — YahooFinanceProvider rewritten to use `yahoo-finance2` v4 npm package (per user instruction).
+**2026-08-21** â€” YahooFinanceProvider rewritten to use `yahoo-finance2` v4 npm package (per user instruction).
 - Replaced raw fetch to query1.finance.yahoo.com with `yahoo-finance2` YahooFinance instance
 - Provider uses lazy-loaded YahooFinance (require on first connect) with injected `yahooImpl` for testing
-- API key auto-read from process.env.YAHOO_API_KEY (optional — yahoo-finance2 uses crumb auth by default)
-- Error mapping: 404→SYMBOL_NOT_FOUND, 429/rate-limit→RATE_LIMITED, others→PROVIDER_UNAVAILABLE
+- API key auto-read from process.env.YAHOO_API_KEY (optional â€” yahoo-finance2 uses crumb auth by default)
+- Error mapping: 404â†’SYMBOL_NOT_FOUND, 429/rate-limitâ†’RATE_LIMITED, othersâ†’PROVIDER_UNAVAILABLE
 - 21 tests pass using injected mock (no real API calls)
 - Sample integration tests added: FileDataProvider loads real files from data/sample/
 - 70 total Package 2 tests pass across 6 suites
 
 ---
 
-**2026-08-21** — Auth simplification (Package 3 pre-work):
+**2026-08-21** â€” Auth simplification (Package 3 pre-work):
 
-1. JWT TTL extended from 12 hours to 30 days (`authService.js:5`) — enables "stay logged in" like Gemini without refresh token complexity. Revocation still works via `corex_sessions` table check on every request.
+1. JWT TTL extended from 12 hours to 30 days (`authService.js:5`) â€” enables "stay logged in" like Gemini without refresh token complexity. Revocation still works via `corex_sessions` table check on every request.
 2. API key system removed from auth flow:
    - Removed `/apikeys` routes (GET/POST/DELETE) from `authController.js`
    - Removed API key issuance from signin (`rememberMe`/`issueAuthKey` block)
    - Removed API key auth path from `authGuard.js` (simplified to JWT-only)
    - Removed unused `readApiKey` function and API key cache
-   - Kept `pgStore` API key methods and `user_api_keys` table (no destructive DB changes — protected boundary)
+   - Kept `pgStore` API key methods and `user_api_keys` table (no destructive DB changes â€” protected boundary)
 3. Rationale: API keys are unnecessary complexity for a solo-dev system where the web UI is the primary interface. Single JWT path is cleaner, easier to maintain, and sufficient for the use case.
 
 ---
 
-**2026-08-21** — Server package split analysis (Package 3 scope decision):
+**2026-08-21** â€” Server package split analysis (Package 3 scope decision):
 
-Existing packages (corex-broker-contract, corex-market-data) are **pure-logic** — no Express.js, no PostgreSQL. They extract trading/broker logic and data provider logic respectively, with re-export shims in `engine/`.
+Existing packages (corex-broker-contract, corex-market-data) are **pure-logic** â€” no Express.js, no PostgreSQL. They extract trading/broker logic and data provider logic respectively, with re-export shims in `engine/`.
 
-Auth is fundamentally different: `authService.js` (97 lines) and `secretsVault.js` (413 lines) are pure crypto (Node.js `crypto` only) — extractable. But `pgStore.js` (767 lines), `authGuard.js` (233 lines), `authController.js` (344 lines), `roleGuard.js`, and `connectorSettingsService.js` (275 lines) are all tightly coupled to Express middleware + PostgreSQL queries. The `authGuard` middleware protects ALL engine routes in `server.js` — it cannot function without the server context.
+Auth is fundamentally different: `authService.js` (97 lines) and `secretsVault.js` (413 lines) are pure crypto (Node.js `crypto` only) â€” extractable. But `pgStore.js` (767 lines), `authGuard.js` (233 lines), `authController.js` (344 lines), `roleGuard.js`, and `connectorSettingsService.js` (275 lines) are all tightly coupled to Express middleware + PostgreSQL queries. The `authGuard` middleware protects ALL engine routes in `server.js` â€” it cannot function without the server context.
 
-**Decision**: Follow the existing Package 1/2 pattern — extract only the two pure-logic files (authService, secretsVault) to `packages/corex-auth/`. Keep DB/Express-coupled code (pgStore auth methods, authGuard, authController) in `engine/` with re-export shims. Do NOT create a separate server package — this would be a fundamentally different scope from the existing pure-logic packages and add unnecessary complexity. See `plans/Audit/server-split-analysis.md` for full analysis.
+**Decision**: Follow the existing Package 1/2 pattern â€” extract only the two pure-logic files (authService, secretsVault) to `packages/corex-auth/`. Keep DB/Express-coupled code (pgStore auth methods, authGuard, authController) in `engine/` with re-export shims. Do NOT create a separate server package â€” this would be a fundamentally different scope from the existing pure-logic packages and add unnecessary complexity. See `plans/Audit/server-split-analysis.md` for full analysis.
 
 ---
 
-**2026-08-22** — Target architecture defined (modular monolith roadmap):
+**2026-08-22** â€” Target architecture defined (modular monolith roadmap):
 
 Before further extraction, defined target architecture to avoid "organized piles without a plan." Core decisions:
 
-1. **Engine becomes thin composition root** — `engine/` owns only HTTP/WebSocket I/O, wiring, lifecycle. No business logic.
-2. **7 target packages** — strategy-engine, execution, portfolio, jobs, risk, notifications, settings (see `plans/target-architecture.md` for full map).
-3. **Event-driven communication** — Packages communicate via `@events/bus`, not direct imports. Loose coupling = add features without touching existing code.
-4. **Leaf-first extraction order** — Extract packages with no dependents first, work up the dependency tree.
-5. **Professional rebuild, not fixing** — We are NOT fixing old monolith tests. We are rebuilding toward a clear target. Old tests testing package internals will be deleted, replaced by integration tests.
+1. **Engine becomes thin composition root** â€” `engine/` owns only HTTP/WebSocket I/O, wiring, lifecycle. No business logic.
+2. **7 target packages** â€” strategy-engine, execution, portfolio, jobs, risk, notifications, settings (see `plans/target-architecture.md` for full map).
+3. **Event-driven communication** â€” Packages communicate via `@events/bus`, not direct imports. Loose coupling = add features without touching existing code.
+4. **Leaf-first extraction order** â€” Extract packages with no dependents first, work up the dependency tree.
+5. **Professional rebuild, not fixing** â€” We are NOT fixing old monolith tests. We are rebuilding toward a clear target. Old tests testing package internals will be deleted, replaced by integration tests.
 
 Open decisions flagged for Owen: event bus granularity, DB access pattern, frontend coupling, migration approach, testing strategy.
 
-**Next step**: Extract `corex-strategy-engine` — the core trading logic package.
+**Next step**: Extract `corex-strategy-engine` â€” the core trading logic package.
 
 ---
 
-**2026-08-23** — Socket_X account model + operational fixes added to `corex-broker-contract`:
+**2026-08-23** â€” Socket_X account model + operational fixes added to `corex-broker-contract`:
 
-1. **Account model** — New `Account` model with structured IDs (`cx_pap_<ulid>` / `cx_liv_<ulid>`). Mode is resolved server-side from the account record — client cannot assert mode anywhere in the protocol.
-2. **Connection roles** — Controller (exclusive, can trade) and observer (read-only, receives SNAPSHOT, max 5 per account). Observers cannot submit trading commands.
-3. **HELLO revision** — Client sends `{ accountId, role }` instead of `mode`. Server resolves account type from accountId via DB lookup.
-4. **ACK event** — Emitted immediately when command passes validation and is handed to RiskGateway, before broker responds. Gives client instant receipt distinct from FILL.
-5. **FILL.originalMessageId** — Added so clients can deterministically map async fills back to triggering commands.
-6. **BROKER_UNAUTHORIZED** — Broker auth failures emit REJECT but keep the connection open and retain controller claim. `ACCOUNT_DEGRADED` reserved for future use.
-7. **Idempotency fix** — Moved from per-connection to per-runtimeId (persists across reconnects).
-8. **Risk gateway fix** — Changed from `broker.submit()` to `broker.handle()` to enforce risk floor + margin guardrails.
-9. **Migration** — New `trading_accounts` table in `db/migrations/025_trading_accounts.sql`.
-10. **Tests** — 210 tests pass across 12 suites.
+1. **Account model** â€” New `Account` model with structured IDs (`cx_pap_<ulid>` / `cx_liv_<ulid>`). Mode is resolved server-side from the account record â€” client cannot assert mode anywhere in the protocol.
+2. **Connection roles** â€” Controller (exclusive, can trade) and observer (read-only, receives SNAPSHOT, max 5 per account). Observers cannot submit trading commands.
+3. **HELLO revision** â€” Client sends `{ accountId, role }` instead of `mode`. Server resolves account type from accountId via DB lookup.
+4. **ACK event** â€” Emitted immediately when command passes validation and is handed to RiskGateway, before broker responds. Gives client instant receipt distinct from FILL.
+5. **FILL.originalMessageId** â€” Added so clients can deterministically map async fills back to triggering commands.
+6. **BROKER_UNAUTHORIZED** â€” Broker auth failures emit REJECT but keep the connection open and retain controller claim. `ACCOUNT_DEGRADED` reserved for future use.
+7. **Idempotency fix** â€” Moved from per-connection to per-runtimeId (persists across reconnects).
+8. **Risk gateway fix** â€” Changed from `broker.submit()` to `broker.handle()` to enforce risk floor + margin guardrails.
+9. **Migration** â€” New `trading_accounts` table in `db/migrations/025_trading_accounts.sql`.
+10. **Tests** â€” 210 tests pass across 12 suites.
 
 ---
 
-**2026-08-23** — Socket_X protocol layer added to `corex-broker-contract`:
+**2026-08-23** â€” Socket_X protocol layer added to `corex-broker-contract`:
 
-1. **New architecture** — Socket_X is a protocol boundary that sits **above** BrokerContract, not a replacement for it. The stack is: External clients → Socket_X → Risk Gateway → BrokerContract → Adapter (Paper or Live). See `plans/socket_x arch.txt` for the topology diagram.
+1. **New architecture** â€” Socket_X is a protocol boundary that sits **above** BrokerContract, not a replacement for it. The stack is: External clients â†’ Socket_X â†’ Risk Gateway â†’ BrokerContract â†’ Adapter (Paper or Live). See `plans/socket_x arch.txt` for the topology diagram.
 2. **5 non-negotiable policy rules** enforced at the Socket_X layer:
    - Idempotency: duplicate `messageId` rejected with `DUPLICATE_COMMAND`
    - Exclusivity: one connection per `runtimeId`; second gets `SESSION_CONFLICT`
    - Rate limiting: token-bucket per connection; over-limit gets `RATE_LIMITED`
    - Mode-agnostic: Paper and Live share identical protocol behavior
    - Risk gate enforcement: every command passes through RiskGateway before BrokerContract
-3. **Components** — `MessageEnvelope.js` (schema + validation + factory methods), `SocketXConnection.js` (per-connection state), `SocketXServer.js` (connection lifecycle + handshake), `RiskGateway.js` (policy enforcement).
-4. **RestDriver deprecated** — the REST/MQL5 driver is no longer useful given the new Socket_X architecture. It remains in the codebase but is no longer referenced as a primary path.
-5. **Tests** — 181 tests pass (11 suites). Socket_X verified against mock brokers; real WebSocket transport integration not yet end-to-end verified.
+3. **Components** â€” `MessageEnvelope.js` (schema + validation + factory methods), `SocketXConnection.js` (per-connection state), `SocketXServer.js` (connection lifecycle + handshake), `RiskGateway.js` (policy enforcement).
+4. **RestDriver deprecated** â€” the REST/MQL5 driver is no longer useful given the new Socket_X architecture. It remains in the codebase but is no longer referenced as a primary path.
+5. **Tests** â€” 181 tests pass (11 suites). Socket_X verified against mock brokers; real WebSocket transport integration not yet end-to-end verified.
 
 ---
 
-**2026-08-23** — RestDriver and RestConnector removed from `corex-broker-contract`:
+**2026-08-23** â€” RestDriver and RestConnector removed from `corex-broker-contract`:
 
 The REST/MQL5 driver and its connector were deprecated when Socket_X was introduced. Removed:
-- `src/drivers/RestDriver.js` — deleted
-- `src/connectors/RestConnector.js` — deleted
-- `src/RuntimeBrokerFactory.js` — removed REST/MT5/MQL5 from DRIVER_REGISTRY, removed REST switch case, simplified `_resolveDriverType` to always return METAAPI for LIVE mode
-- `index.js` — removed exports
-- `test/connectors.test.js` — removed RestConnector test block
-- `test/factory.test.js` — removed RestDriver test
-- `engine/services/connectorSettingsService.js` — removed `oanda` connector reference
-- `AGENTS.md` — removed REST references
+- `src/drivers/RestDriver.js` â€” deleted
+- `src/connectors/RestConnector.js` â€” deleted
+- `src/RuntimeBrokerFactory.js` â€” removed REST/MT5/MQL5 from DRIVER_REGISTRY, removed REST switch case, simplified `_resolveDriverType` to always return METAAPI for LIVE mode
+- `index.js` â€” removed exports
+- `test/connectors.test.js` â€” removed RestConnector test block
+- `test/factory.test.js` â€” removed RestDriver test
+- `engine/services/connectorSettingsService.js` â€” removed `oanda` connector reference
+- `AGENTS.md` â€” removed REST references
 
 The package now has exactly 3 drivers: Backtest, Paper (CoreX), Live (MetaApi). Socket_X supersedes the old REST path.
 
 ---
 
-**2026-08-23** — Socket_X envelope schema finalized:
+**2026-08-23** â€” Socket_X envelope schema finalized:
 
 - `schemaVersion`: "1.0" (only supported version)
 - Required fields: `messageId`, `runtimeId`, `mode` (paper|live), `type` (command|event), `payload` (object), `timestamp` (ISO8601)
@@ -155,54 +155,54 @@ The package now has exactly 3 drivers: Backtest, Paper (CoreX), Live (MetaApi). 
 
 ---
 
-**2026-08-24** — Auth verifier injection pattern for Socket_X:
+**2026-08-24** â€” Auth verifier injection pattern for Socket_X:
 
-The previous implementation had a standalone `tokenVerifier.js` in `corex-broker-contract` with `resolveUserIdFromToken()` — a duplicate JWT verification path that could silently drift from `corex-auth`. This is the same risk class as the RiskGateway duplication fixed earlier.
+The previous implementation had a standalone `tokenVerifier.js` in `corex-broker-contract` with `resolveUserIdFromToken()` â€” a duplicate JWT verification path that could silently drift from `corex-auth`. This is the same risk class as the RiskGateway duplication fixed earlier.
 
 **Decision:** Socket_X now uses dependency injection for auth verification, mirroring the RiskGateway pattern:
-- `SocketXServer.setAuthVerifier(fn)` — injects the verifier at startup
+- `SocketXServer.setAuthVerifier(fn)` â€” injects the verifier at startup
 - Engine wires the real `corex-auth` verifier in `_wireSocketX()`
 - Safety check: test environment logs warning + uses fallback; production throws immediately
-- Old `tokenVerifier.js` removed — no standalone JWT logic remains in `corex-broker-contract`
+- Old `tokenVerifier.js` removed â€” no standalone JWT logic remains in `corex-broker-contract`
 - Fallback verifier delegates to `corex-auth` (not a duplicate implementation)
 
-**Reason:** Eliminates the duplicate auth path risk. The package now contains zero standalone JWT verification logic — only the injected verifier is used.
+**Reason:** Eliminates the duplicate auth path risk. The package now contains zero standalone JWT verification logic â€” only the injected verifier is used.
 
 ---
 
-**2026-08-28** — Account model split-brain resolution: consolidate on `trading_accounts`, drop duplicate `accounts` table, prune dead connector schemas.
+**2026-08-28** â€” Account model split-brain resolution: consolidate on `trading_accounts`, drop duplicate `accounts` table, prune dead connector schemas.
 
 **Decision:** `trading_accounts` (corex-gateway, migration 025) is the single source of truth for account identity. The duplicate `accounts` table (corex-accounts, migration 026) is dropped.
 
-**Reason:** Two parallel account tables existed with identical purpose. `trading_accounts` has a FK to `users`, a richer schema (label, broker_binding, status, timestamps), and is what `POST /accounts` actually writes to. The `accounts` table was empty in practice — nothing wrote to it except the unused `AccountsService.createAccount()` path. The `connections` table's FK pointed at the wrong (empty) table, causing `PUT /api/settings/connectors/:type` to 500 when saving connector settings for a real account.
+**Reason:** Two parallel account tables existed with identical purpose. `trading_accounts` has a FK to `users`, a richer schema (label, broker_binding, status, timestamps), and is what `POST /accounts` actually writes to. The `accounts` table was empty in practice â€” nothing wrote to it except the unused `AccountsService.createAccount()` path. The `connections` table's FK pointed at the wrong (empty) table, causing `PUT /api/settings/connectors/:type` to 500 when saving connector settings for a real account.
 
 **Changes:**
 1. New migration `027_drop_accounts_repoint_connections.sql`: drops `accounts`, repoints `connections.account_id` FK to `trading_accounts.account_id`.
-2. Deleted `packages/corex-accounts/src/accountsService.js` and its test file — the only consumer of the dropped table.
+2. Deleted `packages/corex-accounts/src/accountsService.js` and its test file â€” the only consumer of the dropped table.
 3. `engine/services/connectorSettingsService.js` shim updated to resolve accounts via `TradingAccountRepository` (corex-gateway) instead of the deleted `AccountsService`.
-4. `CONNECTOR_SCHEMAS` in `connectionsService.js` pruned to `twelvedata` and `metaapi` only — `mt5_bridge` and `oanda` removed entirely (not commented out).
+4. `CONNECTOR_SCHEMAS` in `connectionsService.js` pruned to `twelvedata` and `metaapi` only â€” `mt5_bridge` and `oanda` removed entirely (not commented out).
 
-**Permanent prohibition:** `mt5_bridge` and `oanda` must NOT be re-added as live-selectable connector types under any circumstance. This is the second time they have been removed (first: 2026-08-23, re-added silently). `mt5_bridge` has zero real instantiation in the codebase — confirmed dead as a live execution path. This is a locked boundary, not a scope decision to revisit.
+**Permanent prohibition:** `mt5_bridge` and `oanda` must NOT be re-added as live-selectable connector types under any circumstance. This is the second time they have been removed (first: 2026-08-23, re-added silently). `mt5_bridge` has zero real instantiation in the codebase â€” confirmed dead as a live execution path. This is a locked boundary, not a scope decision to revisit.
 
-**Zero-diff verification:** `TradingAccountRepository.js`, `RuntimeRegistry.js`, `SignalProcessingEngine.js`, `SignalGenerationEngine.js`, and `SocketXServer.js` all have zero diff — the correct reference was left untouched.
+**Zero-diff verification:** `TradingAccountRepository.js`, `RuntimeRegistry.js`, `SignalProcessingEngine.js`, `SignalGenerationEngine.js`, and `SocketXServer.js` all have zero diff â€” the correct reference was left untouched.
 
 ---
 
-**2026-08-30** — corex-auth extraction: task opened, discovery that it was already executed.
+**2026-08-30** â€” corex-auth extraction: task opened, discovery that it was already executed.
 
-This task (extract `authService.js` + `secretsVault.js` to `packages/corex-auth/`) was assumed never executed per the 2026-08-21 decision. On investigation, it **was** completed in commit `cc86c34` (2026-08-22) "Package 3: Extract corex-auth package". No code changes were required — only verification and documentation.
+This task (extract `authService.js` + `secretsVault.js` to `packages/corex-auth/`) was assumed never executed per the 2026-08-21 decision. On investigation, it **was** completed in commit `cc86c34` (2026-08-22) "Package 3: Extract corex-auth package". No code changes were required â€” only verification and documentation.
 
 **Discovery:**
 - `packages/corex-auth/` exists with both source files, index.js, package.json, AGENTS.md, and 23 unit tests.
 - Re-export shims at `engine/services/authService.js` and `engine/services/secretsVault.js` already point to the package.
 - `@auth` alias already present in root `package.json`.
-- Both source files are pure `node:crypto` — no imports from `engine/`, `pgStore`, or any Express/DB-coupled module. No cross-package reference needed.
-- Restricted files (`pgStore.js`, `authGuard.js`, `authController.js`, `roleGuard.js`) have zero diff vs the extraction commit — confirmed untouched.
+- Both source files are pure `node:crypto` â€” no imports from `engine/`, `pgStore`, or any Express/DB-coupled module. No cross-package reference needed.
+- Restricted files (`pgStore.js`, `authGuard.js`, `authController.js`, `roleGuard.js`) have zero diff vs the extraction commit â€” confirmed untouched.
 
 **Verification performed:**
 - Auth unit tests: 23/23 pass.
 - Shim round-trips (sign/verify token, hash/verify password, encrypt/decrypt) through `@core/services/` paths: all PASS.
-- Full suite: 414 pass, 11 fail — only the 2 previously-confirmed pre-existing failures remain.
+- Full suite: 414 pass, 11 fail â€” only the 2 previously-confirmed pre-existing failures remain.
 - All callers (`server.js`, `authController.js`, `authGuard.js`, `systemController.js`, `migrate.js`, `corex-accounts/connectionsService.js`, `configService.js`) work unchanged through the shim.
 
 **Conclusion:** Extraction is complete and verified. No code changes made. See `plans/corex-auth-extraction-notes.md` for full discovery log.
@@ -213,15 +213,15 @@ This task (extract `authService.js` + `secretsVault.js` to `packages/corex-auth/
 
 Decision: `getDefaultForUser(userId, accountType)` now requires `accountType` (no default). Throws if omitted or not `paper`/`live`. `setDefault` now scopes its `is_default = false` clear to `WHERE user_id = $1 AND type = <target's type>` so setting a live default cannot clobber a paper default. `InMemoryAccountRepository` mirrors both changes. The GET `/api/settings/connectors/:type` convenience route now reads `req.query.mode` and returns 400 `mode query param required (paper|live)` if missing/invalid, otherwise passes mode through as `accountType`.
 
-Reason: Migration 029 corrected the data model so every user has at most one default per type (one paper, one live). The application code still assumed one default total per user — `getDefaultForUser(userId)` with no type was ambiguous when two valid defaults exist. The fix closes the remaining application-code half of the split-brain: reads and writes of `is_default` are now correctly scoped to `(user, type)`.
+Reason: Migration 029 corrected the data model so every user has at most one default per type (one paper, one live). The application code still assumed one default total per user â€” `getDefaultForUser(userId)` with no type was ambiguous when two valid defaults exist. The fix closes the remaining application-code half of the split-brain: reads and writes of `is_default` are now correctly scoped to `(user, type)`.
 
-Consequence: Any caller that previously invoked `getDefaultForUser(userId)` without a type now throws — all such callers (the two convenience routes) were updated. Account-scoped routes (`/api/accounts/:accountId/connectors/:type`) were already accountId-based and required no change. Backfill from migration 029 already populated correct per-type defaults, so no new migration is needed.
+Consequence: Any caller that previously invoked `getDefaultForUser(userId)` without a type now throws â€” all such callers (the two convenience routes) were updated. Account-scoped routes (`/api/accounts/:accountId/connectors/:type`) were already accountId-based and required no change. Backfill from migration 029 already populated correct per-type defaults, so no new migration is needed.
 
 ---
 
-**[2026-08-30 18:03] Phase 1 — Remove dead broker/oanda.js and broken broker/connectors/RestConnector.js**
+**[2026-08-30 18:03] Phase 1 â€” Remove dead broker/oanda.js and broken broker/connectors/RestConnector.js**
 
-Decision: Delete `broker/oanda.js` (53 lines, full OANDA WebSocket broker) and `broker/connectors/RestConnector.js` (broken shim requiring a non-existent path in `corex-broker-contract`). Both were already unplugged from `CONNECTOR_SCHEMAS` but never deleted. The locked prohibition against `mt5_bridge`/`oanda` as live-selectable connector types (decisions.md 2026-08-23) remains in force — this removal enforces it at the file level.
+Decision: Delete `broker/oanda.js` (53 lines, full OANDA WebSocket broker) and `broker/connectors/RestConnector.js` (broken shim requiring a non-existent path in `corex-broker-contract`). Both were already unplugged from `CONNECTOR_SCHEMAS` but never deleted. The locked prohibition against `mt5_bridge`/`oanda` as live-selectable connector types (decisions.md 2026-08-23) remains in force â€” this removal enforces it at the file level.
 
 Reason: Previous sessions removed these from the connector schema but left the files on disk, creating drift between the documented prohibition and the actual codebase. Grep confirmed zero code imports either file before deletion.
 
@@ -229,19 +229,19 @@ Consequence: `@oanda/v20` npm dependency in package.json is now unused but left 
 
 ---
 
-**[2026-08-30 18:12] Phase 2 — Invert MarketFeed.js reverse dependency on engine/**
+**[2026-08-30 18:12] Phase 2 â€” Invert MarketFeed.js reverse dependency on engine/**
 
 Decision: `packages/corex-market-data/src/MarketFeed.js` no longer requires `@core/core/runtime/RuntimeRegistry` or `@core/core/engine` directly. Dependencies are injected at startup via `marketFeed.setDeps({ registry, onStrategyCrash })`, following the same pattern as `RiskGateway.setRiskEngine()` and `SocketXServer.setAuthVerifier()`. `engine/core/engine.js` wires `RuntimeRegistry` and `handleStrategyCrash` in `_wireSocketX()`. Test environment falls back to no-op stubs with a warning; production throws if not injected.
 
-Reason: Every other package depends on engine/ one-directionally. MarketFeed was the exception — it reached back into engine/ for `RuntimeRegistry.forSymbol()` / `.get()` and `engine.handleStrategyCrash()`. The inversion makes the dependency explicit and matches the established injection pattern.
+Reason: Every other package depends on engine/ one-directionally. MarketFeed was the exception â€” it reached back into engine/ for `RuntimeRegistry.forSymbol()` / `.get()` and `engine.handleStrategyCrash()`. The inversion makes the dependency explicit and matches the established injection pattern.
 
-Consequence: `corex-market-data` now follows the same dependency rule as all other packages. The singleton export (`module.exports = new MarketFeed()`) is unchanged — `setDeps` is an instance method, not static.
+Consequence: `corex-market-data` now follows the same dependency rule as all other packages. The singleton export (`module.exports = new MarketFeed()`) is unchanged â€” `setDeps` is an instance method, not static.
 
 ---
 
-**[2026-08-30 18:21] Phase 3 — Resolve brokerPersistenceService duplication**
+**[2026-08-30 18:21] Phase 3 â€” Resolve brokerPersistenceService duplication**
 
-Decision: `packages/corex-accounts/src/brokerPersistenceService.js` now holds the real, live implementation (using `pgStore.upsertBrokerSettingsForUser()` — the centralized data access path). The orphaned class-based stub with raw `pg` Pool SQL is gone. `engine/services/brokerPersistence.js` is now a re-export shim pointing at the package, preserving the `{ persistBrokerSettings }` function signature. `engine/routes/systemController.js` has zero diff.
+Decision: `packages/corex-accounts/src/brokerPersistenceService.js` now holds the real, live implementation (using `pgStore.upsertBrokerSettingsForUser()` â€” the centralized data access path). The orphaned class-based stub with raw `pg` Pool SQL is gone. `engine/services/brokerPersistence.js` is now a re-export shim pointing at the package, preserving the `{ persistBrokerSettings }` function signature. `engine/routes/systemController.js` has zero diff.
 
 Reason: Two parallel implementations existed: the live engine version (function-based, used `pgStore`) and an orphaned package stub (class-based, raw `pg` Pool, zero consumers). The package stub was stale and duplicated logic. Following the established shim pattern (authService, secretsVault, etc.), the package now owns the logic and engine re-exports it.
 
@@ -249,30 +249,30 @@ Consequence: `corex-accounts/index.js` exports `persistBrokerSettings` (function
 
 ---
 
-**[2026-08-30 18:30] Phase 4 — Socket_X commands bypass SignalGenerationEngine/SignalExecutionEngine (intentional, locked)**
+**[2026-08-30 18:30] Phase 4 â€” Socket_X commands bypass SignalGenerationEngine/SignalExecutionEngine (intentional, locked)**
 
 Decision: Socket_X BUY/SELL commands represent externally-submitted orders (from clients), not strategy-generated signals. They are NOT a bug or missing integration. The two order paths are intentionally separate:
 
-1. **Strategy pipeline** (`runPipeline.js`): For strategy-generated signals. Flows through all three stages — `SignalGenerationEngine` (strategy's `next()`) → `SignalProcessingEngine` (risk/filter) → `SignalExecutionEngine` (queue) → `broker.execute()`.
-2. **Socket_X direct path** (`RiskGateway.submit()`): For client-submitted commands. Routes through `broker.handle()` → `driver.submit()`. Only `SignalProcessingEngine` (via `SocketXRiskEngine`) is invoked — for portfolio risk validation (drawdown, position checks) only. Generation and execution engines are correctly bypassed.
+1. **Strategy pipeline** (`runPipeline.js`): For strategy-generated signals. Flows through all three stages â€” `SignalGenerationEngine` (strategy's `next()`) â†’ `SignalProcessingEngine` (risk/filter) â†’ `SignalExecutionEngine` (queue) â†’ `broker.execute()`.
+2. **Socket_X direct path** (`RiskGateway.submit()`): For client-submitted commands. Routes through `broker.handle()` â†’ `driver.submit()`. Only `SignalProcessingEngine` (via `SocketXRiskEngine`) is invoked â€” for portfolio risk validation (drawdown, position checks) only. Generation and execution engines are correctly bypassed.
 
-Reason: Reading the code confirms this is intentional. `runPipeline.js:93-98` uses `broker.execute()` (the strategy pipeline's execution interface). `RiskGateway.js:128` uses `broker.handle()` (the direct command interface). These are distinct `BrokerContract` entry points for distinct order sources. Socket_X clients are external actors issuing orders directly — they do not need signal generation (the signal comes from the client) nor queue-based execution (the order is already validated and ready). They DO need portfolio-level risk enforcement, which `SignalProcessingEngine` provides via `SocketXRiskEngine`.
+Reason: Reading the code confirms this is intentional. `runPipeline.js:93-98` uses `broker.execute()` (the strategy pipeline's execution interface). `RiskGateway.js:128` uses `broker.handle()` (the direct command interface). These are distinct `BrokerContract` entry points for distinct order sources. Socket_X clients are external actors issuing orders directly â€” they do not need signal generation (the signal comes from the client) nor queue-based execution (the order is already validated and ready). They DO need portfolio-level risk enforcement, which `SignalProcessingEngine` provides via `SocketXRiskEngine`.
 
 Consequence: Do not "fix" Socket_X orders flowing through `SignalGenerationEngine`/`SignalExecutionEngine`. Doing so would conflate two fundamentally different order sources and break the clean separation between internal strategy signals and external client commands.
 
 ---
 
-**[2026-08-31 00:30] Fix: universal risk validator gate in BaseBroker.handle() — closes the live-strategy risk gap**
+**[2026-08-31 00:30] Fix: universal risk validator gate in BaseBroker.handle() â€” closes the live-strategy risk gap**
 
-Decision: `BaseBroker.handle()` now invokes an injected, synchronous risk validator after `_passesRiskFloor()`. The validator is wired once at startup via `BaseBroker.setRiskValidator(fn)` in `engine/core/engine.js:_wireSocketX()`, using `SignalProcessingEngine.validateForCommand({ broker, intent, runtimeId })` — the exact same drawdown/position-conflict check Socket_X commands already get via `SocketXRiskEngine`. Live/paper strategy signals now pass through the identical risk gate.
+Decision: `BaseBroker.handle()` now invokes an injected, synchronous risk validator after `_passesRiskFloor()`. The validator is wired once at startup via `BaseBroker.setRiskValidator(fn)` in `engine/core/engine.js:_wireSocketX()`, using `SignalProcessingEngine.validateForCommand({ broker, intent, runtimeId })` â€” the exact same drawdown/position-conflict check Socket_X commands already get via `SocketXRiskEngine`. Live/paper strategy signals now pass through the identical risk gate.
 
-**Fail-closed by default:** If no validator is injected, `handle()` rejects every order with `RISK_VALIDATOR_NOT_CONFIGURED`. This is the opposite of `_passesRiskFloor()`'s default-pass behavior and is intentional — an unconfigured risk gate must block trading, not allow it.
+**Fail-closed by default:** If no validator is injected, `handle()` rejects every order with `RISK_VALIDATOR_NOT_CONFIGURED`. This is the opposite of `_passesRiskFloor()`'s default-pass behavior and is intentional â€” an unconfigured risk gate must block trading, not allow it.
 
-**Performance:** The validator is a synchronous function call reading only cached `broker.getEquity()` / `broker.getPositionSnapshot()` values (no Promises, no DB, no event bus). Measured at ~0.045ms per `handle()` call — negligible against the existing path.
+**Performance:** The validator is a synchronous function call reading only cached `broker.getEquity()` / `broker.getPositionSnapshot()` values (no Promises, no DB, no event bus). Measured at ~0.045ms per `handle()` call â€” negligible against the existing path.
 
-**Scope:** `_passesRiskFloor()` is untouched and still runs as a first-pass backstop. `RuntimeRegistry.js`, `SocketXServer.js`, `RiskGateway.js`, `SocketXRiskEngine.js` all have zero diff — the Socket_X path is unchanged. Backtest mode gains a redundant second check (defense-in-depth, acceptable).
+**Scope:** `_passesRiskFloor()` is untouched and still runs as a first-pass backstop. `RuntimeRegistry.js`, `SocketXServer.js`, `RiskGateway.js`, `SocketXRiskEngine.js` all have zero diff â€” the Socket_X path is unchanged. Backtest mode gains a redundant second check (defense-in-depth, acceptable).
 
-Reason: The risk-gap analysis (2026-08-30) confirmed live/paper strategy signals flowed `MarketFeed → broker.handle()` with only the weak `_passesRiskFloor()` check (which defaults to no-check when `riskFloor=0`), while Socket_X commands got the full `SignalProcessingEngine` drawdown + position-conflict gate. This closed the gap at the single convergence point (`BaseBroker.handle()`) so all order paths — current and future — inherit identical protection automatically.
+Reason: The risk-gap analysis (2026-08-30) confirmed live/paper strategy signals flowed `MarketFeed â†’ broker.handle()` with only the weak `_passesRiskFloor()` check (which defaults to no-check when `riskFloor=0`), while Socket_X commands got the full `SignalProcessingEngine` drawdown + position-conflict gate. This closed the gap at the single convergence point (`BaseBroker.handle()`) so all order paths â€” current and future â€” inherit identical protection automatically.
 
 Consequence: Any test or code path that constructs a broker without engine.js wiring must set a validator via `BaseBroker.setRiskValidator(fn)` or `handle()` will fail closed. Package-level tests (BaseBroker.test.js, socketx.test.js) set a permissive validator in `beforeEach`.
 
@@ -282,17 +282,17 @@ Consequence: Any test or code path that constructs a broker without engine.js wi
 
 Decision: Fixed four pre-existing shim/alias issues that prevented `npm start` from completing. None were caught by the test suite because jest's `moduleNameMapper` resolves aliases differently from `module-alias` at runtime.
 
-1. **`engine/core/runtime/RuntimeBrokerFactory.js`** — relative path was `../../packages/...` (resolves to `engine/packages/...`); correct depth from `engine/core/runtime/` is `../../../packages/...`. Required depth is 3 levels up to reach project root.
+1. **`engine/core/runtime/RuntimeBrokerFactory.js`** â€” relative path was `../../packages/...` (resolves to `engine/packages/...`); correct depth from `engine/core/runtime/` is `../../../packages/...`. Required depth is 3 levels up to reach project root.
 
-2. **`packages/corex-market-data/src/MarketFeed.js`** — `require("../DataProviderFactory")` resolved to wrong directory; `DataProviderFactory.js` is a sibling, not a parent's child. Changed to `require("./DataProviderFactory")`.
+2. **`packages/corex-market-data/src/MarketFeed.js`** â€” `require("../DataProviderFactory")` resolved to wrong directory; `DataProviderFactory.js` is a sibling, not a parent's child. Changed to `require("./DataProviderFactory")`.
 
-3. **`packages/corex-gateway/src/socketx/RiskGateway.js`** — `require("@broker/RuntimeBrokerFactory")` works in jest (where `moduleNameMapper` maps it) but fails at runtime where `module-alias` only maps `@broker/*` to `./broker/*` (no `corex-gateway` subdirectory). Changed to relative path `../../../corex-broker-contract/src/RuntimeBrokerFactory`.
+3. **`packages/corex-gateway/src/socketx/RiskGateway.js`** â€” `require("@broker/RuntimeBrokerFactory")` works in jest (where `moduleNameMapper` maps it) but fails at runtime where `module-alias` only maps `@broker/*` to `./broker/*` (no `corex-gateway` subdirectory). Changed to relative path `../../../corex-broker-contract/src/RuntimeBrokerFactory`.
 
-4. **`package.json _moduleAliases`** — was missing runtime mappings for extracted package names (`corex-accounts`, `corex-broker-contract`, `corex-market-data`, `corex-auth`, `corex-gateway`) and the specific `@broker/corex-gateway` / `@broker/corex-broker-contract` / `@broker/RuntimeBrokerFactory` overrides. Added all.
+4. **`package.json _moduleAliases`** â€” was missing runtime mappings for extracted package names (`corex-accounts`, `corex-broker-contract`, `corex-market-data`, `corex-auth`, `corex-gateway`) and the specific `@broker/corex-gateway` / `@broker/corex-broker-contract` / `@broker/RuntimeBrokerFactory` overrides. Added all.
 
-Reason: The unit test suite passed 428/439 throughout package extraction, but the server itself could not start — these bugs were invisible to jest. Manual boot verification (`npm start`) surfaced them immediately. This reinforces the rule that unit tests cannot reveal integration/wiring issues across package boundaries.
+Reason: The unit test suite passed 428/439 throughout package extraction, but the server itself could not start â€” these bugs were invisible to jest. Manual boot verification (`npm start`) surfaced them immediately. This reinforces the rule that unit tests cannot reveal integration/wiring issues across package boundaries.
 
-Consequence: All four fixes are purely path/alias changes with zero logic modification. After the fixes, `npm start` completes bootstrap successfully: migrations applied, all engine components wired (including the new `BaseBroker risk validator: SignalProcessingEngine (universal gate)`), strategies compiled and ACTIVE, server listening on port 3000. Test suite after fixes: 428 pass / 11 fail (same 2 pre-existing failures, no new regressions). The `_moduleAliases` entry must be kept in sync with the `jest.moduleNameMapper` entry in `package.json` going forward — these two configs are now coupled and must be updated together when adding a new package.
+Consequence: All four fixes are purely path/alias changes with zero logic modification. After the fixes, `npm start` completes bootstrap successfully: migrations applied, all engine components wired (including the new `BaseBroker risk validator: SignalProcessingEngine (universal gate)`), strategies compiled and ACTIVE, server listening on port 3000. Test suite after fixes: 428 pass / 11 fail (same 2 pre-existing failures, no new regressions). The `_moduleAliases` entry must be kept in sync with the `jest.moduleNameMapper` entry in `package.json` going forward â€” these two configs are now coupled and must be updated together when adding a new package.
 
 ---
 
@@ -300,44 +300,44 @@ Consequence: All four fixes are purely path/alias changes with zero logic modifi
 
 Decision: Replaced the `getPublicConfig()` stub with a real implementation that returns `{ hasSecrets, maskedKeys, config }`. Both `GET /api/accounts/:accountId/connectors/:type` and `GET /api/settings/connectors/:type` now call `getPublicConfig()` instead of the raw `getConnectorConfig()`. The raw `getConnectorConfig()` is retained for internal server-side use only and is no longer returned in any HTTP response.
 
-`getPublicConfig()` fetches the connection, decrypts the stored credentials, then masks them using `secretsVault.maskSecrets(secrets, CONNECTOR_SCHEMAS[type].secrets)` — passing the **connector-specific** secret field list (`["apiKey"]` for twelvedata, `["token"]` for metaapi) rather than the shallow `DEFAULT_SECRET_PATHS` from the global secrets vault config. The schema is the source of truth for which fields are secret, per connector type.
+`getPublicConfig()` fetches the connection, decrypts the stored credentials, then masks them using `secretsVault.maskSecrets(secrets, CONNECTOR_SCHEMAS[type].secrets)` â€” passing the **connector-specific** secret field list (`["apiKey"]` for twelvedata, `["token"]` for metaapi) rather than the shallow `DEFAULT_SECRET_PATHS` from the global secrets vault config. The schema is the source of truth for which fields are secret, per connector type.
 
-Reason: The settings-config audit (2026-09-05, `plans/Audit/settings-config-audit.md`, Findings 1-2) identified two real credential leaks: (1) the account-scoped GET route returned `{ config: {}, secrets }` with the secrets object containing raw decrypted API keys/tokens; (2) the convenience GET route and the list endpoint both had the same flaw. The masking infrastructure (`secretsVault.maskSecrets`) already existed and was used correctly by `GET /api/settings` (`systemController.js:476-491`) — this fix applies the same pattern to the connector routes.
+Reason: The settings-config audit (2026-09-05, `plans/Audit/settings-config-audit.md`, Findings 1-2) identified two real credential leaks: (1) the account-scoped GET route returned `{ config: {}, secrets }` with the secrets object containing raw decrypted API keys/tokens; (2) the convenience GET route and the list endpoint both had the same flaw. The masking infrastructure (`secretsVault.maskSecrets`) already existed and was used correctly by `GET /api/settings` (`systemController.js:476-491`) â€” this fix applies the same pattern to the connector routes.
 
-Consequence: No frontend changes required — the response shape `{ hasSecrets, maskedKeys, config }` is the same shape the frontend `AccountView.tsx:139-140` was already expecting (and that the `getPublicConfig` stub was supposed to provide). The internal `getConnectorConfig()` is unchanged and still available for any future server-side connector driver that needs raw credentials. The write path (`saveConnectorConfig` / `PUT` route) is untouched — encryption and storage continue exactly as before. All masked values are the literal string `"<redacted>"`, not a partial redacted form like `sk-***` — chosen to match the existing `secretsVault.maskSecrets` behavior so a single masking utility is the source of truth.
+Consequence: No frontend changes required â€” the response shape `{ hasSecrets, maskedKeys, config }` is the same shape the frontend `AccountView.tsx:139-140` was already expecting (and that the `getPublicConfig` stub was supposed to provide). The internal `getConnectorConfig()` is unchanged and still available for any future server-side connector driver that needs raw credentials. The write path (`saveConnectorConfig` / `PUT` route) is untouched â€” encryption and storage continue exactly as before. All masked values are the literal string `"<redacted>"`, not a partial redacted form like `sk-***` â€” chosen to match the existing `secretsVault.maskSecrets` behavior so a single masking utility is the source of truth.
 
 ---
 
 **[2026-09-05 13:25] Complete 2026-08-21 auth-simplification: remove WS API-key fallback, drop user_api_keys**
 
-Decision: The 2026-08-21 "Auth simplification" decision removed API-key auth from `authGuard.js` (HTTP middleware) and the issuance routes, but **left an unreported gap**: `engine/server.js`'s `authenticateUpgrade()` function — used only by the `/ws` WebSocket upgrade handler — still had a live API-key fallback (`x-auth-key` header or `authKey` query param) calling `pgStore.resolveUserByApiKey()`. This was unreachable in practice (no issuance endpoint existed, no client sent `x-auth-key`, the table was always empty) but it was live code, not dead code, which is why the 2026-08-21 decision couldn't drop `user_api_keys` as it intended.
+Decision: The 2026-08-21 "Auth simplification" decision removed API-key auth from `authGuard.js` (HTTP middleware) and the issuance routes, but **left an unreported gap**: `engine/server.js`'s `authenticateUpgrade()` function â€” used only by the `/ws` WebSocket upgrade handler â€” still had a live API-key fallback (`x-auth-key` header or `authKey` query param) calling `pgStore.resolveUserByApiKey()`. This was unreachable in practice (no issuance endpoint existed, no client sent `x-auth-key`, the table was always empty) but it was live code, not dead code, which is why the 2026-08-21 decision couldn't drop `user_api_keys` as it intended.
 
 This task completes the simplification:
-1. Stripped the API-key fallback from `authenticateUpgrade()` (`server.js:92-120`) — now JWT-only. The JWT path is unchanged: valid Bearer token in Authorization header or `?token=` query param authenticates; anything else returns `null` and the upgrade is rejected with `socket.destroy()`.
+1. Stripped the API-key fallback from `authenticateUpgrade()` (`server.js:92-120`) â€” now JWT-only. The JWT path is unchanged: valid Bearer token in Authorization header or `?token=` query param authenticates; anything else returns `null` and the upgrade is rejected with `socket.destroy()`.
 2. Removed `x-auth-key` from CORS `allowedHeaders` (`server.js:43`).
 3. Deleted the 5 now-fully-unused pgStore methods (`createApiKey`, `listApiKeysForUser`, `revokeApiKey`, `resolveUserByApiKey`, `touchApiKeyUsage`) at `pgStore.js:204-315` plus the `hashApiKey` helper and `API_KEY_PEPPER` constant.
 4. New migration `030_drop_user_api_keys.sql` drops the table.
 
-Reason: The fallback was a known gap in the 2026-08-21 decision. Removing it makes the simplification actually complete and safe to drop the table. Final grep before the migration confirmed zero application code references the 5 removed methods or `user_api_keys`. The only remaining mentions are in `front_end/src/views/AccountView.tsx` (lines 170, 186, 1240) and `front_end/src/api/auth.ts` (lines 8, 10) — frontend code that calls now-non-existent backend endpoints. These are deferred for a separate frontend-cleanup task and flagged here so a future agent knows they're expected dead-end calls, not freshly broken ones.
+Reason: The fallback was a known gap in the 2026-08-21 decision. Removing it makes the simplification actually complete and safe to drop the table. Final grep before the migration confirmed zero application code references the 5 removed methods or `user_api_keys`. The only remaining mentions are in `front_end/src/views/AccountView.tsx` (lines 170, 186, 1240) and `front_end/src/api/auth.ts` (lines 8, 10) â€” frontend code that calls now-non-existent backend endpoints. These are deferred for a separate frontend-cleanup task and flagged here so a future agent knows they're expected dead-end calls, not freshly broken ones.
 
-Consequence: JWT is now the sole authentication mechanism across the entire system — HTTP routes via `authGuard.js`, WebSocket upgrades via `server.js:authenticateUpgrade()`. No API key can be issued, used, or stored. The weak `API_KEY_PEPPER` fallback chain (`JWT_SECRET → ADMIN_SECRET → hardcoded default`) is gone as a side effect — that concern is moot. `authGuard.js`, `authController.js` (including the `authKey: null` in the signin response), and all other unrelated auth code are unchanged.
+Consequence: JWT is now the sole authentication mechanism across the entire system â€” HTTP routes via `authGuard.js`, WebSocket upgrades via `server.js:authenticateUpgrade()`. No API key can be issued, used, or stored. The weak `API_KEY_PEPPER` fallback chain (`JWT_SECRET â†’ ADMIN_SECRET â†’ hardcoded default`) is gone as a side effect â€” that concern is moot. `authGuard.js`, `authController.js` (including the `authKey: null` in the signin response), and all other unrelated auth code are unchanged.
 
 ---
 
 **[2026-09-06 02:25] Feature: corex-portfolio extraction with account_id-based trade history**
 
-Decision: Extracted `engine/services/tradeHistoryService.js` into `packages/corex-portfolio/` as a lean, account-aware analytics package. Added nullable `account_id` columns to `orders` and `order_fills` via migration `031_add_account_id_to_orders.sql`. No backfill was performed — existing rows retain `NULL` account_id.
+Decision: Extracted `engine/services/tradeHistoryService.js` into `packages/corex-portfolio/` as a lean, account-aware analytics package. Added nullable `account_id` columns to `orders` and `order_fills` via migration `031_add_account_id_to_orders.sql`. No backfill was performed â€” existing rows retain `NULL` account_id.
 
 Key design choices:
-1. **Nullable account_id** — Existing historical orders have no account context. The service falls back to `user_id + environment` when `account_id IS NULL`, preserving legacy behavior for old rows and old callers.
-2. **Dual-path querying** — `getHistoryReport()` accepts `accountId` for account-scoped queries. If omitted, it falls back to the original `user_id + environment` WHERE clause unchanged.
-3. **Order-insertion call sites populated** — `systemController.js` `/api/mt5/push-test`, `mt5Controller.js` `/api/mt5/confirm-fill`, and `mt5Bridge.js` `_persistOrderResult` now write `account_id` when available. For `order_fills`, the `account_id` is read from the parent `orders` row.
-4. **Zero coupling to trading_accounts** — `corex-portfolio` treats `account_id` as an opaque string. It does not import `corex-gateway` or validate account structure. Controller-layer resolution (`accountId → userId`) is deferred to callers that need it.
-5. **Analytics untouched** — `buildClosedTrades`, `buildEquityAnalytics`, and `buildPerformance` are pure functions with identical logic, now split into `src/analytics/` for testability.
+1. **Nullable account_id** â€” Existing historical orders have no account context. The service falls back to `user_id + environment` when `account_id IS NULL`, preserving legacy behavior for old rows and old callers.
+2. **Dual-path querying** â€” `getHistoryReport()` accepts `accountId` for account-scoped queries. If omitted, it falls back to the original `user_id + environment` WHERE clause unchanged.
+3. **Order-insertion call sites populated** â€” `systemController.js` `/api/mt5/push-test`, `mt5Controller.js` `/api/mt5/confirm-fill`, and `mt5Bridge.js` `_persistOrderResult` now write `account_id` when available. For `order_fills`, the `account_id` is read from the parent `orders` row.
+4. **Zero coupling to trading_accounts** â€” `corex-portfolio` treats `account_id` as an opaque string. It does not import `corex-gateway` or validate account structure. Controller-layer resolution (`accountId â†’ userId`) is deferred to callers that need it.
+5. **Analytics untouched** â€” `buildClosedTrades`, `buildEquityAnalytics`, and `buildPerformance` are pure functions with identical logic, now split into `src/analytics/` for testability.
 
 Reason: A user with two accounts of the same type (e.g. two live accounts) previously received indistinguishable trade history because the service keyed only by `userId + environment`. Account-scoped history is required once multi-account support is active. The lean extraction avoids a broader schema rewrite or circular dependency pressure.
 
-Consequence: `engine/routes/executionController.js` has zero diff — the re-export shim preserves the singleton export shape. `paper_trades` was confirmed out of scope (no application code reads/writes it) and was not touched. `user_connector_settings` table was confirmed dead but no migration to drop it was created in this task (deferred to separate cleanup).
+Consequence: `engine/routes/executionController.js` has zero diff â€” the re-export shim preserves the singleton export shape. `paper_trades` was confirmed out of scope (no application code reads/writes it) and was not touched. `user_connector_settings` table was confirmed dead but no migration to drop it was created in this task (deferred to separate cleanup).
 
 ---
 
@@ -355,16 +355,16 @@ Consequence: Fills across Paper and Live brokers now automatically record into t
 
 ---
 
-**[2026-09-12 10:30] Feature: corex-strategy-engine package extraction (Phase 1) — shims, validation, manifest, ContextBuilder**
+**[2026-09-12 10:30] Feature: corex-strategy-engine package extraction (Phase 1) â€” shims, validation, manifest, ContextBuilder**
 
 Decision: The `corex-strategy-engine` package was populated with extracted strategy engine modules from the monolithic `utils/strategy/` tree, following the Strangler Fig pattern established by prior package extractions:
 
 1. **`utils/DeclarativeStrategy.js`** reduced from 343 lines to a 4-line shim: `module.exports = require("corex-strategy-engine").Strategy`.
-2. **`utils/strategy/` shims created** for moved files: `Position.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `StrategyIntrospection.js` — all re-export from `packages/corex-strategy-engine/src/`.
-3. **`utils/strategy/StrategyPluginRegistry.js`** deleted — dead code (0 DB strategies use it, confirmed via DB audit).
-4. **`validation/StrategyValidator.js`** (package) replaced stub with re-export wrapper around `@utils/strategy/StrategyValidator` — preserves all 535 lines of existing validation logic (property/method/schema checks, anti-pattern detection, best-practice scoring) while making it accessible through the package surface.
-5. **`validation/StrategyManifest.js`** (package) replaced stub with re-export from `@utils/strategy/StrategyManifest` — adds 12 new `ctx.*` method entries (`ctx.go.long`, `ctx.go.short`, `ctx.go.scale`, `ctx.go.protect`, `ctx.flat`, `ctx.ta`, `ctx.util`, `ctx.indicators.*`, `ctx.position`, `ctx.params`, `ctx.state`, `ctx.price`, `ctx.barTime`) for Monaco editor autocomplete of declarative strategy API.
-6. **`ContextBuilder.test.js`** created — verifies persistent ctx mutation, zero-allocation hot path (50k ticks: 0.873 µs/tick, negative heap growth confirmed), and `ctx.go.*` command delegation.
+2. **`utils/strategy/` shims created** for moved files: `Position.js`, `StrategyPositionManager.js`, `StrategyRuntimeUtils.js`, `StrategyIntrospection.js` â€” all re-export from `packages/corex-strategy-engine/src/`.
+3. **`utils/strategy/StrategyPluginRegistry.js`** deleted â€” dead code (0 DB strategies use it, confirmed via DB audit).
+4. **`validation/StrategyValidator.js`** (package) replaced stub with re-export wrapper around `@utils/strategy/StrategyValidator` â€” preserves all 535 lines of existing validation logic (property/method/schema checks, anti-pattern detection, best-practice scoring) while making it accessible through the package surface.
+5. **`validation/StrategyManifest.js`** (package) replaced stub with re-export from `@utils/strategy/StrategyManifest` â€” adds 12 new `ctx.*` method entries (`ctx.go.long`, `ctx.go.short`, `ctx.go.scale`, `ctx.go.protect`, `ctx.flat`, `ctx.ta`, `ctx.util`, `ctx.indicators.*`, `ctx.position`, `ctx.params`, `ctx.state`, `ctx.price`, `ctx.barTime`) for Monaco editor autocomplete of declarative strategy API.
+6. **`ContextBuilder.test.js`** created â€” verifies persistent ctx mutation, zero-allocation hot path (50k ticks: 0.873 Âµs/tick, negative heap growth confirmed), and `ctx.go.*` command delegation.
 
 Reason: The legacy `utils/strategy/` modules were monolithic and the hot-path `_buildCtx()` in `DeclarativeStrategy.js` allocated ~16 objects per tick (per `plans/Audit/corex-strategy-engine-gap-analysis.md`). The new package fixes this via `ContextBuilder` with persistent object structures and in-place scalar updates. Shims preserve backward compatibility for engine code still referencing `@utils/strategy/*` paths during the transition period.
 
@@ -383,17 +383,17 @@ Remaining for Phase 2:
 **[2026-09-12 17:35] Feature: Position.add() O(1) incremental aggregate update & factory.test.js supersession classification**
 
 Decision:
-1. **Position.add() O(1) Optimization:** Refactored `Position.add()` in `packages/corex-strategy-engine/src/Position.js` to maintain running aggregates (`this.quantity`, `this.avgEntryPrice`) incrementally as each lot is added, rather than calling `_recomputeFromLots()` which looped over all accumulated lots in O(n) time per call. This reduces `add()` from O(n) per call / O(n²) total over N additions to O(1) per call / O(N) total. Verified with real 50k benchmark running in ~398ms (well under 1 second). Correctness verified against full from-scratch recompute across 10+ varied add/reduce sequences. Public API unchanged.
+1. **Position.add() O(1) Optimization:** Refactored `Position.add()` in `packages/corex-strategy-engine/src/Position.js` to maintain running aggregates (`this.quantity`, `this.avgEntryPrice`) incrementally as each lot is added, rather than calling `_recomputeFromLots()` which looped over all accumulated lots in O(n) time per call. This reduces `add()` from O(n) per call / O(nÂ²) total over N additions to O(1) per call / O(N) total. Verified with real 50k benchmark running in ~398ms (well under 1 second). Correctness verified against full from-scratch recompute across 10+ varied add/reduce sequences. Public API unchanged.
 2. **`factory.test.js` Failure Classification (Supersession):** Classified the failure of `"enforces same-symbol-one-driver rule at session creation"` in `packages/corex-broker-contract/test/factory.test.js`. Traced that the test asserted the old global-per-symbol lock, which was deliberately superseded by Phase 3's per-account-per-mode-per-symbol scoping design (`(accountId, mode, symbol)`) allowing Backtest, Paper, and Live sessions on the same symbol to run concurrently. Updated the test to reflect Phase 3's intended concurrent multi-mode semantics with documented reasoning.
 
-Reason: Repeated scaling into a position in strategies (or benchmarks) accumulated O(n²) lot recomputations, causing severe performance degradation. Meanwhile, `factory.test.js` failed because it asserted pre-Phase-3 single-session-per-symbol behavior that was explicitly replaced by multi-mode runtime isolation.
+Reason: Repeated scaling into a position in strategies (or benchmarks) accumulated O(nÂ²) lot recomputations, causing severe performance degradation. Meanwhile, `factory.test.js` failed because it asserted pre-Phase-3 single-session-per-symbol behavior that was explicitly replaced by multi-mode runtime isolation.
 
 Consequence: 50,000-iteration benchmark completes in ~398ms (previously timing out / extrapolating to minutes). `packages/corex-broker-contract/test/factory.test.js` passes with updated Phase 3 semantics.
 - Move `utils/strategy/StrategyParamUtils.js` integration into `packages/corex-strategy-engine/src/ParamSchema.js`.
 
 ---
 
-**[2026-09-12 20:55] Feature: Phase A — Removal of legacy BaseStrategy and deletion of legacy DB strategies**
+**[2026-09-12 20:55] Feature: Phase A â€” Removal of legacy BaseStrategy and deletion of legacy DB strategies**
 
 Decision: Queried the `strategies` table in `corex_engine` database and deleted all 7 legacy strategies that relied on the old `utils/BaseStrategy.js` path (`Demo`, `PairTrading`, `ADXFilteredTSLCoreX`, `Test`, `test_strategy`, `rapid`, `ema_crossover`), pursuant to Owen's explicit decision to execute a full cutover to `corex-strategy-engine`.
 
@@ -403,7 +403,7 @@ Consequence: 7 legacy strategy rows removed from DB. `utils/BaseStrategy.js` and
 
 ---
 
-**[2026-09-12 21:05] Feature: Phase A & B — Complete Cutover to corex-strategy-engine and Internalization of Infrastructure**
+**[2026-09-12 21:05] Feature: Phase A & B â€” Complete Cutover to corex-strategy-engine and Internalization of Infrastructure**
 
 Decision:
 1. **Legacy Removal (Phase A):** Deleted `utils/BaseStrategy.js` and all legacy shims (`utils/DeclarativeStrategy.js`, `utils/strategy/Position.js`, `utils/strategy/StrategyPositionManager.js`, `utils/strategy/StrategyRuntimeUtils.js`, `utils/strategy/StrategyIntrospection.js`). Updated all remaining callers across tests and engine services to import directly from `corex-strategy-engine`.
@@ -415,7 +415,7 @@ Consequence: Zero references to `utils/BaseStrategy.js` or `utils/strategy/` rem
 
 ---
 
-**[2026-09-13 01:10] Feature: Phase C — Indicator Registry & Expanded Indicator Suite**
+**[2026-09-13 01:10] Feature: Phase C â€” Indicator Registry & Expanded Indicator Suite**
 
 Decision: Implemented a comprehensive indicator registry and 40+ indicator classes in `packages/corex-strategy-engine/src/indicators/`, all self-contained with no external dependencies.
 
@@ -426,8 +426,8 @@ Decision: Implemented a comprehensive indicator registry and 40+ indicator class
 5. **Tests**: `Indicators.test.js` with 40+ tests covering calculation correctness for all indicators.
 
 Indicators deliberately out of scope (require broker connectivity, order book depth, or external data providers):
-- Volume Profile (VPIN, Amihud Illiquidity Ratio, Order Flow Imbalance) — require tick-level microstructure data not available to the strategy engine
-- Kalman Filter — requires matrix library, complex filter math deferred
+- Volume Profile (VPIN, Amihud Illiquidity Ratio, Order Flow Imbalance) â€” require tick-level microstructure data not available to the strategy engine
+- Kalman Filter â€” requires matrix library, complex filter math deferred
 
 Reason: The indicator suite was previously limited to EMA, RSI, and ATR. The strategy engine now provides a complete set of trading indicators following the existing incremental class pattern (update(), reseed(), ready, value, prev), self-contained with zero external dependencies.
 
@@ -437,16 +437,16 @@ Consequence: All indicator definitions in strategy `static indicators = {}` can 
 
 **[2026-09-13 01:15] Phase D/D/E: Remaining TODO items for strategy engine extraction**
 
-Not implemented in this session — placed on the todo list for future work:
+Not implemented in this session â€” placed on the todo list for future work:
 
 1. **Delete `utils/strategy/IncrementalIndicators.js`** and remaining Phase B shim files (`StrategySignalUtils.js`, `StrategyDevHelpers.js`, `IndicatorAdapter.js`, `RuleChain.js`, `index.js`). All functionality now lives in `packages/corex-strategy-engine/src/indicators/`.
-2. **Update `Strategy.js` imports** — replace `require("@utils/strategy/StrategyStateStore")` with `require("./StrategyStateStore")` and similar for `StrategyDataManager`. Phase B moved these files into the package but Strategy.js imports were not updated.
-3. **Phase D: Spatial-culling gate** in Strategy.js — performance optimization to skip indicator updates when price hasn't changed meaningfully.
-4. **Phase E: Package documentation** — AGENTS.md and README.md for the package (already written, verify completeness).
+2. **Update `Strategy.js` imports** â€” replace `require("@utils/strategy/StrategyStateStore")` with `require("./StrategyStateStore")` and similar for `StrategyDataManager`. Phase B moved these files into the package but Strategy.js imports were not updated.
+3. **Phase D: Spatial-culling gate** in Strategy.js â€” performance optimization to skip indicator updates when price hasn't changed meaningfully.
+4. **Phase E: Package documentation** â€” AGENTS.md and README.md for the package (already written, verify completeness).
 
 ---
 
-**[2026-11-14 02:50] Feature: P3-04 — Broker folder ownership cleanup**
+**[2026-11-14 02:50] Feature: P3-04 â€” Broker folder ownership cleanup**
 
 Decision:
 1. `corex-broker-contract` public API (`index.js`) is the authoritative import surface; its `package.json` `main` changed from `src/mt5Bridge.js` to `index.js`.
@@ -462,7 +462,7 @@ Consequence: One authoritative broker package surface; no remaining `@broker/*` 
 
 ---
 
-**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 � Atomic runtime ownership**
+**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 — Atomic runtime ownership**
 
 Decision:
 1. `engine/core/runtime/RuntimeRegistry.js` is the single authoritative runtime owner. It keeps three ledgers in one module: `_runtimes` (live runtimes), `_reservations` (claims for creations in flight) and `_deletionClaims` (in-progress strategy deletions). No second registry was introduced and no schema change was made for this coordination.
@@ -474,7 +474,7 @@ Decision:
 7. `commitReservation` restores the claim if registration throws, so a failed commit can still be rolled back and released; a rollback with no holder destroys only the objects that boot created and never mutates the registry, and skips any object the current entry still references.
 8. Lifecycle transitions use a compare-and-set (`transition()`), and one termination per identity runs at a time via an in-flight promise map (no timers, no locks, no delays).
 9. Cleanup failures are recorded on the holder (`cleanupFailures`), the holder stays registered as `STOPPING`, and `terminate()` returns false so no caller can report success. Removal during termination is fenced by `ownerToken`; an unfenced entry reports the stop as unconfirmed.
-10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further � destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
+10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further — destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
 11. `boot()` re-checks ownership (`_assertOwnership`, `RUNTIME_ABORTED`) after warmup and before subscribe/activate/announce, so a stop during start cannot be followed by a subscribe, an ACTIVE commit or a STRATEGY_START event. `startStrategy` maps `RUNTIME_ABORTED` to `START_CANCELLED` (409), distinct from `START_IN_PROGRESS`.
 12. Every holder operation (`_runCleanupSerialized`, `_publishHolderOperation`) resolves to `{ failures: string[], finalized: boolean, joined?: boolean }`.
 13. `DELETE /api/strategies/:id` takes `claimStrategyDeletion()` before touching the database and releases it on success, 404 or failure. While the claim is held, `reserve()` refuses new runtimes for that strategy, so no creation can land between the ownership check and the DELETE. A second concurrent delete gets 409 `DELETE_IN_PROGRESS`; a delete over an owned strategy still gets 403 with the unchanged message. `stateController` is demoted to a corroborating signal.
@@ -486,7 +486,7 @@ Consequence: one ownership decision point for creation, activation, termination 
 
 ---
 
-**[2026-11-15 15:05] Feature: B9 — recovery must not restart a runtime the user stopped**
+**[2026-11-15 15:05] Feature: B9 â€” recovery must not restart a runtime the user stopped**
 
 Decision:
 1. The stop-request marker lives in `engine/strategyLoader.js`, because every stop (routes, runtimeService, recovery) passes through `stopStrategy` and the loader is the boundary where the request becomes an action.
@@ -495,6 +495,18 @@ Decision:
 4. `_attemptRecovery` reads the counter before its own stop and compares it after the await. A change means a stop was requested inside the window, which is neither a failed attempt nor a retry: recovery drops the record and does not restart.
 5. The existing registry/ledger inferences are kept (`removedByOther`, missing recovery record) because they cover the other orderings; the counter covers the one they cannot see.
 
-Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped — a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
+Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped â€” a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
 
 Consequence: a stop request is now an observable intent rather than an inference. Cost: one Map entry per stopped runtime (small, bounded by runtimes), plus a counter read on each recovery attempt. No change to `terminate` semantics, the STOPPED ledger flow or the recovery schedule. Evidence: `plans/tasks/B9.md`, `test/engine-recovery.test.js` T12/T12b (T12 fails on `da7dfd6` with 1 start call, passes with the fix).
+
+---
+
+**2026-11-23 — Reverse D7: schedule the corex-backtest package before STAGE-4 / P7**
+
+**Decision (Owen):** Reverse the prior D7 deferral. CoreX will build `packages/corex-backtest` now as a separate domain package, with package implementation gated by completion/review of BT-0 (ownership map, failed-job triage and golden-run baseline) and an explicit implementation approval checkpoint.
+
+**Boundary:** This decision authorizes the new package workstream and its planning; it does not authorize moving application infrastructure into the package. Express routes/controllers, authentication, PostgreSQL repositories, upload and dataset lifecycle, durable job queue/worker process management, filesystem/storage lifecycle and API orchestration remain engine-owned. The package owns backtest-domain contracts and simulation/analytics logic through injected ports.
+
+**Dependency clarification:** STAGE-4 is no longer a prerequisite for designing or implementing package-domain logic. It remains a prerequisite for the engine dataset-resource integration/cutover where that contract is required. P7 must be re-scoped before starting so its former `backtestManager` split does not duplicate BT-1/BT-2; its remaining `StrategyLoader` work and existing P5/P6/STAGE-4 dependencies are not silently waived.
+
+**Execution order:** BT-0c golden-run harness → BT-0 evidence review/reconciliation → Owen approval → BT-1 package contracts/skeleton → BT-2 domain implementation → BT-3 engine adapters/cutover → BT-4 confirmed correctness fixes → BT-5 frontend contract integration. No package implementation begins before the BT-0 approval gate. Financial semantics are not changed under this scheduling decision.
