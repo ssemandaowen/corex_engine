@@ -49,10 +49,18 @@ No tests were executed in this phase. A clean detached worktree was created at t
 ## Phase 2 — Isolated golden-run execution (NEXT)
 
 1. Execute from a clean, pinned source snapshot; do not use the dirty local main tree as the baseline.
-2. Add one isolated test/helper that uses a deterministic synthetic CSV, a fresh Strategy instance per run, stubbed DB persistence, and a temporary manager storage directory.
+2. Add the isolated test at test/backtest-golden-run.test.js. Use a deterministic synthetic CSV, a fresh Strategy instance per run, stubbed DB persistence, and a temporary manager storage directory. Restore the manager's original storagePath and readiness flags in teardown.
 3. Run the identical fixture/config twice and compare only stable report fields. Explicitly normalize wall-clock timestamps, execution duration, generated file paths, and any random IDs.
 4. Capture trade/fill and performance outputs only where the existing simulation actually produces them; do not invent expected values.
-5. Record the test command, runtime, source SHA, output hash/summary, and all limitations. If the environment prevents a safe repeat run, stop and report the blocker.
+5. Write the normalized evidence JSON to the path in BT_GOLDEN_OUTPUT when that environment variable is set.
+6. Record the test command, runtime, source SHA, output hash/summary, and all limitations. If the environment prevents a safe repeat run, stop and report the blocker.
+
+## GitHub Actions setup (in progress)
+
+- Workflow draft: .github/workflows/backtest-golden.yml on branch bt0c/github-actions-golden-run; PR #85.
+- Runner uses GitHub-hosted Ubuntu, Node 22, npm ci from package-lock.json, runs only test/backtest-golden-run.test.js, and uploads BT_GOLDEN_OUTPUT as a short-retention artifact. This avoids consuming the user's Dell machine resources and does not require PostgreSQL or live provider credentials.
+- First workflow execution: dependency installation succeeded (515 packages in 6 seconds); test step failed with Jest "No tests found" because test/backtest-golden-run.test.js has not yet been added. This is an expected harness-not-present blocker, not a simulation regression. No output artifact was produced.
+- Once the test file exists on the PR head, rerun the workflow and record the actual test result. Do not mark BT-0c complete based on dependency installation alone.
 
 ## Deliverables
 
