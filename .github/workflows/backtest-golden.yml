@@ -1,0 +1,50 @@
+name: Backtest Golden Baseline
+
+on:
+  pull_request:
+    paths:
+      - "test/backtest-golden-run.test.js"
+      - "engine/backtestManager.js"
+      - "packages/corex-broker-contract/**"
+      - "packages/corex-strategy-engine/**"
+      - ".github/workflows/backtest-golden.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backtest-golden-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  golden-run:
+    name: Deterministic backtest golden run
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout pinned revision
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Run isolated golden baseline
+        env:
+          BT_GOLDEN_OUTPUT: ${{ runner.temp }}/bt-0c-golden-output.json
+        run: npx jest --runInBand test/backtest-golden-run.test.js
+
+      - name: Upload golden-run evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bt-0c-golden-${{ github.sha }}
+          path: ${{ runner.temp }}/bt-0c-golden-output.json
+          if-no-files-found: warn
+          retention-days: 7
