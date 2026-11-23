@@ -2,6 +2,7 @@
 
 const ta = require("./ta");
 const util = require("./util");
+const Frame = require("./kernel/Frame");
 
 class ContextBuilder {
     constructor(strategy, indicatorManager) {
@@ -23,50 +24,28 @@ class ContextBuilder {
     _buildPersistentCtx() {
         const s = this.strategy;
         const ctx = {};
-
-        ctx.position = {
-            side: "FLAT",
-            entryPrice: 0,
-            size: 0,
-            unrealizedPnL: 0
-        };
-
-        ctx.engine = {
-            mode: (s.env && s.env.mode) || "UNKNOWN",
-            barsReceived: 0,
-            connected: true
-        };
-
+        ctx.position = { side: "FLAT", entryPrice: 0, size: 0, unrealizedPnL: 0 };
+        ctx.engine = { mode: (s.env && s.env.mode) || "UNKNOWN", barsReceived: 0, connected: true };
         ctx.params = s.params;
         ctx.state = s.state;
-
         ctx.indicators = this._buildIndicatorsObj();
-
         ctx.ta = ta;
         ctx.util = util;
-
         ctx.symbol = s.symbols && s.symbols[0] ? s.symbols[0] : "";
-
         ctx.price = 0;
         ctx.close = 0;
         ctx.time = 0;
         ctx.isBar = false;
         ctx.barTime = 0;
-
         ctx.go = {};
         this._wireGoCommands(ctx);
-
         ctx.flat = this._createFlatHandler(ctx);
-
         ctx.hasBars = (count = 1, symbol = ctx.symbol) => {
             const sym = symbol || ctx.symbol;
-            if (s.dataManager && typeof s.dataManager.isWarmedUp === "function") {
-                return s.dataManager.isWarmedUp(sym, count);
-            }
+            if (s.dataManager && typeof s.dataManager.isWarmedUp === "function") return s.dataManager.isWarmedUp(sym, count);
             const series = typeof s.series === "function" ? s.series(sym, "close", count) : [];
             return series.length >= count;
         };
-
         ctx.requireBars = (count = 1, indicatorName = null, symbol = ctx.symbol) => {
             const sym = symbol || ctx.symbol;
             if (!ctx.hasBars(count, sym)) return false;
@@ -75,59 +54,38 @@ class ContextBuilder {
                 if (!ind || ind.ready !== true) return false;
             } else if (ctx.indicators) {
                 for (const ind of Object.values(ctx.indicators)) {
-                    if (ind && typeof ind.ready === "boolean" && !ind.ready) {
-                        return false;
-                    }
+                    if (ind && typeof ind.ready === "boolean" && !ind.ready) return false;
                 }
             }
             return true;
         };
-
         ctx.plot = (name, value) => {
-            if (s.plotBuffer && typeof s.plotBuffer.plot === "function") {
-                s.plotBuffer.plot(name, value, ctx.time || Date.now());
-            }
+            if (s.plotBuffer && typeof s.plotBuffer.plot === "function") s.plotBuffer.plot(name, value, ctx.time || Date.now());
         };
-
         ctx.mark = (name, message) => {
-            if (s.plotBuffer && typeof s.plotBuffer.mark === "function") {
-                s.plotBuffer.mark(name, message, ctx.time || Date.now());
-            }
+            if (s.plotBuffer && typeof s.plotBuffer.mark === "function") s.plotBuffer.mark(name, message, ctx.time || Date.now());
         };
-
         this._ctx = ctx;
     }
 
     _buildIndicatorsObj() {
         const obj = {};
         if (!this.indicatorManager) return obj;
-        for (const name of this.indicatorManager.indicatorNames) {
-            obj[name] = this.indicatorManager.getIndicatorValue(name);
-        }
+        for (const name of this.indicatorManager.indicatorNames) obj[name] = this.indicatorManager.getIndicatorValue(name);
         return obj;
     }
 
     _wireGoCommands(ctx) {
         const s = this.strategy;
-
         ctx.go.long = function goLong(qty, price) {
-            const q = qty == null ? 1 : qty;
-            const p = price != null ? price : ctx.close;
-            return s.buy({ quantity: q, price: p, symbol: ctx.symbol });
+            return s.buy({ quantity: qty == null ? 1 : qty, price: price != null ? price : ctx.close, symbol: ctx.symbol });
         };
-
         ctx.go.short = function goShort(qty, price) {
-            const q = qty == null ? 1 : qty;
-            const p = price != null ? price : ctx.close;
-            return s.sell({ quantity: q, price: p, symbol: ctx.symbol });
+            return s.sell({ quantity: qty == null ? 1 : qty, price: price != null ? price : ctx.close, symbol: ctx.symbol });
         };
-
         ctx.go.scale = function goScale(qty, price) {
-            const q = qty == null ? 1 : qty;
-            const p = price != null ? price : ctx.close;
-            return s.buy({ quantity: q, price: p, symbol: ctx.symbol, allowScaling: true });
+            return s.buy({ quantity: qty == null ? 1 : qty, price: price != null ? price : ctx.close, symbol: ctx.symbol, allowScaling: true });
         };
-
         ctx.go.protect = function goProtect(opts) {
             const o = opts || {};
             return { intent: "PROTECT", sl: o.sl, tp: o.tp, trailPct: o.trailPct, symbol: ctx.symbol };
@@ -160,40 +118,28 @@ class ContextBuilder {
         e.connected = true;
     }
 
-    updateForPacket(packet, isBar) {
+    updateForPacket(packet, isBar, indicatorFrame = null) {
         this.ensureInitialized();
-
         const s = this.strategy;
         const symbol = packet.symbol || (s.symbols && s.symbols[0]) || "";
-        const price = packet.price ?? packet.close ?? 0;
-        const high = packet.high ?? price;
-        const low = packet.low ?? price;
-        const close = packet.close ?? price;
-
         this._ctx.symbol = symbol;
-        this._ctx.price = price;
-        this._ctx.close = close;
+        this._ctx.price = packet.price;
+        this._ctx.close = packet.close;
         this._ctx.time = packet.time;
         this._ctx.isBar = isBar;
         this._ctx.barTime = isBar ? packet.time : (s.currentBar && s.currentBar.time) || 0;
-
         this._symbol = symbol;
-        this._close = close;
-        this._price = price;
-
+        this._close = packet.close;
+        this._price = packet.price;
         this._updatePosition(symbol);
         this._updateEngine();
-
-        if (this.indicatorManager) {
-            this.indicatorManager.updateIndicators(packet);
-        }
-
+        if (this.indicatorManager && indicatorFrame instanceof Frame) this.indicatorManager.updateIndicators(indicatorFrame);
         return this._ctx;
     }
 
-    buildContext(packet, isBar) {
+    buildContext(packet, isBar, indicatorFrame = null) {
         this.ensureInitialized();
-        this.updateForPacket(packet, isBar);
+        this.updateForPacket(packet, isBar, indicatorFrame);
         return this._ctx;
     }
 

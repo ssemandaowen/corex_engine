@@ -462,7 +462,7 @@ Consequence: One authoritative broker package surface; no remaining `@broker/*` 
 
 ---
 
-**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 — Atomic runtime ownership**
+**[2026-11-14 16:20] Feature: ENGINE-01 Stage 2 ï¿½ Atomic runtime ownership**
 
 Decision:
 1. `engine/core/runtime/RuntimeRegistry.js` is the single authoritative runtime owner. It keeps three ledgers in one module: `_runtimes` (live runtimes), `_reservations` (claims for creations in flight) and `_deletionClaims` (in-progress strategy deletions). No second registry was introduced and no schema change was made for this coordination.
@@ -474,7 +474,7 @@ Decision:
 7. `commitReservation` restores the claim if registration throws, so a failed commit can still be rolled back and released; a rollback with no holder destroys only the objects that boot created and never mutates the registry, and skips any object the current entry still references.
 8. Lifecycle transitions use a compare-and-set (`transition()`), and one termination per identity runs at a time via an in-flight promise map (no timers, no locks, no delays).
 9. Cleanup failures are recorded on the holder (`cleanupFailures`), the holder stays registered as `STOPPING`, and `terminate()` returns false so no caller can report success. Removal during termination is fenced by `ownerToken`; an unfenced entry reports the stop as unconfirmed.
-10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further — destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
+10. `_destroyOrphaned()` is restricted to boots that never committed: it destroys only the objects of a boot that never handed anything to the registry, and never mutates the registry or drops a feed subscription. A committed boot that has lost its entry destroys nothing further ï¿½ destruction belongs to whoever owns/removes the entry, so no collaborator is destroyed twice.
 11. `boot()` re-checks ownership (`_assertOwnership`, `RUNTIME_ABORTED`) after warmup and before subscribe/activate/announce, so a stop during start cannot be followed by a subscribe, an ACTIVE commit or a STRATEGY_START event. `startStrategy` maps `RUNTIME_ABORTED` to `START_CANCELLED` (409), distinct from `START_IN_PROGRESS`.
 12. Every holder operation (`_runCleanupSerialized`, `_publishHolderOperation`) resolves to `{ failures: string[], finalized: boolean, joined?: boolean }`.
 13. `DELETE /api/strategies/:id` takes `claimStrategyDeletion()` before touching the database and releases it on success, 404 or failure. While the claim is held, `reserve()` refuses new runtimes for that strategy, so no creation can land between the ownership check and the DELETE. A second concurrent delete gets 409 `DELETE_IN_PROGRESS`; a delete over an owned strategy still gets 403 with the unchanged message. `stateController` is demoted to a corroborating signal.
@@ -498,3 +498,29 @@ Decision:
 Reason: the recovery loop and a user stop can overlap. `RuntimeLifecycle.terminate` is single-flight, so a user stop that lands during recovery's stop joins it, both complete together, recovery's stop reports success and the recovery record survives (its STOPPED is suppressed as recovery's own). Recovery then restarted the runtime the user had just stopped â€” a resurrection that is worst in LIVE mode. Inferring the stop from registry or ledger state cannot work: the race removes exactly that state.
 
 Consequence: a stop request is now an observable intent rather than an inference. Cost: one Map entry per stopped runtime (small, bounded by runtimes), plus a counter read on each recovery attempt. No change to `terminate` semantics, the STOPPED ledger flow or the recovery schedule. Evidence: `plans/tasks/B9.md`, `test/engine-recovery.test.js` T12/T12b (T12 fails on `da7dfd6` with 1 start call, passes with the fix).
+
+---
+
+**[2026-11-22] Planning: Approval of Claude CoreX Design Proposal v2 â€” Strategy, Backtest and Providers**
+
+Decision: Owen approves the complete Claude `Refined proposal v2.md` as the planning baseline for the strategy, provider and backtest architecture and delivery design. Approval includes the proposal's corrections to v1, ownership boundaries, two-axis data/execution registry model, stage definitions, dependencies, scope exclusions and explicit stop/approval gates.
+
+Approved design dispositions:
+1. Keep strategy domain ownership in `corex-strategy-engine`; keep `engine/` as composition root; keep broker execution ownership in `corex-broker-contract`; keep market-data ownership in `corex-market-data`.
+2. Retain separate data-side and execution-side registries; reject a cross-domain Integration Catalog. Any future Integrations view is read-only over the two registries.
+3. Keep D7 unchanged: backtest separation occurs inside `engine/` at P7; reconsider `corex-backtest` only after P7 is accepted.
+4. Approve the additive per-backtest `dataSource` override described in Claude decision-table row 1. Omission preserves current behavior. Per-runtime live data sessions are deferred and are not approved by this entry.
+5. Preserve the single global default historical provider and the 5,000 default pagination block. Provider manifests may describe provider-specific limits; they do not silently change the default.
+6. Preserve the permanent prohibition on `oanda` and `mt5_bridge` as live-selectable connector types. Any future local MT5 terminal transport is a distinct proposal requiring separate explicit approval.
+7. Reuse existing config/settings, SecretsVault and ConnectionsService. No new configuration framework, credential tables or second vault.
+8. Keep risk in the engine and RuntimeRegistry as the single runtime owner. Execution manifests remain read-only metadata until a separately approved ExecutionAuthority workstream exists.
+9. Retain the roadmap two-open-workstream limit and rule 6. B11 / PROV-01 remains REVIEW ONLY â€” NOT SCHEDULED; NOT APPROVED as a placeholder. PV/BT/SH stages are not scheduled; working labels are not assigned task IDs.
+10. P3 and P4 are independent after P2; their delivery order is selected separately by Owen.
+
+Not decided by this approval: D1, D2, D4, D5, D6 and D9; STAGE-3 / STAGE-4 status; per-runtime live-session semantics; any MT5 terminal protocol; the StrategyHost open decision; SH-3 behavior-changing cap values. D3 and D8 retain their existing roadmap treatment. No source changes, migrations, task-stage creation, or implementation authorization follows from this planning approval.
+
+Reason: adopt Claude v2 as the coherent planning baseline while preserving the proposal's explicit gates and existing locked decisions. Claude's code findings derive from the 2026-11-21 repomix snapshot and must be verified against the current checkout before a relevant stage is scheduled.
+
+Scheduling update (2026-11-22): Owen selected P3 followed by P4. P3 is active; P4 follows P3. This selects delivery order only. D4 and D5 remain open, `::demo` deletion remains unapproved, and P5 remains gated on completion of both P3 and P4.
+
+Consequence: the roadmap and B11 placeholder track the approved design; implementation remains governed by roadmap capacity, dependencies, unresolved decisions and stage-specific task approval.

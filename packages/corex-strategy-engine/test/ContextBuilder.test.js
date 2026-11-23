@@ -73,7 +73,7 @@ describe("ContextBuilder", () => {
         expect(ctx.util).toBeDefined();
         expect(ctx.go).toBeDefined();
 
-        const bar1 = { symbol: "EURUSD", time: 1000, open: 1.1000, high: 1.1050, low: 1.0950, close: 1.1020, volume: 100 };
+        const bar1 = { symbol: "EURUSD", time: 1000, price: 1.1020, open: 1.1000, high: 1.1050, low: 1.0950, close: 1.1020, volume: 100 };
         const ctx1 = builder.updateForPacket(bar1, true);
 
         expect(ctx1).toBe(ctx);
@@ -81,7 +81,7 @@ describe("ContextBuilder", () => {
         expect(ctx.price).toBe(1.1020);
         expect(ctx.isBar).toBe(true);
 
-        const bar2 = { symbol: "EURUSD", time: 2000, open: 1.1020, high: 1.1080, low: 1.1000, close: 1.1050, volume: 100 };
+        const bar2 = { symbol: "EURUSD", time: 2000, price: 1.1050, open: 1.1020, high: 1.1080, low: 1.1000, close: 1.1050, volume: 100 };
         const ctx2 = builder.updateForPacket(bar2, true);
 
         expect(ctx2).toBe(ctx1);
@@ -94,7 +94,7 @@ describe("ContextBuilder", () => {
         builder.ensureInitialized();
 
         const ctx = builder.ctx;
-        const bar = { symbol: "EURUSD", time: 1000, close: 1.1020, high: 1.1050, low: 1.0950, volume: 100 };
+        const bar = { symbol: "EURUSD", time: 1000, price: 1.1020, close: 1.1020, high: 1.1050, low: 1.0950, volume: 100 };
         builder.updateForPacket(bar, true);
 
         const longSignal = ctx.go.long(1, 1.1020);
@@ -115,7 +115,7 @@ describe("ContextBuilder", () => {
         builder.ensureInitialized();
         const ctx = builder.ctx;
 
-        builder.updateForPacket({ symbol: "EURUSD", time: 1000, close: 1.1000, high: 1.1050, low: 1.0950, volume: 100 }, true);
+        builder.updateForPacket({ symbol: "EURUSD", time: 1000, price: 1.1000, close: 1.1000, high: 1.1050, low: 1.0950, volume: 100 }, true);
 
         if (global.gc) global.gc();
         const memBefore = process.memoryUsage().heapUsed;
@@ -130,6 +130,7 @@ describe("ContextBuilder", () => {
                 open: 1.1000,
                 high: 1.1050,
                 low: 1.0950,
+                price: 1.1000 + (i % 10) * 0.001,
                 close: 1.1000 + (i % 10) * 0.001,
                 volume: 100
             }, true);
@@ -153,7 +154,7 @@ describe("ContextBuilder", () => {
         const strategy = new MinimalStrategy();
         const builder = new ContextBuilder(strategy, null);
 
-        const packet = { symbol: "EURUSD", time: 1000, close: 1.1000, high: 1.1050, low: 1.0950, volume: 100 };
+        const packet = { symbol: "EURUSD", time: 1000, price: 1.1000, close: 1.1000, high: 1.1050, low: 1.0950, volume: 100 };
 
         const initCtx = builder.buildContext(packet, true);
         const buildCtx = builder.buildContext(packet, true);

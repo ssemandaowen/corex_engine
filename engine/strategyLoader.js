@@ -29,10 +29,11 @@ const { verifyStrategyFile } = require('@core/services/hashVerifier');
 const db              = require('@core/services/postgres');
 const { StrategyCompiler } = require('@core/services/strategyCompiler');
 const { ComponentLifecycle, STATES } = require('@core/core/lifecycle/ComponentLifecycle');
-const { StrategyContract }           = require('@core/core/strategy/StrategyContract');
 const { assertSafeInstance }           = require('corex-strategy-engine');
+const { resolveParams, ParamResolutionError } = require('corex-strategy-engine');
 const RuntimeLifecycle               = require('@core/core/runtime/RuntimeLifecycle');
 const runtimeRegistry                = require('@core/core/runtime/RuntimeRegistry');
+const { bindSymbol, rescopeStrategy, runtimeIdFor } = require('@core/core/runtime/SymbolBinder');
 const { parseScopedId }              = require('@core/services/userScope');
 
 const log = logger.createModuleLogger('STRATEGY_BOOTLOADER', {
@@ -110,6 +111,7 @@ async function _compileToClass(id, code) {
     // during its own contract-validation pass — reuse it rather than
     // re-deriving the same fields from result.instance a second time.
     const schema = result.metadata?.schema || {};
+    const schemaError = result.metadata?.schemaError || null;
     const metadata = {
         symbols:          result.metadata?.symbols || (Array.isArray(result.instance.symbols) ? result.instance.symbols : []),
         timeframe:        result.metadata?.timeframe || result.instance.timeframe || '1m',
@@ -118,13 +120,14 @@ async function _compileToClass(id, code) {
         className:        result.metadata?.className || StrategyClass.name || id,
         compiledAt:       Date.now(),
         codeLength:       code.length,
+        schemaError,
     };
 
     if (typeof result.instance.destroy === 'function') {
         try { result.instance.destroy(); } catch (_) {}
     }
 
-    return { ok: true, StrategyClass, schema, metadata };
+    return { ok: true, StrategyClass, schema, schemaError, metadata };
 }
 
 async function init(engine) {
@@ -150,16 +153,40 @@ async function init(engine) {
     log.info(`StrategyBootloader ready — ${_metaRegistry.size} strategies in registry`);
 }
 
-async function _compileAndRegisterMeta(id, code, dbRow = {}) {
+async function _compileAndRegisterMeta(id, code, dbRow = {}, options = {}) {
     const updatedAt = dbRow.updated_at ? new Date(dbRow.updated_at).getTime() : Date.now();
     const compiledHash = _hashSource(code);
 
+    // Cache rows written before schemaError existed cannot answer the schema
+    // status contract (broken defineSchema() vs. no parameters). Callers that
+    // need the distinction ask for a schema-state-aware entry and force a
+    // recompile for those legacy rows only.
+    const cacheHasSchemaState = dbRow.compiled_metadata
+        && typeof dbRow.compiled_metadata === 'object'
+        && Object.prototype.hasOwnProperty.call(dbRow.compiled_metadata, 'schemaError');
+    const cacheUsable = options.requireSchemaState !== true || cacheHasSchemaState;
+
     const existing = _metaRegistry.get(id);
-    if (existing && existing.compiledHash === compiledHash && existing.status === 'COMPILED') {
+    if (
+        existing &&
+        existing.compiledHash === compiledHash &&
+        existing.status === 'COMPILED' &&
+        (!options.requireSchemaState || Object.prototype.hasOwnProperty.call(existing, 'schemaError'))
+    ) {
+        // The in-memory path skips compilation, not durability: callers that
+        // ask for an awaited persist must still wait for the write.
+        if (options.awaitPersist === true) {
+            await _updateRuntimeStateInDb(id, {
+                schema: existing.schema || {},
+                compiledHash: existing.compiledHash,
+                compiledMetadata: existing.metadata || {},
+            });
+        }
         return existing;
     }
 
     if (
+        cacheUsable &&
         dbRow.compiled_hash === compiledHash &&
         dbRow.schema &&
         typeof dbRow.schema === 'object'
@@ -170,6 +197,7 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
             source: code,
             schema: dbRow.schema || {},
             metadata: dbRow.compiled_metadata || {},
+            schemaError: (dbRow.compiled_metadata && dbRow.compiled_metadata.schemaError) || null,
             status: 'CACHED',
             error: null,
             updatedAt,
@@ -193,6 +221,7 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
             source: code,
             schema: {},
             metadata: {},
+            schemaError: null,
             status: 'ERROR',
             error: result.error,
             updatedAt,
@@ -212,6 +241,7 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
         source: code,
         schema: result.schema,
         metadata: result.metadata,
+        schemaError: result.schemaError || null,
         status: 'COMPILED',
         error: null,
         updatedAt,
@@ -224,11 +254,16 @@ async function _compileAndRegisterMeta(id, code, dbRow = {}) {
 
     _metaRegistry.set(id, entry);
     stateManager.commit(id, 'STAGED', { reason: 'compiled' });
-    _updateRuntimeStateInDb(id, {
+    const persist = _updateRuntimeStateInDb(id, {
         schema: result.schema,
         compiledHash,
         compiledMetadata: result.metadata,
-    }).catch(err => log.warn(`[COMPILE] Failed to persist cache for ${id}: ${err.message}`));
+    });
+    if (options.awaitPersist === true) {
+        await persist;
+    } else {
+        persist.catch(err => log.warn(`[COMPILE] Failed to persist cache for ${id}: ${err.message}`));
+    }
 
     return entry;
 }
@@ -460,23 +495,18 @@ async function startStrategy(id, options = {}) {
         // (its `symbols` array). Starting a runtime is choosing which one
         // chart it runs on for this instance — same script, one symbol,
         // exactly like applying an indicator/strategy to a specific chart.
+        //
+        // Symbols are canonicalised on both sides before comparison, so a
+        // strategy declaring "BTC/USD" can be bound to a request for "BTCUSD".
+        // A request outside the declared universe is an error — never a silent
+        // fallback to some other chart. Strategies must declare at least one
+        // symbol; an empty list only reaches bindSymbol from legacy metadata.
         const declaredSymbols = (meta.metadata?.symbols || []).map(s => String(s).toUpperCase());
-        if (declaredSymbols.length === 0) {
-            throw new Error(`Strategy '${id}' declares no symbols — nothing to select`);
-        }
-        let symbol = options.symbol ? String(options.symbol).toUpperCase() : declaredSymbols[0];
-        if (!declaredSymbols.includes(symbol)) {
-            // Don't hard-fail on a symbol the client sent that isn't in the
-            // universe (e.g. a stale 'EURUSD' default) — fall back to the first
-            // declared symbol so the runtime still boots on a valid chart
-            // instead of erroring out. Surfaced as a warning for observability.
-            logger.warn(
-                `[STRATEGY_BOOTLOADER] Symbol '${symbol}' not in ${id} universe ` +
-                `(available: ${declaredSymbols.join(', ')}). Falling back to '${declaredSymbols[0]}'.`
-            );
-            symbol = declaredSymbols[0];
-        }
-        const runtimeId = `${id}::${symbol}::${mode}`;
+        const binding = bindSymbol(declaredSymbols, options.symbol, { allowOutsideUniverse: false });
+        const symbol = binding.canonical;
+        // Runtime identity keeps the declared spelling, so existing ids like
+        // `<id>::BTC/USD::PAPER` are reproduced exactly.
+        const runtimeId = runtimeIdFor(id, binding.identitySymbol, mode);
 
         // Ownership is decided by the registry, not by this function: a live
         // entry means "already running", a pending reservation means "another
@@ -496,25 +526,29 @@ async function startStrategy(id, options = {}) {
 
         const instance = new meta.StrategyClass();
         assertSafeInstance(instance, meta.StrategyClass);
-        StrategyContract.adapt(instance);
 
         // Re-scope the instance to exactly the selected symbol. The class
         // may declare several symbols in its own constructor (its supported
-        // universe), but each *runtime* trades only the one chosen above —
-        // this.symbols[0] and the dataManager must agree with that, not with
-        // whatever the source code's super({symbols:[...]}) listed.
-        if (typeof instance.resetState === 'function' && instance.dataManager) {
-            instance.symbols = [symbol];
-            instance.dataManager = new (instance.dataManager.constructor)({
-                symbols: [symbol],
-                maxHistory: instance.max_data_history || meta.metadata?.max_data_history || 500
-            });
-        } else {
-            instance.symbols = [symbol];
-        }
+        // universe), but each *runtime* trades only the one bound above —
+        // this.symbols[0], the dataManager and env must agree with that, not
+        // with whatever the source code's super({symbols:[...]}) listed.
+        rescopeStrategy(instance, binding, { mode, runtimeId });
 
-        const mergedParams = { ...(meta.schema ? Object.fromEntries(Object.entries(meta.schema).map(([k, v]) => [k, v.default])) : {}), ...(meta.runtimeParams || {}), ...(options.params || {}) };
+        // ── Parameters: defaults < saved runtime_params < start overrides ─────
+        // One resolver shared with backtest. Unknown/invalid overrides are
+        // rejected; stale saved keys are dropped with a warning.
+        const resolution = resolveParams(meta.schema, meta.runtimeParams, options.params);
+        if (resolution.errors.length) {
+            throw new ParamResolutionError(resolution.errors);
+        }
+        for (const warning of resolution.warnings) {
+            log.warn(`[PARAMS:${id}] ${warning.message}`);
+        }
+        const mergedParams = resolution.params;
         instance.params = mergedParams;
+        if (typeof instance.updateParams === 'function') {
+            instance.updateParams(mergedParams);
+        }
 
         // ── Restore persistent state from DB ──────────────────────────────────
         // Load the strategy's saved state JSON and populate this.state before
@@ -544,7 +578,7 @@ async function startStrategy(id, options = {}) {
         await lifecycle.boot({
             runtimeId,
             strategyInstance: instance,
-            profile: { runtimeId, strategyName: id, mode, symbol, userId, initialCash: options.initialCash || 100000, connectorType: options.connectorType || 'metaapi', params: mergedParams }
+            profile: { runtimeId, strategyName: id, mode, symbol, instrument: binding, userId, initialCash: options.initialCash || 100000, connectorType: options.connectorType || 'metaapi', params: mergedParams }
         });
 
         stateManager.commit(id, 'ACTIVE', { runtimeId, reason: 'started' });
@@ -687,6 +721,54 @@ function getMeta(id) {
 }
 
 /**
+ * Schema state for one strategy, compiled on demand (existing cache is
+ * reused by _compileAndRegisterMeta) and persisted before returning.
+ *
+ * Returns null when the strategy row does not exist. "COMPILE_ERROR" covers
+ * both a failed compile and a successful compile whose defineSchema() threw:
+ * an empty schema from a broken defineSchema() must never be shown as
+ * "this strategy has no parameters".
+ */
+async function getSchemaState(id) {
+    const { rows } = await db.query(
+        `SELECT name, script_body, updated_at, runtime_mode, runtime_params, runtime_state,
+                schema, compiled_hash, compiled_metadata
+         FROM strategies
+         WHERE name = $1 LIMIT 1`,
+        [id]
+    );
+    const dbRow = rows?.[0];
+    if (!dbRow) return null;
+
+    const meta = await _compileAndRegisterMeta(id, dbRow.script_body, dbRow, {
+        awaitPersist: true,
+        requireSchemaState: true
+    });
+
+    if (!meta) {
+        const failed = _metaRegistry.get(id);
+        return {
+            status: 'COMPILE_ERROR',
+            schema: {},
+            error: failed?.error || 'Strategy failed to compile'
+        };
+    }
+
+    const schema = (meta.schema && typeof meta.schema === 'object' && !Array.isArray(meta.schema))
+        ? meta.schema
+        : {};
+
+    if (meta.schemaError) {
+        return { status: 'COMPILE_ERROR', schema, error: meta.schemaError };
+    }
+
+    return {
+        status: Object.keys(schema).length ? 'OK' : 'NO_PARAMS',
+        schema
+    };
+}
+
+/**
  * Drop a strategy's metadata entry (e.g. after a rename or delete, where
  * the DB row under the old id no longer exists and the cached compile
  * result would otherwise go stale).
@@ -740,7 +822,25 @@ async function instantiateFromSource(code, id) {
         throw new Error(`Compile failed: ${result.error}`);
     }
 
-    return result.instance;
+    // Strategy subclasses that declare only defineSchema() have no static
+    // params, so their constructor leaves instance.schema empty. Carry the
+    // compiled schema over so backtest resolves params against the same
+    // schema live start uses.
+    const instance = result.instance;
+    const compiledSchema = result.metadata?.schema;
+    if (
+        compiledSchema &&
+        typeof compiledSchema === "object" &&
+        !Array.isArray(compiledSchema) &&
+        Object.keys(compiledSchema).length > 0 &&
+        (!instance.schema ||
+            typeof instance.schema !== "object" ||
+            Object.keys(instance.schema).length === 0)
+    ) {
+        instance.schema = compiledSchema;
+    }
+
+    return instance;
 }
 
 module.exports = {
@@ -753,6 +853,7 @@ module.exports = {
     getStopRequestSeq,
     getStrategy,
     getMeta,
+    getSchemaState,
     invalidateMeta,
     listStrategies,
     getActiveSymbols,

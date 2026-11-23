@@ -1,6 +1,6 @@
 "use strict";
 
-const IncrementalEMA = require("./ema");
+const EmaCore = require("./core/EmaCore");
 
 class MACD {
     static updateMode = "single";
@@ -17,9 +17,9 @@ class MACD {
         this.prev = 0;
         this.ready = false;
         this.histoReady = false;
-        this._fastEMA = new IncrementalEMA(fastPeriod);
-        this._slowEMA = new IncrementalEMA(slowPeriod);
-        this._signalEMA = new IncrementalEMA(signalPeriod);
+        this._fastEMA = new EmaCore(fastPeriod);
+        this._slowEMA = new EmaCore(slowPeriod);
+        this._signalEMA = new EmaCore(signalPeriod);
         this._prevSignal = 0;
         this._signalStarted = false;
         this.histo = 0;
@@ -66,9 +66,9 @@ class MACD {
         this.prev = 0;
         this.ready = false;
         this.histoReady = false;
-        this._fastEMA = new IncrementalEMA(this.fastPeriod);
-        this._slowEMA = new IncrementalEMA(this.slowPeriod);
-        this._signalEMA = new IncrementalEMA(this.signalPeriod);
+        this._fastEMA = new EmaCore(this.fastPeriod);
+        this._slowEMA = new EmaCore(this.slowPeriod);
+        this._signalEMA = new EmaCore(this.signalPeriod);
         this._prevSignal = 0;
         this._signalStarted = false;
         this.histo = 0;

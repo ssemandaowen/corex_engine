@@ -8,7 +8,6 @@ const STRATEGY_MODULE_LOADERS = new Map([
     ["corex-strategy-engine", () => require("corex-strategy-engine")],
     ["mathjs", () => require("mathjs")],
     ["technicalindicators", () => require("technicalindicators")],
-    ["@utils/BaseStrategy", () => require("@utils/BaseStrategy")],
 ]);
 
 const getModuleLoader = STRATEGY_MODULE_LOADERS.get.bind(STRATEGY_MODULE_LOADERS);

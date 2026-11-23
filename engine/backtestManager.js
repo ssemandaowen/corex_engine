@@ -28,9 +28,9 @@ const { fetchGuardedHistory, MAX_BARS_LIMIT } = require("@data");
 const db        = require("@core/services/postgres");
 const pgStore   = require("@core/services/pgStore");
 const storage   = require("@utils/storageManager");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
+const { Strategy } = require("corex-strategy-engine");
 const { BACKTEST }      = require("@config/constants");
-const { parseScopedId } = require("@core/services/userScope");
+const { parseScopedId, safeFilename } = require("@core/services/userScope");
 const { trades: tradeAnalytics, series, format } = require("@utils/analytics");
 const { bus, EVENTS } = require("@events/bus");
 
@@ -139,12 +139,13 @@ class BacktestManager {
             throw err;
         };
 
-        // ── 1. Compile strategy ───────────────────────────────────────────────
+        // ── 1. Validate strategy ───────────────────────────────────────────────
         emit("STRATEGY_COMPILER_INIT", "StrategyCompiler initialized", 5);
-        const compiled = StrategyContract.validateAndAdapt(strategy);
-        if (!compiled.ok) {
-            emit("ERROR", `Strategy compile failed: ${compiled.reason}`, 100);
-            throw new Error(`STRATEGY_COMPILE_FAILED: ${compiled.reason}`);
+        if (!(strategy instanceof Strategy)) {
+            const err = new Error("STRATEGY_COMPILE_FAILED: strategy must be a corex-strategy-engine Strategy instance");
+            err.code = "STRATEGY_COMPILE_FAILED";
+            emit("ERROR", err.message, 100);
+            throw err;
         }
         emit("STRATEGY_COMPILED", `[${strategy?.name || "unknown"}] Strategy compiled`, 12);
         abortIfRequested();
@@ -805,7 +806,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
      * Resolve the absolute path to a trades CSV file.
      */
     getTradesCsvPath(reportId) {
-        return path.join(this.storagePath, `${reportId}.trades.csv`);
+        return path.join(this.storagePath, `${safeFilename(reportId)}.trades.csv`);
     }
 
     // ── Persistence ───────────────────────────────────────────────────────────
@@ -834,7 +835,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
     async _saveTradesToCsv(reportId, trades) {
         if (!Array.isArray(trades) || trades.length === 0) return;
         
-        const filepath = path.join(this.storagePath, `${reportId}.trades.csv`);
+        const filepath = this.getTradesCsvPath(reportId);
         try {
             const data = trades.map(t => ({
                 direction: t.direction || t.side || "",
@@ -908,7 +909,7 @@ _computeAnalytics({ bars, trades, strategy, config, runtimeId, startMs, emit, ab
      * swallowed write error would advertise a report path that does not exist.
      */
     async _saveToFile(report) {
-        const filepath = path.join(this.storagePath, `${report.meta.id}.json`);
+        const filepath = path.join(this.storagePath, `${safeFilename(report.meta.id)}.json`);
         await fsp.writeFile(filepath, JSON.stringify(report));
         return filepath;
     }

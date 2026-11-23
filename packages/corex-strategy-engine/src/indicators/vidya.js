@@ -1,88 +1,97 @@
 "use strict";
 
-const IncrementalEMA = require("./ema");
+const BaseIndicator = require("./BaseIndicator");
 
-class VIDYA {
+class VIDYA extends BaseIndicator {
     static updateMode = "single";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14), Number(indDef.fast || 2), Number(indDef.slow || 30)];
+    static meta = Object.freeze({ version: 2 });
 
-    constructor(period = 14, nFast = 2, nSlow = 30) {
-        if (!period || period < 1) throw new Error("VIDYA period must be >= 1");
+    constructor(period = 14, nFast = 2, nSlow = 30, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) throw new TypeError("VIDYA period must be a positive integer");
         this.period = period;
         this.nFast = nFast;
         this.nSlow = nSlow;
-        this.value = 0;
-        this.prev = 0;
+        this._baseAlpha = 2 / (period + 1);
+        this._size = period;
+        this._changes = new Array(period);
+        this._cstart = 0;
+        this._clen = 0;
+        this._gainsSum = 0;
+        this._lossesSum = 0;
+        this._lastPrice = null;
+        this._seedSum = 0;
+        this._priceCount = 0;
+        this.value = NaN;
+        this.prev = NaN;
         this.ready = false;
-        this._upSum = 0;
-        this._downSum = 0;
-        this._prevClose = null;
-        this._emaGain = new IncrementalEMA(period);
-        this._emaLoss = new IncrementalEMA(period);
-        this._prices = [];
-        this._fastestSC = 2 / (this.nFast + 1);
-        this._slowestSC = 2 / (this.nSlow + 1);
     }
 
-    update(price) {
+    onFrame(frame) {
+        const price = this.readSource(frame);
         this.prev = this.value;
-        this._prices.push(price);
-        if (this._prices.length > this.period + 1) {
-            this._prices.shift();
+
+        if (this._lastPrice !== null) {
+            const change = price - this._lastPrice;
+            const size = this._size;
+            const evicting = this._clen === size;
+            if (evicting) {
+                const xo = this._changes[this._cstart];
+                if (xo > 0) this._gainsSum -= xo;
+                else this._lossesSum += xo;
+                this._cstart = (this._cstart + 1) % size;
+            } else {
+                this._clen++;
+            }
+            this._changes[(this._cstart + this._clen - 1) % size] = change;
+            if (change > 0) this._gainsSum += change;
+            else this._lossesSum -= change;
         }
-
-        if (this._prevClose === null) {
-            this._prevClose = price;
-            return this.value;
-        }
-
-        const change = price - this._prevClose;
-        const gain = change > 0 ? change : 0;
-        const loss = change < 0 ? -change : 0;
-        this._prevClose = price;
-
-        this._emaGain.update(gain);
-        this._emaLoss.update(loss);
-
-        if (!this._emaGain.ready || !this._emaLoss.ready) {
-            return this.value;
-        }
-
-        const rs = this._emaLoss.value === 0 ? Infinity : this._emaGain.value / this._emaLoss.value;
-        const cmi = Math.abs((rs - 1) / (rs + 1));
-
-        const sc = Math.pow(cmi * (this._fastestSC - this._slowestSC) + this._slowestSC, 2);
+        this._lastPrice = price;
 
         if (!this.ready) {
-            if (this._prices.length >= this.period) {
-                let sum = 0;
-                for (let i = 0; i < this.period; i++) {
-                    sum += this._prices[i];
-                }
-                this.value = sum / this.period;
+            this._seedSum += price;
+            this._priceCount++;
+            if (this._priceCount === this.period) {
+                this.value = this._seedSum / this.period;
                 this.ready = true;
             }
             return this.value;
         }
 
-        this.value = this.value + sc * (price - this.value);
+        if (this._clen < this.period) return this.value;
+
+        const total = this._gainsSum + this._lossesSum;
+        const cmo = total === 0 ? 0 : (this._gainsSum - this._lossesSum) / total;
+        const alpha = this._baseAlpha * Math.abs(cmo);
+        this.value = this.value + alpha * (price - this.value);
         return this.value;
     }
 
-    reseed(values) {
-        this.value = 0;
-        this.prev = 0;
+    onReset() {
+        this._changes = new Array(this._size);
+        this._cstart = 0;
+        this._clen = 0;
+        this._gainsSum = 0;
+        this._lossesSum = 0;
+        this._lastPrice = null;
+        this._seedSum = 0;
+        this._priceCount = 0;
+        this.value = NaN;
+        this.prev = NaN;
         this.ready = false;
-        this._upSum = 0;
-        this._downSum = 0;
-        this._prevClose = null;
-        this._emaGain = new IncrementalEMA(this.period);
-        this._emaLoss = new IncrementalEMA(this.period);
-        this._prices = [];
-        for (let i = 0; i < values.length; i++) {
-            this.update(values[i]);
-        }
-        return this.value;
+    }
+
+    setPeriod(period, nFast, nSlow) {
+        if (!Number.isInteger(period) || period < 1) throw new TypeError("VIDYA period must be a positive integer");
+        this.period = period;
+        this.nFast = nFast;
+        this.nSlow = nSlow;
+        this._baseAlpha = 2 / (period + 1);
+        this._size = period;
+        this.onReset();
+        return this;
     }
 }
 

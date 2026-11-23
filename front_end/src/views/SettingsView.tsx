@@ -77,7 +77,7 @@ const CONFIG_SCHEMAS = {
         title: 'Connector API Secret Key',
         description: 'Credentials hash for secure engine transactions',
         minLength: 8,
-        default: 'mt5_sec_token_hash_value',
+        default: '',
       }
     }
   },
@@ -171,8 +171,8 @@ export default function SettingsView() {
 
   // Connectivity states
   const [mt5Config, setMt5Config] = useState({ accountId: '500342119', server: 'ICMarkets-Demo03', platform: 'MT5' });
-  const [metaApiConfig, setMetaApiConfig] = useState({ accountId: 'ma_9832103a', token: 'eyJhY2NvdW50SWQiOiJtYV85ODMyMTAzYSIsImV4cGlyZXMiOiIyMDI2LTEyLTMxIn0' });
-  const [apiSecretKey, setApiSecretKey] = useState('mt5_sec_token_hash_value');
+  const [metaApiConfig, setMetaApiConfig] = useState({ accountId: '', token: '' });
+  const [apiSecretKey, setApiSecretKey] = useState('');
   const [testingConnection, setTestingConnection] = useState(false);
 
   // Editor states

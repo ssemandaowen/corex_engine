@@ -54,6 +54,7 @@ const fs = require("fs");
 
 const engine = require("@core/core/engine");
 const { DataProviderFactory } = require("@data");
+const { DataProviderError } = require("../packages/corex-market-data/src/DataProviderContract");
 const strategyRuntime = require("@core/modules/strategyRuntime");
 const storage = require("@utils/storageManager");
 
@@ -258,6 +259,23 @@ describe("ENGINE-01 P0 — engine warmup dispatch (characterization)", () => {
 
         expect(ok).toBe(false);
         expect(DataProviderFactory.fetchHistorical).not.toHaveBeenCalled();
+        expect(onBar).not.toHaveBeenCalled();
+        expect(strategy._warmedUp).toBeUndefined();
+    });
+
+    test("a typed PROVIDER_KEY_MISSING failure degrades gracefully instead of blocking startup", async () => {
+        DataProviderFactory.fetchHistorical.mockRejectedValue(
+            new DataProviderError("PROVIDER_KEY_MISSING", {
+                provider: "twelvedata",
+                symbol: "BTCUSD",
+                message: "TwelveData API key is missing; historical fetch is unavailable."
+            })
+        );
+        const onBar = jest.fn();
+        const strategy = makeStrategy({ onBar });
+
+        await expect(warmup(strategy)).resolves.toBe(false);
+
         expect(onBar).not.toHaveBeenCalled();
         expect(strategy._warmedUp).toBeUndefined();
     });

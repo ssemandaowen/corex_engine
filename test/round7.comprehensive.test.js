@@ -184,7 +184,7 @@ describe("PaperBroker — side normalisation and trailing stop", () => {
 // 4. StrategyStateStore
 // ─────────────────────────────────────────────────────────────────────────────
 describe("StrategyStateStore", () => {
-    const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
+    const { StrategyStateStore } = require("corex-strategy-engine");
 
     afterEach(() => jest.useRealTimers());
 
@@ -273,7 +273,7 @@ describe("StrategyStateStore", () => {
 // 5. BaseStrategy — _attachRuntime, _syncPositionSnapshot, this.env, this.state
 // ─────────────────────────────────────────────────────────────────────────────
 describe("BaseStrategy — runtime injection", () => {
-    const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
+    const { StrategyStateStore } = require("corex-strategy-engine");
 
     // Minimal BaseStrategy-like object simulating what strategyLoader creates
     function makeInstance() {
@@ -367,7 +367,7 @@ describe("BaseStrategy — runtime injection", () => {
 // 6. StrategyRuntimeUtils._resolveProtectionLevels — trailPct
 // ─────────────────────────────────────────────────────────────────────────────
 describe("StrategyRuntimeUtils._resolveProtectionLevels — trailPct", () => {
-    const utils = require("@utils/strategy/StrategyRuntimeUtils");
+    const { StrategyRuntimeUtils: utils } = require("corex-strategy-engine");
 
     test("returns trailPct from params", () => {
         const result = utils._resolveProtectionLevels({ side: "long", price: 1.1, params: { trailPct: 2.0 } });
@@ -498,10 +498,10 @@ describe("security.js — loop guards", () => {
     const { validateStrategyCode } = require("@utils/security");
 
     const wrap = (code) => `
-        const BaseStrategy = require("@utils/BaseStrategy");
-        class S extends BaseStrategy {
+        const { Strategy } = require("corex-strategy-engine");
+        class S extends Strategy {
             constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 10 }); }
-            next(bar) { ${code}; return null; }
+            onBar(ctx, bar) { ${code}; return null; }
         }
         module.exports = S;
     `;
@@ -552,14 +552,13 @@ describe("security.js — loop guards", () => {
 
     test("valid strategy passes scanner", () => {
         const valid = `
-            const BaseStrategy = require("@utils/BaseStrategy");
-            class MyStrat extends BaseStrategy {
+            const { Strategy } = require("corex-strategy-engine");
+            class MyStrat extends Strategy {
                 constructor() { super({ symbols: ["EURUSD"], timeframe: "1h", lookback: 50 }); }
-                next(bar) {
-                    if (!this.isWarmedUp()) return null;
-                    const closes = this.series(bar.symbol, "close");
-                    const ema = this.indicators.EMA.calculate({ values: closes, period: 20 });
-                    if (closes[closes.length-1] > ema[ema.length-1]) return this.entryLong();
+                onBar(ctx, bar) {
+                    if (!ctx.isWarmedUp()) return null;
+                    const closes = ctx.series(bar.symbol, "close");
+                    if (closes[closes.length-1] > 1.0) return ctx.go.long(1, bar.close);
                     return null;
                 }
             }
@@ -603,10 +602,6 @@ describe("security.js — loop guards", () => {
             module.exports = MyStrat;
         `;
         expect(() => validateStrategyCode(code)).toThrow(/Unauthorized require/);
-    });
-
-    test("temporary template BaseStrategy import is allowed exactly", () => {
-        expect(() => validateStrategyCode('require("@utils/BaseStrategy")')).not.toThrow();
     });
 
     test("arbitrary package names containing BaseStrategy are rejected", () => {

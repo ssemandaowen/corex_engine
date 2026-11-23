@@ -13,7 +13,7 @@ const jobQueue = require("@core/services/jobQueue");
 const { MAX_BARS_LIMIT } = require("@data");
 const { bus, EVENTS } = require("@events/bus"); 
 const { BACKTEST, TIME } = require("@config/constants"); 
-const { toScopedId, fromScopedId, sanitizeEntityId } = require("@core/services/userScope");
+const { toScopedId, fromScopedId, sanitizeEntityId, safeFilename } = require("@core/services/userScope");
 const logger = require("@utils/logger").createModuleLogger("BACKTEST_API", {
     category: "backtest",
     ui: true,
@@ -833,6 +833,9 @@ router.post("/:id", upload.single("dataset"), async (req, res) => {
             barBudgetMs:     Number(req.body.barBudgetMs     ?? 100) || 100,
             barBudgetStrikes: Number(req.body.barBudgetStrikes ?? 5)  || 5,
             batchSize:       Number(req.body.batchSize       ?? 500) || 500,
+            // Opt-in: run a symbol outside the strategy's declared universe.
+            // Absent/false keeps the bind-and-reject default.
+            allowOutsideUniverse: String(req.body?.allowOutsideUniverse ?? "").toLowerCase() === "true",
         };
         
         let params = req.body.params;
@@ -918,8 +921,8 @@ router.get("/:reportId", (req, res) => {
         if (!report) {
             await ensureStorageReady();
             const candidates = [
-                path.join(REPORTS_DIR, `${scopedReportId}.json`),
-                path.join(REPORTS_DIR, `${reportId}.json`)
+                path.join(REPORTS_DIR, `${safeFilename(scopedReportId)}.json`),
+                path.join(REPORTS_DIR, `${safeFilename(reportId)}.json`)
             ];
             for (const p of candidates) {
                 if (!(await fileExists(p))) continue;
@@ -977,8 +980,8 @@ router.delete("/:reportId", (req, res) => {
 
         // Best-effort file delete.
         await ensureStorageReady();
-        const p1 = path.join(REPORTS_DIR, `${reportId}.json`);
-        const p2 = path.join(REPORTS_DIR, `${publicId}.json`);
+        const p1 = path.join(REPORTS_DIR, `${safeFilename(reportId)}.json`);
+        const p2 = path.join(REPORTS_DIR, `${safeFilename(publicId)}.json`);
         if (await fileExists(p1)) {
             try { await fsp.unlink(p1); } catch { /* ignore */ }
         }

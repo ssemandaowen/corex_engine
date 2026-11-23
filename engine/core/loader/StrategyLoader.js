@@ -70,6 +70,15 @@ class StrategyLoader {
     }
 
     /**
+     * Schema state for a strategy, compiled on demand and persisted before
+     * returning. Resolves to { status, schema, error? } or null when missing.
+     * @param {string} id
+     */
+    async getSchemaState(id) {
+        return bootloader.getSchemaState(id);
+    }
+
+    /**
      * True while a start for this strategy is still initializing.
      *
      * A start owns nothing until it reserves its runtime identity, so an

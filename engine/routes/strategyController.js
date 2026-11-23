@@ -12,7 +12,8 @@ const stateManager = require("@utils/stateController");
 const runtimeRegistry = require("@core/core/runtime/RuntimeRegistry");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
-const { getStrategyManifestPayload } = require("@utils/strategy/StrategyManifest");
+const { StrategyManifest } = require("corex-strategy-engine");
+const { getStrategyManifestPayload } = StrategyManifest;
 const { toScopedId, fromScopedId, scopedLikePrefix } = require("@core/services/userScope");
 
 // HELPER: Check if strategy is untouchable.
@@ -52,7 +53,7 @@ router.get("/", (req, res) => {
     const userId = getUserId(req);
     if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
     db.query(
-        `SELECT name, updated_at, schema, runtime_params
+        `SELECT name, updated_at, schema, runtime_params, compiled_metadata
          FROM strategies
          WHERE name LIKE $1
          ORDER BY name ASC`
@@ -64,6 +65,13 @@ router.get("/", (req, res) => {
             if (!id) return null;
             const meta = loader.getMeta(row.name);
             const liveInstance = loader.getActiveInstance(row.name);
+            const schema = meta?.schema || row.schema || {};
+            const schemaError = meta?.schemaError
+                || row.compiled_metadata?.schemaError
+                || null;
+            const schemaStatus = (meta?.status === "ERROR" || schemaError)
+                ? "COMPILE_ERROR"
+                : (schema && typeof schema === "object" && Object.keys(schema).length ? "OK" : "NO_PARAMS");
             // FIX (Owen, Jul 2026): this used to be `liveInstance?.symbols || []` —
             // which is only ever populated while a runtime is ALREADY running.
             // For a stopped strategy (the normal case right before you launch
@@ -78,7 +86,8 @@ router.get("/", (req, res) => {
                 id,
                 name: id,
                 symbols: (liveInstance?.symbols && liveInstance.symbols.length ? liveInstance.symbols : declaredSymbols),
-                schema: meta?.schema || row.schema || {},
+                schema,
+                schemaStatus,
                 params: liveInstance?.params || row.runtime_params || {},
                 lastModified: row.updated_at ? new Date(row.updated_at).getTime() : null,
                 status: stateManager.getStatus(row.name)
@@ -96,6 +105,24 @@ router.get("/manifest", (_req, res) => {
         return res.json({ success: true, payload: getStrategyManifestPayload() });
     } catch (err) {
         return res.status(500).json({ success: false, error: "MANIFEST_FAILED", message: err.message });
+    }
+});
+
+// 1c. SCHEMA STATE (compiled on demand, persisted before responding)
+// Must be before /:id for readability; Express matches /:id/schema separately
+// either way.
+router.get("/:id/schema", async (req, res) => {
+    const userId = getUserId(req);
+    if (!userId) return res.status(401).json({ success: false, error: "UNAUTHORIZED" });
+    const idRaw = String(req.params.id || "").trim();
+    const id = scopedIdFor(req, idRaw);
+    if (!id) return res.status(400).json({ success: false, error: "INVALID_ID" });
+    try {
+        const state = await loader.getSchemaState(id);
+        if (!state) return res.status(404).json({ success: false, error: "Strategy not found" });
+        return res.json({ success: true, payload: state });
+    } catch (err) {
+        return res.status(500).json({ success: false, error: "SCHEMA_FAILED", message: err.message });
     }
 });
 
@@ -161,12 +188,16 @@ const handleCreate = async (req, res) => {
     const plainId = String(name || "").replace(/\s+/g, "_").replace(/\.js$/, "");
     const id = scopedIdFor(req, plainId);
     if (!id) return res.status(400).json({ success: false, error: "INVALID_NAME" });
-    const templatePath = path.join(process.cwd(), "utils", "template.txt");
-    let template = "";
+    const templatePath = path.resolve(__dirname, "../../packages/corex-strategy-engine/src/strategyTemplate.txt");
+    let template;
     try {
         template = await fs.promises.readFile(templatePath, "utf8");
     } catch {
-        template = `module.exports = class ${plainId} { constructor() { this.id = '${plainId}'; this.name = '${plainId}'; } }`;
+        return res.status(500).json({
+            success: false,
+            error: "STRATEGY_TEMPLATE_UNAVAILABLE",
+            message: "The package-owned strategy template could not be loaded."
+        });
     }
     const hydrated = template.replace(/\$\{name\}/g, plainId);
     const hash = crypto.createHash("sha256").update(hydrated).digest("hex");

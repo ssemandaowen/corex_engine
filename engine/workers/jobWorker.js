@@ -8,6 +8,7 @@ const logger = require("@utils/logger");
 const dbMigrator = require("@root/db/migrate");
 const db = require("@core/services/postgres");
 const jobQueue = require("@core/services/jobQueue");
+const { isNonRetryableError, shouldScheduleRetry } = require("@core/services/jobErrorPolicy");
 const { StrategyCompiler } = require("@core/services/strategyCompiler");
 const { handlers: JOB_HANDLERS } = require("./jobs");
 
@@ -299,12 +300,13 @@ async function loop() {
             const retryBaseMs = Math.max(250, Number(process.env.COREX_JOB_RETRY_BASE_MS || 5000));
             const retryMaxMs = Math.max(retryBaseMs, Number(process.env.COREX_JOB_RETRY_MAX_MS || 60_000));
 
-            const nonRetryable =
-        msg.startsWith("UPLOAD_FILE_MISSING")
-        || msg.includes("ENOENT: no such file or directory")
-        || msg.includes("INVALID_FILE_TYPE");
+            // Input errors (symbol, key, params, compile) fail identically on
+            // every attempt: mark the job terminally failed on the first one.
+            if (failed && attempts < maxAttempts && isNonRetryableError(err, msg)) {
+                log.warn(`[JOB_WORKER] Job ${job.id} failed with a non-retryable error; not retrying: ${msg}`);
+            }
 
-            if (failed && !nonRetryable && attempts < maxAttempts) {
+            if (shouldScheduleRetry({ err, message: msg, failed, attempts, maxAttempts })) {
                 const delayMs = backoffDelayMs(attempts, { baseMs: retryBaseMs, maxMs: retryMaxMs });
                 log.warn(`[JOB_WORKER] Scheduling retry job=${job.id} in ${delayMs}ms (attempt ${attempts}/${maxAttempts})`);
                 await jobQueue.scheduleRetry({ id: job.id, delayMs }).catch(() => {});

@@ -1,104 +1,138 @@
 # corex-strategy-engine
 
-`corex-strategy-engine` is the pure-logic algorithmic execution runtime for CoreX strategies, operating between raw market feed input and upper engine order/event broadcasting. It provides the declarative strategy base class (`Strategy`), zero-allocation context builder (`ContextBuilder`), incremental O(1) technical indicator state management (`IndicatorManager` / `IndicatorRegistry`), bounded charting storage (`PlotBuffer`), parameter schema validation (`ParamSchema`), and strategy structural verification (`StrategyValidator`).
+**CoreX strategy domain package** — strategy lifecycle, per-runtime market-data state, incremental technical indicators, parameter contracts, strategy context, and authoring validation.
 
----
+This package is consumed by the CoreX application engine. It does not connect to brokers, fetch market data, persist database records, schedule jobs, or broadcast events. The application engine supplies packets and lifecycle calls and owns execution, persistence, scheduling, credentials, and transport.
 
-## Authoring API Surface
+## Status
 
-### 1. Static Declarations
-Strategy classes extend `Strategy` and declare operational metadata via static fields:
-- `static symbols`: Array of ticker strings, e.g. `["EURUSD"]` (required; default fallback if config `symbols` is omitted).
-- `static timeframe`: Timeframe string, e.g. `"1m"`, `"5m"`, `"1h"` (optional; defaults to `"1m"`).
-- `static lookback`: Positive integer lookback window size (optional; defaults to `100`, upper bound `100000`).
-- `static params`: Static object or class inheritance mapping parameter specifications to default values or schema objects (e.g. `{ period: 14, riskPct: 1.0 }`).
-- `static indicators`: Static object mapping indicator keys to declarative definitions (e.g. `{ rsi: { type: "RSI", period: 14, source: "close" } }`).
+- Strategy package structure and public API are documented in `docs/`.
+- Strategy lifecycle and indicator pipeline are implemented and covered by the package test suite.
+- The indicator catalogue contains 50 registered types. **20 currently have known full-series parity divergences** against the selected independent references; see [Known issues](docs/KNOWN_ISSUES.md) and [the divergence report](test/reference/DIVERGENCE.md).
+- Indicator-family correctness work is deliberately separate from package structure/documentation completion. Do not treat registration as a certification of mathematical correctness.
+- This is a CoreX workspace package, not yet a clean-room standalone npm package. A small number of imports still resolve through the host repository aliases; see [Architecture and boundaries](docs/ARCHITECTURE.md).
 
-### 2. Lifecycle Hooks
-Strategies implement up to 5 standard lifecycle callbacks:
-- `onStart(ctx)`: Invoked once when the strategy receives its first market data packet.
-- `onBar(ctx, bar)`: Invoked for each completed bar packet (`source: "bar"` or closed candle). Returns a signal object or `null`.
-- `onTick(ctx, tick)`: Invoked for each raw tick packet when `candleBased` is false. Returns a signal object or `null`.
-- `onFill(ctx, fill)`: Invoked upon order fill execution callback.
-- `onStop(ctx)`: Invoked during strategy teardown / destroy lifecycle.
+## Supported strategy lifecycle
 
-### 3. The `ctx` Object Surface
-The `ctx` object passed into lifecycle hooks is a persistent, zero-allocation context object created by `ContextBuilder`. Its verified properties and methods include:
+Strategy classes extend the package-owned `Strategy` base class and implement the forward-only lifecycle:
 
-#### Properties
-- `ctx.symbol`: Active symbol string for the current packet.
-- `ctx.price`: Current packet price (`packet.price ?? packet.close ?? 0`).
-- `ctx.close`: Current packet close price (`packet.close ?? price`).
-- `ctx.time`: Current packet timestamp (milliseconds).
-- `ctx.isBar`: Boolean flag indicating whether the packet is a bar packet.
-- `ctx.barTime`: Timestamp of the current bar.
-- `ctx.engine`: Engine telemetry object `{ mode: string, barsReceived: number, connected: boolean }`.
-- `ctx.position`: Position telemetry object `{ side: 'FLAT' | 'long' | 'short', entryPrice: number, size: number, unrealizedPnL: number }`.
-- `ctx.params`: Strategy parameters object (updated dynamically via `updateParams`).
-- `ctx.state`: Persistent key-value state store instance (`StrategyStateStore`).
-- `ctx.indicators`: Object mapping active indicator names to incremental indicator instances (e.g., `ctx.indicators.rsi.value`, `ctx.indicators.rsi.ready`).
+| Hook | Purpose |
+|---|---|
+| `onStart(ctx)` | Initialise strategy-local state when runtime data begins |
+| `onBar(ctx, bar)` | Process a completed bar |
+| `onTick(ctx, tick)` | Process a raw tick when tick mode is enabled |
+| `onFill(ctx, fill)` | React to an execution fill reported by the host |
+| `onStop(ctx)` | Release strategy-local resources |
 
-#### Libraries & Helpers
-- `ctx.ta`: Fast technical analysis library:
-  - `crossover(a, b)`: Returns true if A crosses above B.
-  - `crossunder(a, b)`: Returns true if A crosses below B.
-  - `highest(arr, length)`: Maximum value in lookback window.
-  - `lowest(arr, length)`: Minimum value in lookback window.
-  - `rising(arr, length)`: Checks if series is strictly rising over `length` bars.
-  - `falling(arr, length)`: Checks if series is strictly falling over `length` bars.
-  - `change(arr, length)`: Difference between current value and value `length` bars ago.
-- `ctx.util`: Utility helper functions:
-  - `round(val, decimals)`: Rounds numeric value to specified decimal places.
-  - `positionSize(capital, riskPct, stopLossPips)`: Calculates risk-based position quantity.
+There is no legacy `BaseStrategy` adapter or imperative indicator adapter in the supported package contract. Strategies are classes; there is no DSL.
 
-#### Orders & Guards
-- `ctx.go`: Order execution helper object:
-  - `ctx.go.long(qty?, price?)`: Triggers `entryLong`.
-  - `ctx.go.short(qty?, price?)`: Triggers `entryShort`.
-  - `ctx.go.scale(qty?, price?)`: Triggers `entryLong` with `allowScaling: true`.
-  - `ctx.go.protect({ sl?, tp?, trailPct? })`: Returns protection intent object `{ intent: "PROTECT", sl, tp, trailPct, symbol }`.
-- `ctx.hasBars(count = 1, symbol = ctx.symbol)`: Returns boolean indicating if `count` warmed-up bars exist for the symbol.
-- `ctx.requireBars(count = 1, indicatorName = null, symbol = ctx.symbol)`: Guard returning true only if `hasBars(count)` passes AND specified (or all) indicators report `ready: true`.
-- `ctx.plot(name, value)`: Records a time-series plot data point into `PlotBuffer`.
-- `ctx.mark(name, message)`: Records an event marker into `PlotBuffer`.
-- `ctx.flat(qty?, price?)`: Closes the strategy's open exposure for the current symbol via `this.close({ symbol, quantity, price })`. Wired in `ContextBuilder._buildPersistentCtx()`.
+## Authoring surface
 
-#### Discrepancy Note (StrategyManifest vs Actual Wiring)
-`StrategyManifest.js` includes metadata descriptors for IDE completion that are **not** attached to `ctx` or `this` in actual runtime execution:
-- `oncePerBar`, `safeRule`, `describe`, `logDecision`, `logSignal`, `logGuard`: Listed in `StrategyManifest.js` as manifest helper descriptors, but are not methods on `Strategy.prototype` or `ctx`.
-- `above`, `below`, `between`, `pctChange`: Listed in `StrategyManifest.js`, but not exported by `ta.js` or `ctx.ta`.
+The template is [src/strategyTemplate.txt](src/strategyTemplate.txt). It demonstrates:
 
----
+- static `symbols`, `timeframe`, and `lookback`;
+- typed static `params` with defaults and constraints;
+- declarative `indicators` with registry type, parameter and source;
+- lifecycle hooks;
+- context state, readiness guards, plotting, marks and forward-only order intents.
 
-## Data Flow
+See [Public API](docs/API.md) for the package exports and context members.
 
-### Inbound Data Flow
-1. Market data packets (ticks or closed bars) enter via `Strategy.onTick(tick)`, `Strategy.onBar(bar)`, `Strategy.onMarketData(packet)`, or `Strategy.generateSignal(packet)`.
-2. Internal pipeline `_processData(packet, meta)` invokes `ContextBuilder.updateForPacket(packet, isBar)`.
-3. `StrategyDataManager` / `SoACandleStore` ingests the packet and updates price history lookback windows.
-4. `IndicatorManager` updates all registered incremental indicators in O(1) time.
-5. `ContextBuilder` updates `ctx` attributes (`price`, `close`, `time`, `position`, `engine`) and passes `ctx` to the appropriate user hook (`onBar` / `onTick`).
+## Runtime pipeline
 
-### Outbound Data Flow
-- **Signals & Orders**: Returned directly from `onBar` / `onTick` or emitted via `this.entryLong()`, `this.entryShort()`, `this.exitAll()`, `this.flipToLong()`, `this.flipToShort()`, or `ctx.go.*`.
-- **Plot & Mark Deltas**: Recorded via `ctx.plot()` and `ctx.mark()` into `PlotBuffer`. Extracted on demand or via periodic drain using `Strategy.getPlotDelta()`.
+1. The host supplies a packet to the strategy.
+2. `Frame.load(packet)` is the raw packet normalisation boundary. Invalid packets return `false`.
+3. `StrategyDataManager` writes completed bars into the typed-array `CandleStore`.
+4. `IndicatorManager` updates configured indicators in compiled dense arrays.
+5. `ContextBuilder` refreshes the persistent `ctx` object and invokes the selected lifecycle hook.
+6. Strategy intents/signals are returned to the host. The package does not submit broker orders itself.
 
----
+The normal bar pipeline is bar-close oriented. Raw-tick strategy hooks are supported, but configured indicators are not promised to update on every tick. See [Architecture and boundaries](docs/ARCHITECTURE.md).
 
-## Requirements & Coupling
+## Package map
 
-### Dependencies
-- **Runtime**: Node.js >= 18.
-- **Path Aliases**: Requires `@root`, `@core`, `@utils`, `@config`, `@events`, `corex-broker-contract`.
+```text
+corex-strategy-engine/
+  index.js                  Public CommonJS entry point
+  src/
+    Strategy.js             Strategy lifecycle and signal domain
+    ContextBuilder.js       Persistent strategy context
+    StrategyDataManager.js  Per-symbol candle/history owner
+    IndicatorManager.js     Indicator configuration and dispatch
+    IndicatorRegistry.js    Lazy registry, aliases and metadata
+    IndicatorBank.js        Dense named indicator collection
+    indicators/             One implementation per indicator + shared base/cores
+    kernel/                 Frame, CandleStore, sliding windows and numeric primitives
+    params/                 Parameter collection, validation, resolution and patching
+    validation/             Strategy manifest and structural/safety checks
+    ta.js                   Small strategy-facing TA helper facade
+    util.js                 Small strategy-facing utility facade
+    strategyTemplate.txt    Canonical authoring template
+  test/
+    architecture/           Layer and boundary contracts
+    characterisation/       Debt ratchet, golden and full-series parity
+    indicator-core/         Base, registry, bank and manager contracts
+    indicator-families/     Indicator implementation tests by family
+    kernel/                 Frame, store and numeric primitive tests
+    params/                  Parameter contract tests
+    reference/               Independent reference implementations and parity tests
+  bench/                    Bar-close benchmark and memory smoke
+  docs/                     Architecture, API, indicator catalogue and open issues
+```
 
-### Explicit Non-Coupling
-- **No Network Calls**: `corex-strategy-engine` contains zero network or HTTP code.
-- **No Database Coupling**: Data persistence is handled via injected utilities (`StrategyStateStore`).
-- **No Broadcaster Coupling**: WebSocket broadcasting and channel routing are strictly handled by the engine layer (`RuntimeRegistry.js`, `broadcaster.js`).
+The one-file-per-indicator layout is intentional: the registry lazy-loads implementations independently, and each indicator owns its recurrence, readiness and output shape. `ta.js` is intentionally a small facade for generic series predicates; it is not the container for all indicator implementations.
 
----
+## Installation and use in CoreX
 
-## Known Limitations
+The package is currently loaded from the monorepo workspace:
 
-1. **No Runtime Sandboxing**: Strategy code runs directly in the Node.js V8 process without VM2 or worker thread isolation beyond the AST security scanner in `utils/security.js`.
-2. **No Hard Indicator/Lookback Caps**: Beyond `StrategyValidator` advisory warnings and the `MAX_ALLOWED_LOOKBACK = 100000` error bound, no memory or execution time caps are enforced inside this package itself.
+```js
+const {
+  Strategy,
+  indicators,
+  globalIndicatorRegistry,
+  IndicatorManager,
+  ParamSchema
+} = require("corex-strategy-engine");
+```
+
+The package requires Node.js 18 or later. Its current runtime dependencies are declared in `package.json`. The package still uses host-repository aliases for logger/config integration, so it must be loaded through the CoreX workspace configuration until the remaining package-purity work is completed.
+
+## Verification commands
+
+Run from `packages/corex-strategy-engine`:
+
+```powershell
+npm test -- --runInBand
+npm run test:ratchet
+npm run test:memory
+npm run bench
+```
+
+- `test`: package unit, integration, architecture, kernel, parameter and reference tests.
+- `test:ratchet`: accepted debt counts for selected legacy patterns.
+- `test:memory`: warmed retained-heap smoke check.
+- `bench`: alternating old Map dispatch and compiled dense dispatch over 14 indicators and 200,000 bars, with multiple runs and GC reporting.
+- `bench:tick`: legacy tick-throughput diagnostic; it is not the authoritative bar-close benchmark.
+
+The full-series parity harness compares every overlapping ready output across three deterministic data seeds at absolute tolerance `1e-9`. Known divergences are individually marked `test.failing`; when an indicator is corrected, promote its case to a normal passing test and update its metadata/version and changelog.
+
+## Design constraints
+
+- One symbol per strategy runtime instance.
+- One normalisation boundary: `Frame.load`.
+- Indicators consume reusable `Frame` objects; no per-bar Frame history arrays.
+- Candle history uses structure-of-arrays typed windows and `CandleStore.pushFrame(frame)`.
+- Indicator registration is lazy and unknown types fail fast.
+- Parameter values are validated against the declared schema; integer parameters reject fractional values.
+- Indicator output before readiness is `NaN`; readiness is represented separately by `ready`.
+- Strategy code is not sandboxed by this package. Host validation and execution isolation remain application security responsibilities.
+
+## Further reading
+
+- [Architecture and boundaries](docs/ARCHITECTURE.md)
+- [Public API](docs/API.md)
+- [Indicator catalogue and status](docs/INDICATORS.md)
+- [Known issues and handoff](docs/KNOWN_ISSUES.md)
+- [Changelog](CHANGELOG.md)
+- [Full indicator divergence report](test/reference/DIVERGENCE.md)

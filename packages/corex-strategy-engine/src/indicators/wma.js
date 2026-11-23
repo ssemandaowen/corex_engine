@@ -1,47 +1,47 @@
 "use strict";
 
-class WeightedMA {
+const BaseIndicator = require("./BaseIndicator");
+const SlidingWma = require("../kernel/math/SlidingWma");
+
+class WeightedMA extends BaseIndicator {
     static updateMode = "single";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+    static meta = Object.freeze({ version: 1 });
 
-    constructor(period) {
-        if (!period || period < 1) throw new Error("WMA period must be >= 1");
+    constructor(period, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) {
+            throw new TypeError("WMA period must be a positive integer");
+        }
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._buffer = [];
+        this._wma = new SlidingWma(period);
     }
 
-    update(price) {
+    onFrame(frame) {
+        const price = this.readSource(frame);
         this.prev = this.value;
-        this._buffer.push(price);
-        if (this._buffer.length > this.period) {
-            this._buffer.shift();
-        }
-        if (this._buffer.length === this.period) {
-            let sum = 0;
-            let weightSum = 0;
-            for (let i = 0; i < this.period; i++) {
-                const w = i + 1;
-                sum += this._buffer[i] * w;
-                weightSum += w;
-            }
-            this.value = sum / weightSum;
-            this.ready = true;
-        }
-        return this.value;
+        this._wma.push(price);
+        this.ready = this._wma.length >= this.period;
+        this.value = this.ready ? this._wma.wma : 0;
     }
 
-    reseed(values) {
+    onReset() {
+        this._wma = new SlidingWma(this.period);
         this.value = 0;
         this.prev = 0;
         this.ready = false;
-        this._buffer = [];
-        for (let i = 0; i < values.length; i++) {
-            this.update(values[i]);
+    }
+
+    setPeriod(period) {
+        if (!Number.isInteger(period) || period < 1) {
+            throw new TypeError("WMA period must be a positive integer");
         }
-        return this.value;
+        this.period = period;
+        this._wma = new SlidingWma(period);
+        this.value = 0;
+        this.prev = 0;
+        this.ready = false;
+        return this;
     }
 }
 

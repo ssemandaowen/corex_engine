@@ -1,6 +1,19 @@
 "use strict";
 
 const { indicators } = require("../index");
+const Frame = require("../src/kernel/Frame");
+
+function priceFrame(price, time) {
+    const frame = new Frame();
+    frame.load({ symbol: "TEST", time, price, open: price, high: price, low: price, close: price, volume: 1 });
+    return frame;
+}
+
+function candleFrame(high, low, close, time) {
+    const frame = new Frame();
+    frame.load({ symbol: "TEST", time, price: close, open: close, high, low, close, volume: 1 });
+    return frame;
+}
 
 describe("Indicator Calculation Correctness", () => {
     const prices = [];
@@ -11,7 +24,7 @@ describe("Indicator Calculation Correctness", () => {
     describe("Basic trend indicators", () => {
         test("SMA calculates correctly", () => {
             const sma = new indicators.SMA(5);
-            for (const p of prices) sma.update(p);
+            for (let i = 0; i < prices.length; i++) sma.update(priceFrame(prices[i], i));
             expect(sma.ready).toBe(true);
             const expected = (prices[25] + prices[26] + prices[27] + prices[28] + prices[29]) / 5;
             expect(sma.value).toBeCloseTo(expected, 10);
@@ -19,48 +32,49 @@ describe("Indicator Calculation Correctness", () => {
 
         test("EMA calculates correctly", () => {
             const ema = new indicators.EMA(5);
-            for (const p of prices) ema.update(p);
+            for (let i = 0; i < prices.length; i++) ema.update(priceFrame(prices[i], i));
             expect(ema.ready).toBe(true);
             expect(ema.value).toBeGreaterThan(0);
         });
 
         test("WMA calculates correctly", () => {
             const wma = new indicators.WMA(5);
-            for (const p of prices) wma.update(p);
+            for (let i = 0; i < prices.length; i++) wma.update(priceFrame(prices[i], i));
             expect(wma.ready).toBe(true);
-            const expected = (wma._buffer[0] * 1 + wma._buffer[1] * 2 + wma._buffer[2] * 3 + wma._buffer[3] * 4 + wma._buffer[4] * 5) / 15;
+            const tail = prices.slice(-5);
+            const expected = tail.reduce((sum, value, index) => sum + value * (index + 1), 0) / 15;
             expect(wma.value).toBeCloseTo(expected, 10);
         });
 
         test("HMA calculates correctly", () => {
             const hma = new indicators.HMA(9);
-            for (const p of prices) hma.update(p);
+            for (let i = 0; i < prices.length; i++) hma.update(priceFrame(prices[i], i));
             expect(hma.ready).toBe(true);
             expect(hma.value).toBeGreaterThan(0);
         });
 
         test("McGinley calculates correctly", () => {
             const mg = new indicators.McGinley(5);
-            for (const p of prices) mg.update(p);
+            for (let i = 0; i < prices.length; i++) mg.update(priceFrame(prices[i], i));
             expect(mg.ready).toBe(true);
         });
 
         test("ALMA calculates correctly", () => {
-            const alma = new indicators.ALMA(5, 6, 3);
-            for (const p of prices) alma.update(p);
+            const alma = new indicators.ALMA(5, 0.85, 6);
+            for (let i = 0; i < prices.length; i++) alma.update(priceFrame(prices[i], i));
             expect(alma.ready).toBe(true);
         });
 
         test("KAMA calculates correctly", () => {
             const kama = new indicators.KAMA(5);
-            for (const p of prices) kama.update(p);
+            for (let i = 0; i < prices.length; i++) kama.update(priceFrame(prices[i], i));
             expect(kama.ready).toBe(true);
-            expect(kama.er).toBeDefined();
+            expect(Number.isFinite(kama.value)).toBe(true);
         });
 
         test("VIDYA calculates correctly", () => {
             const vidya = new indicators.VIDYA(5);
-            for (const p of prices) vidya.update(p);
+            for (let i = 0; i < prices.length; i++) vidya.update(priceFrame(prices[i], i));
             expect(vidya.ready).toBe(true);
         });
 
@@ -89,7 +103,7 @@ describe("Indicator Calculation Correctness", () => {
 
         test("Standard Deviation calculates correctly", () => {
             const sd = new indicators.StandardDeviation(5);
-            for (const p of prices) sd.update(p);
+            for (let i = 0; i < prices.length; i++) sd.update(priceFrame(prices[i], i));
             expect(sd.ready).toBe(true);
             expect(sd.value).toBeGreaterThanOrEqual(0);
         });
@@ -210,7 +224,7 @@ describe("Indicator Calculation Correctness", () => {
         test("ATR calculates correctly", () => {
             const atr = new indicators.ATR(5);
             for (let i = 0; i < prices.length; i++) {
-                atr.update(prices[i] + 2, prices[i] - 2, prices[i]);
+                atr.update(candleFrame(prices[i] + 2, prices[i] - 2, prices[i], i));
             }
             expect(atr.ready).toBe(true);
             expect(atr.value).toBeGreaterThan(0);
@@ -218,7 +232,7 @@ describe("Indicator Calculation Correctness", () => {
 
         test("Bollinger Bands calculates correctly", () => {
             const bb = new indicators.BollingerBands(5, 2);
-            for (const p of prices) bb.update(p);
+            for (let i = 0; i < prices.length; i++) bb.update(priceFrame(prices[i], i));
             expect(bb.ready).toBe(true);
             expect(bb.upper).toBeGreaterThan(bb.value);
             expect(bb.lower).toBeLessThan(bb.value);
@@ -227,7 +241,7 @@ describe("Indicator Calculation Correctness", () => {
         test("Keltner Channels calculates correctly", () => {
             const kc = new indicators.KeltnerChannels(5, 2);
             for (let i = 0; i < prices.length; i++) {
-                kc.update(prices[i] + 2, prices[i] - 2, prices[i]);
+                kc.update(candleFrame(prices[i] + 2, prices[i] - 2, prices[i], i));
             }
             expect(kc.ready).toBe(true);
             expect(kc.upper).toBeGreaterThan(kc.value);
@@ -237,7 +251,7 @@ describe("Indicator Calculation Correctness", () => {
         test("Donchian Channels calculates correctly", () => {
             const dc = new indicators.DonchianChannels(5);
             for (let i = 0; i < prices.length; i++) {
-                dc.update(prices[i] + 3, prices[i] - 3, prices[i]);
+                dc.update(candleFrame(prices[i] + 3, prices[i] - 3, prices[i], i));
             }
             expect(dc.ready).toBe(true);
             expect(dc.upper).toBeGreaterThan(dc.lower);
@@ -379,13 +393,13 @@ describe("Indicator Calculation Correctness", () => {
     describe("Statistical & Quantitative", () => {
         test("Z-Score calculates correctly", () => {
             const zscore = new indicators.ZScore(5);
-            for (const p of prices) zscore.update(p);
+            for (let i = 0; i < prices.length; i++) zscore.update(priceFrame(prices[i], i));
             expect(zscore.ready).toBe(true);
         });
 
         test("DPO calculates correctly", () => {
             const dpo = new indicators.DPO(5);
-            for (const p of prices) dpo.update(p);
+            for (let i = 0; i < prices.length; i++) dpo.update(priceFrame(prices[i], i));
             expect(dpo.ready).toBe(true);
         });
 

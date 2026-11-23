@@ -1,70 +1,48 @@
 "use strict";
 
-/**
- * Incremental Simple Moving Average (SMA).
- *
- * Performance Optimization (Bolt ⚡):
- * Uses an O(1) sliding window circular buffer and running sum (_sum, _head)
- * to achieve constant time updates per price tick without array shifting or re-summing loops.
- */
-class IncrementalSMA {
+const BaseIndicator = require("./BaseIndicator");
+const SlidingMean = require("../kernel/math/SlidingMean");
+
+class SMA extends BaseIndicator {
     static updateMode = "single";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+    static meta = Object.freeze({ version: 1 });
 
-    constructor(period) {
-        if (!period || period < 1) throw new Error("SMA period must be >= 1");
+    constructor(period, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) {
+            throw new TypeError("SMA period must be a positive integer");
+        }
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._buffer = [];
-        this._sum = 0;
-        this._head = 0;
+        this._mean = new SlidingMean(period);
     }
 
-    update(price) {
+    onFrame(frame) {
+        const price = this.readSource(frame);
         this.prev = this.value;
-        if (!this.ready) {
-            this._buffer.push(price);
-            this._sum += price;
-            if (this._buffer.length === this.period) {
-                this.ready = true;
-            }
-            this.value = this._sum / this._buffer.length;
-            return this.value;
-        }
-
-        // O(1) sliding window update with circular buffer
-        const oldPrice = this._buffer[this._head];
-        this._buffer[this._head] = price;
-        this._sum += price - oldPrice;
-        this._head = (this._head + 1) % this.period;
-
-        // Periodic re-sum when head wraps to eliminate cumulative float drift
-        if (this._head === 0) {
-            let sum = 0;
-            for (let i = 0; i < this.period; i++) {
-                sum += this._buffer[i];
-            }
-            this._sum = sum;
-        }
-
-        this.value = this._sum / this.period;
-        return this.value;
+        this._mean.push(price);
+        this.ready = this._mean.length >= this.period;
+        this.value = this._mean.mean;
     }
 
-    reseed(values) {
+    onReset() {
+        this._mean = new SlidingMean(this.period);
         this.value = 0;
         this.prev = 0;
         this.ready = false;
-        this._buffer = [];
-        this._sum = 0;
-        this._head = 0;
-        for (let i = 0; i < values.length; i++) {
-            this.update(values[i]);
+    }
+
+    setPeriod(period) {
+        if (!Number.isInteger(period) || period < 1) {
+            throw new TypeError("SMA period must be a positive integer");
         }
-        return this.value;
+        this.period = period;
+        this._mean = new SlidingMean(period);
+        this.value = 0;
+        this.prev = 0;
+        this.ready = false;
+        return this;
     }
 }
 
-module.exports = IncrementalSMA;
+module.exports = SMA;

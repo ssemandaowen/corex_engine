@@ -1,119 +1,105 @@
 "use strict";
 
 const { globalIndicatorRegistry } = require("./IndicatorRegistry");
+const IndicatorBank = require("./IndicatorBank");
+const BaseIndicator = require("./indicators/BaseIndicator");
+const Frame = require("./kernel/Frame");
+const { ConfigError } = require("./params/errors");
 
-/**
- * Dispatch modes.
- *
- * Each indicator module declares `static updateMode`, which selects the argument
- * shape `updateIndicators()` passes on every live tick. `arity` is the number of
- * arguments that mode dispatches and is asserted against the module's actual
- * `update()` arity at strategy initialization — a mismatch would otherwise feed
- * the wrong fields (or `undefined`) into the indicator silently.
- *
- *   single  -> update(value)                            (def.source resolved)
- *   hl      -> update(high, low)
- *   volume  -> update(close, volume)
- *   multi   -> update(high, low, close)
- *   hlv     -> update(high, low, volume)
- *   rvi     -> update(close, open, high, low)
- *   hlcv    -> update(high, low, close, volume)
- *   mfi     -> update(typicalPrice, typicalPrice * volume, volume)
- */
-const DISPATCH_MODES = {
+const DISPATCH_MODES = Object.freeze({
     single: { arity: 1 },
-    hl:     { arity: 2 },
+    hl: { arity: 2 },
     volume: { arity: 2 },
-    multi:  { arity: 3 },
-    hlv:    { arity: 3 },
-    rvi:    { arity: 4 },
-    hlcv:   { arity: 4 },
-    mfi:    { arity: 3 },
-};
-
-/**
- * Modes whose `reseed()` consumes full candle objects rather than a flat
- * value series.
- */
+    multi: { arity: 3 },
+    hlv: { arity: 3 },
+    rvi: { arity: 4 },
+    hlcv: { arity: 4 },
+    mfi: { arity: 3 }
+});
 const CANDLE_DISPATCH_MODES = new Set(["hl", "volume", "multi", "hlv", "rvi", "hlcv", "mfi"]);
+const SOURCE_FIELDS = Object.freeze({
+    open: "o", high: "h", low: "l", close: "c",
+    volume: "v", hl2: "hl2", hlc3: "hlc3", ohlc4: "ohlc4"
+});
 
 function collectStaticIndicators(StrategyClass, stopAt) {
     let curr = StrategyClass;
     let result = {};
     while (curr && curr !== stopAt && curr !== Object) {
-        if (curr.indicators) {
-            result = Object.assign({}, curr.indicators, result);
-        }
+        if (curr.indicators) result = Object.assign({}, curr.indicators, result);
         curr = Object.getPrototypeOf(curr);
     }
     return result;
 }
 
 class IndicatorManager {
-    constructor(strategy) {
+    constructor(strategy, registry = globalIndicatorRegistry) {
         this.strategy = strategy;
+        this._registry = registry;
         this._indicators = new Map();
+        this._entries = [];
+        this._frameEntries = [];
+        this._frameIndicators = [];
+        this._legacyEntries = [];
+        this._bank = new IndicatorBank();
+        this._frame = new Frame();
+        this._scratchFrame = new Frame();
         this._staticIndicators = collectStaticIndicators(strategy.constructor, null);
     }
 
     initialize() {
         for (const [name, indDef] of Object.entries(this._staticIndicators)) {
             const type = String(indDef.type || "").toUpperCase();
-            const Cls = globalIndicatorRegistry.get(type);
-            if (!Cls) continue;
+            const Cls = this._registry.get(type);
             const updateMode = this._classifyUpdate(Cls);
             this._assertDispatchArity(type, updateMode, Cls);
-            const instance = this._createIndicator(indDef, Cls);
-            if (instance) {
-                this._indicators.set(name, { instance, def: indDef, type, updateMode });
+            const instance = this._createIndicator(indDef, Cls, name);
+            if (!instance) continue;
+            const entry = { name, instance, def: indDef, type, updateMode };
+            this._indicators.set(name, entry);
+            this._entries.push(entry);
+            if (instance instanceof BaseIndicator) {
+                this._frameEntries.push(entry);
+                this._frameIndicators.push(instance);
+                this._bank.add(name, instance);
+            } else {
+                this._legacyEntries.push(entry);
             }
         }
+        return this;
     }
 
     _classifyUpdate(Cls) {
-        if (Cls && typeof Cls.updateMode === "string") {
-            return Cls.updateMode;
-        }
-        return "single";
+        return Cls && typeof Cls.updateMode === "string" ? Cls.updateMode : "single";
     }
 
-    /**
-     * Fail loudly at strategy load time when a module's declared updateMode
-     * disagrees with its real `update()` signature. Without this, a mismatch
-     * only shows up as NaN or wrong values in live trading.
-     */
     _assertDispatchArity(type, updateMode, Cls) {
         const spec = DISPATCH_MODES[updateMode];
-        const known = Object.keys(DISPATCH_MODES).join(", ");
-        if (!spec) {
-            throw new Error(
-                `[IndicatorManager] Indicator '${type}' declares unknown updateMode '${updateMode}'. Known modes: ${known}.`
-            );
-        }
-
+        if (!spec) throw new Error("[IndicatorManager] Indicator '" + type + "' declares unknown updateMode '" + updateMode + "'.");
         const updateFn = Cls && Cls.prototype ? Cls.prototype.update : null;
-        if (typeof updateFn !== "function") {
-            throw new Error(
-                `[IndicatorManager] Indicator '${type}' declares updateMode '${updateMode}' but has no update() method to dispatch to.`
-            );
-        }
-
-        const actual = updateFn.length;
-        if (actual !== spec.arity) {
-            throw new Error(
-                `[IndicatorManager] Indicator '${type}' dispatch mismatch: updateMode '${updateMode}' dispatches ${spec.arity} argument(s) but update() accepts ${actual}.`
-            );
+        if (typeof updateFn !== "function") throw new Error("[IndicatorManager] Indicator '" + type + "' has no update() method.");
+        if (updateFn.length !== spec.arity) {
+            throw new Error("[IndicatorManager] Indicator '" + type + "' dispatch mismatch: mode '" +
+                updateMode + "' supplies " + spec.arity + " argument(s), update() accepts " + updateFn.length + ".");
         }
     }
 
-    _createIndicator(indDef, Cls) {
-        const resolvePeriod = (def) => this._resolvePeriod(def);
-        const params = typeof Cls.resolveParams === "function"
-            ? Cls.resolveParams(indDef, resolvePeriod)
-            : [this._resolvePeriod(indDef)];
+    _createIndicator(indDef, Cls, name = "unknown") {
         try {
+            const resolvePeriod = def => this._resolvePeriod(def);
+            const isFrameIndicator = Cls.prototype instanceof BaseIndicator;
+            const params = typeof Cls.resolveParams === "function"
+                ? Cls.resolveParams(indDef, resolvePeriod)
+                : (isFrameIndicator ? [] : [this._resolvePeriod(indDef)]);
+            if (isFrameIndicator) return new Cls(...params, { source: indDef.source || "close" });
             return new Cls(...params);
-        } catch (e) {
+        } catch (error) {
+            if (error instanceof ConfigError) {
+                const key = error.configKey || "parameter";
+                throw new ConfigError(key,
+                    "Indicator '" + name + "' parameter '" + key + "': " + error.message,
+                    error.code);
+            }
             return null;
         }
     }
@@ -123,95 +109,88 @@ class IndicatorManager {
             const p = Number(this.strategy.params[indDef.periodKey]);
             if (Number.isFinite(p) && p > 0) return p;
         }
-        const fallback = indDef.period != null ? indDef.period : 14;
-        const p = Number(fallback);
+        const p = Number(indDef.period == null ? 14 : indDef.period);
         return Number.isFinite(p) && p > 0 ? p : 14;
     }
 
-    updateIndicators(packet) {
-        const price = packet.price ?? packet.close ?? 0;
-        const high = packet.high ?? price;
-        const low = packet.low ?? price;
-        const close = packet.close ?? packet.close ?? price;
-        const open = packet.open ?? price;
-        const volume = packet.volume ?? 0;
+    updateIndicators(input) {
+        const frame = input instanceof Frame ? input : (this._frame.load(input) ? this._frame : null);
+        if (!frame) return false;
 
-        for (const [, entry] of this._indicators) {
-            const def = entry.def;
+        const frameIndicators = this._frameIndicators;
+        for (const indicator of frameIndicators) indicator.update(frame);
+        if (this._legacyEntries.length === 0) return true;
+
+        const h = frame.h;
+        const l = frame.l;
+        const c = frame.c;
+        const o = frame.o;
+        const v = frame.v;
+        const typical = frame.hlc3;
+
+        for (let i = 0; i < this._legacyEntries.length; i++) {
+            const entry = this._legacyEntries[i];
             const instance = entry.instance;
-            if (!instance) continue;
-
             const mode = entry.updateMode;
-            const source = def.source || "close";
-            let val = close;
-            if (source === "high") val = high;
-            else if (source === "low") val = low;
-            else if (source === "open") val = open;
+            const source = SOURCE_FIELDS[entry.def.source || "close"] || "c";
+            const value = frame[source];
 
-            if (mode === "multi") {
-                instance.update(high, low, close);
-            } else if (mode === "hlv") {
-                instance.update(high, low, volume);
-            } else if (mode === "hlcv") {
-                instance.update(high, low, close, volume);
-            } else if (mode === "volume") {
-                instance.update(close, volume);
-            } else if (mode === "rvi") {
-                instance.update(close, open, high, low);
-            } else if (mode === "hl") {
-                instance.update(high, low);
-            } else if (mode === "mfi") {
-                const typicalPrice = (high + low + close) / 3;
-                instance.update(typicalPrice, typicalPrice * volume, volume);
-            } else {
-                instance.update(val);
-            }
+            if (mode === "multi") instance.update(h, l, c);
+            else if (mode === "hlv") instance.update(h, l, v);
+            else if (mode === "hlcv") instance.update(h, l, c, v);
+            else if (mode === "volume") instance.update(c, v);
+            else if (mode === "rvi") instance.update(c, o, h, l);
+            else if (mode === "hl") instance.update(h, l);
+            else if (mode === "mfi") instance.update(typical, typical * v, v);
+            else instance.update(value);
         }
+        return true;
     }
 
     reseedIndicators() {
-        for (const [name, entry] of this._indicators) {
-            const def = entry.def;
-            const instance = entry.instance;
-            if (!instance) continue;
+        const symbol = this.strategy.symbols[0];
+        const data = this.strategy.dataManager && this.strategy.dataManager.data;
+        const symbolData = data && typeof data.get === "function" ? data.get(symbol) : null;
+        const store = symbolData ? symbolData.candles : null;
 
-            const newPeriod = this._resolvePeriod(def);
-            const mode = entry.updateMode;
-
-            if (instance.period !== undefined && instance.period !== newPeriod) {
-                instance.period = newPeriod;
-                if (instance.constructor.name === "IncrementalEMA") {
-                    instance.multiplier = 2 / (newPeriod + 1);
-                }
-            }
-
-            const source = def.source || "close";
-            const history = this.strategy.series(this.strategy.symbols[0], source);
-
-            if (history && history.length > 0) {
-                const candles = this.strategy.dataManager.getLookbackWindow(this.strategy.symbols[0]);
-
-                if (CANDLE_DISPATCH_MODES.has(mode)) {
-                    instance.reseed(candles);
-                } else {
-                    instance.reseed(history);
-                }
-            }
-
-            if (def.periodKey && this.strategy.params) {
-                this.strategy.params[def.periodKey] = newPeriod;
-            }
+        for (let i = 0; i < this._frameEntries.length; i++) {
+            const entry = this._frameEntries[i];
+            const newPeriod = this._resolvePeriod(entry.def);
+            entry.instance.reconfigure({
+                period: newPeriod,
+                source: entry.def.source || "close"
+            }, store, this._scratchFrame);
+            if (entry.def.periodKey && this.strategy.params) this.strategy.params[entry.def.periodKey] = newPeriod;
         }
+
+        for (let i = 0; i < this._legacyEntries.length; i++) {
+            const entry = this._legacyEntries[i];
+            const instance = entry.instance;
+            const newPeriod = this._resolvePeriod(entry.def);
+            if (instance.period !== undefined && instance.period !== newPeriod) {
+                if (typeof instance.setPeriod === "function") instance.setPeriod(newPeriod);
+                else instance.period = newPeriod;
+            }
+            if (store && store.size > 0 && typeof instance.reseed === "function") {
+                if (CANDLE_DISPATCH_MODES.has(entry.updateMode)) {
+                    instance.reseed(store.last(store.size));
+                } else {
+                    const field = SOURCE_FIELDS[entry.def.source || "close"] || "close";
+                    instance.reseed(store.getFieldSlice(field));
+                }
+            }
+            if (entry.def.periodKey && this.strategy.params) this.strategy.params[entry.def.periodKey] = newPeriod;
+        }
+        return this;
     }
 
     getIndicatorValue(name) {
         const entry = this._indicators.get(name);
-        if (!entry || !entry.instance) return null;
-        return entry.instance;
+        return entry ? entry.instance : null;
     }
 
     get indicatorNames() {
-        return Array.from(this._indicators.keys());
+        return this._entries.map(entry => entry.name);
     }
 
     get indicatorDefs() {

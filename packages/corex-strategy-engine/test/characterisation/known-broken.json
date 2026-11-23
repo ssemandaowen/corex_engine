@@ -1,0 +1,29 @@
+{
+  "baselineCount": 20,
+  "knownBroken": [
+    "InstantTrend",
+    "Coppock",
+    "ADX",
+    "STC",
+    "TSI",
+    "RVI",
+    "FDI",
+    "ParabolicSAR",
+    "SuperTrend",
+    "LinearRegression",
+    "Fisher",
+    "LaguerreRSI",
+    "ConnorsRSI",
+    "OBV",
+    "CMF",
+    "EoM",
+    "Vortex",
+    "Choppiness",
+    "KAMA",
+    "Ichimoku"
+  ],
+  "controlIndicators": [
+    "DPO"
+  ],
+  "note": "Full-series three-seed parity recheck: 20 types still diverge; VIDYA, McGinley, ALMA and HMA match the selected independent references on the trend, flat/zero-volume and zero-range/zero-volume fixtures. The 20 divergence tests are individually marked test.failing so a correction becomes an unexpected pass that must be promoted to a normal passing test."
+}

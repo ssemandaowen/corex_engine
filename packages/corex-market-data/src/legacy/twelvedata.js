@@ -7,6 +7,7 @@ const https = require("https");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
 const configService = require("@core/services/configService");
+const { DataProviderError } = require("../DataProviderContract");
 
 // Translates CoreX timeframes to TwelveData format
 const INTERVAL_MAP = {
@@ -241,14 +242,19 @@ class TwelveDataBroker {
     }
 
     async fetchHistory({ symbol, interval = "1m", outputsize = 500 }) {
-        try {
-            if (!this.config.apiKey) {
-                if (!this._missingKeyWarned) {
-                    this._missingKeyWarned = true;
-                    logger.warn("TwelveData API key is missing. Running in cold-start/offline mode.");
-                }
-                return [];
+        if (!this.config.apiKey) {
+            if (!this._missingKeyWarned) {
+                this._missingKeyWarned = true;
+                logger.warn("TwelveData API key is missing. Historical data is unavailable.");
             }
+            throw new DataProviderError("PROVIDER_KEY_MISSING", {
+                provider: "twelvedata",
+                symbol,
+                message: "TwelveData API key is missing; historical fetch is unavailable."
+            });
+        }
+
+        try {
             const apiInterval = INTERVAL_MAP[interval] || interval;
             const response = await this.httpClient.get(`${this.config.restBase}/time_series`, {
                 params: {

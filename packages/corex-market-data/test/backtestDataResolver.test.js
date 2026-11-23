@@ -69,6 +69,22 @@ describe("backtestDataResolver", () => {
             ).rejects.toMatchObject({ code: "PROVIDER_UNAVAILABLE" });
         });
 
+        test("rethrows a typed DataProviderError untouched", async () => {
+            const typed = new DataProviderError("PROVIDER_KEY_MISSING", {
+                provider: "twelvedata",
+                symbol: "AAPL",
+                message: "key missing"
+            });
+            const mockBroker = {
+                fetchHistory: async () => { throw typed; },
+                constructor: { name: "TestBroker" }
+            };
+
+            await expect(
+                fetchGuardedHistory(mockBroker, { symbol: "AAPL", interval: "1m", outputsize: 10 })
+            ).rejects.toBe(typed);
+        });
+
         test("MAX_BARS_LIMIT is 5000", () => {
             expect(MAX_BARS_LIMIT).toBe(5000);
         });

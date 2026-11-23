@@ -18,7 +18,6 @@
  * Allows only exact strategy module specifiers:
  * - require('corex-strategy-engine') (public package root)
  * - require('mathjs') and require('technicalindicators')
- * - require('@utils/BaseStrategy') (temporary template compatibility until P3)
  * - Standard class definitions, closures, and ES2022 features
  * - for...of and for...in loops (bounded by data structure size)
  */
@@ -61,7 +60,6 @@ const ALLOWED_MODULES = new Set([
     "corex-strategy-engine",
     "mathjs",
     "technicalindicators",
-    "@utils/BaseStrategy",
 ]);
 
 const FORBIDDEN_REQUIRE_PROPERTIES = new Set([

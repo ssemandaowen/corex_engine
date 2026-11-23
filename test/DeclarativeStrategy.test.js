@@ -1,6 +1,6 @@
 "use strict";
 
-const DeclarativeStrategy = require("../utils/DeclarativeStrategy");
+const { Strategy: DeclarativeStrategy } = require("corex-strategy-engine");
 const { CoreXPaperDriver, BaseBroker } = require("corex-broker-contract");
 const { validateStrategyCode } = require("../utils/security");
 
@@ -107,21 +107,5 @@ describe("Declarative Strategy Base Class & Pipeline Integration", () => {
             module.exports = MyStrat;
         `;
         expect(() => validateStrategyCode(code)).not.toThrow();
-    });
-
-    test("Old-format strategy (BaseStrategy / next) still compiles and runs unchanged", () => {
-        const BaseStrategy = require("../utils/BaseStrategy");
-        class OldStrat extends BaseStrategy {
-            constructor() {
-                super({ symbols: ["EURUSD"], timeframe: "1m" });
-            }
-            next(packet) {
-                return this.buy({ quantity: 1, price: packet.close });
-            }
-        }
-        const strat = new OldStrat();
-        const signal = strat.onBar({ symbol: "EURUSD", time: 1000, close: 1.1000 });
-        expect(signal).toBeDefined();
-        expect(signal.side).toBe("long");
     });
 });

@@ -3,7 +3,6 @@
 const EventEmitter = require("events");
 const { bus, EVENTS } = require("@events/bus");
 const logger = require("@utils/logger");
-const StrategyPositionManager = require("@utils/strategy/StrategyPositionManager");
 const { BrokerContract, UnsupportedOperationError } = require("./BrokerContract");
 const SymbolNormalizer = require("../utils/SymbolNormalizer");
 
@@ -40,7 +39,6 @@ class BaseBroker extends EventEmitter {
         this.mode = config.mode || "PAPER";
         this.initialCash = Number(config.initialCash || 100000);
         this.cash = this.initialCash;
-        this.positions = new StrategyPositionManager();
         this.config = config.brokerConfig || {};
         this._ready = false;
 

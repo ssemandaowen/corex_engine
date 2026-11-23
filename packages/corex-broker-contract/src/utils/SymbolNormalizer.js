@@ -54,7 +54,10 @@ module.exports = {
     fromProvider: function(providerSymbol) {
         const { symbol, pipScale, digits } = this.normalize(providerSymbol);
         const oandaSymbol = symbol.slice(0, 3) + "/" + symbol.slice(3);
-        return { symbol, pipScale, digits, oanda: oandaSymbol, twelvedata: symbol, yahoo: symbol };
+        // Lazy require: Instruments depends on this module, so a top-level
+        // require here would be circular.
+        const { toProviderSymbol } = require("./Instruments");
+        return { symbol, pipScale, digits, oanda: oandaSymbol, twelvedata: toProviderSymbol(symbol), yahoo: symbol };
     },
     pipScale: function(symbol) {
         return this.normalize(symbol).pipScale;

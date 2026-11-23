@@ -4,17 +4,17 @@ const YahooFinanceProvider = require("../src/providers/YahooFinanceProvider").Ya
 
 const createMockYahoo = (overrides = {}) => {
     const calls = { chart: [] };
+    const now = Date.now();
     const mock = {
-        chart: async (queryOpts) => {
-            calls.chart.push({ ...queryOpts });
+        chart: async (symbol, queryOpts) => {
+            calls.chart.push({ symbol, ...queryOpts });
             if (overrides.chartResult) return overrides.chartResult;
             if (overrides.chartError) throw overrides.chartError;
             return overrides.defaultResult || {
-                timestamps: [1700000000, 1700000060, 1700000120],
                 quotes: [
-                    { open: 100, high: 101, low: 99, close: 100.5, volume: 100 },
-                    { open: 100.5, high: 102, low: 100, close: 101, volume: 150 },
-                    { open: 101, high: 103, low: 100.5, close: 102, volume: 200 }
+                    { date: new Date(now - 2 * 60000), open: 100, high: 101, low: 99, close: 100.5, volume: 100 },
+                    { date: new Date(now - 1 * 60000), open: 100.5, high: 102, low: 100, close: 101, volume: 150 },
+                    { date: new Date(now), open: 101, high: 103, low: 100.5, close: 102, volume: 200 }
                 ]
             };
         },
@@ -87,7 +87,6 @@ describe("YahooFinanceProvider", () => {
 
             expect(bars).toHaveLength(3);
             expect(bars[0]).toMatchObject({
-                time: 1700000000000,
                 open: 100,
                 high: 101,
                 low: 99,
@@ -95,6 +94,9 @@ describe("YahooFinanceProvider", () => {
                 volume: 100,
                 symbol: "AAPL"
             });
+            expect(typeof bars[0].time).toBe("number");
+            expect(Number.isFinite(bars[0].time)).toBe(true);
+            expect(bars[0].time).toBeGreaterThan(0);
         });
 
         test("caps bars at outputsize", async () => {

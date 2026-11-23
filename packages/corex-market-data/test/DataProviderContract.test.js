@@ -51,9 +51,27 @@ describe("DataProviderContract", () => {
             expect(err.message).toBe("SYMBOL_NOT_FOUND [yahoo] (FAKE)");
         });
 
-        test("CODES includes MAX_CANDLES_EXCEEDED", () => {
+        test("CODES includes MAX_CANDLES_EXCEEDED and PROVIDER_KEY_MISSING", () => {
             expect(DataProviderError.CODES.MAX_CANDLES_EXCEEDED).toBe("MAX_CANDLES_EXCEEDED");
-            expect(Object.keys(DataProviderError.CODES)).toHaveLength(6);
+            expect(DataProviderError.CODES.PROVIDER_KEY_MISSING).toBe("PROVIDER_KEY_MISSING");
+            expect(Object.keys(DataProviderError.CODES)).toHaveLength(8);
+        });
+
+        test("derives retryable from the error code", () => {
+            expect(new DataProviderError("PROVIDER_UNAVAILABLE").retryable).toBe(true);
+            expect(new DataProviderError("RATE_LIMITED").retryable).toBe(true);
+            expect(new DataProviderError("SYMBOL_NOT_FOUND").retryable).toBe(false);
+            expect(new DataProviderError("PROVIDER_KEY_MISSING").retryable).toBe(false);
+            expect(new DataProviderError("INVALID_INTERVAL").retryable).toBe(false);
+        });
+    });
+
+    describe("optional provider symbol formatting", () => {
+        test("contract default is identity and is not required by the validator", () => {
+            const stub = new StubDataProvider();
+            expect(stub.toProviderSymbol("EURUSD", {})).toBe("EURUSD");
+            expect(stub.toProviderSymbol(null)).toBe("");
+            expect(() => validateProviderImplementation(stub)).not.toThrow();
         });
     });
 

@@ -11,6 +11,12 @@ function sanitizeEntityId(id) {
     return String(id || "").trim().replace(SAFE_ID_RE, "_");
 }
 
+// Convert scoped IDs (which contain the "::" separator) into safe file stems.
+// Keep this deterministic so report writers, readers, and deletion use one path.
+function safeFilename(id) {
+    return String(id || "").trim().replace(SAFE_ID_RE, "_");
+}
+
 function toScopedId(userId, entityId) {
     const uid = sanitizeUserId(userId);
     const eid = sanitizeEntityId(entityId);
@@ -50,6 +56,7 @@ module.exports = {
     SEPARATOR,
     sanitizeUserId,
     sanitizeEntityId,
+    safeFilename,
     toScopedId,
     fromScopedId,
     parseScopedId,

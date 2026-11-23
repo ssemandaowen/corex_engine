@@ -1,6 +1,6 @@
 ﻿# ENGINE-02B-P0-1 — Recovery correctness (`engine.js` auto-recovery)
 
-**Status:** PR OPEN � awaiting review (not merged)
+**Status:** COMPLETE — PR #66 MERGED as `da7dfd63f1c94c2d7657945ef91635f8808b9639`
 **Owner:** Kilo Code
 **Branch:** `fix/engine-recovery-correctness`
 **Worktree:** `../corex-p0-1`
@@ -199,7 +199,7 @@ Baseline on `main` was 60 suites / 661 tests; the delta is exactly this task's s
 
 Only the four files named in the amendment changed in this round. No file outside `engine/core/engine.js`, `engine/strategyLoader.js`, `utils/stateController.js`, `test/engine-recovery.test.js` and `plans/` was touched, and `plans/STATUS.md` was deliberately left alone.
 
-PR: https://github.com/ssemandaowen/corex_engine/pull/66 - OPEN, not merged. Head `fix/engine-recovery-correctness`; pushed with a normal `git push` (no force-push, no new PR).
+PR: https://github.com/ssemandaowen/corex_engine/pull/66 — MERGED as `da7dfd63f1c94c2d7657945ef91635f8808b9639`. The recovery implementation is complete; B9 remains a separate follow-up.
 
 ## 11. Escalation - `STOPPED -> DISABLED` (approved, amended in)
 
@@ -297,4 +297,4 @@ Changed in this round: `test/engine-recovery.test.js` and `plans/tasks/ENGINE-02
 
 Tests: `test/engine-recovery.test.js` 12/12, T3 run 15x in isolation with no failure; full suite 61 suites / 673 tests green with default workers and in 2 of 3 `--maxWorkers=4` runs (the third failed only in the pre-existing `Strategy.test.js` allocation benchmark, which passes in isolation and in the other runs).
 
-Next action: none inside P0-1. PR #66 is ready for review; B9 is the follow-up.
+Next action: none inside P0-1. PR #66 is merged; B9 is the follow-up.

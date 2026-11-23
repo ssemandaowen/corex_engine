@@ -1,54 +1,53 @@
 "use strict";
 
-class DonchianChannels {
-    static updateMode = "multi";
+const BaseIndicator = require("./BaseIndicator");
+const MonotonicDeque = require("../kernel/MonotonicDeque");
+
+class DonchianChannels extends BaseIndicator {
+    static updateMode = "single";
+    static meta = Object.freeze({ version: 1 });
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
 
-    constructor(period = 20) {
-        if (!period || period < 1) throw new Error("DonchianChannels period must be >= 1");
+    constructor(period = 20, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) throw new Error("DonchianChannels period must be a positive integer");
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
+        this._highs = new MonotonicDeque(period);
+        this._lows = new MonotonicDeque(period);
         this.upper = 0;
         this.lower = 0;
-        this._buffer = [];
     }
 
-    update(high, low, close) {
-        this.prev = this.value;
-        this._buffer.push({ high, low, close });
-        if (this._buffer.length > this.period) {
-            this._buffer.shift();
-        }
+    onFrame(frame) {
+        this._highs.push(frame.h);
+        this._lows.push(frame.l);
 
-        if (this._buffer.length === this.period) {
-            let highestHigh = -Infinity;
-            let lowestLow = Infinity;
-            for (let i = 0; i < this.period; i++) {
-                if (this._buffer[i].high > highestHigh) highestHigh = this._buffer[i].high;
-                if (this._buffer[i].low < lowestLow) lowestLow = this._buffer[i].low;
-            }
-            this.upper = highestHigh;
-            this.lower = lowestLow;
-            this.value = (highestHigh + lowestLow) / 2;
+        if (this._highs.length >= this.period) {
+            const upper = this._highs.max();
+            const lower = this._lows.min();
+            this.value = (upper + lower) / 2;
+            this.upper = upper;
+            this.lower = lower;
             this.ready = true;
+        } else {
+            this.value = NaN;
+            this.upper = 0;
+            this.lower = 0;
+            this.ready = false;
         }
-        return this.value;
     }
 
-    reseed(candles) {
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
+    onReset() {
+        this._highs = new MonotonicDeque(this.period);
+        this._lows = new MonotonicDeque(this.period);
         this.upper = 0;
         this.lower = 0;
-        this._buffer = [];
-        for (let i = 0; i < candles.length; i++) {
-            const c = candles[i];
-            this.update(c.high, c.low, c.close);
-        }
-        return this.value;
+    }
+
+    setPeriod(period) {
+        if (!Number.isInteger(period) || period < 1) throw new Error("DonchianChannels period must be a positive integer");
+        this.period = period;
+        return this.reset();
     }
 }
 

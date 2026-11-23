@@ -5,7 +5,6 @@ const {
     StrategyModuleResolutionError,
 } = require("@core/services/strategyModuleResolver");
 const { Strategy } = require("corex-strategy-engine");
-const BaseStrategy = require("@utils/BaseStrategy");
 
 function captureError(run) {
     try {
@@ -47,15 +46,6 @@ describe("strategy module resolver", () => {
         expect(hasSma).toBe(true);
     });
 
-    test("loads only the exact temporary template BaseStrategy specifier", () => {
-        const exportedBase = loadStrategyModule(
-            'module.exports = require("@utils/BaseStrategy");',
-            "allowed-legacy-template"
-        );
-
-        expect(exportedBase).toBe(BaseStrategy);
-    });
-
     test.each(["fs", "node:fs", "child_process", "node:module", "lodash"])(
         "rejects forbidden or unknown module %s",
         (specifier) => {
@@ -81,7 +71,6 @@ describe("strategy module resolver", () => {
         "corex-strategy-engine/src/indicators/ema",
         "mathjs/lib/core",
         "technicalindicators/lib",
-        "@utils/BaseStrategy/internal",
     ])("rejects package subpath %s", (specifier) => {
         expectModuleDenied(
             `module.exports = require(${JSON.stringify(specifier)});`,

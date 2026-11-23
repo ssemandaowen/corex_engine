@@ -88,6 +88,7 @@ class MarketFeed {
     unsubscribe(runtimeId, symbol) {
         if (!symbol) return;
         const sym = String(symbol).toUpperCase();
+        const before = new Set(this._subscribers.keys());
 
         const set = this._subscribers.get(sym);
         if (set) {
@@ -95,9 +96,13 @@ class MarketFeed {
             if (set.size === 0) this._subscribers.delete(sym);
         }
 
+        // Only symbols that lost their last subscriber are removed upstream;
+        // a symbol still used by another runtime must stay subscribed.
+        const removed = Array.from(before).filter((s) => !this._subscribers.has(s));
+        if (removed.length === 0) return;
+
         try {
-            const all = Array.from(new Set([...this._allSubscribedSymbols()]));
-            DataProviderFactory.unsubscribe(all).catch((e) => {
+            DataProviderFactory.unsubscribe(removed).catch((e) => {
                 log.warn(`[UNSUBSCRIBE:${sym}] factory unsubscribe failed: ${e.message}`);
             });
         } catch (e) {

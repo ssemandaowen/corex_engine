@@ -1,0 +1,12 @@
+{
+  "iterationsPerRun": 120000,
+  "warmupTicksPerRun": 12000,
+  "runs": 3,
+  "runMsPerTick": [
+    0.0009845716666666666,
+    0.0031550441666666662,
+    0.004371885833333336
+  ],
+  "medianMsPerTick": 0.0031550441666666662,
+  "medianTicksPerSecond": 316952.7737725806
+}

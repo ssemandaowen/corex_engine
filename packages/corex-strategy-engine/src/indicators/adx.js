@@ -1,7 +1,5 @@
 "use strict";
 
-const IncrementalATR = require("./atr");
-
 class ADX {
     static updateMode = "multi";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
@@ -20,7 +18,6 @@ class ADX {
         this._trBuffer = [];
         this._plusDBuffer = [];
         this._minusDBuffer = [];
-        this._atr = new IncrementalATR(period);
     }
 
     update(high, low, close) {
@@ -29,7 +26,6 @@ class ADX {
         if (this._prevHigh === null) {
             this._prevHigh = high;
             this._prevLow = low;
-            this._atr.update(high, low, close);
             return this.value;
         }
 
@@ -66,7 +62,6 @@ class ADX {
 
         this._prevHigh = high;
         this._prevLow = low;
-        this._atr.update(high, low, close);
 
         if (this._trBuffer.length === this.period) {
             let sumTR = 0;
@@ -119,7 +114,6 @@ class ADX {
         this._plusDBuffer = [];
         this._minusDBuffer = [];
         this._buffer = [];
-        this._atr = new IncrementalATR(this.period);
         for (let i = 0; i < candles.length; i++) {
             const c = candles[i];
             this.update(c.high, c.low, c.close);

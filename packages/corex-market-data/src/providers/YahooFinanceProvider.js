@@ -125,7 +125,19 @@ class YahooFinanceProvider extends DataProviderContract {
         const { symbol: canonical } = SymbolNormalizer.normalize(symbol);
         const yahooSymbol = this._yahooSymbol(canonical);
         const apiInterval = INTERVAL_MAP[interval] || interval;
-        const range = this._estimateRange(Number(outputsize) || MAX_BARS, interval);
+
+        // v4.x API: chart(symbol, { period1, period2, interval, ... })
+        // Compute date range from outputsize + interval
+        const intervalMs = this._intervalToMs(interval);
+        const endMs = Date.now();
+        const startMs = endMs - Number(outputsize || MAX_BARS) * intervalMs;
+
+        const queryOpts = {
+            period1: new Date(startMs),
+            period2: new Date(endMs),
+            interval: apiInterval,
+            includePrePost: false
+        };
 
         let yahoo;
         try {
@@ -139,18 +151,12 @@ class YahooFinanceProvider extends DataProviderContract {
             });
         }
 
-        const queryOpts = {
-            symbol: yahooSymbol,
-            interval: apiInterval,
-            range: range,
-            includePrePost: false
-        };
-
         let result;
         try {
-            result = await yahoo.chart(queryOpts);
+            // symbol is the first positional argument in v4.x
+            result = await yahoo.chart(yahooSymbol, queryOpts);
         } catch (err) {
-            const status = err?.result?.response?.status || err?.statusCode;
+            const status = err?.result?.response?.status || err?.statusCode || err?.response?.status;
             if (status === 404) {
                 throw new DataProviderError("SYMBOL_NOT_FOUND", {
                     provider: "yahoo",
@@ -173,8 +179,8 @@ class YahooFinanceProvider extends DataProviderContract {
             });
         }
 
-        const { timestamps, quotes } = result;
-        if (!timestamps || !quotes || !quotes.length) {
+        const { quotes } = result;
+        if (!quotes || !quotes.length) {
             throw new DataProviderError("SYMBOL_NOT_FOUND", {
                 provider: "yahoo",
                 symbol: canonical,
@@ -182,12 +188,13 @@ class YahooFinanceProvider extends DataProviderContract {
             });
         }
 
-        const barCount = Math.min(Number(outputsize) || Infinity, timestamps.length, MAX_BARS);
+        const barCount = Math.min(Number(outputsize) || Infinity, quotes.length, MAX_BARS);
 
         const bars = [];
         for (let i = 0; i < barCount; i++) {
-            const ts = Number(timestamps[i]) * 1000;
             const quote = quotes[i] || {};
+            const date = quote.date;
+            const ts = date instanceof Date ? date.getTime() : Number(date);
             const open = Number(quote.open || quote.close || 0);
             const high = Number(quote.high || 0);
             const low = Number(quote.low || 0);
@@ -208,26 +215,6 @@ class YahooFinanceProvider extends DataProviderContract {
 
         this._lastHeartbeat = Date.now();
         return bars;
-    }
-
-    /**
-     * Estimate Yahoo "range" parameter from outputsize + interval.
-     * Yahoo uses range (e.g. "5d", "1mo") rather than explicit bar count.
-     * Falls back to chart module's outputsize for intraday ranges.
-     */
-    _estimateRange(outputsize, interval) {
-        const intervalMs = this._intervalToMs(interval);
-        const totalMs = outputsize * intervalMs;
-        const days = Math.ceil(totalMs / (86400 * 1000));
-        if (days <= 1) return RANGE_MAP["1d"];
-        if (days <= 5) return RANGE_MAP["5d"];
-        if (days <= 30) return RANGE_MAP["1mo"];
-        if (days <= 90) return RANGE_MAP["3mo"];
-        if (days <= 180) return RANGE_MAP["6mo"];
-        if (days <= 365) return RANGE_MAP["1y"];
-        if (days <= 730) return RANGE_MAP["2y"];
-        if (days <= 1825) return RANGE_MAP["5y"];
-        return RANGE_MAP["max"];
     }
 
     _intervalToMs(interval) {

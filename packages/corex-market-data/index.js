@@ -13,7 +13,13 @@
  */
 
 const DataProviderFactory = require("./src/DataProviderFactory");
-const { DataProviderContract, validateProviderImplementation, DataProviderError, DATA_PROVIDER_CONTRACT_VERSION } = require("./src/DataProviderContract");
+const {
+    DataProviderContract,
+    validateProviderImplementation,
+    DataProviderError,
+    DATA_PROVIDER_CONTRACT_VERSION
+} = require("./src/DataProviderContract");
+const ProviderManifest = require("./src/ProviderManifest");
 const { TwelveDataProvider } = require("./src/providers/TwelveDataProvider");
 const { FileDataProvider } = require("./src/providers/FileDataProvider");
 const { YahooFinanceProvider } = require("./src/providers/YahooFinanceProvider");
@@ -37,6 +43,7 @@ module.exports = {
     validateProviderImplementation,
     DataProviderError,
     DATA_PROVIDER_CONTRACT_VERSION,
+    ProviderManifest,
     TwelveDataProvider,
     FileDataProvider,
     YahooFinanceProvider,

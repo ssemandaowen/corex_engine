@@ -1,53 +1,43 @@
 "use strict";
 
-const IncrementalSMA = require("./sma");
+const BaseIndicator = require("./BaseIndicator");
+const SlidingVariance = require("../kernel/math/SlidingVariance");
 
-class StandardDeviation {
+class StandardDeviation extends BaseIndicator {
     static updateMode = "single";
+    static meta = Object.freeze({ version: 1 });
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
 
-    constructor(period = 14) {
-        if (!period || period < 1) throw new Error("StandardDeviation period must be >= 1");
+    constructor(period = 14, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) throw new Error("StandardDeviation period must be a positive integer");
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._buffer = [];
+        this._sv = new SlidingVariance(period);
     }
 
-    update(price) {
-        this.prev = this.value;
-        this._buffer.push(price);
-        if (this._buffer.length > this.period) {
-            this._buffer.shift();
+    onFrame(frame) {
+        const price = this.readSource(frame);
+        this._sv.push(price);
+        const n = this._sv.length;
+        if (n < this.period) {
+            this.value = NaN;
+            this.ready = false;
+            return;
         }
-
-        if (this._buffer.length === this.period) {
-            let sum = 0;
-            for (let i = 0; i < this.period; i++) {
-                sum += this._buffer[i];
-            }
-            const mean = sum / this.period;
-            let sumSq = 0;
-            for (let i = 0; i < this.period; i++) {
-                const diff = this._buffer[i] - mean;
-                sumSq += diff * diff;
-            }
-            this.value = Math.sqrt(sumSq / this.period);
-            this.ready = true;
-        }
-        return this.value;
+        const sampleVar = this._sv.variance;
+        const popVar = sampleVar * (n - 1) / n;
+        this.value = Math.sqrt(Math.max(popVar, 0));
+        this.ready = true;
     }
 
-    reseed(values) {
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._buffer = [];
-        for (let i = 0; i < values.length; i++) {
-            this.update(values[i]);
-        }
-        return this.value;
+    onReset() {
+        this._sv = new SlidingVariance(this.period);
+    }
+
+    setPeriod(period) {
+        if (!Number.isInteger(period) || period < 1) throw new Error("StandardDeviation period must be a positive integer");
+        this.period = period;
+        return this.reset();
     }
 }
 

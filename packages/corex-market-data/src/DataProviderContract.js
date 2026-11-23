@@ -21,6 +21,12 @@
  *   getStatus()       -> { connected, authorized, lastHeartbeat }
  *   cleanup()          — release all resources, close connections, clear timers
  *
+ * Optional methods:
+ *   toProviderSymbol(symbol, opts) -> string
+ *       Convert a canonical symbol into this provider's wire representation.
+ *       The default is identity, so providers whose symbols match CoreX's
+ *       canonical form do not need to implement it.
+ *
  * RUNTIME CONTRACT (not structurally validated):
  *   Providers are expected to emit individual ticks on the existing event bus
  *   via EVENTS.MARKET.TICK (see events/bus.js / config/constants.js).
@@ -158,6 +164,21 @@ class DataProviderContract {
     async cleanup() {
         throw new Error("cleanup() must be implemented by subclass");
     }
+
+    /**
+     * toProviderSymbol(symbol, opts)
+     *
+     * Optional. Convert a canonical CoreX symbol into the representation this
+     * provider expects on the wire. The identity default is intentional: a
+     * provider whose symbols already match canonical form needs no override.
+     *
+     * @param {string} symbol — Canonical ticker symbol, e.g. "EURUSD"
+     * @param {Object} [opts]
+     * @returns {string}
+     */
+    toProviderSymbol(symbol, _opts = {}) {
+        return symbol == null ? "" : String(symbol);
+    }
 }
 
 /**
@@ -231,6 +252,7 @@ class DataProviderError extends Error {
         this.code = code;
         this.provider = provider || null;
         this.symbol = symbol || null;
+        this.retryable = DataProviderError.RETRYABLE_CODES.has(code);
 
         if (cause) {
             this.cause = cause;
@@ -239,14 +261,25 @@ class DataProviderError extends Error {
 }
 
 /**
+ * Codes whose failures may be transient (transport/quota) and are therefore
+ * eligible for a job retry. Everything else is deterministic.
+ */
+DataProviderError.RETRYABLE_CODES = new Set([
+    "RATE_LIMITED",
+    "PROVIDER_UNAVAILABLE"
+]);
+
+/**
  * Allowed error codes.
  * MAX_CANDLES_EXCEEDED retires the generic Error("LIMIT_EXCEEDED") thrown
  * by backtestDataResolver.js.
  */
 DataProviderError.CODES = {
     SYMBOL_NOT_FOUND: "SYMBOL_NOT_FOUND",
+    SYMBOL_UNSUPPORTED: "SYMBOL_UNSUPPORTED",
     RATE_LIMITED: "RATE_LIMITED",
     AUTH_FAILED: "AUTH_FAILED",
+    PROVIDER_KEY_MISSING: "PROVIDER_KEY_MISSING",
     PROVIDER_UNAVAILABLE: "PROVIDER_UNAVAILABLE",
     INVALID_INTERVAL: "INVALID_INTERVAL",
     MAX_CANDLES_EXCEEDED: "MAX_CANDLES_EXCEEDED"

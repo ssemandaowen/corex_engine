@@ -1,13 +1,13 @@
 # B3 — Strategy module-resolution boundary and exact allow-list
 
-Status: IN PROGRESS — implementation and regression coverage complete on PR #57; full repository verification passed (67 suites / 766 tests); owner-authored COMMENT review exists, but independent review and Owen acceptance are pending; SEC-01 remains separate
+Status: DONE — merged into `main` on 2026-11-21 as `1f39d1fd87cba7d2b569c4120ddf16400b11878a`; full repository verification passed (67 suites / 766 tests); SEC-01 remains separate
 Owner: Owen Ssemanda (approval authority); ChatGPT assisting investigation and implementation
 Branch: `fix/security-corex-strategy-engine`
 Worktree: `C:\\Users\\SBUM\\Desktop\\corex-b3`
-Pull request: #57 (retained as the focused B3 integration PR)
+Pull request: #57 (MERGED into `main` on 2026-11-21)
 Started: 2026-11-20
 Base: `origin/main` at `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`
-Dependency: P1 PR #80 merged as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`; Stage 2 PR #63 is DONE. P2 must wait for B3 acceptance.
+Dependency: P1 PR #80 merged as `a2c1fc7e5087d2a9d67eda4d70f597fd08fbcf4c`; Stage 2 PR #63 is DONE. B3 is merged; P2 is now the next strategy-package workstream.
 
 ## Objective
 
@@ -111,9 +111,8 @@ This is an SEC-01 execution-isolation defect, not a B3 implementation expansion.
 
 ## PR reconciliation
 
-- PR #56 was closed as superseded: it had 60 changed files and mixed the same allow-list patch with unrelated UI, settings, backtest, and planning changes.
-- PR #57 is retained as the single B3 integration PR because its change is scoped to the resolver, compiler integration, scanner, related tests and planning records. PR #56 is closed unmerged as the noisy duplicate. PR #57 has one COMMENT review authored by the repository owner; this is not an independent review. The Kilo review bot reported that the account was out of credits, and no external reviewer submission is recorded.
-- On 2026-11-21, local `corex-b3` merged the latest `origin/main` (`8a68c9f2bb2446d40fde5e86350ca5d8ec28e80d`) with merge commit `ef70e0c`. The merge was conflict-free and includes the package-entrypoint correction plus the deterministic SocketX token-bucket test. The current-main merge and B3 implementation/test/documentation updates are pushed to `origin/fix/security-corex-strategy-engine`; PR #57's body has been refreshed with current test evidence and security limitations. Recheck the exact ahead/behind count before any later merge consideration. Do not merge PR #57 before an actual independent review and Owen's explicit acceptance.
+- PR #56 was closed unmerged as the noisy duplicate. PR #57 was merged into `main` on 2026-11-21 as `1f39d1fd87cba7d2b569c4120ddf16400b11878a`. Owen explicitly directed that B3 proceed to merge. The previously recorded PR review was owner-authored; no independent review submission is recorded here, and this task record does not claim one occurred. The merge is complete; do not reopen B3 absent a concrete regression.
+- B3's verified scope remains limited to the injected CommonJS `require` channel. It is not process isolation; SEC-01 remains separate.
 
 ## Initial verification status
 

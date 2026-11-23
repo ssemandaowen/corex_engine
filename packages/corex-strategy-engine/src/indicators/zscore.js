@@ -1,49 +1,47 @@
 "use strict";
 
-const IncrementalSMA = require("./sma");
+const BaseIndicator = require("./BaseIndicator");
+const SlidingMean = require("../kernel/math/SlidingMean");
 const StandardDeviation = require("./stddev");
 
-class ZScore {
+class ZScore extends BaseIndicator {
     static updateMode = "single";
+    static meta = Object.freeze({ version: 2 });
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 20)];
 
-    constructor(period = 20) {
-        if (!period || period < 1) throw new Error("ZScore period must be >= 1");
+    constructor(period = 20, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) throw new Error("ZScore period must be a positive integer");
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._sma = new IncrementalSMA(period);
-        this._stddev = new StandardDeviation(period);
+        this._sma = new SlidingMean(period);
+        this._stddev = new StandardDeviation(period, { source: this.source });
     }
 
-    update(price) {
-        this.prev = this.value;
+    onFrame(frame) {
+        const price = this.readSource(frame);
+        this._sma.push(price);
+        this._stddev.update(frame);
 
-        this._sma.update(price);
-        this._stddev.update(price);
-
-        if (this._sma.ready && this._stddev.ready) {
-            if (this._stddev.value === 0) {
-                this.value = 0;
-            } else {
-                this.value = (price - this._sma.value) / this._stddev.value;
-            }
+        if (this._stddev.ready) {
+            const mean = this._sma.mean;
+            const sigma = this._stddev.value;
+            this.value = sigma === 0 ? 0 : (price - mean) / sigma;
             this.ready = true;
+        } else {
+            this.value = NaN;
+            this.ready = false;
         }
-        return this.value;
     }
 
-    reseed(values) {
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._sma = new IncrementalSMA(this.period);
-        this._stddev = new StandardDeviation(this.period);
-        for (let i = 0; i < values.length; i++) {
-            this.update(values[i]);
-        }
-        return this.value;
+    onReset() {
+        this._sma = new SlidingMean(this.period);
+        this._stddev = new StandardDeviation(this.period, { source: this.source });
+    }
+
+    setPeriod(period) {
+        if (!Number.isInteger(period) || period < 1) throw new Error("ZScore period must be a positive integer");
+        this.period = period;
+        return this.reset();
     }
 }
 

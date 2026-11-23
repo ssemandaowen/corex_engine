@@ -11,12 +11,19 @@ This document records known issues, security limitations, and accepted test base
 - **Root Cause:** The test helper function `wrap` in `test/round7.comprehensive.test.js` embeds strategy code snippets into a class method body without a trailing semicolon or newline separating expression statements from `return null;` (e.g. `next(bar) { eval('1+1') return null; }`). This causes Acorn to throw a syntax error (`Unexpected token`) during AST parsing in `validateStrategyCode()` before security blocklist assertions can evaluate.
 - **Classification:** Category (b) — tests relevant security scanner rules, but broken by a test setup bug. Per project instructions, this is flagged here and left unfixed for now.
 
-## 2. corex-strategy-engine Extraction — Incomplete Tasks
+## 2. Strategy Package — Correctness and Package-Purity Handoff (2026-11-23)
 
-- **`utils/strategy/IncrementalIndicators.js`** — Phase B infrastructure files not yet deleted or moved. `IncrementalIndicators.js`, `StrategySignalUtils.js`, `StrategyDevHelpers.js`, `IndicatorAdapter.js`, `RuleChain.js`, `index.js` remain in `utils/strategy/` and should be moved or deleted now that the IndicatorRegistry and new indicator classes exist in the package.
-- **`IndicatorManager.js` still imports `@utils/strategy/IncrementalIndicators`** on line 3. This should be removed as the registry now handles all indicator types.
-- **`Strategy.js` not yet updated** with internalized imports (e.g., `require("./StrategyStateStore")` instead of `require("@utils/strategy/StrategyStateStore")`). Phase B internalization (decision 2026-09-12) moved these files into the package but the Strategy.js imports were not updated.
-- **Phase D (spatial-culling gate)** and **Phase E (documentation)** described but not implemented — no file modifications made.
+The strategy package has been reorganised and documented. The old extraction checklist below is superseded: legacy `utils/strategy/` files and `utils/BaseStrategy.js` have been retired in the current dirty checkout, and package-owned implementations/tests now live under `packages/corex-strategy-engine/`.
+
+- Package docs: `packages/corex-strategy-engine/README.md`, `docs/ARCHITECTURE.md`, `docs/API.md`, `docs/INDICATORS.md`, `docs/KNOWN_ISSUES.md`, and `CHANGELOG.md`.
+- **Indicator correctness is not closed:** the three-seed full-series harness measures 30 matching types and 20 divergences at absolute tolerance `1e-9`. Each remaining divergence is an individual `test.failing` case. The authoritative list and formulas are in `packages/corex-strategy-engine/test/reference/DIVERGENCE.md` and `test/characterisation/known-broken.json`.
+- **Package purity is not complete:** `Strategy.js` still imports `@utils/logger` and `@config/constants`; `StrategyDataManager.js` and `StrategyRuntimeUtils.js` still import `@config/constants`. Inject logger and internalise strategy-owned constants in a bounded follow-up; do not remove runtime logging behavior or host defaults without integration tests.
+- **Shared math surface:** `Strategy.math` exposes a shared mutable `mathjs` instance. Review actual strategy usage before removing it or replacing it with a frozen subset.
+- **Editor manifest dependency:** `StrategyManifest` uses `technicalindicators` to build editor metadata. Confirm whether this remains a supported feature before removing the dependency.
+- **Temporary indicator compatibility:** `IndicatorManager` still has a legacy dispatch path for indicators not yet migrated to Frame/BaseIndicator. Retire it only after all registry classes pass the Frame contract and full-series parity.
+- **Performance evidence:** the bar-close dispatch benchmark (14 indicators, 200k bars, seven alternating runs, explicit GC) measured Map median 3,624.447 ms and dense median 3,023.138 ms (ratio 0.8341). This is a dispatch-fixture result only; it does not support a 2.5x or end-to-end speed claim.
+- **Memory evidence:** warmed 100k+100k memory smoke retained 9,768 bytes (0.009 MiB), below the 2 MiB gate.
+- **Agent handoff:** H1–H5 correctness/family fixes remain unstarted. Their prompts are prepared and refreshed at `.corex-handoff/prompts/H1.md` through `H5.md` with the frozen G3 contract, current parity baseline, metadata/changelog rules and shared-file restrictions. Do not bulk-migrate before reviewing each family.
 
 ## 3. Socket_X Is Not Mounted / Execution Authority Is Fragmented
 
@@ -70,8 +77,8 @@ This document records known issues, security limitations, and accepted test base
 - Before B3, the strategy compiler used `Module._compile()` with `Module._nodeModulePaths(process.cwd())`, exposing Node's normal CommonJS resolver rather than a strategy-owned allow-list. B3 replaces that path with a wrapper and an exact compiler-owned allow-list for the injected CommonJS `require` function.
 - Reproduced on Node v22.20.0: the scanner accepts aliased `const load = require; load("fs")`, dynamic `import("node:fs")`, `require.resolve("fs")`, and an arbitrary package name containing the substring `BaseStrategy`.
 - Before B3, the compile path successfully loaded `node:fs` through dynamic import, resolved `../../package.json` from the synthetic `db://strategies/...js` filename, and loaded `corex-strategy-engine/src/Strategy` through the root `module-alias` prefix mapping despite the scanner rejecting that literal subpath. B3's injected resolver now blocks these paths through its `require` parameter; SEC-01 still covers process-global execution escapes.
-- The current `utils/template.txt` still generates `@utils/BaseStrategy` imports. B3 must preserve only this exact temporary legacy specifier if compatibility requires it; P3 owns moving the template into the strategy package, and P5 owns deletion of the legacy BaseStrategy implementation. Do not retain substring matching.
-- Classification: HIGH-IMPORTANCE SECURITY DEFECT / active B3 workstream. Evidence, bounded design and acceptance criteria are in `plans/tasks/B3-sandbox-module-resolution.md`. B3 restricts only the injected CommonJS `require` channel; it is not execution isolation and does not stop process-global APIs from loading modules. SEC-01 remains separate.
+- P3 migrated the authoring template from `utils/template.txt` into `packages/corex-strategy-engine/src/strategyTemplate.txt`, extending package `Strategy` with `onBar`/`onTick`. B3 must preserve only this exact temporary legacy specifier if compatibility requires it; P3 owns moving the template into the strategy package, and P5 owns deletion of the legacy BaseStrategy implementation. Do not retain substring matching.
+- Classification: RESOLVED — B3 merged into `main` on 2026-11-21 as `1f39d1fd87cba7d2b569c4120ddf16400b11878a`. The injected CommonJS `require` channel is now restricted by the exact resolver and scanner checks. This does not provide execution isolation or stop process-global API escapes; those remain SEC-01. The implementation and verification record is `plans/tasks/B3-sandbox-module-resolution.md`.
 
 ## 11. Strategy Worker Bypasses the AST Security Scanner (SEC-03)
 
@@ -79,3 +86,16 @@ This document records known issues, security limitations, and accepted test base
 - The path is not merely dead code: `engine/modules/strategyRuntime/workerPool.js` forks this worker, and `isEnabled()` defaults to enabled when `NODE_ENV === "production"` unless `COREX_STRATEGY_WORKER_ENABLED` explicitly overrides it. `engine/modules/strategyRuntime/index.js` sends `LOAD_STRATEGY` requests to the pool; `engine/core/engine.js` imports that runtime module and uses its remote warmup path.
 - Impact: strategies loaded through this worker skip the scanner's non-module checks (forbidden globals, dynamic import syntax, loop restrictions, and related AST rules). B3's compiler-owned exact resolver still constrains the injected `require()` function at runtime, but it does not replace those scanner checks, constrain process-global APIs, or provide execution isolation.
 - Classification: HIGH-IMPORTANCE SECURITY DEFECT / separate follow-up. Do not silently expand B3 into worker lifecycle or validation-pipeline redesign. Scope the worker's validation ownership, error handling, and tests separately; SEC-01 remains the broader execution-isolation workstream.
+
+## 12. Yahoo Finance Provider Incompatible with `yahoo-finance2` v4.x
+
+- **Affected:** `packages/corex-market-data/src/providers/YahooFinanceProvider.js:151` — `yahoo.chart(queryOpts)` passes an options object `{symbol, interval, range, includePrePost}`.
+- **Root cause:** Installed `yahoo-finance2@^4.0.2` expects a single string symbol as its `chart()` query argument, not an options object.
+- **Observed:** Both `EURUSD=X` and `AAPL` return `PROVIDER_UNAVAILABLE: yahooFinance.chart() expects a single string symbol as its query, not an object`.
+- **Classification:** CONFIRMED DEFECT — provider implementation broken against installed dependency version. Separate implementation task required. Does not affect Twelve Data (active provider).
+
+## 13. Frontend Hardcoded MetaApi Default Credential
+
+- **Affected:** `front_end/src/views/SettingsView.tsx:174` — `useState({ accountId: 'ma_...', token: 'eyJ...' })` contains a hardcoded MetaApi accountId and JWT-like token as React state defaults. `SettingsView.tsx:80` has `default: 'mt5_sec_token_hash_value'`.
+- **Root cause:** Credential-like values hardcoded in frontend source as demo/default values.
+- **Classification:** CONFIRMED DEFECT — possible unsafe demo/default secret in client source. Not used for authentication in this verification. Separate implementation task required to remove or replace with empty defaults. Literal values not reproduced here.

@@ -24,9 +24,8 @@
 const { loadStrategyModule } = require("./strategyModuleResolver");
 const { bus, EVENTS } = require("@events/bus");
 const logger  = require("@utils/logger");
-const { getStrategyApi } = require("@utils/strategy/StrategyIntrospection");
+const { getStrategyApi } = require("corex-strategy-engine");
 const { TIME } = require("@config/constants");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
 const { assertSafeInstance } = require("corex-strategy-engine");
 
 const log = logger.createModuleLogger("STRATEGY_COMPILER", {
@@ -118,13 +117,6 @@ class StrategyCompiler {
             // Create a TEMPORARY instance to extract metadata
             const tmp = new StrategyClass();
             assertSafeInstance(tmp, StrategyClass);
-            StrategyContract.adapt(tmp);
-
-            // Validate contract on temp instance
-            const contractCheck = StrategyContract.validate(tmp);
-            if (!contractCheck.ok) {
-                return { ok: false, error: `Contract failed: ${contractCheck.reason}` };
-            }
 
             // Validate required fields
             const symbols = Array.isArray(tmp.symbols) ? tmp.symbols :
@@ -141,8 +133,11 @@ class StrategyCompiler {
                 };
             }
 
-            // Extract schema
+            // Extract schema. A throwing defineSchema() must not fail the
+            // compile, but it has to be observable: an empty schema otherwise
+            // looks identical to "this strategy has no parameters".
             let schema = {};
+            let schemaError = null;
             try {
                 if (typeof tmp.defineSchema === "function") {
                     schema = tmp.defineSchema() || {};
@@ -150,7 +145,8 @@ class StrategyCompiler {
                     schema = { ...tmp.schema };
                 }
             } catch (e) {
-                log.warn(`[${id}] Schema extraction failed: ${e.message}`);
+                schemaError = e.message || String(e);
+                log.warn(`[${id}] Schema extraction failed: ${schemaError}`);
             }
 
             // Collect metadata
@@ -162,6 +158,7 @@ class StrategyCompiler {
                 className:        StrategyClass.name || id,
                 compiledAt:       Date.now(),
                 codeLength:       code.length,
+                schemaError,
             };
 
             // ── Destroy temporary instance now ────────────────────────────────
@@ -171,7 +168,7 @@ class StrategyCompiler {
             // Explicitly null any refs the tmp held
             // (GC will handle the rest, but this signals intent)
 
-            return { ok: true, StrategyClass, schema, metadata };
+            return { ok: true, StrategyClass, schema, schemaError, metadata };
 
         } catch (err) {
             return { ok: false, error: `Class extraction failed: ${err.message}` };
@@ -198,25 +195,12 @@ class StrategyCompiler {
 
             const instance = new StrategyClass();
             assertSafeInstance(instance, StrategyClass);
-            StrategyContract.adapt(instance);
 
-            const contractCheck = StrategyContract.validate(instance);
-            if (!contractCheck.ok) {
-                if (typeof instance.destroy === "function") instance.destroy();
-                this.stats.failedCompilations++;
-                return CompilationResult.failure(`Contract: ${contractCheck.reason}`);
-            }
-
-            // Normalise legacy symbol → symbols
-            if (
-                (!instance.symbols || !Array.isArray(instance.symbols) || instance.symbols.length === 0) &&
-                typeof instance.symbol === "string"
-            ) {
-                instance.symbols = [instance.symbol];
-            }
-
-            // Extract schema during full compile to unblock loader persistence
+            // Extract schema during full compile to unblock loader persistence.
+            // A throw is recorded rather than swallowed: callers need to tell
+            // "declared no parameters" apart from "defineSchema() is broken".
             let schema = {};
+            let schemaError = null;
             try {
                 if (typeof instance.defineSchema === "function") {
                     schema = instance.defineSchema() || {};
@@ -224,7 +208,8 @@ class StrategyCompiler {
                     schema = { ...instance.schema };
                 }
             } catch (e) {
-                log.warn(`[${id}] schema extraction failed during compile: ${e.message}`);
+                schemaError = e.message || String(e);
+                log.warn(`[${id}] schema extraction failed during compile: ${schemaError}`);
             }
 
             if (!Array.isArray(instance.symbols) || instance.symbols.length === 0) {
@@ -245,7 +230,6 @@ class StrategyCompiler {
             if (!instance.timeframe) instance.timeframe = TIME.DEFAULT_TIMEFRAMES?.[0] || "1m";
 
             const methods = getStrategyApi(instance);
-            instance.__corexApi      = Object.freeze(methods);
             instance.__corexCompiled = true;
             instance.__corexCompiledAt = Date.now();
 
@@ -267,6 +251,7 @@ class StrategyCompiler {
                 symbols:    instance.symbols,
                 timeframe:  instance.timeframe,
                 schema,
+                schemaError,
                 compiledAt: Date.now(),
                 compileTimeMs: timeMs,
             });

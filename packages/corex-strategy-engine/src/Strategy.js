@@ -2,15 +2,16 @@
 
 const rootLogger = require("@utils/logger");
 const { INTENTS, SIDES, DEFAULT_STRATEGY_CONFIG, PERFORMANCE } = require("@config/constants");
-const { StrategyContract } = require("@core/core/strategy/StrategyContract");
-const StrategyStateStore = require("@utils/strategy/StrategyStateStore");
-const StrategyDataManager = require("@utils/strategy/StrategyDataManager");
+const { getStrategyApi } = require("./StrategyIntrospection");
+const StrategyStateStore = require("./StrategyStateStore");
+const StrategyDataManager = require("./StrategyDataManager");
 const StrategyPositionManager = require("./StrategyPositionManager");
 const StrategyRuntimeUtils = require("./StrategyRuntimeUtils");
 const ParamSchema = require("./ParamSchema");
 const { IndicatorManager } = require("./IndicatorManager");
 const { ContextBuilder } = require("./ContextBuilder");
 const PlotBuffer = require("./PlotBuffer");
+const Frame = require("./kernel/Frame");
 
 /**
  * Immutable architectural invariant: the largest lookback window a strategy may
@@ -121,7 +122,9 @@ const SignalHelpers = {
 class Strategy {
     constructor(config = {}) {
         if (!config.symbols || (Array.isArray(config.symbols) && config.symbols.length === 0)) {
-            if (Array.isArray(this.constructor.symbols) && this.constructor.symbols.length > 0) {
+            if (typeof config.symbol === "string" && config.symbol.trim().length > 0) {
+                config.symbols = [config.symbol.trim().toUpperCase()];
+            } else if (Array.isArray(this.constructor.symbols) && this.constructor.symbols.length > 0) {
                 config.symbols = [...this.constructor.symbols];
             }
         }
@@ -205,6 +208,8 @@ class Strategy {
         this.positions = new StrategyPositionManager();
         this.state = new StrategyStateStore(this.runtimeId);
         this.plotBuffer = new PlotBuffer(config.plotBufferOptions || {});
+        this._packetFrame = new Frame();
+        this._indicatorFrame = new Frame();
 
         this._declarativeInitialized = false;
         this._started = false;
@@ -213,18 +218,26 @@ class Strategy {
         this._ctxBuilder = null;
 
         this._captureAndShadowHooks();
+
+        // Populate immutable __corexApi from package-owned introspection.
+        // Consumed by executionController and compiler instead of engine-side recomputation.
+        this.__corexApi = Object.freeze(getStrategyApi(this));
     }
 
-    _attachRuntime({ broker, mode, runtimeId, symbol }) {
+    _attachRuntime({ broker, mode, runtimeId, symbol, instrument }) {
         this._brokerRef = broker || null;
         const m = String(mode || "UNKNOWN").toUpperCase();
+        const resolved = instrument || this._corexInstrument || null;
         this.env = Object.freeze({
             mode: m,
             isBacktest: m === "BACKTEST",
             isPaper: m === "PAPER",
             isLive: m === "LIVE",
             runtimeId: runtimeId || this.runtimeId,
-            symbol: symbol || this.symbols[0] || "",
+            symbol: symbol || resolved?.canonical || this.symbols[0] || "",
+            ...(resolved
+                ? { instrument: resolved, pipScale: resolved.pipScale, assetClass: resolved.assetClass }
+                : {}),
         });
         if (broker && typeof broker.getPositionSnapshot === "function") {
             this._posSnapshot = broker.getPositionSnapshot() ||
@@ -328,60 +341,64 @@ class Strategy {
     _processData(packet, meta = {}) {
         this._ensureInitialized();
 
-        const source = meta.source || meta.type || "tick";
-        const isBar = source === "bar";
+        const isBar = (meta.source || meta.type || "tick") === "bar";
+        if (!this._packetFrame.load(packet)) return null;
 
-        if (!packet?.symbol || typeof packet.time !== "number") return null;
-
-        const symbol = packet.symbol;
+        const symbol = this._packetFrame.symbol;
+        if (!symbol) return null;
+        const frame = this._packetFrame;
+        const normalizedPacket = frame.toPacket();
+        let indicatorFrame = null;
 
         if (isBar) {
-            this.dataManager.ingestBar(packet);
-            this.currentBar = packet;
+            this.currentBar = this.dataManager.ingestBar(frame);
+            indicatorFrame = frame;
         } else {
-            this.lastTick = packet;
-            const result = this.dataManager.updateTick({
-                symbol,
-                time: packet.time,
-                price: packet.price ?? packet.close,
-                volume: packet.volume ?? 0
-            }, this.tfMs);
+            this.lastTick = normalizedPacket;
+            const result = this.dataManager.updateTick(frame, this.tfMs);
+            if (result.ignored) return null;
+            if (result.closed) {
+                this.currentBar = result.candle;
+                if (this._indicatorFrame.load(result.candle)) {
+                    this._indicatorFrame.symbol = symbol;
+                    indicatorFrame = this._indicatorFrame;
+                }
+            }
             if (this.candleBased && !result.closed) return null;
         }
 
+        // One normalisation at Frame.load(); indicators advance only on closed bars.
+        // ctx.price remains the current tick for intrabar risk/stop logic.
+        const ctx = this._ctxBuilder.buildContext(normalizedPacket, isBar, indicatorFrame);
         if (!this._started) {
-            const ctxInit = this._ctxBuilder.buildContext(packet, isBar);
-            if (typeof this._userHooks.onStart === "function") {
-                this._userHooks.onStart(ctxInit);
-            }
+            if (typeof this._userHooks.onStart === "function") this._userHooks.onStart(ctx);
             this._started = true;
         }
 
-        const ctx = this._ctxBuilder.buildContext(packet, isBar);
         let signal = null;
-
         if (isBar && typeof this._userHooks.onBar === "function") {
-            signal = this._userHooks.onBar(ctx, packet);
+            signal = this._userHooks.onBar(ctx, normalizedPacket);
         } else if (!isBar && typeof this._userHooks.onTick === "function") {
-            signal = this._userHooks.onTick(ctx, packet);
+            signal = this._userHooks.onTick(ctx, normalizedPacket);
         } else if (typeof this.generateSignal === "function" && this.generateSignal !== Strategy.prototype.generateSignal) {
-            signal = this.generateSignal(packet, { isWarmup: false });
+            signal = this.generateSignal(normalizedPacket, { isWarmup: false });
         }
 
-        if (!signal && this._flipNext) {
-            signal = this.applyFlip(symbol);
-        }
-
+        if (!signal && this._flipNext) signal = this.applyFlip(symbol);
         if (signal) {
             signal.symbol = symbol;
-            signal.time = packet.time;
+            signal.time = normalizedPacket.time;
             signal.barTime = this.currentBar?.time;
             signal.tf = this.timeframe;
         }
-
         return signal;
     }
 
+    /**
+     * Tick hooks receive the live quote in ctx.price. Indicator values are
+     * advanced only when a candle closes; use ctx.price for intrabar stop/risk
+     * checks rather than assuming ctx.indicators reflect the current tick.
+     */
     onTick(tick) {
         return this._processData(tick, { source: "tick" });
     }
@@ -397,6 +414,21 @@ class Strategy {
 
     generateSignal(packet, context = {}) {
         return this.onMarketData(packet, context);
+    }
+
+    /**
+     * Return a canonical state snapshot for status reporting.
+     * Fields: id, name, symbols, timeframe, mode.
+     * Mode reflects the last _attachRuntime() call, or "UNKNOWN" before runtime attach.
+     */
+    getStateSnapshot() {
+        return {
+            id: this.id,
+            name: this.name,
+            symbols: [...this.symbols],
+            timeframe: this.timeframe,
+            mode: this.env.mode || "UNKNOWN",
+        };
     }
 
     buy(params) { return this.entryLong(params); }
@@ -513,6 +545,5 @@ class Strategy {
 
 Object.assign(Strategy.prototype, SignalHelpers);
 Object.assign(Strategy.prototype, StrategyRuntimeUtils);
-StrategyContract.adapt(Strategy.prototype);
 
 module.exports = { Strategy, MAX_ALLOWED_LOOKBACK };

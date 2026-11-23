@@ -18,6 +18,7 @@ const path = require("path");
 
 const backtestManager = require("@core/backtestManager");
 const db = require("@core/services/postgres");
+const { Strategy } = require("corex-strategy-engine");
 
 const TMP_DIR = fs.mkdtempSync(path.join(os.tmpdir(), "corex-e01-backtest-"));
 const CSV_PATH = path.join(TMP_DIR, "synthetic_1m.csv");
@@ -45,26 +46,21 @@ function buildSyntheticCsv(bars = 120) {
 }
 
 function makeStrategy() {
-    // Plain object with the contract entrypoint `onBar`. StrategyContract.adapt()
-    // (called by backtestManager) supplies generateSignal/getStateSnapshot.
-    return {
-        id: "baseline-strategy",
-        name: "baseline-strategy",
-        symbols: [SYMBOL],
-        timeframe: "1m",
-        lookback: 20,
-        params: {},
-        onBar(bar) {
+    // Canonical package Strategy instance (P2: bypasses StrategyContract).
+    class BaselineStrategy extends Strategy {
+        static symbols = [SYMBOL];
+        static timeframe = "1m";
+        static lookback = 20;
+
+        onBar(ctx, bar) {
             const i = Math.round((bar.time - Date.UTC(2026, 0, 1, 0, 0, 0)) / 60000);
             if (i > 0 && i % 10 === 0) {
-                return { intent: "ENTER", side: "long", quantity: 1, symbol: SYMBOL, price: bar.close };
-            }
-            if (i > 0 && i % 10 === 5) {
-                return { intent: "EXIT", side: "long", quantity: 1, symbol: SYMBOL, price: bar.close };
+                return ctx.go.long(1, bar.close);
             }
             return null;
         }
-    };
+    }
+    return new BaselineStrategy({ symbols: [SYMBOL], timeframe: "1m", lookback: 20 });
 }
 
 function runOptions(onProgress) {
@@ -169,6 +165,21 @@ describe("ENGINE-01 P0 — backtest report persistence (characterization)", () =
         } finally {
             backtestManager.storagePath = original;
         }
+    });
+
+    test("scoped report IDs are stored with safe filenames while metadata stays unchanged", async () => {
+        const scopedId = "8bb1780d-977e-4075-8525-312035860760::9ebc7421";
+        const report = { meta: { id: scopedId }, performance: {}, trades: [] };
+        const filepath = await backtestManager._saveToFile(report);
+        const expectedPath = path.join(backtestManager.storagePath, "8bb1780d-977e-4075-8525-312035860760__9ebc7421.json");
+
+        expect(filepath).toBe(expectedPath);
+        expect(fs.existsSync(filepath)).toBe(true);
+        expect(JSON.parse(fs.readFileSync(filepath, "utf8")).meta.id).toBe(scopedId);
+        expect(backtestManager.getTradesCsvPath(scopedId)).toBe(
+            path.join(backtestManager.storagePath, "8bb1780d-977e-4075-8525-312035860760__9ebc7421.trades.csv")
+        );
+        createdFiles.push(filepath);
     });
 
     test("report file contains the expected top-level structure", async () => {

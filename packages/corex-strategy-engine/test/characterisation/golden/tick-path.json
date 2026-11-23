@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "provenance": "characterisation of the current implementation; not an indicator correctness reference",
+  "samples": [
+    {
+      "time": 61000,
+      "isBar": false,
+      "price": 13,
+      "close": 13,
+      "ema": null,
+      "emaReady": false,
+      "atr": null,
+      "atrReady": false,
+      "storedBars": 1
+    },
+    {
+      "time": 121000,
+      "isBar": false,
+      "price": 12,
+      "close": 12,
+      "ema": null,
+      "emaReady": false,
+      "atr": null,
+      "atrReady": false,
+      "storedBars": 2
+    },
+    {
+      "time": 181000,
+      "isBar": false,
+      "price": 16,
+      "close": 16,
+      "ema": 12.833333333333334,
+      "emaReady": true,
+      "atr": null,
+      "atrReady": false,
+      "storedBars": 3
+    },
+    {
+      "time": 241000,
+      "isBar": false,
+      "price": 15,
+      "close": 15,
+      "ema": 14.666666666666668,
+      "emaReady": true,
+      "atr": 3.3333333333333335,
+      "atrReady": true,
+      "storedBars": 4
+    },
+    {
+      "time": 301000,
+      "isBar": false,
+      "price": 19,
+      "close": 19,
+      "ema": 15.833333333333334,
+      "emaReady": true,
+      "atr": 3.555555555555556,
+      "atrReady": true,
+      "storedBars": 5
+    },
+    {
+      "time": 361000,
+      "isBar": false,
+      "price": 20,
+      "close": 20,
+      "ema": 17.666666666666668,
+      "emaReady": true,
+      "atr": 3.3703703703703702,
+      "atrReady": true,
+      "storedBars": 6
+    }
+  ]
+}

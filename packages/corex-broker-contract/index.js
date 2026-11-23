@@ -11,6 +11,7 @@ const RuntimeBrokerFactory = require("./src/RuntimeBrokerFactory");
 const mt5Bridge = require("./src/mt5Bridge");
 const SharedFillSim = require("./src/utils/SharedFillSim");
 const SymbolNormalizer = require("./src/utils/SymbolNormalizer");
+const { resolveInstrument, toProviderSymbol } = require("./src/utils/Instruments");
 const DataPaginationLayer = require("./src/utils/DataPaginationLayer");
 
 module.exports = {
@@ -26,6 +27,8 @@ module.exports = {
     mt5Bridge,
     SharedFillSim,
     SymbolNormalizer,
+    resolveInstrument,
+    toProviderSymbol,
     DataPaginationLayer,
     STANDARD_METRICS_SHAPE,
     TRADE_RECORD_SHAPE,

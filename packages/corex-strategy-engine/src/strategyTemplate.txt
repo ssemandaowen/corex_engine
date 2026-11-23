@@ -1,0 +1,79 @@
+"use strict";
+
+const { Strategy } = require("corex-strategy-engine");
+
+class ${name} extends Strategy {
+    static symbols = ["BTC/USD"];
+    static timeframe = "1m";
+    static lookback = 100;
+
+    static params = {
+        fastPeriod: { type: "integer", default: 9, min: 2, max: 100 },
+        slowPeriod: { type: "integer", default: 21, min: 3, max: 200 },
+        quantity: { type: "number", default: 1, min: 0.000001 }
+    };
+
+    static indicators = {
+        fastEma: { type: "EMA", periodKey: "fastPeriod", source: "close" },
+        slowEma: { type: "EMA", periodKey: "slowPeriod", source: "close" }
+    };
+
+    onStart(ctx) {
+        ctx.state.set("startedAt", ctx.time);
+        ctx.mark("strategy", "Strategy started");
+    }
+
+    onBar(ctx, bar) {
+        if (!ctx.requireBars(this.params.slowPeriod, "slowEma")) {
+            return null;
+        }
+
+        const fast = ctx.indicators.fastEma;
+        const slow = ctx.indicators.slowEma;
+
+        if (!fast?.ready || !slow?.ready) {
+            return null;
+        }
+
+        ctx.plot("fastEma", fast.value);
+        ctx.plot("slowEma", slow.value);
+
+        if (ctx.ta.crossover(fast, slow)) {
+            ctx.mark("entry", "Fast EMA crossed above slow EMA");
+            return ctx.go.long(this.params.quantity, bar.close);
+        }
+
+        if (ctx.ta.crossunder(fast, slow)) {
+            ctx.mark("exit", "Fast EMA crossed below slow EMA");
+            return ctx.flat(this.params.quantity, bar.close);
+        }
+
+        // Other supported order operations:
+        // return ctx.go.short(this.params.quantity, bar.close);
+        // return ctx.go.scale(this.params.quantity, bar.close);
+        // return ctx.go.protect({ sl: stopLossPrice, tp: takeProfitPrice, trailPct: 0.5 });
+
+        return null;
+    }
+
+    onTick(ctx, tick) {
+        // Raw-tick hook: enable candleBased: false in the runtime configuration
+        // when the strategy must process every incoming tick instead of completed bars.
+        return null;
+    }
+
+    onFill(ctx, fill) {
+        ctx.state.set("lastFill", {
+            symbol: fill.symbol,
+            side: fill.side,
+            price: fill.fill_price,
+            time: fill.filled_at || ctx.time
+        });
+    }
+
+    onStop(ctx) {
+        ctx.mark("strategy", "Strategy stopped");
+    }
+}
+
+module.exports = ${name};

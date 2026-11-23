@@ -1,31 +1,22 @@
 "use strict";
 
-const StrategyParamUtils = require("@utils/strategy/StrategyParamUtils");
+const { collectStatic } = require("./params/collect");
+const {
+    normalizeSpec,
+    serializeSchema,
+    applyDefaults,
+    diffParams
+} = require("./params/spec");
+const { applyPatch } = require("./params/patch");
 
 function collectStaticParams(StrategyClass, stopAt) {
-    let curr = StrategyClass;
-    let result = {};
-    while (curr && curr !== stopAt && curr !== Object) {
-        if (curr.params) {
-            result = Object.assign({}, curr.params, result);
-        }
-        curr = Object.getPrototypeOf(curr);
-    }
-    return result;
-}
-
-function normalizeParamSpec(spec) {
-    if (spec === null || typeof spec !== "object" || Array.isArray(spec)) {
-        return { default: spec };
-    }
-    return { ...spec };
+    return collectStatic(StrategyClass, "params", stopAt);
 }
 
 function toSchema(staticParams) {
-    if (!staticParams || typeof staticParams !== "object") return {};
     const schema = {};
-    for (const [key, def] of Object.entries(staticParams)) {
-        schema[key] = normalizeParamSpec(def);
+    for (const [key, spec] of Object.entries(staticParams || {})) {
+        schema[key] = normalizeSpec(spec);
     }
     return schema;
 }
@@ -40,43 +31,27 @@ class ParamSchema {
     }
 
     static serialize(schema) {
-        return StrategyParamUtils.serializeSchema(schema);
+        return serializeSchema(schema);
     }
 
     static applyDefaults(params, schema) {
-        const result = Object.assign({}, params);
-        for (const [key, spec] of Object.entries(schema || {})) {
-            if (result[key] === undefined && spec.default !== undefined) {
-                const def = spec.default;
-                if (def && typeof def === "object" && !Array.isArray(def)) {
-                    try {
-                        result[key] = JSON.parse(JSON.stringify(def));
-                    } catch (_) {
-                        result[key] = def;
-                    }
-                } else {
-                    result[key] = def;
-                }
-            }
-        }
-        return result;
+        return applyDefaults(params, schema);
     }
 
     static applyPatch(params, patch, schema) {
-        const result = StrategyParamUtils.applyParamPatch(params, patch, schema);
-        return result;
+        return applyPatch(params, patch, schema);
     }
 
     static diffParams(currentParams, newParams, schema) {
-        return StrategyParamUtils.diffParams(currentParams, newParams, schema);
+        return diffParams(currentParams, newParams, schema);
     }
 }
 
-ParamSchema.serializeSchema = StrategyParamUtils.serializeSchema;
-ParamSchema.applyParamPatch = StrategyParamUtils.applyParamPatch;
-ParamSchema.diffParams = StrategyParamUtils.diffParams;
+ParamSchema.serializeSchema = serializeSchema;
+ParamSchema.applyParamPatch = applyPatch;
+ParamSchema.diffParams = diffParams;
 
 module.exports = ParamSchema;
 module.exports.collectStaticParams = collectStaticParams;
 module.exports.toSchema = toSchema;
-module.exports.normalizeParamSpec = normalizeParamSpec;
+module.exports.normalizeParamSpec = normalizeSpec;

@@ -1,61 +1,53 @@
 "use strict";
 
-class IncrementalATR {
-    static updateMode = "multi";
+const BaseIndicator = require("./BaseIndicator");
+const WilderCore = require("./core/WilderCore");
+
+class IncrementalATR extends BaseIndicator {
+    static updateMode = "single";
+    static meta = Object.freeze({ version: 2, aliases: ["AverageTrueRange"], cost: "O(1)" });
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
 
-    constructor(period = 14) {
-        if (!period || period < 1) throw new Error("ATR period must be >= 1");
+    constructor(period = 14, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) throw new TypeError("ATR period must be a positive integer");
         this.period = period;
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._prevClose = null;
-        this._trBuffer = [];
+        this.core = new WilderCore(period);
+        this._prevClose = NaN;
     }
 
-    update(high, low, close) {
-        this.prev = this.value;
-        if (this._prevClose === null) {
-            this._prevClose = close;
-            return this.value;
+    onFrame(frame) {
+        if (!Number.isFinite(this._prevClose)) {
+            this._prevClose = frame.c;
+            this.value = NaN;
+            this.ready = false;
+            return;
         }
-
-        const hl = high - low;
-        const hc = Math.abs(high - this._prevClose);
-        const lc = Math.abs(low - this._prevClose);
-        const tr = Math.max(hl, hc, lc);
-        this._prevClose = close;
-
-        if (!this.ready) {
-            this._trBuffer.push(tr);
-            if (this._trBuffer.length === this.period) {
-                let sum = 0;
-                for (let i = 0; i < this.period; i++) {
-                    sum += this._trBuffer[i];
-                }
-                this.value = sum / this.period;
-                this.ready = true;
-                this._trBuffer = null;
-            }
-            return this.value;
-        }
-
-        this.value = (this.value * (this.period - 1) + tr) / this.period;
-        return this.value;
+        const tr = Math.max(
+            frame.h - frame.l,
+            Math.abs(frame.h - this._prevClose),
+            Math.abs(frame.l - this._prevClose)
+        );
+        this._prevClose = frame.c;
+        const next = this.core.update(tr);
+        this.ready = this.core.ready;
+        this.value = this.ready ? next : NaN;
     }
 
-    reseed(candles) {
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._prevClose = null;
-        this._trBuffer = [];
-        for (let i = 0; i < candles.length; i++) {
-            const c = candles[i];
-            this.update(c.high, c.low, c.close);
-        }
-        return this.value;
+    onReset() {
+        this.core = new WilderCore(this.period);
+        this._prevClose = NaN;
+    }
+
+    reconfigure(params = {}, store, scratchFrame) {
+        const period = params.period === undefined ? this.period : params.period;
+        if (!Number.isInteger(period) || period < 1) throw new TypeError("ATR period must be a positive integer");
+        this.period = period;
+        return super.reconfigure({ source: params.source === undefined ? this.source : params.source }, store, scratchFrame);
+    }
+
+    setPeriod(period) {
+        return this.reconfigure({ period });
     }
 }
 

@@ -153,6 +153,7 @@ class RuntimeLifecycle {
                     mode:      profile.mode,
                     runtimeId,
                     symbol:    profile.symbol,
+                    instrument: profile.instrument,
                 });
             }
 

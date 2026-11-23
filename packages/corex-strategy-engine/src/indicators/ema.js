@@ -1,47 +1,42 @@
 "use strict";
 
-class IncrementalEMA {
+const BaseIndicator = require("./BaseIndicator");
+const EmaCore = require("./core/EmaCore");
+
+class IncrementalEMA extends BaseIndicator {
     static updateMode = "single";
     static resolveParams = (indDef, rp) => [rp ? rp(indDef) : (indDef.period ?? 14)];
+    static meta = Object.freeze({ version: 2, aliases: ["ExponentialMovingAverage"], cost: "O(1)" });
 
-    constructor(period) {
-        if (!period || period < 1) throw new Error("EMA period must be >= 1");
+    constructor(period, options = {}) {
+        super(options);
+        if (!Number.isInteger(period) || period < 1) throw new TypeError("EMA period must be a positive integer");
         this.period = period;
-        this.multiplier = 2 / (period + 1);
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._buffer = [];
+        this.core = new EmaCore(period);
+        this.multiplier = this.core.alpha;
     }
 
-    update(price) {
-        this.prev = this.value;
-        if (!this.ready) {
-            this._buffer.push(price);
-            if (this._buffer.length === this.period) {
-                let sum = 0;
-                for (let i = 0; i < this.period; i++) {
-                    sum += this._buffer[i];
-                }
-                this.value = sum / this.period;
-                this.ready = true;
-                this._buffer = null;
-            }
-            return this.value;
-        }
-        this.value = (price - this.prev) * this.multiplier + this.prev;
-        return this.value;
+    onFrame(frame) {
+        const next = this.core.update(this.readSource(frame));
+        this.ready = this.core.ready;
+        this.value = this.ready ? next : NaN;
     }
 
-    reseed(values) {
-        this.value = 0;
-        this.prev = 0;
-        this.ready = false;
-        this._buffer = [];
-        for (let i = 0; i < values.length; i++) {
-            this.update(values[i]);
-        }
-        return this.value;
+    onReset() {
+        this.core.reset();
+    }
+
+    reconfigure(params = {}, store, scratchFrame) {
+        const period = params.period === undefined ? this.period : params.period;
+        if (!Number.isInteger(period) || period < 1) throw new TypeError("EMA period must be a positive integer");
+        this.period = period;
+        this.core = new EmaCore(period);
+        this.multiplier = this.core.alpha;
+        return super.reconfigure({ source: params.source === undefined ? this.source : params.source }, store, scratchFrame);
+    }
+
+    setPeriod(period) {
+        return this.reconfigure({ period });
     }
 }
 
