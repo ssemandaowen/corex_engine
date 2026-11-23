@@ -36,6 +36,20 @@ Specific future review points:
 
 These are open consultation/fix items, not completed fixes. Each formula change must ship with its independent reference test, static metadata version bump and changelog entry. Keep one `test.failing` per known divergence until that specific reference passes; do not weaken tolerances or alter fixtures to reduce the count.
 
+## Reference baseline and verification record — 2026-11-23
+
+The reference baseline is complete as test evidence, not as production formula certification:
+
+- Registry coverage: **50 types / 50 independent helpers / 50 reference test files**; no missing or extra entries.
+- C2-only reference run: **40 suites / 134 tests passed**.
+- Combined C1+C2 reference run: **50 suites / 161 tests passed**.
+- Full-series comparison: **49 incremental types plus Fibonacci's static calculation**, across three deterministic seeds; **30 match / 20 diverge** at absolute tolerance `1e-9`; **0 execution errors**.
+- The 20 current divergences are listed above and expanded with actual values/reasons in [DIVERGENCE.md](../test/reference/DIVERGENCE.md).
+- C2's managed Kilo run exited before writing its final report. The completed artifacts were independently rerun and verified; see the workspace handoff report `.corex-handoff/reports/C2.md`. Do not attribute that independent verification to a successful Kilo process.
+- These are reference/test results only. No production formula correction is claimed by the reference lanes.
+
+The historical benchmark and memory figures below are retained as measured snapshots, not fresh release certification. Re-run them on the target machine before making current performance guarantees.
+
 ## Structural / integration debt
 
 1. **Workspace aliases remain.** `Strategy.js` imports `@utils/logger` and `@config/constants`; `StrategyDataManager.js` and `StrategyRuntimeUtils.js` import `@config/constants`. Package manifest/Jest config also contains monorepo alias mappings. Future work should inject the logger at the host boundary and internalise only strategy-owned constants without changing engine behavior.
